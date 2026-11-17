@@ -10,23 +10,49 @@ import { SourceChip, type AiMeta } from "./chips";
 import type { PageHost } from "./host";
 import type { LocalModel } from "./useLocalModel";
 
-type Origin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
-
 const CHECK_SCHEMA = { type: "object", properties: { ok: { type: "boolean" }, message: { type: "string" } }, required: ["ok", "message"] };
 
-/** Steps with no AI: one per field, using the page's own labels. Used when no model can build a real wizard. */
+const KIND_FORMAT: Partial<Record<FieldStructure["kind"], string>> = {
+  date: "A date",
+  email: "An email address, like name@example.com",
+  tel: "A phone number",
+  number: "A number",
+};
+
+/** The format a field expects, in plain words, from what the page itself says: placeholder, pattern, then kind. */
+export function basicFormat(f: FieldStructure): string | undefined {
+  if (f.placeholder) return f.placeholder;
+  const digits = /^(?:\\d|\[0-9\])\{(\d+)(?:,(\d+))?\}$/.exec(f.pattern ?? "");
+  if (digits) return digits[2] ? `${digits[1]} to ${digits[2]} digits` : `${digits[1]} digits`;
+  return KIND_FORMAT[f.kind];
+}
+
+/** Steps with no AI: one per field, quoting the page's own label as written. Used when no model can build a wizard. */
 export function basicWizard(s: FormStructure, readerLang: string): Wizard {
   return {
     fingerprint: s.fingerprint,
     readerLang,
-    steps: s.fields.map((f): WizardStep => ({
-      stepId: f.fieldId,
-      fieldIds: [f.fieldId],
-      question: f.label,
-      explanation: f.hint ?? (f.required ? "The form needs this answer." : "You can leave this empty."),
-      ...(f.placeholder ? { example: f.placeholder, expectedFormat: f.placeholder } : {}),
-    })),
+    steps: s.fields.map((f): WizardStep => {
+      const format = basicFormat(f);
+      return {
+        stepId: f.fieldId,
+        fieldIds: [f.fieldId],
+        question: `Fill in: "${f.label}"`,
+        explanation: "This is the form's own label. Ask the AI for an explanation, or type what the form asks for.",
+        ...(f.placeholder ? { example: f.placeholder } : {}),
+        ...(format ? { expectedFormat: format } : {}),
+      };
+    }),
   };
+}
+
+type Origin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
+
+/** The chip that says where the steps came from, when no AI ran for them. */
+export function originChip(o: Exclude<Origin, { kind: "ai" }>): { text: string; title: string } {
+  return o.kind === "cache"
+    ? { text: "Saved guide (no AI used)", title: "Steps saved earlier for this same form. No AI ran now." }
+    : { text: "No AI used", title: `${o.why} These steps use the form's own labels.` };
 }
 
 function modelNote(state: LocalModel["state"]): string {
@@ -188,8 +214,11 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
       </div>
       <div className="result-meta">
         {origin?.kind === "ai" && <SourceChip meta={origin.meta} />}
-        {origin?.kind === "cache" && <span className="chip" title="Steps saved earlier for this same form. No AI ran now.">Saved guide (no AI used)</span>}
-        {origin?.kind === "basic" && <span className="chip chip-basic" title={origin.why}>Basic steps. {origin.why}</span>}
+        {origin && origin.kind !== "ai" && (
+          <span className={origin.kind === "basic" ? "chip chip-basic" : "chip"} title={originChip(origin).title} data-testid="origin-chip">
+            {originChip(origin).text}
+          </span>
+        )}
       </div>
 
       {!finished && step && (
