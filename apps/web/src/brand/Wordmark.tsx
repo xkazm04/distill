@@ -1,4 +1,4 @@
-import { useTheme } from "./theme";
+import { useShellArt } from "./theme";
 import ink360 from "./assets/wordmark-ink-360.webp";
 import ink720 from "./assets/wordmark-ink-720.webp";
 import ink1280 from "./assets/wordmark-ink-1280.webp";
@@ -16,7 +16,7 @@ const SETS = {
 export const WORDMARK_RATIO = 1219 / 497;
 
 interface Props {
-  /** "auto" follows the theme; "ink" always (the mark sits on the paper of the hero print). */
+  /** "auto" takes the cut the active theme binds for its ground; "ink" always (the mark sits on the paper of the hero print). */
   tone?: "auto" | "ink";
   /** The rendered CSS width, for the browser's pick from the srcset. */
   sizes: string;
@@ -24,8 +24,8 @@ interface Props {
 }
 
 export function Wordmark({ tone = "auto", sizes, className }: Props) {
-  const { mode } = useTheme();
-  const set = tone === "ink" || mode === "light" ? "ink" : "paper";
+  const art = useShellArt();
+  const set = tone === "ink" ? "ink" : art.wordmark;
   return (
     <img className={className} src={set === "ink" ? ink720 : paper720} srcSet={SETS[set]} sizes={sizes}
       width={1219} height={497} alt="Distill" decoding="async" />

@@ -3,6 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { applyBinding } from "../ui/theme/apply";
 import { BRAND_DARK, BRAND_LIGHT } from "../ui/theme/brand";
+import type { ThemeBinding } from "../ui/theme/roles";
+import { applyShell, SHELL_ART_DARK, SHELL_ART_LIGHT, SHELL_DARK, SHELL_LIGHT, type ShellArt, type ShellBinding } from "./shell";
 
 export type ThemePref = "system" | "light" | "dark";
 export type ThemeMode = "light" | "dark";
@@ -35,13 +37,23 @@ export function resolveMode(pref: ThemePref, systemDark: boolean): ThemeMode {
   return pref === "system" ? (systemDark ? "dark" : "light") : pref;
 }
 
-/** Binds the brand roles for `mode` on the root element and tells the browser which scheme its own controls use. */
+/**
+ * The complete binding set of each state: the shared roles, the shell's brand tokens and its non-CSS art choices. This
+ * table is the ONE place a theme state selects values; components and CSS read the bound result, never the mode.
+ */
+export const BINDINGS: Record<ThemeMode, { roles: ThemeBinding; shell: ShellBinding; art: ShellArt }> = {
+  light: { roles: BRAND_LIGHT, shell: SHELL_LIGHT, art: SHELL_ART_LIGHT },
+  dark: { roles: BRAND_DARK, shell: SHELL_DARK, art: SHELL_ART_DARK },
+};
+
+/** Binds the brand roles and shell tokens for `mode` on the root element and tells the browser which scheme its own controls use. */
 export function stampTheme(root: HTMLElement, mode: ThemeMode): void {
-  const b = mode === "dark" ? BRAND_DARK : BRAND_LIGHT;
-  applyBinding(root, b);
+  const b = BINDINGS[mode];
+  applyBinding(root, b.roles);
+  applyShell(root, b.shell);
   root.dataset.theme = mode;
   root.style.colorScheme = mode;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", b["--bg"]);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", b.roles["--bg"]);
 }
 
 // A tiny external store, so the header switch and every wordmark share one answer.
@@ -79,4 +91,9 @@ function getSnapshot() {
 
 export function useTheme(): { pref: ThemePref; mode: ThemeMode } {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/** The active state's non-CSS bindings (which wordmark cut reads on the ground). */
+export function useShellArt(): ShellArt {
+  return BINDINGS[useTheme().mode].art;
 }

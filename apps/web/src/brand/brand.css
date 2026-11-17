@@ -1,22 +1,38 @@
 /* The web shell's brand layer: everything Worm Type that is not a theme role (riso grain, the coil, the hero print,
-   the drip, the entrance). The extension never loads this file; the shared UI only sees roles. */
+   the drip, the entrance). The extension never loads this file; the shared UI only sees roles.
+   Colours: none here. The --ink-*, --print-edge, --grain, --coil-* and --num-shadow tokens are derived from the brand
+   source (ui/theme/brand.ts) by ./shell.ts and bound on <html> per theme state by stampTheme. No rule here asks which
+   theme is active; a value that differs in dark is a token bound differently there. scripts/check-tokens.mjs fails the
+   check on any colour literal in this file. */
+
+/* Motion: the one vocabulary for how long and with what character things move. Pick the step by what moves:
+   instant = a colour or tint change; fast = a small element nudging (a mark wobble, a card lift, an arrow);
+   base = an element-level change (the example art); slow = an entrance; deliberate = an attention settle.
+   Easings by role: enter decelerates, exit accelerates, move is symmetric, expressive overshoots (springs).
+   Reduced motion rebinds the vocabulary itself (below), so a new animation complies without a list to update. */
 :root {
-  --ink-aubergine: #371C46;
-  --ink-pink: #FF62AD;
-  --ink-pink-soft: #FFD3E8;
-  --ink-butter: #FFE66B;
-  --ink-paper: #FFF8F0;
-  --ink-plum: #5A3470;
-  --print-edge: var(--ink-aubergine);
-  --misprint: color-mix(in srgb, var(--ink-pink) 70%, transparent);
-  --grain-opacity: .2;
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .22 0 0 0 0 .11 0 0 0 0 .27 0 0 0 -2.2 1.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --dur-instant: 150ms;
+  --dur-fast: 250ms;
+  --dur-base: 350ms;
+  --dur-slow: 700ms;
+  --dur-deliberate: 900ms;
+  --dur-loop: 1200ms;   /* one cycle of a repeating choreography (the drip) */
+  --dur-draw: 2200ms;   /* a line drawing itself (the coil) */
+  --motion-stagger: 70ms;
+  --motion-repeat: infinite;
+  --motion-travel: 1;   /* scales hover travel (lift, tilt, grow); 0 keeps elements where they are */
+  --ease-enter: cubic-bezier(.2, .8, .2, 1);
+  --ease-exit: cubic-bezier(.55, 0, .85, .35);
+  --ease-move: cubic-bezier(.4, 0, .2, 1);
+  --ease-expressive: cubic-bezier(.3, 1.4, .6, 1);
 }
-:root[data-theme="dark"] {
-  --print-edge: var(--ink-paper);
-  --misprint: color-mix(in srgb, var(--ink-pink) 80%, transparent);
-  --grain-opacity: .13;
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .97 0 0 0 0 .94 0 0 0 -2.2 1.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+@media (prefers-reduced-motion: reduce) {
+  /* Near zero, not zero: a transition that never runs never fires its end event. */
+  :root {
+    --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-deliberate: 1ms; --dur-loop: 1ms;
+    --dur-draw: 1ms; --motion-stagger: 0ms; --motion-repeat: 1; --motion-travel: 0;
+    --ease-enter: linear; --ease-exit: linear; --ease-move: linear; --ease-expressive: linear;
+  }
 }
 
 /* The shell owns the width; the ground is painted on <html> so the grain can sit between it and the content. */
@@ -40,8 +56,8 @@ body { background: transparent; }
   justify-content: space-between; gap: 1rem;
 }
 .shell-home { display: inline-block; flex: none; border-radius: .6rem; padding: .25rem; margin-left: -.25rem; line-height: 0; }
-.shell-mark { display: block; height: 2.75rem; width: auto; transition: transform .25s cubic-bezier(.3, 1.4, .6, 1); }
-.shell-home:hover .shell-mark { transform: rotate(-2.5deg) scale(1.03); }
+.shell-mark { display: block; height: 2.75rem; width: auto; transition: transform var(--dur-fast) var(--ease-expressive); }
+.shell-home:hover .shell-mark { transform: rotate(calc(-2.5deg * var(--motion-travel))) scale(calc(1 + .03 * var(--motion-travel))); }
 .shell-home-page .shell-head .shell-home { visibility: hidden; } /* the hero carries the big mark on Home */
 .shell-work .shell-head { max-width: calc(52rem + .5rem); padding-inline: 1rem .75rem; }
 
@@ -53,7 +69,7 @@ body { background: transparent; }
 .theme-switch label {
   position: relative; display: inline-flex; align-items: center; gap: .35rem; min-height: 2.5rem; min-width: 2.5rem;
   padding: 0 .8rem; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: .9rem; color: var(--fg);
-  transition: background-color .15s, color .15s;
+  transition: background-color var(--dur-instant), color var(--dur-instant);
 }
 .theme-switch label:hover:not(.on) { background: color-mix(in srgb, var(--fg) 8%, transparent); }
 .theme-switch label.on { background: var(--accent); color: var(--accent-fg); }
@@ -107,7 +123,7 @@ body { background: transparent; }
   background: var(--ink-pink); border-radius: 0 50% 50% 50%; transform: rotate(45deg); transform-origin: 50% 50%;
   pointer-events: none;
 }
-.btn.drip:hover::after, .btn.drip:focus-visible::after { animation: drip-fall 1.2s cubic-bezier(.55, 0, .85, .35) infinite; }
+.btn.drip:hover::after, .btn.drip:focus-visible::after { animation: drip-fall var(--dur-loop) var(--ease-exit) var(--motion-repeat); }
 @keyframes drip-fall {
   0% { transform: translateY(0) rotate(45deg) scale(.6); opacity: 1; }
   25% { transform: translateY(0) rotate(45deg) scale(1); }
@@ -123,17 +139,17 @@ body { background: transparent; }
 .home .demo {
   flex: 1; margin: 0; padding: 0; overflow: hidden; gap: 0; border-radius: 1.25rem;
   box-shadow: .4rem .4rem 0 color-mix(in srgb, var(--line) 45%, transparent);
-  transition: transform .25s cubic-bezier(.3, 1.3, .6, 1), box-shadow .25s, border-color .15s;
+  transition: transform var(--dur-fast) var(--ease-expressive), box-shadow var(--dur-fast), border-color var(--dur-instant);
 }
-.home .demo:hover { transform: translateY(-.3rem) rotate(-.6deg); box-shadow: .6rem .7rem 0 var(--ink-pink); border-color: var(--fg); }
+.home .demo:hover { transform: translateY(calc(-.3rem * var(--motion-travel))) rotate(calc(-.6deg * var(--motion-travel))); box-shadow: .6rem .7rem 0 var(--ink-pink); border-color: var(--fg); }
 .home .demo:focus-visible { outline-offset: 4px; }
 .demo-plate { display: grid; place-items: center; height: 9rem; border-bottom: 2px solid var(--line); position: relative; overflow: hidden; }
 .demo-plate::after { content: ""; position: absolute; inset: 0; background-image: var(--grain); background-size: 220px; opacity: .35; mix-blend-mode: multiply; pointer-events: none; }
 .demo-form .demo-plate { background: var(--ink-butter); }
 .demo-article .demo-plate { background: var(--ink-pink-soft); }
 .demo-pricing .demo-plate { background: var(--ink-plum); }
-.demo-art { width: 9.5rem; height: auto; transition: transform .35s cubic-bezier(.3, 1.4, .6, 1); }
-.home .demo:hover .demo-art { transform: scale(1.06) rotate(2deg); }
+.demo-art { width: 9.5rem; height: auto; transition: transform var(--dur-base) var(--ease-expressive); }
+.home .demo:hover .demo-art { transform: scale(calc(1 + .06 * var(--motion-travel))) rotate(calc(2deg * var(--motion-travel))); }
 .demo-art .a-sheet { fill: var(--ink-paper); stroke: var(--ink-aubergine); stroke-width: 2; }
 .demo-art .a-ink { fill: var(--ink-aubergine); }
 .demo-art .a-ink-soft { fill: color-mix(in srgb, var(--ink-aubergine) 30%, var(--ink-paper)); }
@@ -145,25 +161,23 @@ body { background: transparent; }
 .demo-text { display: grid; gap: .3rem; padding: 1.1rem 1.25rem .4rem; }
 .demo-text strong { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2; }
 .demo-go { margin-top: auto; padding: .5rem 1.25rem 1.15rem; font-weight: 700; color: var(--accent); }
-.demo-go span { display: inline-block; transition: transform .2s; }
-.home .demo:hover .demo-go span { transform: translateX(.3rem); }
+.demo-go span { display: inline-block; transition: transform var(--dur-fast) var(--ease-move); }
+.home .demo:hover .demo-go span { transform: translateX(calc(.3rem * var(--motion-travel))); }
 
 /* How it works: the coil runs through the three numbered stops. */
 .how-track { position: relative; }
 .coil path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 /* From the centre of stop 1 to the centre of stop 3 (three columns, 2rem gaps). */
 .how-coil { position: absolute; left: 1.6rem; top: .3rem; width: calc((100% - 4rem) * 2 / 3 + 4rem); height: 2.6rem; z-index: 0; overflow: hidden; }
-.how-coil path { stroke: var(--ink-butter); stroke-width: 3.5; }
-:root[data-theme="light"] .how-coil path { stroke: color-mix(in srgb, var(--ink-butter) 84%, var(--ink-aubergine)); stroke-width: 3; }
+.how-coil path { stroke: var(--coil-ink); stroke-width: var(--coil-width); }
 .how-steps { position: relative; z-index: 1; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; }
 .how-step h3 { font-size: 1.3rem; margin: 1rem 0 .4rem; }
 .how-step p { margin: 0; color: var(--fg); max-width: 22rem; }
 .how-num {
   display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; background: var(--ink-butter);
-  color: var(--ink-aubergine); border: 2px solid var(--ink-aubergine); box-shadow: .2rem .2rem 0 var(--ink-aubergine);
+  color: var(--ink-aubergine); border: 2px solid var(--ink-aubergine); box-shadow: .2rem .2rem 0 var(--num-shadow);
   font-family: var(--font-display); font-weight: 700; font-size: 1.45rem;
 }
-:root[data-theme="dark"] .how-num { box-shadow: .2rem .2rem 0 var(--ink-pink); }
 
 .home-foot { margin-top: 4rem; text-align: center; }
 .home-foot p { max-width: 36rem; margin: .75rem auto 0; }
@@ -171,18 +185,12 @@ body { background: transparent; }
 .foot-coil path { stroke: var(--ink-pink); stroke-width: 3; }
 
 /* Entrance: a short staggered rise, the mark settles in, the coil draws itself. */
-.reveal { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.reveal { animation: rise var(--dur-slow) var(--ease-enter) both; animation-delay: calc(var(--i, 0) * var(--motion-stagger)); }
 @keyframes rise { from { opacity: 0; transform: translateY(1.1rem); } }
-.hero-mark { animation: settle .9s .3s cubic-bezier(.3, 1.35, .5, 1) both; }
+.hero-mark { animation: settle var(--dur-deliberate) var(--dur-base) var(--ease-expressive) both; }
 @keyframes settle { from { opacity: 0; transform: translateY(-.6rem) rotate(-4deg) scale(.94); } }
-.how-coil path { stroke-dasharray: 1; animation: draw 2.2s .7s cubic-bezier(.4, 0, .2, 1) both; }
+.how-coil path { stroke-dasharray: 1; animation: draw var(--dur-draw) var(--dur-slow) var(--ease-move) both; }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal, .hero-mark, .how-coil path { animation: none; }
-  .btn.drip:hover::after, .btn.drip:focus-visible::after { animation: none; }
-  .home .demo, .home .demo:hover, .home .demo:hover .demo-art, .shell-home:hover .shell-mark { transform: none; transition: none; }
-}
 
 /* Narrow screens */
 @media (max-width: 900px) {
