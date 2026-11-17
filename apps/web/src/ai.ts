@@ -15,6 +15,18 @@ export interface RunResult<T> {
 /** The ONE place a person's-values task is pinned to the device. A `values` prompt never gets a cloud model. */
 const VALUES_TASK_MODE = "only_on_device" as const;
 
+/**
+ * The public extension build (VITE_EXT_VARIANT=public) runs EVERY task on the device: no task gets a cloud model, so
+ * the build needs no App Check and can be shared. The comparison is replaced at build time; in tests it reads the
+ * stubbed env. The web app and the build-it-yourself extension ("own") are not this build.
+ */
+export function isOnDeviceOnlyBuild(): boolean {
+  return import.meta.env.VITE_EXT_VARIANT === "public";
+}
+
+/** What the model card says in the on-device-only build. */
+export const ON_DEVICE_ONLY_NOTE = "This version of Distill works only with the AI model on this device. Nothing is sent to the cloud.";
+
 /** What went wrong, as a kind the surfaces can design for. The message is always plain words. */
 export type AiFailure = "busy" | "not-genuine" | "device-only" | "not-configured" | "other";
 
@@ -22,7 +34,9 @@ export type AiFailure = "busy" | "not-genuine" | "device-only" | "not-configured
 export const AI_WORDS: Record<AiFailure, string> = {
   busy: "The AI is busy right now. Try again in a moment.",
   "not-genuine": "This app could not prove it is genuine to the AI service.",
-  "device-only": "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
+  "device-only": isOnDeviceOnlyBuild()
+    ? "This version of Distill uses only the AI model on this device, and it is not ready on this device."
+    : "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
   "not-configured": "Firebase is not configured, so AI features are off.",
   other: "Something went wrong with the AI.",
 };
@@ -84,7 +98,7 @@ export async function run<T = unknown>(task: Task, prompt: string, schema: objec
   try {
     return await runRaw<T>(task, prompt, schema, devContext);
   } catch (e) {
-    const err = toAiError(e, engine.route(task).promptClass === "values");
+    const err = toAiError(e, isOnDeviceOnlyBuild() || engine.route(task).promptClass === "values");
     if (err !== e) console.warn(`[distill] AI task "${task}" failed (${err.kind}):`, e);
     throw err;
   }
@@ -103,16 +117,22 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
   const services = await getFirebase();
   if (!services) throw new NotConfiguredError();
 
-  const decision = await engine.route(task, remoteValue(services, "inference_mode"));
+  // The on-device-only build asks the Sieve for its own only_on_device mode for every task (its words say so on hover).
+  const onDeviceOnly = isOnDeviceOnlyBuild();
+  const decision = await engine.route(task, onDeviceOnly ? VALUES_TASK_MODE : remoteValue(services, "inference_mode"));
   const isValues = decision.promptClass === "values";
-  const mode = isValues ? VALUES_TASK_MODE : decision.mode;
-  if (isValues && decision.mode !== VALUES_TASK_MODE) {
-    throw new Error(`Sieve routed a values task to ${decision.mode}; refusing to send values anywhere but the device.`);
+  const pinned = isValues || onDeviceOnly;
+  const mode = pinned ? VALUES_TASK_MODE : decision.mode;
+  if (pinned && decision.mode !== VALUES_TASK_MODE) {
+    throw new Error(`Sieve routed a device-only task to ${decision.mode}; refusing to send it anywhere but the device.`);
   }
   // ONLY_ON_DEVICE alone does not keep a prompt on the device: when the browser has no LanguageModel at all, the SDK
   // builds no on-device adapter and sends EVERY mode to the cloud (@firebase/ai 13.4.0 chromeAdapterFactory returns
   // undefined -> callCloudOrDevice -> inCloudCall). So the law is enforced here, before a model object exists.
-  if (isValues && typeof LanguageModel === "undefined") throw new AiError("device-only");
+  if (pinned && typeof LanguageModel === "undefined") throw new AiError("device-only");
+  // The on-device-only build also refuses a model that is not ready yet: the SDK would start a download in the middle
+  // of a task. The model card offers the download instead.
+  if (onDeviceOnly && (await localModelState()) !== "available") throw new AiError("device-only");
 
   const model = getGenerativeModel(
     services.ai,
@@ -120,8 +140,9 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
       // The engine's mode strings are the SDK's InferenceMode strings, exactly.
       mode: mode as SdkMode,
       onDeviceParams: schema ? { promptOptions: { responseConstraint: schema } } : undefined,
-      // A values task has no cloud configuration at all, so there is nothing to fall back to.
-      inCloudParams: isValues
+      // A values task (and every task in the on-device-only build) has no cloud configuration at all, so there is
+      // nothing to fall back to.
+      inCloudParams: pinned
         ? undefined
         : {
             model: remoteValue(services, "cloud_model"),
