@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldReread, tabUpdatedListener } from "./tabEvents";
+import { pinnedTabId, shouldReread, tabUpdatedListener } from "./tabEvents";
 
 describe("shouldReread (chrome.tabs.onUpdated)", () => {
   it("ignores a load that finishes in another tab", () => {
@@ -31,5 +31,14 @@ describe("tabUpdatedListener", () => {
     listener(7, { status: "complete" });
     listener(8, { status: "complete" });
     expect(rereads).toBe(2);
+  });
+});
+
+describe("pinnedTabId (sidepanel.html?tabId=<n>)", () => {
+  it("pins the panel to a tab id, and ignores anything else", () => {
+    expect(pinnedTabId("?tabId=42")).toBe(42);
+    expect(pinnedTabId("")).toBeUndefined();
+    expect(pinnedTabId("?tabId=abc")).toBeUndefined();
+    expect(pinnedTabId("?tabId=-1")).toBeUndefined();
   });
 });

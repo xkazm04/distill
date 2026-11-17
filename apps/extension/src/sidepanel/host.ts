@@ -1,15 +1,26 @@
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
-import type { PageHost } from "@distill/web/ui";
+import type { LocateTarget, PageHost } from "@distill/web/ui";
+import { focusColor } from "@distill/web/dom";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 import type { ContentReplies, ContentRequest, ContentResponse } from "../messages";
 
-const CANNOT_READ = "Distill cannot read this page. Click the Distill icon while you are on a normal web page.";
+const CANNOT_READ = "Distill cannot read this page.";
 
-/** The real tab, reached through a content script that the side panel injects on demand. */
+/** The page could not be reached at all: the content script could not be put in it. `reason` is Chrome's own words,
+ *  which say whether it is a browser page or a page Distill has no permission for (see access.ts). */
+export class AccessError extends Error {
+  constructor(readonly reason: string) {
+    super(CANNOT_READ);
+    this.name = "AccessError";
+  }
+}
+
+/** The real tab, reached through a content script that the side panel injects on demand. One per tab: it lives
+ *  across the tab's navigations, so the views can re-read the page without starting over. */
 export class TabHost implements PageHost {
-  constructor(private readonly tabId: number, private readonly title: string) {}
+  constructor(readonly tabId: number, private readonly title: () => string) {}
 
-  label() { return this.title || "This page"; }
+  label() { return this.title() || "This page"; }
 
   private async send<K extends ContentRequest["type"]>(req: ContentRequest): Promise<ContentReplies[K]> {
     try {
@@ -17,8 +28,8 @@ export class TabHost implements PageHost {
     } catch {
       try {
         await chrome.scripting.executeScript({ target: { tabId: this.tabId }, files: ["content.js"] });
-      } catch {
-        throw new Error(CANNOT_READ);
+      } catch (e) {
+        throw new AccessError(e instanceof Error ? e.message : String(e));
       }
       return this.sendOnce<K>(req);
     }
@@ -31,6 +42,8 @@ export class TabHost implements PageHost {
     return res.data;
   }
 
+  /** Resolves when the page answers (the content script is in it); rejects with an AccessError when it cannot be. */
+  async ping(): Promise<void> { await this.send<"distill:ping">({ type: "distill:ping" }); }
   getPage(): Promise<PageModel> { return this.send<"distill:getPage">({ type: "distill:getPage" }); }
   getForm(formIndex = 0): Promise<FormStructure> { return this.send<"distill:getForm">({ type: "distill:getForm", formIndex }); }
   readValues(structure: FormStructure): Promise<FormValues> { return this.send<"distill:readValues">({ type: "distill:readValues", structure }); }
@@ -38,8 +51,13 @@ export class TabHost implements PageHost {
   async highlight(fieldIds: string[], color?: string) {
     await this.send({ type: "distill:highlight", fieldIds, ...(color ? { color } : {}) });
   }
+  /** Points at a block or a step's fields in the tab, in the panel's focus colour (the content script scrolls it into
+   *  view, instantly under reduced motion). The tab is always beside the panel, so the Workspace calls this always. */
+  async locate(target: LocateTarget | null): Promise<void> {
+    await this.send<"distill:locate">({ type: "distill:locate", target, color: focusColor() });
+  }
   /** The page's colours, fonts and corner radius, for "Match this page". */
   getTheme(): Promise<PageThemeSeed> { return this.send<"distill:getTheme">({ type: "distill:getTheme" }); }
-  /** The original is the tab itself; the panel just tells the person so. */
+  /** The original is the tab itself; there is nothing to show or hide. */
   async showOriginal() { /* nothing to do: the page was never replaced */ }
 }

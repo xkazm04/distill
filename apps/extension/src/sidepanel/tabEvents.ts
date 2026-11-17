@@ -18,3 +18,14 @@ export function tabUpdatedListener(shownTabId: () => number | null | undefined, 
     if (shouldReread(tabId, info, shownTabId())) reread();
   };
 }
+
+/**
+ * `sidepanel.html?tabId=<n>` pins the panel to tab n: it shows that tab and ignores which tab is active. The end-to-end
+ * harness opens the panel this way in an ordinary page. Harmless in production: it only picks which tab the panel
+ * shows, and the access rules for reading that tab still apply.
+ */
+export function pinnedTabId(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get("tabId");
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+  return Number(raw);
+}
