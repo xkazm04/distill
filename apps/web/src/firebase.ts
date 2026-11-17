@@ -29,16 +29,17 @@ interface CommonServices {
 /** Firestore is usable only when there is a signed-in (anonymous) user. The public build has neither. */
 export type FirebaseServices = CommonServices & ({ uid: string; db: Firestore } | { uid: null; db: Firestore | null });
 
-const env = import.meta.env;
+// Each value is read as `import.meta.env.NAME`, never through a saved `import.meta.env` object: a build inlines a saved
+// object whole, with every VITE_* name and value in it, and the public build must not carry the App Check names.
 
 export function firebaseConfig() {
   return {
-    apiKey: env.VITE_FIREBASE_API_KEY as string | undefined,
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-    projectId: env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-    appId: env.VITE_FIREBASE_APP_ID as string | undefined,
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
   };
 }
 
@@ -80,9 +81,9 @@ async function init(): Promise<FirebaseServices> {
   // App Check first, so every later SDK call carries a token. The extension (and local dev) cannot load the reCAPTCHA
   // script, so they use a debug token registered in the console; the hosted web app uses reCAPTCHA Enterprise.
   let appCheck: FirebaseServices["appCheck"] = "off";
-  const debugToken = env.VITE_APPCHECK_DEBUG_TOKEN as string | undefined;
-  const siteKey = env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY as string | undefined;
-  if ((inExtension() || env.DEV) && debugToken) {
+  const debugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN as string | undefined;
+  const siteKey = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY as string | undefined;
+  if ((inExtension() || import.meta.env.DEV) && debugToken) {
     (self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string }).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
     appCheck = "debug";
   }
@@ -106,7 +107,7 @@ async function init(): Promise<FirebaseServices> {
 
   const remoteConfig = remoteConfigSdk.getRemoteConfig(app);
   remoteConfig.defaultConfig = { ...REMOTE_CONFIG_DEFAULTS };
-  remoteConfig.settings.minimumFetchIntervalMillis = env.DEV ? 0 : 60 * 60 * 1000;
+  remoteConfig.settings.minimumFetchIntervalMillis = import.meta.env.DEV ? 0 : 60 * 60 * 1000;
   try {
     await remoteConfigSdk.fetchAndActivate(remoteConfig);
   } catch {
