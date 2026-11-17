@@ -1,12 +1,18 @@
 import { defineConfig } from "vite";
+import { defineOf, outDirOf, variantOf } from "./vite.config";
 
-export default defineConfig({
-  envDir: "../..",
-  build: {
-    target: "es2022",
-    outDir: "dist",
-    emptyOutDir: false,
-    sourcemap: false,
-    lib: { entry: "src/content.ts", name: "DistillContent", formats: ["iife"], fileName: () => "content.js" },
-  },
+// The content script, built into the same folder as the side panel for the chosen variant (see vite.config.ts).
+export default defineConfig(({ mode }) => {
+  const variant = variantOf(mode);
+  return {
+    envDir: "../..",
+    define: defineOf(variant),
+    build: {
+      target: "es2022",
+      outDir: outDirOf(variant),
+      emptyOutDir: false,
+      sourcemap: false,
+      lib: { entry: "src/content.ts", name: "DistillContent", formats: ["iife"], fileName: () => "content.js" },
+    },
+  };
 });
