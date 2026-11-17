@@ -33,6 +33,9 @@ const ICONS: Record<Tab, ReactNode> = {
   handrail: <path d="M5 12h14M12 5l7 7-7 7" />,
 };
 
+/** The views' short names, for the narrow strip. */
+const SHORT: Record<Tab, string> = { focus: "Read", wayfill: "Fill", recast: "Layout", handrail: "Agent" };
+
 interface Props {
   host: PageHost;
   /** Present only where the agent bridge can exist (the extension). */
@@ -143,11 +146,18 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   const locate = useCallback((t: LocateTarget | null) => {
     if (pointable && host.locate) void host.locate(t).catch(() => undefined);
   }, [pointable, host]);
+  // A new view or a new step starts at its top, so the header and the question are never scrolled away (the
+  // document scrolls; in the narrow form the header is not sticky).
+  const toTop = useCallback(() => {
+    if (typeof window.scrollTo === "function" && window.scrollY > 0) window.scrollTo({ top: 0 });
+  }, []);
+  useEffect(() => { toTop(); }, [tab, toTop]);
   const stepFields = useRef<string[]>([]);
   const onStep = useCallback((ids: string[]) => {
     stepFields.current = ids;
+    if (tab === "wayfill") toTop();
     if (pointable && tab === "wayfill") locate(ids.length ? { fieldIds: ids } : null);
-  }, [pointable, tab, locate]);
+  }, [pointable, tab, locate, toTop]);
   useEffect(() => {
     if (!pointable) return;
     locate(tab === "wayfill" && stepFields.current.length ? { fieldIds: stepFields.current } : null);
@@ -279,7 +289,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
             </nav>
           )}
 
-          <nav className="ws-sec" aria-label="Views">
+          <nav className="ws-sec ws-sec-views" aria-label="Views">
             <p className="ws-sec-h" aria-hidden="true">Views</p>
             <div role="tablist" aria-orientation="vertical" aria-label="Views" className="ws-views">
               {views.map((v, i) => (
@@ -315,6 +325,18 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
             <div className="ws-brand">{brand ?? <span className="ws-brand-word">Distill</span>}</div>
             <span className="ws-mview">{current?.label}</span>
           </div>
+          {/* The narrow form (the extension's side panel): the views stay one click away in a strip; the drawer keeps
+              the pages, the model and the settings. */}
+          <nav className="ws-strip" aria-label="Views" data-testid="view-strip">
+            {views.map((v) => (
+              <button key={v.id} type="button" className="ws-stripbtn" aria-label={v.label} aria-current={tab === v.id ? "page" : undefined}
+                title={v.sub ? `${v.label}: ${v.sub}` : v.label} onClick={() => pick(v.id)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{ICONS[v.id]}</svg>
+                <span aria-hidden="true">{SHORT[v.id]}</span>
+                {v.id === "handrail" && waiting > 0 && <span className="ws-stripcount" aria-hidden="true">{waiting}</span>}
+              </button>
+            ))}
+          </nav>
 
           <header className="ws-head">
             <div className="ws-title">

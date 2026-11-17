@@ -509,3 +509,30 @@ describe("the Agent view when the helper needs the person's OK", () => {
     expect(connect).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("the narrow form", () => {
+  it("the strip of views changes the view in one click and marks the current one", async () => {
+    await mount(new FakeHost());
+    const strip = q("view-strip")!;
+    const item = (name: string) => [...strip.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === name)!;
+    expect(item("Read").getAttribute("aria-current")).toBe("page");
+    await act(async () => { item("Fill a form").click(); });
+    await settle();
+    expect(selected()).toBe("tab-wayfill");
+    expect(item("Fill a form").getAttribute("aria-current")).toBe("page");
+    expect(item("Read").getAttribute("aria-current")).toBeNull();
+    expect(el.querySelector(".ws-sec-views")).not.toBeNull(); // the sidebar's views, hidden by CSS in the narrow form
+  });
+
+  it("a view change and a step change start at the top, so the header is never scrolled away", async () => {
+    await mount(new FakeHost());
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    vi.spyOn(window, "scrollY", "get").mockReturnValue(600);
+    await key(document.body, "2");
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+    scrollTo.mockClear();
+    await act(async () => { button("Skip")!.click(); });
+    await settle();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
+  });
+});

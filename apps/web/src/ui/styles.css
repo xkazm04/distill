@@ -284,6 +284,7 @@ html:has(.workspace) { font-size: 100%; }
 
 .ws-scrim { display: none; }
 .ws-mtop { display: none; }
+.ws-strip { display: none; }
 
 /* ---- main ---- */
 .ws-main { grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -488,7 +489,24 @@ html:has(.workspace) { font-size: 100%; }
   }
   .ws-menu:hover { background: var(--sb-hover); }
   .ws-mview { margin-left: auto; color: var(--sb-current); font-weight: 700; font-size: .875rem; }
-  .workspace { --ws-stick: 3.25rem; }
+  /* The views as an always-visible strip under the top bar; the drawer keeps pages, the model and the settings. */
+  .ws-side .ws-sec-views { display: none; }
+  .ws-mview { display: none; }
+  .ws-strip {
+    display: flex; gap: .25rem; padding: .3rem .5rem; position: sticky; top: 3.25rem; z-index: 7; overflow-x: auto;
+    background: var(--sb-bg); color: var(--sb-fg); border-bottom: 1px solid var(--sb-line); scrollbar-width: thin;
+  }
+  .ws-stripbtn {
+    position: relative; flex: 1 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem;
+    min-width: 3.5rem; min-height: 2.75rem; padding: .2rem .5rem; border: 0; border-radius: .5rem; background: transparent;
+    color: var(--sb-muted); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
+  }
+  .ws-stripbtn svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ws-stripbtn:hover { background: var(--sb-hover); color: var(--sb-fg); }
+  .ws-stripbtn[aria-current="page"] { background: var(--sb-active); color: var(--sb-current); box-shadow: inset 0 -3px 0 var(--sb-drip); }
+  .ws-stripbtn:focus-visible { outline: 3px solid var(--sb-focus); outline-offset: -3px; }
+  .ws-stripcount { position: absolute; top: .1rem; right: .2rem; min-width: 1.1rem; padding: 0 .25rem; border-radius: 999px; font-size: .7rem; line-height: 1.1rem; background: var(--sb-drip); color: var(--sb-bg); }
+  .workspace { --ws-stick: 6.65rem; }
   .ws-head { position: static; padding: .6rem 1rem; }
   .ws-title { flex-basis: 100%; }
   .ws-toolbar { padding: .35rem 1rem; }
