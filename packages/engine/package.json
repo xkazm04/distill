@@ -10,7 +10,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "export-schemas": "node scripts/export-schemas.mjs"
   },
   "devDependencies": {
     "happy-dom": "^21.0.4",

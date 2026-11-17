@@ -1,0 +1,113 @@
+{
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "keyFacts",
+              "steps",
+              "checklist",
+              "comparison",
+              "timeline",
+              "callout"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "when": {
+                  "type": "string"
+                },
+                "what": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "when",
+                "what"
+              ]
+            }
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "deadline"
+            ]
+          },
+          "sourceBlockIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "sourceBlockIds"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "nodes"
+  ]
+}

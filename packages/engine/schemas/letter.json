@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "properties": {
+    "sender": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "deadline": {
+      "type": "string"
+    },
+    "amountDue": {
+      "type": "string"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "what": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "what"
+        ]
+      }
+    }
+  },
+  "required": [
+    "summary",
+    "actions"
+  ]
+}

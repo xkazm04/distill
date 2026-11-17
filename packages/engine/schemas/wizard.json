@@ -1,0 +1,43 @@
+{
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stepId": {
+            "type": "string"
+          },
+          "fieldIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "question": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "expectedFormat": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stepId",
+          "fieldIds",
+          "question",
+          "explanation"
+        ]
+      }
+    }
+  },
+  "required": [
+    "steps"
+  ]
+}
