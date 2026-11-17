@@ -1,23 +1,47 @@
 // Runs in the page (the DOM lives here). Injected on demand by the side panel through chrome.scripting, so the
-// extension holds no standing access to any site: it needs only the activeTab grant from clicking its icon.
+// extension holds no standing access to any site: it reads a page only with the activeTab grant from clicking its
+// icon, or a site the person allowed from the panel.
 import { extractForm, extractPage, readValues, writeValues } from "@distill/engine";
-import { applyHighlight } from "@distill/web/dom";
-import type { ContentRequest, ContentResponse } from "./messages";
+import { applyHighlight, applyLocate, fieldElements } from "@distill/web/dom";
+import type { ContentRequest, ContentResponse, LocateTarget, PageChanged } from "./messages";
 import { readPageTheme } from "./pageTheme";
+import { watchPage } from "./pageWatch";
 
 declare global {
   interface Window { __distillContent?: true }
 }
 
+/** Block id -> the element of the page it was read from, by the last distill:getPage. Never leaves the page. */
+let sources = new Map<string, Element>();
+
+const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function locate(target: LocateTarget | null, color?: string): void {
+  let els: Element[] = [];
+  if (target && "blockId" in target) {
+    const el = sources.get(target.blockId);
+    if (el?.isConnected) els = [el];
+  } else if (target) {
+    els = fieldElements(document, target.fieldIds);
+  }
+  applyLocate(document, els, color, reducedMotion());
+}
+
 async function handle(req: ContentRequest): Promise<unknown> {
   switch (req.type) {
     case "distill:ping": return { ready: true };
-    case "distill:getPage": return extractPage(document, location.href);
+    case "distill:getPage": {
+      const next = new Map<string, Element>();
+      const page = extractPage(document, location.href, { onSource: (id, el) => next.set(id, el) });
+      sources = next;
+      return page;
+    }
     case "distill:getForm": return extractForm(document, location.href, req.formIndex);
     case "distill:readValues": return readValues(document, req.structure);
     case "distill:writeValues": return writeValues(document, req.structure, req.values);
     case "distill:highlight": applyHighlight(document, req.fieldIds, req.color); return { ok: true };
     case "distill:getTheme": return readPageTheme(document);
+    case "distill:locate": locate(req.target, req.color); return { ok: true };
   }
 }
 
@@ -30,5 +54,15 @@ if (!window.__distillContent) {
       (e: unknown) => send({ ok: false, error: e instanceof Error ? e.message : String(e) }),
     );
     return true; // reply asynchronously
+  });
+
+  const stop = watchPage(window, document, (reason) => {
+    const msg: PageChanged = { type: "distill:pageChanged", reason };
+    try {
+      // No panel open is fine: nobody needs to know.
+      void chrome.runtime.sendMessage(msg).catch(() => undefined);
+    } catch {
+      stop(); // the extension was reloaded or removed: this copy of the script is orphaned
+    }
   });
 }
