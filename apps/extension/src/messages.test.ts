@@ -19,6 +19,9 @@ describe("extension manifest", () => {
     expect(m.permissions).toEqual(["sidePanel", "activeTab", "scripting", "storage"]);
     expect(m.optional_permissions).toEqual(["nativeMessaging"]);
   });
+  it("has a store-sized description (132 characters at most)", () => {
+    expect(m.description.length).toBeLessThanOrEqual(132);
+  });
   it("carries a public key only, for a stable extension id", () => {
     expect(m.key).toMatch(/^MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA[A-Za-z0-9+/]+={0,2}$/); // RSA-2048 SubjectPublicKeyInfo
     expect(JSON.stringify(m)).not.toMatch(/PRIVATE KEY/);
