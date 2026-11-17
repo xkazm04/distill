@@ -1,5 +1,5 @@
 import type { InferenceSource } from "@distill/engine";
-import { toAiError } from "../ai";
+import { isOnDeviceOnlyBuild, ON_DEVICE_ONLY_NOTE, toAiError } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import type { LocalModel } from "./useLocalModel";
 
@@ -56,11 +56,15 @@ export function ModelCard({ model }: { model: LocalModel }) {
       {model.state === "downloadable" && (
         <button type="button" className="btn btn-primary btn-small" onClick={() => void model.download()}>Download the model</button>
       )}
-      <ul className="ws-legend" aria-label="Where results are made">
-        <li className="ws-legend-device"><i aria-hidden="true" />On this device</li>
-        <li className="ws-legend-cloud"><i aria-hidden="true" />In the cloud</li>
-        <li>Each result shows where it ran.</li>
-      </ul>
+      {isOnDeviceOnlyBuild() ? (
+        <p className="ws-model-note" data-testid="device-only-build">{ON_DEVICE_ONLY_NOTE}</p>
+      ) : (
+        <ul className="ws-legend" aria-label="Where results are made">
+          <li className="ws-legend-device"><i aria-hidden="true" />On this device</li>
+          <li className="ws-legend-cloud"><i aria-hidden="true" />In the cloud</li>
+          <li>Each result shows where it ran.</li>
+        </ul>
+      )}
     </section>
   );
 }

@@ -37,7 +37,7 @@ export const AI_WORDS: Record<AiFailure, string> = {
   "device-only": isOnDeviceOnlyBuild()
     ? "This version of Distill uses only the AI model on this device, and it is not ready on this device."
     : "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
-  "not-configured": "Firebase is not configured, so AI features are off.",
+  "not-configured": "AI features are off in this copy of Distill.",
   other: "Something went wrong with the AI.",
 };
 
