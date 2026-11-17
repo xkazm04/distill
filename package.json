@@ -23,6 +23,8 @@
     "check-tokens": "node scripts/check-tokens.mjs",
     "check-csp": "node scripts/check-csp.mjs",
     "check:dist": "node scripts/check-dist.mjs",
+    "pack:extension": "node scripts/pack-extension.mjs",
+    "pack:store": "node scripts/pack-extension.mjs --store",
     "deploy:web": "npm run build -w @distill/web && npm run check:dist && node scripts/check-csp.mjs --dist && firebase deploy --only hosting --project distill-hybrid-ai --non-interactive",
     "test:rules": "firebase emulators:exec --only firestore --project demo-distill \"npm run test:emulator -w @distill/rules-test\""
   },
