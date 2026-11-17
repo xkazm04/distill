@@ -56,19 +56,100 @@ function absUrl(src: string, base: string): string | undefined {
   }
 }
 
-function collectBlocks(root: Element, url: string): Block[] {
+// Form controls and anything else that can hold what a person typed. Their text is never read into a block.
+const CONTROL_TAGS = new Set(["input", "select", "textarea", "button", "option", "optgroup", "datalist", "output"]);
+const HINT_CLASS = /(^|[\s_-])(hint|help|helper|description|form-text|note)([\s_-]|$)/i;
+const isControl = (el: Element): boolean => CONTROL_TAGS.has(tag(el)) || el.hasAttribute("contenteditable");
+const holdsInput = (el: Element): boolean => isControl(el) || !!el.querySelector("input, select, textarea, [contenteditable]");
+/** Visible text with every control (and so every value) left out. */
+const humanText = (el: Element): string => textOf(el, isControl);
+const isHint = (el: Element): boolean => tag(el) === "small" || HINT_CLASS.test(`${attr(el, "class")} ${attr(el, "id")}`);
+
+/**
+ * The human text of a form, never its values: headings, instructions, legends (as headings), and the field labels with
+ * their help text as a list. Controls are skipped whole, so neither a typed value nor a chosen option is ever read.
+ */
+function collectForm(form: Element, push: (b: Omit<Block, "id">) => void, skipped: (el: Element) => boolean): void {
+  let items: string[] = [];
+  const flush = (): void => {
+    if (items.length) push({ kind: "list", text: items.join("\n") });
+    items = [];
+  };
+  const item = (text: string): void => {
+    if (text) items.push(text);
+  };
+  const hint = (text: string): void => {
+    if (!text) return;
+    if (items.length) items[items.length - 1] += ` - ${text}`;
+    else items.push(text);
+  };
+
+  const walk = (el: Element, depth: number): void => {
+    let run: string[] = [];
+    const flushRun = (): void => {
+      item(collapse(run.join(" ")));
+      run = [];
+    };
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === 3) {
+        run.push(child.nodeValue ?? "");
+        continue;
+      }
+      if (child.nodeType !== 1) continue;
+      const c = child as Element;
+      const t = tag(c);
+      if (isControl(c) || skipped(c)) continue;
+      if (!BLOCKISH.has(t) && !holdsInput(c) && !isHint(c)) {
+        run.push(humanText(c));
+        continue;
+      }
+      flushRun();
+      if (/^h[1-6]$/.test(t) || t === "legend") {
+        flush();
+        const text = humanText(c);
+        if (text) push({ kind: "heading", text, level: t === "legend" ? Math.min(depth + 1, 6) : Number(t[1]) });
+      } else if (t === "fieldset") {
+        flush();
+        walk(c, depth + 1);
+        flush();
+      } else if (t === "label") {
+        item(textOf(c, (e) => isControl(e) || isHint(e)));
+        Array.from(c.querySelectorAll("*")).filter((e) => isHint(e) && !isHidden(e)).forEach((e) => hint(humanText(e)));
+      } else if (isHint(c)) {
+        hint(humanText(c));
+      } else if (t === "p" && !holdsInput(c)) {
+        flush();
+        const text = humanText(c);
+        if (text) push({ kind: "paragraph", text });
+      } else {
+        walk(c, depth);
+      }
+    }
+    flushRun();
+  };
+  walk(form, 0);
+  flush();
+}
+
+function collectBlocks(root: Element, url: string, formPage: boolean): Block[] {
   const blocks: Block[] = [];
   const push = (b: Omit<Block, "id">): void => {
     const last = blocks[blocks.length - 1];
     if (last && last.kind === b.kind && last.text === b.text && b.kind !== "image") return;
     blocks.push({ id: `b${blocks.length}`, ...b });
   };
-  const skipped = (el: Element): boolean => SKIP_TAGS.has(tag(el)) || isHidden(el) || isNoise(el);
+  // On a form page, a page-level <header> that holds the h1 carries the form's title and instructions, so it is content.
+  // A <nav> inside it is still noise on its own.
+  const pageHeader = (el: Element): boolean => formPage && tag(el) === "header" && !!el.querySelector("h1");
+  const skipped = (el: Element): boolean => SKIP_TAGS.has(tag(el)) || isHidden(el) || (isNoise(el) && !pageHeader(el));
 
   const visit = (el: Element, isRoot: boolean): void => {
     const t = tag(el);
     if (isRoot ? SKIP_TAGS.has(t) || isHidden(el) : skipped(el)) return;
-    if (t === "form") return;
+    if (t === "form") {
+      if (formPage) collectForm(el, push, skipped);
+      return;
+    }
     if (/^h[1-6]$/.test(t)) {
       const text = textOf(el);
       if (text) push({ kind: "heading", text, level: Number(t[1]) });
@@ -120,20 +201,18 @@ function collectBlocks(root: Element, url: string): Block[] {
 const PRICE_RE = /([$€£]\s?\d|\d[\d.,]*\s?(€|Kč|USD|EUR|CZK|£|\$))/g;
 const PRICING_WORDS = /(per month|\/\s?mo\b|\/\s?month|monthly|annually|\/\s?year|pricing|billed|buy now|add to cart|checkout|free trial|za měsíc)/i;
 
-function classify(doc: Document, url: string, blocks: Block[], hasForms: boolean): PageKind {
+/** The form that dominates the page (three fields or more, and a good share of its text), if there is one. */
+function dominantForm(doc: Document, forms: Element[]): Element | undefined {
+  const rawBodyLen = collapse(doc.body?.textContent ?? "").length || 1;
+  return forms.find((f) => buildBindings(f, doc).length >= 3 && textOf(f).length >= rawBodyLen * 0.35);
+}
+
+function classify(doc: Document, url: string, blocks: Block[], formPage: boolean): PageKind {
+  if (formPage) return "form";
   const bodyText = blocks.map((b) => b.text).join("\n");
   const paragraphs = blocks.filter((b) => b.kind === "paragraph");
   const longParas = paragraphs.filter((b) => b.text.length >= 80).length;
   const codeBlocks = blocks.filter((b) => b.kind === "code").length;
-  const rawBodyLen = collapse(doc.body?.textContent ?? "").length || 1;
-
-  let dominantForm = false;
-  if (hasForms) {
-    for (const f of listForms(doc)) {
-      if (buildBindings(f, doc).length >= 3 && textOf(f).length >= rawBodyLen * 0.35) dominantForm = true;
-    }
-  }
-  if (dominantForm) return "form";
   if ((bodyText.match(PRICE_RE)?.length ?? 0) >= 2 && PRICING_WORDS.test(bodyText)) return "product";
   let path = "";
   try {
@@ -151,32 +230,50 @@ function classify(doc: Document, url: string, blocks: Block[], hasForms: boolean
   return "other";
 }
 
+/** Whitespace and letter case do not make two texts different. */
+const sameText = (a: string, b: string): boolean => collapse(a).toLowerCase() === collapse(b).toLowerCase();
+
+/** The smallest element that holds both. */
+function commonAncestor(a: Element, b: Element): Element {
+  for (let el: Element | null = a; el; el = el.parentElement) if (el.contains(b)) return el;
+  return b.ownerDocument.documentElement;
+}
+
 export function extractPage(doc: Document, url: string): PageModel {
-  const root = pickRoot(doc);
-  const blocks = collectBlocks(root, url);
-  if (!blocks.some((b) => b.kind === "heading")) {
-    const h1 = Array.from(doc.querySelectorAll("h1")).find((h) => !blocked(h) && !root.contains(h));
-    const text = h1 ? textOf(h1) : "";
-    if (text) {
-      blocks.unshift({ id: "", kind: "heading", text, level: 1 });
-      blocks.forEach((b, i) => (b.id = `b${i}`));
-    }
-  }
-  const h1 = blocks.find((b) => b.kind === "heading");
+  const forms = listForms(doc);
+  const form = dominantForm(doc, forms);
+  let root = pickRoot(doc);
+  // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.
+  if (form && (root === form || form.contains(root))) root = form.parentElement ?? form;
+  else if (form && !root.contains(form)) root = commonAncestor(root, form);
+  const blocks = collectBlocks(root, url, !!form);
+
   let host = "";
   try {
     host = new URL(url).hostname;
   } catch {
     /* keep empty */
   }
-  const forms = listForms(doc).length;
+  const hasHeading = blocks.some((b) => b.kind === "heading");
+  const outside = hasHeading ? undefined : Array.from(doc.querySelectorAll("h1")).find((h) => !blocked(h) && !root.contains(h) && textOf(h));
+  const h1Text = outside ? textOf(outside) : "";
+  const title = collapse(doc.title ?? "") || blocks.find((b) => b.kind === "heading")?.text || h1Text || host;
+
+  // The focus view shows the title above the blocks. The page's h1 leads the blocks when the content root has no
+  // heading, unless it only repeats the title; and a leading heading that only repeats the title is not shown again.
+  if (h1Text && !sameText(h1Text, title) && !blocks.some((b) => sameText(b.text, h1Text))) {
+    blocks.unshift({ id: "", kind: "heading", text: h1Text, level: 1 });
+  }
+  if (blocks[0]?.kind === "heading" && sameText(blocks[0].text, title)) blocks.shift();
+  blocks.forEach((b, i) => (b.id = `b${i}`));
+
   const page: PageModel = {
     url: publicUrl(url),
-    title: collapse(doc.title ?? "") || h1?.text || host,
+    title,
     lang: pageLang(doc),
-    kind: classify(doc, url, blocks, forms > 0),
+    kind: classify(doc, url, blocks, !!form),
     blocks,
   };
-  if (forms > 0) page.formCount = forms;
+  if (forms.length > 0) page.formCount = forms.length;
   return page;
 }

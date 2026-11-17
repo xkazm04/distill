@@ -28,6 +28,13 @@ describe("payload privacy", () => {
     const after = await extractForm(doc, "https://mv.example/zadost");
     expect(after).toEqual(structure);
 
+    // The focus view of a form page carries its labels and help text, never what was typed into it.
+    const pageJson = JSON.stringify(page);
+    expect(pageJson).toContain("Osobní údaje");
+    expect(pageJson).toContain("Jméno");
+    for (const secret of Object.values(SECRETS)) expect(pageJson).not.toContain(secret);
+    for (const part of ["Zqxvlenka", "Wbrtnovsky", "870619", "private.example", "601 998", "ZQX"]) expect(pageJson).not.toContain(part);
+
     const built: string[] = [
       prompts.classifyPage(page),
       prompts.simplifyBlocks(page, "plain", "en"),
