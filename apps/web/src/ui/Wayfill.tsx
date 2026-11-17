@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FieldStructure, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
-import { run } from "../ai";
+import { AI_WORDS, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
 import { engine } from "./engine";
@@ -61,7 +61,7 @@ function modelNote(state: LocalModel["state"]): string {
     case "downloadable": return "Suggestions need the model on this device. Download it from the top of the page, or type your answers.";
     case "downloading": return "The model on this device is still downloading. Suggestions will work when it is ready.";
     case "checking": return "Checking whether suggestions can run on this device.";
-    default: return "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.";
+    default: return AI_WORDS["device-only"];
   }
 }
 
@@ -72,16 +72,35 @@ interface Props {
   onShowOriginal: () => void;
 }
 
+/** Why Next could not write a step's answers into the original form. */
+export interface WriteProblem {
+  fieldIds: string[];
+  /** The page itself could not be reached (the tab moved on or closed), so nothing was written. */
+  unreachable: boolean;
+}
+
+/** The words for a WriteProblem, naming each field by the label the page gives it. */
+export function writeProblemText(p: WriteProblem, labelOf: (id: string) => string): string {
+  const one = p.fieldIds.length === 1;
+  const names = p.fieldIds.map((id) => `"${labelOf(id)}"`).join(", ");
+  return p.unreachable
+    ? `The original page could not be reached, so ${names} ${one ? "was" : "were"} not filled in. Please type ${one ? "it" : "them"} in the original form yourself.`
+    : `Could not fill in ${names} on the original form. Please type ${one ? "it" : "them"} there yourself.`;
+}
+
+/** Why there is no guide: the page has no fillable field, or the page could not be read at all. */
+type NoForm = "none" | "unreadable";
+
 export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
-  const [error, setError] = useState<string | null>(null);
+  const [noForm, setNoForm] = useState<NoForm>("none");
   const [structure, setStructure] = useState<FormStructure | null>(null);
   const [wizard, setWizard] = useState<Wizard | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [idx, setIdx] = useState(0);
   const [values, setValues] = useState<FormValues>({});
   const [filled, setFilled] = useState<string[]>([]);
-  const [failed, setFailed] = useState<string[]>([]);
+  const [problem, setProblem] = useState<WriteProblem | null>(null);
   const [remember, setRemember] = useState(false);
   const [profile, setProfile] = useState<FormValues>(() => loadProfile());
   const [aid, setAid] = useState<Record<string, { text: string; meta: AiMeta }>>({});
@@ -89,20 +108,28 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
   useEffect(() => {
     let live = true;
     setPhase("loading");
-    setError(null);
     (async () => {
       let s: FormStructure;
       try {
         s = await host.getForm(0);
       } catch (e) {
         if (!live) return;
-        setError(e instanceof Error ? e.message : null);
+        console.warn("[distill] no form:", e);
+        setNoForm("unreadable");
+        setPhase("noform");
+        return;
+      }
+      // A page with no fillable field has nothing to guide: say so before any AI call, never an empty wizard.
+      if (s.fields.length === 0) {
+        if (!live) return;
+        setNoForm("none");
         setPhase("noform");
         return;
       }
       const present = await host.readValues(s).catch(() => ({}) as FormValues);
       let w: Wizard | null = null;
       let o: Origin | null = null;
+      let failure: unknown = null;
       try {
         const cached = isFirebaseConfigured() ? await getFormGuide(s.fingerprint).catch(() => null) : null;
         if (cached) {
@@ -120,15 +147,16 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
             void saveFormGuide(s, parsed).catch(() => undefined); // structure + wizard only, never values
           }
         }
-      } catch {
-        /* fall through to the basic steps */
+      } catch (e) {
+        failure = e; // fall through to the basic steps; run() already turned it into plain words
       }
       if (!w) {
         w = basicWizard(s, settings.readerLang);
-        o = { kind: "basic", why: isFirebaseConfigured() ? "The AI could not build the steps this time." : "AI is off." };
+        const aiOn = isFirebaseConfigured() || import.meta.env.DEV;
+        o = { kind: "basic", why: failure !== null ? aiWords(failure) : aiOn ? "The AI could not build the steps this time." : "AI is off." };
       }
       if (!live) return;
-      setStructure(s); setWizard(w); setOrigin(o); setValues(present); setIdx(0); setFilled([]); setFailed([]);
+      setStructure(s); setWizard(w); setOrigin(o); setValues(present); setIdx(0); setFilled([]); setProblem(null);
       setPhase("ready");
     })();
     return () => { live = false; };
@@ -153,26 +181,40 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
 
   if (phase === "loading") return <p role="status">Reading the form...</p>;
   if (phase === "noform" || !structure || !wizard) {
-    return <p className="notice" role="status" data-testid="no-form">{error ?? "This page has no form to fill."} Open a page with a form to use the step-by-step guide.</p>;
+    return (
+      <div className="card" role="status" data-testid="no-form" data-reason={noForm}>
+        <h3>{noForm === "none" ? "There is no form to fill on this page" : "Distill could not read a form on this page"}</h3>
+        <p>Open a page with a form to use the step-by-step guide. You can still read this page in the other views.</p>
+      </div>
+    );
   }
 
   const finished = idx >= steps.length;
   const stepFields = (step?.fieldIds ?? []).map((id) => fields.get(id)).filter((f): f is FieldStructure => !!f);
   const missing = stepFields.filter((f) => f.required && f.kind !== "file" && !(values[f.fieldId] ?? "").trim());
 
+  const go = (n: number) => { setProblem(null); setIdx(n); };
+
+  /** Writes the step's answers into the original form, and moves on only when every answer was written. */
   async function commit(skip: boolean) {
     if (!step || !structure) return;
-    if (!skip) {
-      const mine: FormValues = {};
-      step.fieldIds.forEach((id) => { mine[id] = values[id] ?? ""; });
-      const res = await host.writeValues(structure, mine);
-      const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
-      setFilled(nextFilled);
-      setFailed(res.failed);
-      await host.highlight(nextFilled, accentColor());
-      if (remember) setProfile(rememberAnswers(mine));
+    if (skip) { go(idx + 1); return; }
+    const mine: FormValues = {};
+    step.fieldIds.forEach((id) => { mine[id] = values[id] ?? ""; });
+    if (remember) setProfile(rememberAnswers(mine));
+    let res: { written: string[]; failed: string[] };
+    try {
+      res = await host.writeValues(structure, mine);
+    } catch (e) {
+      console.warn("[distill] could not write to the page:", e);
+      setProblem({ fieldIds: step.fieldIds, unreachable: true }); // the typed answers stay in the step
+      return;
     }
-    setIdx(idx + 1);
+    const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
+    setFilled(nextFilled);
+    await host.highlight(nextFilled, accentColor()).catch(() => undefined);
+    if (res.failed.length > 0) { setProblem({ fieldIds: res.failed, unreachable: false }); return; }
+    go(idx + 1);
   }
 
   const setAidFor = (id: string, text: string, meta: AiMeta) => setAid((a) => ({ ...a, [id]: { text, meta } }));
@@ -188,7 +230,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
       setAidFor(f.fieldId, v ? "Suggested from your saved answers. Please check it." : "No suggestion for this one.", { source: r.source, reason: r.reason, ms: r.ms });
       if (v) setValues((x) => ({ ...x, [f.fieldId]: v }));
     } catch (e) {
-      setAidFor(f.fieldId, e instanceof Error ? e.message : "No suggestion.", NOT_RUN);
+      setAidFor(f.fieldId, aiWords(e), NOT_RUN);
     }
   }
 
@@ -199,7 +241,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
       const r = await run<{ ok?: boolean; message?: string }>("checkValue", prompt, CHECK_SCHEMA, { value: values[f.fieldId] ?? "" });
       setAidFor(f.fieldId, r.data.message ?? (r.data.ok ? "Looks right." : "Please check this."), { source: r.source, reason: r.reason, ms: r.ms });
     } catch (e) {
-      setAidFor(f.fieldId, e instanceof Error ? e.message : "Could not check.", NOT_RUN);
+      setAidFor(f.fieldId, aiWords(e), NOT_RUN);
     }
   }
 
@@ -251,10 +293,15 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
                 )}
               </div>
             ))}
-            {failed.length > 0 && (
-              <p className="notice notice-warn" role="alert">
-                Could not fill: {failed.map((id) => fields.get(id)?.label ?? id).join(", ")}. Please type it in the original form.
-              </p>
+            {problem && (
+              <div className="notice notice-warn" role="alert" data-testid="write-problem">
+                <p>{writeProblemText(problem, (id) => fields.get(id)?.label || id)}</p>
+                <div className="nav">
+                  <button type="button" className="btn btn-small" onClick={showOriginal}>Show original form</button>
+                  {problem.unreachable && <button type="button" className="btn btn-small" onClick={() => void commit(false)}>Try again</button>}
+                  <button type="button" className="btn btn-small btn-link" onClick={() => go(idx + 1)}>Go to the next step</button>
+                </div>
+              </div>
             )}
             {missing.length > 0 && <p className="muted">Fill in the required answer to continue, or skip this step.</p>}
           </div>
@@ -265,7 +312,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
           </label>
 
           <div className="nav">
-            <button type="button" className="btn" disabled={idx === 0} onClick={() => setIdx(idx - 1)}>Back</button>
+            <button type="button" className="btn" disabled={idx === 0} onClick={() => go(idx - 1)}>Back</button>
             <button type="button" className="btn btn-link" onClick={() => void commit(true)}>Skip</button>
             <button type="button" className="btn btn-primary" disabled={missing.length > 0} onClick={() => void commit(false)}>
               {idx === steps.length - 1 ? "Finish" : "Next"}
@@ -279,7 +326,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
           <h3>All steps done</h3>
           <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
           <div className="nav">
-            <button type="button" className="btn" onClick={() => setIdx(Math.max(steps.length - 1, 0))}>Back</button>
+            <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
             <button type="button" className="btn btn-primary" onClick={showOriginal}>Show original form</button>
           </div>
         </div>
