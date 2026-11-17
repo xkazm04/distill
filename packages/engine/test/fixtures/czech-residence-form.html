@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head><meta charset="utf-8"><title>Žádost o přechodný pobyt - Ministerstvo vnitra</title></head>
+<body>
+<header class="site-header"><nav><a href="/">Úvod</a> <a href="/pobyt">Pobyt</a> <a href="/kontakt">Kontakt</a></nav></header>
+<main>
+  <h1>Žádost o povolení k přechodnému pobytu</h1>
+  <p>Vyplňte prosím všechny povinné údaje označené hvězdičkou. Žádost můžete podat také osobně na úřadě.</p>
+  <form action="/zadost" method="post">
+    <input type="hidden" name="csrf_token" value="a1b2c3">
+    <fieldset>
+      <legend>Osobní údaje</legend>
+      <div><label for="jmeno">Jméno *</label><input id="jmeno" name="jmeno" type="text" required maxlength="60"></div>
+      <div><label for="prijmeni">Příjmení *</label><input id="prijmeni" name="prijmeni" type="text" required></div>
+      <div><label for="datum">Datum narození *</label><input id="datum" name="datum_narozeni" type="date" required></div>
+      <div>
+        <label for="rc">Rodné číslo *</label>
+        <input id="rc" name="rodne_cislo" type="text" pattern="[0-9]{6}/?[0-9]{3,4}" placeholder="900101/1234" maxlength="11" required>
+        <small class="hint">Rodné číslo najdete na občanském průkazu.</small>
+      </div>
+      <fieldset>
+        <legend>Rodinný stav</legend>
+        <label><input type="radio" name="stav" value="svobodny"> Svobodný/á</label>
+        <label><input type="radio" name="stav" value="zenaty"> Ženatý / vdaná</label>
+        <label><input type="radio" name="stav" value="rozvedeny"> Rozvedený/á</label>
+      </fieldset>
+    </fieldset>
+    <fieldset>
+      <legend>Kontakt a pobyt</legend>
+      <div><label for="email">E-mail</label><input id="email" name="email" type="email"></div>
+      <div><label for="tel">Telefon</label><input id="tel" name="telefon" type="tel"></div>
+      <div>
+        <label for="stat">Státní příslušnost *</label>
+        <select id="stat" name="statni_prislusnost" required>
+          <option value="">-- vyberte --</option>
+          <option value="UA">Ukrajina</option>
+          <option value="VN">Vietnam</option>
+          <option value="SK">Slovensko</option>
+        </select>
+      </div>
+      <div class="group">
+        <span>Důvod pobytu</span>
+        <label><input type="checkbox" name="duvod" value="prace"> Zaměstnání</label>
+        <label><input type="checkbox" name="duvod" value="studium"> Studium</label>
+        <label><input type="checkbox" name="duvod" value="rodina"> Rodina</label>
+      </div>
+      <div><label for="poznamka">Poznámka</label><textarea id="poznamka" name="poznamka" rows="3"></textarea></div>
+      <div><input type="checkbox" id="souhlas" name="souhlas" value="ano" required> <label for="souhlas">Souhlasím se zpracováním osobních údajů</label></div>
+    </fieldset>
+    <button type="submit">Odeslat žádost</button>
+  </form>
+</main>
+<footer><p>Ministerstvo vnitra České republiky. Všechna práva vyhrazena.</p></footer>
+</body>
+</html>
