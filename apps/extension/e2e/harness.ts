@@ -5,7 +5,12 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { chromium, expect, test as base, type BrowserContext, type Page, type TestInfo, type Worker } from "playwright/test";
+import { Host } from "../../../tools/handrail/src/host.js";
+import { createMcpServer } from "../../../tools/handrail/src/mcp.js";
+import type { Envelope, HandrailTool } from "../../../tools/handrail/src/types.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const EXTENSION_ROOT = resolve(here, "..");
@@ -33,18 +38,20 @@ export const LAUNCH = {
 /**
  * A copy of dist with a TEST-ONLY manifest: `host_permissions: ["<all_urls>"]`, so the panel can inject its content
  * script without the click on the toolbar icon (the activeTab grant) that a test cannot give. The real dist is never
- * written to. `grantHosts: false` keeps the shipped manifest unchanged.
+ * written to. `grantHosts: false` keeps the shipped manifest unchanged. `grantHelper: true` also grants the optional
+ * nativeMessaging permission (Chrome's prompt cannot be pressed in a test), for the scenarios that play the helper.
  */
-function prepareExtension(grantHosts: boolean): string {
+function prepareExtension(grantHosts: boolean, grantHelper: boolean): string {
   if (!existsSync(join(DIST, "manifest.json")) || !existsSync(join(DIST, "content.js"))) {
     throw new Error(`No built extension in ${DIST}. Run \`npm run build -w @distill/extension\` first (npm run e2e does).`);
   }
   const dir = mkdtempSync(join(tmpdir(), "distill-e2e-ext-"));
   cpSync(DIST, dir, { recursive: true });
-  if (grantHosts) {
+  if (grantHosts || grantHelper) {
     const file = join(dir, "manifest.json");
     const manifest = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
-    manifest.host_permissions = ["<all_urls>"];
+    if (grantHosts) manifest.host_permissions = ["<all_urls>"];
+    if (grantHelper) manifest.permissions = [...(manifest.permissions as string[]), "nativeMessaging"];
     writeFileSync(file, JSON.stringify(manifest, null, 2));
   }
   return dir;
@@ -75,6 +82,56 @@ async function serveDemo(): Promise<{ server: Server; origin: string }> {
 }
 
 export interface Tab { page: Page; id: number; url: string }
+
+/** What the e2e build's service worker exposes (background.ts, `vite --mode e2e` only). */
+interface FakeHelperApi { enable(): void; send(m: unknown): number; take(): unknown[] }
+declare global { var __distillFakeHelper: FakeHelperApi | undefined }
+
+/**
+ * The person's agent, scripted: a real MCP client (the SDK's) talking to Handrail's own MCP server and host, whose
+ * native-messaging side is the e2e build's fake helper in the service worker. Everything from the MCP tool call to
+ * the panel and the tab is the real code; only the stdio pipes and the native host process are left out.
+ */
+export class Agent {
+  private stopped = false;
+  private constructor(readonly client: Client, private readonly pump: Promise<void>, private readonly halt: () => void) {}
+
+  static async start(worker: Worker): Promise<Agent> {
+    const host = new Host((env: Envelope) => {
+      void worker.evaluate((m) => globalThis.__distillFakeHelper?.send(m), env as unknown as Record<string, unknown>).catch(() => undefined);
+    });
+    let running = true;
+    const pump = (async () => {
+      while (running) {
+        const inbox = (await worker.evaluate(() => globalThis.__distillFakeHelper?.take() ?? []).catch(() => [])) as Envelope[];
+        for (const env of inbox) host.receive(env);
+        await new Promise((r) => setTimeout(r, 40));
+      }
+    })();
+    const server = createMcpServer({ call: (tool: HandrailTool, args: Record<string, unknown>) => host.handleCall(tool, args) });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const client = new Client({ name: "e2e-agent", version: "0" });
+    await client.connect(ct);
+    return new Agent(client, pump, () => { running = false; host.shutdown(); });
+  }
+
+  /** Calls one Handrail tool as the agent would; returns the parsed JSON, or throws the tool error text. */
+  async call<T = Record<string, unknown>>(name: HandrailTool, args: Record<string, unknown> = {}): Promise<T> {
+    const r = (await this.client.callTool({ name, arguments: args })) as { isError?: boolean; content: Array<{ text: string }> };
+    const text = r.content[0]?.text ?? "";
+    if (r.isError) throw new Error(text);
+    return JSON.parse(text) as T;
+  }
+
+  async stop() {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.halt();
+    await this.client.close().catch(() => undefined);
+    await this.pump;
+  }
+}
 
 export class Distill {
   readonly errors: ConsoleError[] = [];
@@ -131,6 +188,19 @@ export class Distill {
     return page;
   }
 
+  /**
+   * Plays the helper program (needs `test.use({ grantHelper: true })` and the e2e build). Call it BEFORE openPanel:
+   * the panel connects when it opens. Returns the scripted agent.
+   */
+  async startAgent(): Promise<Agent> {
+    const ok = await this.worker.evaluate(() => { if (!globalThis.__distillFakeHelper) return false; globalThis.__distillFakeHelper.enable(); return true; });
+    if (!ok) throw new Error("The service worker has no fake helper: run the e2e build (npm run e2e builds it).");
+    const agent = await Agent.start(this.worker);
+    this.agents.push(agent);
+    return agent;
+  }
+  readonly agents: Agent[] = [];
+
   /** Makes `tabId` the active tab of its window, as a person clicking it would. */
   activate(tabId: number) {
     return this.worker.evaluate(async (id) => { await chrome.tabs.update(id, { active: true }); }, tabId);
@@ -158,7 +228,7 @@ export class Distill {
   unexpectedErrors() { return this.errors.filter((e) => !e.allowed); }
 }
 
-interface Fixtures { distill: Distill; grantHosts: boolean }
+interface Fixtures { distill: Distill; grantHosts: boolean; grantHelper: boolean }
 interface WorkerFixtures { demo: { origin: string } }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
@@ -170,9 +240,11 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 
   /** Override with `test.use({ grantHosts: false })` to run with the shipped manifest (no host access). */
   grantHosts: [true, { option: true }],
+  /** Override with `test.use({ grantHelper: true })` for the scenarios that play the helper program (startAgent). */
+  grantHelper: [false, { option: true }],
 
-  distill: async ({ demo, grantHosts }, use, info) => {
-    const ext = prepareExtension(grantHosts);
+  distill: async ({ demo, grantHosts, grantHelper }, use, info) => {
+    const ext = prepareExtension(grantHosts, grantHelper);
     const profile = mkdtempSync(join(tmpdir(), "distill-e2e-profile-"));
     const context = await chromium.launchPersistentContext(profile, {
       channel: LAUNCH.channel,
@@ -188,6 +260,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       const extensionId = new URL(worker.url()).host;
       const d = new Distill(context, worker, extensionId, demo.origin);
       await use(d);
+      for (const a of d.agents) await a.stop();
       await d.save(info);
       const bad = d.unexpectedErrors();
       expect(bad, `console errors (see e2e/out/*-console.json):\n${bad.map((e) => `[${e.page}] ${e.text}`).join("\n")}`).toEqual([]);

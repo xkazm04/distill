@@ -26,7 +26,11 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
 
 - The harness copies `dist` to a temporary folder and adds `host_permissions: ["<all_urls>"]` to the copy's manifest.
   This is for the tests only: it stands in for the click on the toolbar icon (the activeTab grant), which a test cannot
-  give. The real `dist` is never changed.
+  give. The real `dist` is never changed. `test.use({ grantHelper: true })` also grants the optional `nativeMessaging`.
+- The agent scenarios play the helper program in the service worker: the e2e build (`vite --mode e2e`) has a fake
+  helper there (`__distillFakeHelper`, dropped from every other build) that the test switches on before it opens the
+  panel. Handrail's real `Host` runs in the test process and trades envelopes with it, so no native host is needed and
+  none is started, even on a machine where Handrail is installed.
 - A small local server serves `apps/web/public/demo/*.html`.
 - The side panel is opened as an ordinary extension page, `sidepanel.html?tabId=<n>`, pinned to the demo tab. The tab id
   comes from the service worker (`chrome.tabs.query`).
@@ -47,6 +51,14 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   "Allow on all sites", instead of an error.
 - Agent: with no helper program installed, the Agent view says it is not running (or, where nativeMessaging is an
   optional permission not yet given, offers "Connect your helper program").
+- Your agent is the AI (`agent.spec.ts`): a scripted agent, the MCP SDK's own client on Handrail's own MCP server and
+  host, drives the real panel. The person chooses "My agent"; the panel shows "Waiting for your agent..."; the agent
+  takes the simplify task with `distill_tasks`, a first answer naming no block is refused with its reason, the second
+  is accepted and the Read view shows it with the chip "Made by your agent"; the Agent view's trail lists every
+  request. An answer after the page changed is refused (`stale_page`). Page actions: `page_actions` lists the tab's
+  controls by label (never the value typed into the tab's field); a submit card says "This sends the form." and Reject
+  sends nothing; Accept clicks the tab's button; a stale pageToken is refused. Mid-scenario screenshots are saved as
+  `e2e/out/moment-*.png`.
 - Following the page: a single-page app's new content is read again; a form that changed under the guide says so; a
   reload keeps the guide's step and puts the passed answers back into the form; the next form on the same site gets a
   same-label answer, marked "Carried over from the previous page"; pointing at a block in Read outlines its source in

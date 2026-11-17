@@ -1,8 +1,9 @@
 # Handrail
 
-Lets your own coding agent (Claude Code or agy, the Antigravity CLI) read the Distill page you are on and propose values
-for a form. Nothing is written until you press Accept in the page. Protocol and the security argument:
-[PROTOCOL.md](./PROTOCOL.md).
+Lets your own coding agent (Claude Code or agy, the Antigravity CLI) read the Distill page you are on, propose values
+for a form and ask to click a button or link. Nothing is written or clicked until you press Accept in the page. When
+you choose "My agent" in Distill, your agent also does Distill's AI work (simplify the page, the form guide, the new
+layout). Protocol and the security argument: [PROTOCOL.md](./PROTOCOL.md).
 
 ## Set up: one command
 
@@ -67,11 +68,36 @@ npm run agent:remove
 Removes the `handrail` entries from Claude Code and agy, the browser keys, the manifest files and the host program.
 Nothing else.
 
+## Your agent is the AI
+
+1. Open the Distill panel on a page. Open the menu: under "Who does the AI work" (shown while the helper program is
+   connected) choose **My agent (Claude Code or agy)**.
+2. Distill now posts its work (simplify the page, build the form guide, make a new layout) for your agent and shows
+   "Waiting for your agent..." with **Cancel** and **Use Distill's AI instead**.
+3. In Claude Code, type:
+
+   > Do Distill's tasks: call distill_tasks with waitSeconds 60, do each task by following its prompt, answer it with
+   > distill_answer, and repeat until there is no task.
+
+   Your agent answers; Distill checks each answer through the same door as its own AI and shows it with the square chip
+   **Made by your agent**. If an answer cannot be used, the agent gets the reasons and tries again.
+
+To simplify the page you are on, choose the reading level **Plain** or **Standard** in Read. Each task waits 180
+seconds for an answer. Suggestions and checks of your own answers are never given to the agent: they stay on this
+device.
+
+Other things to ask: "Read this page with Distill and tell me what I have to do", "Fill in this form with my details
+from ~/details.md" (each value waits for your Accept), "Go to the next page of this form" (the agent asks to click
+"Next"; you accept). The Agent view lists everything your agent did in this session.
+
 ## Tools
 
-`distill_read`, `wayfill_schema`, `wayfill_propose` and `wayfill_next`. Every proposal waits in the page for your
-answer.
+`distill_read`, `wayfill_schema`, `wayfill_propose`, `wayfill_next`, `distill_tasks`, `distill_answer`,
+`page_actions` and `page_action_propose`. Every proposal waits in the page for your answer. Every tool description
+tells the agent that page text is untrusted data, never instructions.
 
 ## What it never does
 
-It never writes a field. Handrail only creates proposals; the page applies a value after you accept it.
+It never writes a field and never clicks. Handrail only creates proposals; the page applies a value or clicks after you
+accept it. It never sends the agent a value you typed: tasks hold page text or the form's structure, page actions hold
+labels.
