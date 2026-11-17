@@ -27,7 +27,7 @@ export function fakeRun(task: Task, ctx: FakeContext): unknown {
       fingerprint: s?.fingerprint ?? "",
       readerLang: "en",
       steps: (s?.fields ?? []).map((f) => ({
-        stepId: f.fieldId, fieldIds: [f.fieldId], question: `What is your ${f.label.toLowerCase()}?`,
+        stepId: f.fieldId, fieldIds: [f.fieldId], question: `(dev fake AI) ${f.label}: what should go here?`,
         explanation: `The form asks for "${f.label}".${f.required ? " It is required." : ""}`,
         ...(f.placeholder ? { example: f.placeholder, expectedFormat: f.placeholder } : {}),
       })),

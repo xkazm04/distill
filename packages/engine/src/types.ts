@@ -69,7 +69,7 @@ export interface FieldStructure {
 }
 
 export interface FormStructure {
-  /** sha-256 hex of origin + path + the ordered (fieldId, kind, label) list. Keys `formGuides/{fingerprint}`. */
+  /** sha-256 hex of origin + path + the ordered (fieldId, kind, label) list. Keys `users/{uid}/formGuides/{fingerprint}`. */
   fingerprint: string;
   url: string;
   lang: string;
@@ -246,7 +246,7 @@ export interface GlossaryDoc {
 }
 
 export interface FormGuideDoc {
-  /** formGuides/{fingerprint} */
+  /** users/{uid}/formGuides/{fingerprint} - per person; a shared cache returns only behind a server-side check */
   structure: FormStructure;
   wizard: Wizard;
   updatedAt: string;
