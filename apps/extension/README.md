@@ -1,28 +1,73 @@
-# Distill for Chrome - build it yourself
+# Distill for Chrome
 
-While Distill's core is in development, the Chrome extension is not in the Chrome Web Store and there is no download.
+There are two ways to get the Distill extension. They differ in where the AI runs.
+
+| | Download (public build) | Build it yourself (own build) |
+| --- | --- | --- |
+| AI | Only Gemini Nano, the model built into Chrome, on your computer | On your computer first; the cloud when your computer cannot help |
+| Without the on-device model | The page as written, a simple form guide and the reading view; no AI | Page tasks use the cloud; suggestions and checks for your answers stay off |
+| Saved online | Nothing | Settings and form guides (never your answers) in your own Firebase project |
+| Firebase project or token | Not needed | Your own project and your own App Check debug token |
+| Extension id | `pbmfhppffaiedhljpgpigancfhknohol` | the same (both carry the repository's public `key`) |
+
+In both, what you type into a form stays on your device. See the [privacy policy](https://distill-hybrid-ai.web.app/privacy.html)
+for exactly what each version keeps and where.
+
+## Route 1: download the public build
+
+1. Download `distill-extension-<version>.zip` from the repository's
+   [Releases page](https://github.com/xkazm04/distill/releases) and unzip it into a folder you will keep.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose that folder.
+3. Pin Distill from the puzzle-piece menu, open a web page and click the Distill icon. The side panel opens.
+4. The panel's model card shows the state of Chrome's built-in model. If it says "ready to download", click
+   **Download the model**. Chrome decides whether a computer can run it (Chrome 138 or newer, a desktop computer with
+   enough memory and free disk space; see [Chrome's built-in AI](https://developer.chrome.com/docs/ai/get-started)).
+
+This build never calls the cloud, so it needs no App Check and holds no credential: it is safe to share. If the model
+is not ready, every AI feature says so plainly and Distill shows what it can without AI.
+
+### Making the zip (maintainers)
+
+```sh
+npm run pack:extension   # -> apps/extension/release/distill-extension-<version>.zip (keeps the manifest key)
+npm run pack:store       # -> apps/extension/release/distill-extension-<version>-store.zip (key stripped, for the Web Store)
+```
+
+Both need the Firebase web config in `.env` (`VITE_FIREBASE_API_KEY`, `_PROJECT_ID`, `_APP_ID`: public by design; the
+AI SDK needs them even on the device), build the public variant (`npm run build:public -w @distill/extension`, output
+`apps/extension/dist-public`), run `check-dist` on it (it fails on any reCAPTCHA code, App Check debug-token hook, App
+Check or Firestore endpoint, or a never-ship credential), scan the zip's bytes again, and write the extension id to
+`apps/extension/release/extension-id.txt`. `apps/extension/release/` is ignored by git; upload the zip to a GitHub
+release by hand. The download keeps the manifest `key`, so the extension id is the same on every computer and the
+Handrail native host can allow exactly that id. The Web Store refuses a `key` and assigns its own id, so the store zip
+strips it (see [store/listing.md](store/listing.md)). The private half of the key is kept outside the repository by
+the maintainer; the repository holds only the public key.
+
+## Route 2: build it yourself
+
+This build can also use the cloud when your computer cannot help, and it saves settings and form guides in Firestore.
 You build it from this repository with your own Firebase project and load it into Chrome yourself. It takes about
-fifteen minutes. If you only want to try Distill, use the web app instead (see the root README).
+fifteen minutes.
 
-## Why there is no download yet
+### Why this build is private to you
 
-Distill calls Firebase AI Logic, and every call is protected by **Firebase App Check**, which proves the request comes
-from the real app. The hosted web app proves this with reCAPTCHA Enterprise, but reCAPTCHA does not run inside a Chrome
-extension. An extension needs a custom App Check provider (a small server that attests the extension), and that does
-not exist yet.
+Distill calls Firebase AI Logic, and every cloud call is protected by **Firebase App Check**, which proves the request
+comes from the real app. The hosted web app proves this with reCAPTCHA Enterprise, but reCAPTCHA does not run inside a
+Chrome extension. An extension needs a custom App Check provider (a small server that attests the extension), and
+that does not exist yet.
 
-Until it does, the extension uses an App Check **debug token**. A debug token lets anything that holds it past App
+Until it does, this build uses an App Check **debug token**. A debug token lets anything that holds it past App
 Check, so it must never be published: a token baked into a public download would open your Firebase project to
-everyone. That is why each person builds the extension with their own project and their own token, and why this
-repository publishes no zip or packaged extension.
+everyone. That is why each person builds this version with their own project and their own token, and why only the
+public build (which has no token) is ever packaged.
 
-## What you need
+### What you need
 
 - **Node.js 22** or newer (`node --version` shows it).
 - **Chrome 138** or newer.
 - A Google account for a free Firebase project.
 
-## Steps
+### Steps
 
 1. **Get the code and install.** In a terminal:
 
@@ -72,12 +117,17 @@ repository publishes no zip or packaged extension.
    - Click **Load unpacked** and choose the folder `apps/extension/dist`.
    - Pin Distill from the puzzle-piece menu, open any web page, and click the Distill icon. The side panel opens.
 
-## Keep your build private
+### Keep your build private
 
 Your `apps/extension/dist` folder contains your own debug token. Do not zip it, upload it or share it. If a token
 leaks, delete it under **Manage debug tokens** and make a new one.
 
 ## Updating
+
+**Download**: unzip the new release over the same folder (or into a new one and Load unpacked again), then click the
+reload arrow on the Distill card in `chrome://extensions`. The extension id stays the same.
+
+**Build it yourself**:
 
 ```sh
 git pull
@@ -88,6 +138,11 @@ npm run build -w @distill/extension
 Then click the reload arrow on the Distill card in `chrome://extensions`.
 
 ## If something does not work
+
+- **"This version of Distill uses only the AI model on this device, and it is not ready on this device"** (download):
+  open the model card in the side panel. "Ready to download": click **Download the model** and wait. "No model on this
+  device": this computer cannot run Chrome's built-in model; Distill still shows the page as written, a simple form
+  guide and the reading view. For cloud AI, use the web app or build the extension yourself.
 
 - **"Firebase is not configured"**: a `VITE_FIREBASE_*` line in `.env` is empty. Fill it, build again, reload.
 - **AI requests fail with an App Check error**: the token in `.env` is not registered under Manage debug tokens for
