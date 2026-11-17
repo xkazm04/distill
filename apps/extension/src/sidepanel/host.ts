@@ -1,5 +1,6 @@
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
 import type { PageHost } from "@distill/web/ui";
+import type { PageThemeSeed } from "../../../web/src/ui/theme/roles";
 import type { ContentReplies, ContentRequest, ContentResponse } from "../messages";
 
 const CANNOT_READ = "Distill cannot read this page. Click the Distill icon while you are on a normal web page.";
@@ -35,6 +36,8 @@ export class TabHost implements PageHost {
   readValues(structure: FormStructure): Promise<FormValues> { return this.send<"distill:readValues">({ type: "distill:readValues", structure }); }
   writeValues(structure: FormStructure, values: FormValues) { return this.send<"distill:writeValues">({ type: "distill:writeValues", structure, values }); }
   async highlight(fieldIds: string[]) { await this.send({ type: "distill:highlight", fieldIds }); }
+  /** The page's colours, fonts and corner radius, for "Match this page". */
+  getTheme(): Promise<PageThemeSeed> { return this.send<"distill:getTheme">({ type: "distill:getTheme" }); }
   /** The original is the tab itself; the panel just tells the person so. */
   async showOriginal() { /* nothing to do: the page was never replaced */ }
 }

@@ -1,6 +1,7 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
+import type { PageThemeSeed } from "../../web/src/ui/theme/roles";
 
 export type ContentRequest =
   | { type: "distill:ping" }
@@ -8,7 +9,8 @@ export type ContentRequest =
   | { type: "distill:getForm"; formIndex: number }
   | { type: "distill:readValues"; structure: FormStructure }
   | { type: "distill:writeValues"; structure: FormStructure; values: FormValues }
-  | { type: "distill:highlight"; fieldIds: string[] };
+  | { type: "distill:highlight"; fieldIds: string[] }
+  | { type: "distill:getTheme" };
 
 export interface ContentReplies {
   "distill:ping": { ready: true };
@@ -17,6 +19,8 @@ export interface ContentReplies {
   "distill:readValues": FormValues;
   "distill:writeValues": { written: string[]; failed: string[] };
   "distill:highlight": { ok: true };
+  /** Computed colours, fonts and radius only (see pageTheme.ts): no value, no text. */
+  "distill:getTheme": PageThemeSeed;
 }
 
 export type ContentResponse<T> = { ok: true; data: T } | { ok: false; error: string };

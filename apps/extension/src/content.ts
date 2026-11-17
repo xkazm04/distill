@@ -3,6 +3,7 @@
 import { extractForm, extractPage, readValues, writeValues } from "@distill/engine";
 import { applyHighlight } from "@distill/web/dom";
 import type { ContentRequest, ContentResponse } from "./messages";
+import { readPageTheme } from "./pageTheme";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -16,6 +17,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:readValues": return readValues(document, req.structure);
     case "distill:writeValues": return writeValues(document, req.structure, req.values);
     case "distill:highlight": applyHighlight(document, req.fieldIds); return { ok: true };
+    case "distill:getTheme": return readPageTheme(document);
   }
 }
 
