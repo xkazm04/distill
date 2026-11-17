@@ -1,4 +1,5 @@
 import type { Block, PageKind, PageModel } from "./types.js";
+import { publicUrl } from "./url.js";
 import { BLOCKISH, SKIP_TAGS, attr, blocked, collapse, isHidden, isNoise, pageLang, tag, textOf } from "./dom.js";
 import { buildBindings, listForms } from "./form.js";
 
@@ -170,7 +171,7 @@ export function extractPage(doc: Document, url: string): PageModel {
   }
   const forms = listForms(doc).length;
   const page: PageModel = {
-    url,
+    url: publicUrl(url),
     title: collapse(doc.title ?? "") || h1?.text || host,
     lang: pageLang(doc),
     kind: classify(doc, url, blocks, forms > 0),

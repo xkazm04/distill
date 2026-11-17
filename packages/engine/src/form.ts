@@ -1,4 +1,5 @@
 import type { FieldKind, FieldOption, FieldStructure, FormStructure, FormValues } from "./types.js";
+import { publicUrl } from "./url.js";
 import { attr, blocked, collapse, isHidden, pageLang, SKIP_TAGS, tag, textOf } from "./dom.js";
 import { fingerprint } from "./fingerprint.js";
 
@@ -278,7 +279,7 @@ export async function extractForm(doc: Document, url: string, formIndex = 0): Pr
   const h1 = doc.querySelector("h1");
   return {
     fingerprint: await fingerprint(url, fields),
-    url,
+    url: publicUrl(url),
     lang: pageLang(doc),
     title: collapse(doc.title ?? "") || (h1 ? textOf(h1) : ""),
     fields,
