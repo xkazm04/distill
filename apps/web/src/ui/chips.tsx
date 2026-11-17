@@ -65,12 +65,18 @@ export function ModelCard({ model }: { model: LocalModel }) {
   );
 }
 
+let toldDeveloper = false;
+
+/** No AI in this copy. The person reads what that means for them; how to set it up is for developers (console, README). */
 export function ConfigNotice() {
   if (isFirebaseConfigured()) return null;
+  if (!toldDeveloper) {
+    toldDeveloper = true;
+    console.info("[distill] Firebase is not configured (no VITE_FIREBASE_* values at build time), so AI features are off. See README.md.");
+  }
   return (
     <p className="notice" role="status" data-testid="not-configured">
-      Firebase is not configured, so the AI features are off. You can still read the page and fill in the form by hand.
-      The owner sets this up in the <code>.env</code> file.
+      AI features are off in this copy of Distill. You can still read the page and fill in the form yourself.
     </p>
   );
 }

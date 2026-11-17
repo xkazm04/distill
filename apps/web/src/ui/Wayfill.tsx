@@ -41,7 +41,7 @@ export function basicWizard(s: FormStructure, readerLang: string): Wizard {
         stepId: f.fieldId,
         fieldIds: [f.fieldId],
         question: `Fill in: "${f.label}"`,
-        explanation: "This is the form's own label. Ask the AI for an explanation, or type what the form asks for.",
+        explanation: "This is the form's own label, as written on the page. Type what the form asks for.",
         ...(f.placeholder ? { example: f.placeholder } : {}),
         ...(format ? { expectedFormat: format } : {}),
       };

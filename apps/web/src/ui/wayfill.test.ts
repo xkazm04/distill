@@ -26,7 +26,7 @@ describe("basicWizard (no AI)", () => {
       'Fill in: "Jméno"', 'Fill in: "Rodné číslo"', 'Fill in: "PSČ"', 'Fill in: "Datum narození"', 'Fill in: "E-mail"',
     ]);
     for (const s of w.steps) {
-      expect(s.explanation).toBe("This is the form's own label. Ask the AI for an explanation, or type what the form asks for.");
+      expect(s.explanation).toBe("This is the form's own label, as written on the page. Type what the form asks for.");
       expect(s.question).not.toMatch(/What is your/i);
     }
     expect(w.steps.map((s) => s.fieldIds)).toEqual(structure.fields.map((f) => [f.fieldId]));
