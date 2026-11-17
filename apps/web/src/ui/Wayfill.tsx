@@ -229,9 +229,31 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         if (byLabel) carry = carryOver(s.fields, byLabel.answers, present);
       }
       if (!live) return;
-      setStructure(s); setWizard(w); setOrigin(o); setFilled([]); setProblem(null);
+      const at = kept ? Math.min(kept.stepIndex, w.steps.length) : 0;
+      // After a reload the page's fields are empty again: the answers of the steps already passed (the person pressed
+      // Next for them) go back into the form, never over something the page holds now.
+      const refilled: string[] = [];
+      if (kept && at > 0) {
+        const passed = new Set(w.steps.slice(0, at).flatMap((st) => st.fieldIds));
+        const again: FormValues = {};
+        for (const f of s.fields) {
+          const v = kept.answers[f.fieldId] ?? "";
+          if (!passed.has(f.fieldId) || f.kind === "file" || !v.trim() || v === "false") continue;
+          const now = present[f.fieldId] ?? "";
+          if (now === v) refilled.push(f.fieldId);
+          else if (!now.trim()) again[f.fieldId] = v;
+        }
+        if (Object.keys(again).length) {
+          const r = await host.writeValues(s, again).catch(() => null);
+          if (r) refilled.push(...r.written);
+        }
+        if (!live) return;
+        if (refilled.length) await host.highlight(refilled, accentColor()).catch(() => undefined);
+        if (!live) return;
+      }
+      setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null);
       setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry });
-      setIdx(kept ? Math.min(kept.stepIndex, w.steps.length) : 0);
+      setIdx(at);
       setCarried(carry);
       setRestored(!!kept && (kept.stepIndex > 0 || Object.keys(nonEmpty(kept.answers)).length > 0));
       setChanged(false); setForgotten(false);
@@ -422,7 +444,9 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         </div>
       )}
       {restored && !changed && (
-        <p className="muted wf-saved" role="status" data-testid="wf-restored">Picked up where you left off. Your answers were kept on this device.</p>
+        <p className="muted wf-saved" role="status" data-testid="wf-restored">
+          Picked up where you left off. Your answers were kept on this device{filled.length ? ", and the ones you had filled in are back in the form" : ""}.
+        </p>
       )}
 
       <div className="ws-content wf-grid ws-enter">

@@ -452,7 +452,8 @@ describe("the guide keeps its place (GuideStore)", () => {
     root = createRoot(el);
     await show({ host: new FakeHost(), initialTab: "wayfill", guideStore: store });
     expect(q("wf-step")?.textContent).toContain("Step 2 of 2");
-    expect(q("wf-restored")).not.toBeNull();
+    expect(q("wf-restored")?.textContent).toContain("back in the form");
+    expect(q("wf-answered")?.textContent).toBe("1 of 2 answered"); // step 1's answer was written into the page again
     await act(async () => { button("Back")!.click(); });
     expect(el.querySelector<HTMLInputElement>("#wf-jmeno")?.value).toBe("Jana");
   });
