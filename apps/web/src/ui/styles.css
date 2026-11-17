@@ -2,6 +2,38 @@
    Styles ONLY through the role custom properties of ./theme/roles.ts; this file binds none of them and never asks
    which theme is active. The web app binds the brand (theme/brand.ts), the extension a theme derived from the page.
    Tints are color-mix() of roles, so every theme's contrast floors still hold for the text drawn on them. */
+/* Motion: the one vocabulary (the web app and the extension) for how long and with what character things move.
+   Pick the step by what moves:
+   instant = a colour or tint change; fast = a small element nudging (a mark wobble, a card lift, an arrow);
+   base = an element-level change (the example art); slow = an entrance; deliberate = an attention settle.
+   Easings by role: enter decelerates, exit accelerates, move is symmetric, expressive overshoots (springs).
+   Reduced motion rebinds the vocabulary itself (below), so a new animation complies without a list to update. */
+:root {
+  --dur-instant: 150ms;
+  --dur-fast: 250ms;
+  --dur-base: 350ms;
+  --dur-slow: 700ms;
+  --dur-deliberate: 900ms;
+  --dur-loop: 1200ms;   /* one cycle of a repeating choreography (the drip) */
+  --dur-draw: 2200ms;   /* a line drawing itself (the coil) */
+  --dur-shimmer: 1400ms; /* one sweep of the loading shimmer */
+  --motion-stagger: 70ms;
+  --motion-repeat: infinite;
+  --motion-travel: 1;   /* scales hover travel (lift, tilt, grow); 0 keeps elements where they are */
+  --ease-enter: cubic-bezier(.2, .8, .2, 1);
+  --ease-exit: cubic-bezier(.55, 0, .85, .35);
+  --ease-move: cubic-bezier(.4, 0, .2, 1);
+  --ease-expressive: cubic-bezier(.3, 1.4, .6, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Near zero, not zero: a transition that never runs never fires its end event. */
+  :root {
+    --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-deliberate: 1ms; --dur-loop: 1ms;
+    --dur-draw: 1ms; --dur-shimmer: 1ms; --motion-stagger: 0ms; --motion-repeat: 1; --motion-travel: 0;
+    --ease-enter: linear; --ease-exit: linear; --ease-move: linear; --ease-expressive: linear;
+  }
+}
+
 * { box-sizing: border-box; }
 html { font-size: 112.5%; -webkit-text-size-adjust: 100%; }
 body {
@@ -369,6 +401,41 @@ html:has(.workspace) { font-size: 100%; }
 .src:hover { border-color: currentColor; color: var(--fg); }
 .ws-why { margin-bottom: .8rem; font-size: .875rem; }
 
+/* ---- waiting and arriving: skeletons with a shimmer, then a staggered rise (all through the motion vocabulary) ---- */
+.sk {
+  position: relative; display: block; overflow: hidden; height: .8rem; border-radius: .35rem;
+  background: color-mix(in srgb, var(--fg) 9%, var(--bg));
+  animation: sk-in var(--dur-base) var(--ease-enter) both; animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+.sk::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 55%, transparent), transparent);
+  animation: sk-shimmer var(--dur-shimmer) var(--ease-move) var(--motion-repeat);
+}
+@keyframes sk-shimmer { to { transform: translateX(100%); } }
+@keyframes sk-in { from { opacity: 0; } }
+.sk-head { height: 1.35rem; }
+.sk-tall { height: 7rem; }
+.sk-blocks { display: grid; gap: 1.1rem; padding-top: .2rem; }
+.sk-para, .sk-list { display: grid; gap: .65rem; }
+.sk-heading { padding-top: .6rem; }
+.sk-li { display: flex; align-items: center; gap: .6rem; }
+.sk-li::before { content: ""; width: .4rem; height: .4rem; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--fg) 18%, var(--bg)); }
+.sk-steps { display: grid; gap: 1.1rem; padding: .5rem; }
+.sk-step { display: flex; align-items: center; gap: .7rem; }
+.sk-dot { width: 1.5rem; height: 1.5rem; flex: none; border-radius: 50%; }
+.sk-card { display: grid; gap: .8rem; }
+.sk-card .sk-para { gap: .55rem; }
+.sk-input { height: 2.5rem; border-radius: .6rem; }
+.sk-actions { display: flex; gap: .5rem; padding-top: .4rem; }
+.sk-btn { width: 5.5rem; height: 2.25rem; border-radius: .6rem; }
+.ws-status { margin: 0 0 1rem; }
+.ws-model-wait { height: .4rem; border-radius: 1rem; }
+.ws-enter > *, .ws-enter.reading > [data-block] {
+  animation: ws-rise var(--dur-base) var(--ease-enter) both; animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+@keyframes ws-rise { from { opacity: 0; transform: translateY(calc(.4rem * var(--motion-travel))); } }
+
 /* ---- the original: hidden, beside (B's split), or full ---- */
 .ws-orig { min-width: 0; }
 .ws-pane-head { display: flex; align-items: center; gap: .5rem; min-height: 2.9rem; padding: .35rem .75rem .35rem 1.5rem; border-bottom: 1px solid color-mix(in srgb, var(--line) 30%, var(--bg)); background: var(--bg); }
@@ -391,7 +458,6 @@ html:has(.workspace) { font-size: 100%; }
 .ws-divider:hover .ws-grip, .ws-divider:focus-visible .ws-grip, .ws-body.dragging .ws-grip { background: var(--focus); }
 .ws-divider:focus-visible { outline-offset: -3px; }
 .ws-body[data-original="beside"] .ws-toolbar, .ws-body[data-original="beside"] .ws-content { padding-inline: 1.25rem; }
-.ws-body[data-original="beside"] .wf-show-original { display: none; } /* the original form is already on screen */
 
 /* ---- compact: the workbench is narrower than ~900px (always so in the extension's side panel) ---- */
 @container ws (max-width: 56.2rem) {
@@ -461,6 +527,7 @@ html:has(.workspace) { font-size: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
+  .sk::after { display: none; }
   .btn:active:not(:disabled), .btn-primary:hover:not(:disabled) { transform: none; }
 }
 @media (forced-colors: active) {

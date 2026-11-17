@@ -5,35 +5,8 @@
    theme is active; a value that differs in dark is a token bound differently there. scripts/check-tokens.mjs fails the
    check on any colour literal in this file. */
 
-/* Motion: the one vocabulary for how long and with what character things move. Pick the step by what moves:
-   instant = a colour or tint change; fast = a small element nudging (a mark wobble, a card lift, an arrow);
-   base = an element-level change (the example art); slow = an entrance; deliberate = an attention settle.
-   Easings by role: enter decelerates, exit accelerates, move is symmetric, expressive overshoots (springs).
-   Reduced motion rebinds the vocabulary itself (below), so a new animation complies without a list to update. */
-:root {
-  --dur-instant: 150ms;
-  --dur-fast: 250ms;
-  --dur-base: 350ms;
-  --dur-slow: 700ms;
-  --dur-deliberate: 900ms;
-  --dur-loop: 1200ms;   /* one cycle of a repeating choreography (the drip) */
-  --dur-draw: 2200ms;   /* a line drawing itself (the coil) */
-  --motion-stagger: 70ms;
-  --motion-repeat: infinite;
-  --motion-travel: 1;   /* scales hover travel (lift, tilt, grow); 0 keeps elements where they are */
-  --ease-enter: cubic-bezier(.2, .8, .2, 1);
-  --ease-exit: cubic-bezier(.55, 0, .85, .35);
-  --ease-move: cubic-bezier(.4, 0, .2, 1);
-  --ease-expressive: cubic-bezier(.3, 1.4, .6, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  /* Near zero, not zero: a transition that never runs never fires its end event. */
-  :root {
-    --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-deliberate: 1ms; --dur-loop: 1ms;
-    --dur-draw: 1ms; --motion-stagger: 0ms; --motion-repeat: 1; --motion-travel: 0;
-    --ease-enter: linear; --ease-exit: linear; --ease-move: linear; --ease-expressive: linear;
-  }
-}
+/* Motion: the durations, easings and repeat/travel switches come from the shared vocabulary in ui/styles.css (the
+   extension uses the same one); this file only reads them. */
 
 /* The shell owns the width; the ground is painted on <html> so the grain can sit between it and the content. */
 html { background: var(--bg); }

@@ -5,6 +5,7 @@ import { isFirebaseConfigured } from "../firebase";
 import { enabledRecastKinds } from "./config";
 import { engine } from "./engine";
 import { AiProblem, SourceChip, type AiMeta } from "./chips";
+import { enter, LayoutSkeleton } from "./loading";
 
 /** The first words of a block, to name it on a "From the page" link. */
 export function blockSnippet(text: string | undefined, words = 6): string {
@@ -16,7 +17,7 @@ export function blockSnippet(text: string | undefined, words = 6): string {
 const WIDE = new Set<RecastNode["kind"]>(["comparison", "keyFacts"]);
 
 /** One component per kind of the closed vocabulary. Text goes in as React text: never HTML. */
-export function NodeView({ node, onSource, textOf }: { node: RecastNode; onSource: (blockId: string) => void; textOf?: (blockId: string) => string | undefined }) {
+export function NodeView({ node, onSource, textOf, i = 0 }: { node: RecastNode; onSource: (blockId: string) => void; textOf?: (blockId: string) => string | undefined; i?: number }) {
   const sources = node.sourceBlockIds.length > 0 && (
     <p className="sources">
       <span>From the page:</span>
@@ -66,7 +67,7 @@ export function NodeView({ node, onSource, textOf }: { node: RecastNode; onSourc
   const tone = node.kind === "callout" ? `callout-${node.tone ?? "info"}` : "";
   const kindName = node.kind === "callout" ? (node.tone === "deadline" ? "Deadline" : node.tone === "warning" ? "Warning" : "Note") : KIND_NAMES[node.kind];
   return (
-    <section className={`node node-${node.kind} ${tone}${WIDE.has(node.kind) ? " node-wide" : ""}`} data-kind={node.kind}>
+    <section className={`node node-${node.kind} ${tone}${WIDE.has(node.kind) ? " node-wide" : ""}`} data-kind={node.kind} style={enter(i)}>
       <p className="tone-label">{kindName}</p>
       {node.title && <h3>{node.title}</h3>}
       {body}
@@ -180,7 +181,17 @@ export function Recast({ page, enabled, fallback, onSource, onSections }: Props)
   const note = (n: ReactNode) => <div className="ws-content">{n}</div>;
   if (!enabled) return <>{note(<p className="notice" role="status">The new layout is switched off in your settings. Here is the focus view.</p>)}{fallback}</>;
   if (!canAi) return <>{note(<p className="notice" role="status" data-testid="recast-off">A new layout needs AI, which is off here. Here is the focus view.</p>)}{fallback}</>;
-  if (busy) return note(<p role="status">Building a clearer layout...</p>);
+  if (busy) {
+    return (
+      <section aria-labelledby="rc-h" className="recast">
+        <div className="ws-toolbar">
+          <h2 id="rc-h" className="ws-tool-label">New layout</h2>
+          <span role="status" className="muted">Building a clearer layout...</span>
+        </div>
+        <div className="ws-content"><LayoutSkeleton /></div>
+      </section>
+    );
+  }
   if (error !== null) return <>{note(<AiProblem error={error} after="Here is the focus view instead." onRetry={() => setAttempt((n) => n + 1)} />)}{fallback}</>;
   if (!repair) return null;
   if (repair.nodes.length === 0) {
@@ -213,8 +224,8 @@ export function Recast({ page, enabled, fallback, onSource, onSections }: Props)
         {repair.dropped > 0 && repair.reasons.length > 0 && (
           <details className="ws-why"><summary>Why some sections were left out</summary><ul>{repair.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></details>
         )}
-        <div className="layout-grid">
-          {repair.nodes.map((node, i) => <NodeView key={i} node={node} onSource={onSource} textOf={(id) => texts.get(id)} />)}
+        <div className="layout-grid ws-enter">
+          {repair.nodes.map((node, i) => <NodeView key={i} node={node} onSource={onSource} textOf={(id) => texts.get(id)} i={i} />)}
         </div>
       </div>
     </section>

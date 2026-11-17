@@ -50,7 +50,9 @@ export function ModelCard({ model }: { model: LocalModel }) {
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
         <span role="status">{MODEL_TEXT[model.state]}{pct !== null ? ` ${pct}%` : ""}</span>
       </p>
-      {pct !== null && <progress className="ws-model-bar" max={100} value={pct} aria-label="Download progress" />}
+      {model.state === "downloading" && (pct !== null
+        ? <progress className="ws-model-bar" max={100} value={pct} aria-label="Download progress" />
+        : <span className="sk ws-model-wait" aria-hidden="true" />)}
       {model.state === "downloadable" && (
         <button type="button" className="btn btn-primary btn-small" onClick={() => void model.download()}>Download the model</button>
       )}

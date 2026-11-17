@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react";
 import type { Block, PageModel, UserSettingsDoc } from "@distill/engine";
 import { run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { engine } from "./engine";
 import { AiProblem, SourceChip, type AiMeta } from "./chips";
+import { BlocksSkeleton, enter } from "./loading";
 
 type Simplified = Record<string, string>;
 
@@ -28,8 +29,9 @@ export function parseSimplified(data: unknown, blocks: Block[]): Simplified {
 export const hasProse = (blocks: Block[]): boolean => blocks.some((b) => b.kind === "paragraph" || b.kind === "list");
 
 /** `locatable`: the original is beside the view, so each block takes keyboard focus to point at its source. */
-export function BlockView({ block, text, locatable }: { block: Block; text: string; locatable?: boolean }) {
-  const a = { id: `block-${block.id}`, "data-block": block.id, tabIndex: locatable ? 0 : undefined };
+/** `i`: the block's place on the page, for the staggered entrance. */
+export function BlockView({ block, text, locatable, i = 0 }: { block: Block; text: string; locatable?: boolean; i?: number }) {
+  const a = { id: `block-${block.id}`, "data-block": block.id, tabIndex: locatable ? 0 : undefined, style: enter(i) };
   switch (block.kind) {
     case "heading": {
       const level = Math.min(Math.max(block.level ?? 2, 1), 6);
@@ -91,7 +93,8 @@ export function FocusView({ page, settings, onSettings, scrollToBlock, onLocate 
   const level = settings.readingLevel;
   const canAi = isFirebaseConfigured() || import.meta.env.DEV;
 
-  useEffect(() => {
+  // A layout effect, so a new reading level shows its loading state in the same frame instead of the old text first.
+  useLayoutEffect(() => {
     setSimple({});
     setMeta(null);
     setError(null);
@@ -180,11 +183,19 @@ export function FocusView({ page, settings, onSettings, scrollToBlock, onLocate 
           </p>
         )}
 
-        <article className={onLocate ? "reading locating" : "reading"} lang={page.lang} {...locating}>
-          <h2 className="page-title">{page.title}</h2>
-          {page.blocks.length === 0 && <p>No readable text was found on this page.</p>}
-          {page.blocks.map((b) => <BlockView key={b.id} block={b} text={simple[b.id] ?? b.text} locatable={!!onLocate} />)}
-        </article>
+        {busy ? (
+          <div className="reading">
+            <h2 className="page-title">{page.title}</h2>
+            <BlocksSkeleton blocks={page.blocks} />
+          </div>
+        ) : (
+          // Keyed by what is shown, so new text (another level, a fresh answer) enters instead of popping in.
+          <article key={`${level}:${meta ? "ai" : "page"}`} className={onLocate ? "reading ws-enter locating" : "reading ws-enter"} lang={page.lang} {...locating}>
+            <h2 className="page-title">{page.title}</h2>
+            {page.blocks.length === 0 && <p>No readable text was found on this page.</p>}
+            {page.blocks.map((b, i) => <BlockView key={b.id} block={b} text={simple[b.id] ?? b.text} locatable={!!onLocate} i={i + 1} />)}
+          </article>
+        )}
       </div>
     </section>
   );

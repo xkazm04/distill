@@ -60,12 +60,16 @@ describe("shell tokens", () => {
 });
 
 describe("brand.css", () => {
-  const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "brand.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const read = (rel: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = read("brand.css");
+  // The motion vocabulary lives in the shared ui/styles.css (the extension loads it too); brand.css only reads it.
+  const shared = read("../ui/styles.css");
   it("never branches on which theme is active", () => {
     expect(css).not.toMatch(/data-theme|prefers-color-scheme/);
   });
-  it("uses only names some layer binds: a role, a shell token, its own motion tokens or the stagger index", () => {
-    const motion = new Set([...css.matchAll(/^\s*(--(?:dur|ease|motion)-[\w-]+)\s*:/gm)].map((m) => m[1] as string));
+  it("uses only names some layer binds: a role, a shell token, the shared motion tokens or the stagger index", () => {
+    const motion = new Set([...shared.matchAll(/^\s*(--(?:dur|ease|motion)-[\w-]+)\s*:/gm)].map((m) => m[1] as string));
+    expect([...css.matchAll(/^\s*(--(?:dur|ease|motion)-[\w-]+)\s*:/gm)]).toEqual([]); // one source: never redefined here
     expect(motion.size).toBeGreaterThan(0);
     const bound = new Set<string>([...ROLES, ...SHELL_TOKENS, ...motion, "--i"]);
     const used = [...new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1] as string))];

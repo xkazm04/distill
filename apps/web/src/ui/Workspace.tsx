@@ -11,6 +11,7 @@ import type { HandrailPort } from "./handrailTypes";
 import type { LocateTarget, PageHost } from "./host";
 import { clampSplit, readOriginal, readSplit, SPLIT, writeOriginal, writeSplit, type OriginalLayout } from "./prefs";
 import { useLocalModel } from "./useLocalModel";
+import { PageSkeleton } from "./loading";
 
 export type Tab = "focus" | "wayfill" | "recast" | "handrail";
 /** Where the original page is: hidden, beside Distill (web, wide screens), or in place of Distill. */
@@ -97,7 +98,10 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   const bodyRef = useRef<HTMLDivElement>(null);
   const mainWidth = useWidth(mainRef);
   const canBeside = !!host.originalPane && mainWidth >= BESIDE_MIN_WIDTH;
-  const [layout, setLayout] = useState<OriginalLayout>(() => readOriginal());
+  // The person's kept choice; without one, Fill a form opens with the original beside (where it is possible) and the
+  // other views without it.
+  const [choice, setChoice] = useState<OriginalLayout | null>(() => readOriginal());
+  const layout: OriginalLayout = choice ?? (tab === "wayfill" ? "beside" : "hide");
   const [full, setFull] = useState(false);
   const [split, setSplit] = useState<number>(() => readSplit());
   const [dragging, setDragging] = useState(false);
@@ -108,10 +112,14 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
     if (m === "full") setFull(true);
     else {
       setFull(false);
-      setLayout(m);
+      setChoice(m);
       writeOriginal(m);
     }
   }, []);
+  /** The one "show me the original" action of the views: beside Distill when it fits, instead of it otherwise. */
+  const showOriginal = useCallback(() => {
+    if (canBeside) { setFull(false); setChoice("beside"); } else setFull(true);
+  }, [canBeside]);
   useEffect(() => { void host.showOriginal(mode !== "hide"); }, [host, mode]);
 
   const setTab = useCallback((t: Tab) => { setTabState(t); onTab?.(t); }, [onTab]);
@@ -324,7 +332,12 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
 
             <div id="panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="ws-view" hidden={mode === "full"}>
               {error && <p className="notice notice-warn" role="alert" data-testid="page-error">{error}</p>}
-              {!page && !error && <p role="status" className="ws-pad">Reading the page...</p>}
+              {!page && !error && (
+                <div className="ws-content">
+                  <p role="status" className="muted ws-status">Reading the page...</p>
+                  <div className="reading"><PageSkeleton /></div>
+                </div>
+              )}
               {waiting > 0 && (
                 <p className="notice ws-waiting" role="status" data-testid="agent-waiting">
                   Your helper program suggested {waiting === 1 ? "an answer" : `${waiting} answers`}. Nothing is filled in until you accept.{" "}
@@ -335,7 +348,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
               {page && keepWayfill && (
                 <div hidden={tab !== "wayfill"} data-testid="wayfill-pane">
                   <Wayfill host={host} settings={settings} model={model} onSteps={setSteps} onStep={onStep}
-                    onShowOriginal={() => { if (!beside) chooseOriginal("full"); }} />
+                    onShowOriginal={showOriginal} />
                 </div>
               )}
               {page && tab === "recast" && (

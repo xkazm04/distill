@@ -8,6 +8,7 @@ import { accentColor } from "./dom";
 import { setGuide } from "./guide";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
 import { SourceChip, type AiMeta } from "./chips";
+import { WizardSkeleton } from "./loading";
 import type { PageHost } from "./host";
 import type { LocalModel } from "./useLocalModel";
 
@@ -203,7 +204,17 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return map;
   }, [structure]);
 
-  if (phase === "loading") return <div className="ws-content"><p role="status">Reading the form...</p></div>;
+  if (phase === "loading") {
+    return (
+      <section aria-labelledby="wf-h" className="wayfill">
+        <div className="ws-toolbar">
+          <h2 id="wf-h" className="ws-tool-label">Fill a form</h2>
+          <span role="status" className="muted">Reading the form and making the steps...</span>
+        </div>
+        <div className="ws-content"><WizardSkeleton /></div>
+      </section>
+    );
+  }
   if (phase === "noform" || !structure || !wizard) {
     return (
       <div className="ws-content">
@@ -293,11 +304,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         <h2 id="wf-h" className="ws-tool-label">{structure.title || "Form guide"}</h2>
         <span className="ws-grow" />
         <span className="muted" data-testid="wf-answered">{answered} of {steps.length} answered</span>
-        <button type="button" className="btn btn-small wf-show-original" onClick={showOriginal} data-testid="show-original-form">Show original form</button>
         {chip}
       </div>
 
-      <div className="ws-content wf-grid">
+      <div className="ws-content wf-grid ws-enter">
         <ol className="wf-steps" aria-label="Steps">
           {steps.map((st, i) => {
             const done = st.fieldIds.some((id) => filled.includes(id));

@@ -26,8 +26,10 @@ function write(key: string, value: string): void {
   }
 }
 
-export function readOriginal(): OriginalLayout {
-  return read(ORIGINAL_KEY) === "beside" ? "beside" : "hide";
+/** The person's own choice, or null when they never made one (each view then has its default). */
+export function readOriginal(): OriginalLayout | null {
+  const v = read(ORIGINAL_KEY);
+  return v === "beside" || v === "hide" ? v : null;
 }
 export function writeOriginal(v: OriginalLayout): void {
   write(ORIGINAL_KEY, v);
