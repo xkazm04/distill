@@ -4,7 +4,7 @@ import { isFirebaseConfigured } from "../firebase";
 import { DEFAULT_SETTINGS, loadLocalSettings, loadRemoteSettings, saveSettings } from "./data";
 import { ConfigNotice, ModelStatus } from "./chips";
 import { FocusView } from "./FocusView";
-import { HandrailPanel } from "./HandrailPanel";
+import { HandrailPanel, useHandrail } from "./HandrailPanel";
 import { Recast } from "./Recast";
 import { Wayfill } from "./Wayfill";
 import type { HandrailPort } from "./handrailTypes";
@@ -36,6 +36,13 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   const [settings, setSettings] = useState<UserSettingsDoc>(() => loadLocalSettings());
   const [scrollTo, setScrollTo] = useState<string | null>(null);
   const model = useLocalModel();
+  // The agent bridge lives as long as the Workspace: requests are answered and proposals kept whichever tab is open.
+  const agent = useHandrail(handrail, host);
+  // Once the person opens "Fill a form" for this page, the guide stays mounted (hidden on other tabs), so its step and
+  // answers survive a tab switch and the agent can read and move it from any tab. A new page starts closed again.
+  const [wayfillHost, setWayfillHost] = useState<PageHost | null>(null);
+  useEffect(() => { if (tab === "wayfill") setWayfillHost(host); }, [tab, host]);
+  const keepWayfill = tab === "wayfill" || wayfillHost === host;
 
   const setTab = useCallback((t: Tab) => { setTabState(t); onTab?.(t); }, [onTab]);
   useEffect(() => setTabState(initialTab), [initialTab]);
@@ -73,6 +80,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
     { id: "recast", label: "New layout" },
     ...(handrail !== undefined ? [{ id: "handrail" as Tab, label: "Agent" }] : []),
   ];
+  const waiting = handrail !== undefined && tab !== "handrail" ? agent.pending.length : 0;
 
   return (
     <div className="workspace">
@@ -99,6 +107,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
             <button key={t.id} role="tab" type="button" id={`tab-${t.id}`} aria-selected={tab === t.id} aria-controls="panel"
               className={tab === t.id ? "tab on" : "tab"} onClick={() => { setOriginal(false); setTab(t.id); }}>
               {t.label}
+              {t.id === "handrail" && waiting > 0 && <> <span className="chip" data-testid="agent-badge">{waiting} waiting</span></>}
             </button>
           ))}
         </div>
@@ -107,15 +116,23 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
       <div id="panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="panel" hidden={original}>
         {error && <p className="notice notice-warn" role="alert" data-testid="page-error">{error}</p>}
         {!page && !error && <p role="status">Reading the page...</p>}
+        {waiting > 0 && (
+          <p className="notice" role="status" data-testid="agent-waiting">
+            Your helper program suggested {waiting === 1 ? "an answer" : `${waiting} answers`}. Nothing is filled in until you accept.{" "}
+            <button type="button" className="btn btn-link" onClick={() => { setOriginal(false); setTab("handrail"); }}>See suggestions</button>
+          </p>
+        )}
         {page && tab === "focus" && focus}
-        {page && tab === "wayfill" && (
-          <Wayfill host={host} settings={settings} model={model} onShowOriginal={() => setOriginal(true)} />
+        {page && keepWayfill && (
+          <div hidden={tab !== "wayfill"} data-testid="wayfill-pane">
+            <Wayfill host={host} settings={settings} model={model} onShowOriginal={() => setOriginal(true)} />
+          </div>
         )}
         {page && tab === "recast" && (
           <Recast page={page} enabled={settings.recastEnabled} fallback={focus}
             onSource={(id) => { setScrollTo(id); setTab("focus"); }} />
         )}
-        {tab === "handrail" && handrail !== undefined && <HandrailPanel host={host} port={handrail} />}
+        {tab === "handrail" && handrail !== undefined && <HandrailPanel state={agent} />}
         {page && <Settings settings={settings} onChange={changeSettings} />}
       </div>
 
