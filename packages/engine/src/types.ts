@@ -194,7 +194,7 @@ export interface FormGuideDoc {
 
 export const REMOTE_CONFIG_DEFAULTS = {
   prompt_version: "1",
-  cloud_model: "gemini-2.5-flash-lite",
+  cloud_model: "gemini-3.5-flash-lite",
   inference_mode: "prefer_on_device",
   recast_kinds: "summary,keyFacts,steps,checklist,comparison,timeline,callout",
 } as const;

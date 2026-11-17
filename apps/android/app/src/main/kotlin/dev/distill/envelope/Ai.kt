@@ -27,7 +27,7 @@ sealed interface AiOutcome {
 
 object Ai {
     /** Defaults mirror REMOTE_CONFIG_DEFAULTS in packages/engine/src/types.ts. */
-    private const val DEFAULT_MODEL = "gemini-2.5-flash-lite"
+    private const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
     private const val DEFAULT_MODE = "prefer_on_device"
 
     var configured = false
