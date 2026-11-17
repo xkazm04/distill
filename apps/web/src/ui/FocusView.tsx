@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FocusEvent, type PointerEvent } from "react";
 import type { Block, PageModel, UserSettingsDoc } from "@distill/engine";
-import { run } from "../ai";
-import { isFirebaseConfigured } from "../firebase";
+import { aiAvailable, run } from "../ai";
+import { useAgentActive } from "./agentQueue";
 import { engine } from "./engine";
 import { AiProblem, SourceChip, type AiMeta } from "./chips";
 import { BlocksSkeleton, enter } from "./loading";
@@ -77,7 +77,9 @@ export function FocusView({ page, settings, onSettings, scrollToBlock, onLocate 
   const [attempt, setAttempt] = useState(0);
 
   const level = settings.readingLevel;
-  const canAi = isFirebaseConfigured() || import.meta.env.DEV;
+  // Choosing "My agent" (or its connection coming and going) reads the page again with whoever does the work now.
+  const agentOn = useAgentActive();
+  const canAi = aiAvailable(agentOn);
 
   // A layout effect, so a new reading level shows its loading state in the same frame instead of the old text first.
   useLayoutEffect(() => {
@@ -110,7 +112,7 @@ export function FocusView({ page, settings, onSettings, scrollToBlock, onLocate 
       }
     })();
     return () => { live = false; };
-  }, [page, level, settings.readerLang, canAi, attempt]);
+  }, [page, level, settings.readerLang, canAi, agentOn, attempt]);
 
   useEffect(() => {
     if (scrollToBlock) document.getElementById(`block-${scrollToBlock}`)?.scrollIntoView({ block: "center" });

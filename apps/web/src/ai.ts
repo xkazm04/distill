@@ -3,6 +3,7 @@
 import { getGenerativeModel, type InferenceMode as SdkMode } from "firebase/ai";
 import { engine, type InferenceSource, type LocalModelState, type RouteDecision, type Task } from "./ui/engine";
 import { getFirebase, isFirebaseConfigured, remoteValue } from "./firebase";
+import { agentQueue, AgentStop, type AgentStopKind } from "./ui/agentQueue";
 
 export interface RunResult<T> {
   data: T;
@@ -28,7 +29,9 @@ export function isOnDeviceOnlyBuild(): boolean {
 export const ON_DEVICE_ONLY_NOTE = "This version of Distill works only with the AI model on this device. Nothing is sent to the cloud.";
 
 /** What went wrong, as a kind the surfaces can design for. The message is always plain words. */
-export type AiFailure = "busy" | "not-genuine" | "device-only" | "not-configured" | "other";
+export type AiFailure =
+  | "busy" | "not-genuine" | "device-only" | "not-configured" | "other"
+  | "agent-timeout" | "agent-cancelled" | "agent-stale" | "agent-gone";
 
 /** Every sentence a person can see about a failed AI call. Raw SDK text never reaches the screen. */
 export const AI_WORDS: Record<AiFailure, string> = {
@@ -39,7 +42,18 @@ export const AI_WORDS: Record<AiFailure, string> = {
     : "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
   "not-configured": "AI features are off in this copy of Distill.",
   other: "Something went wrong with the AI.",
+  "agent-timeout": "Your agent did not answer in time.",
+  "agent-cancelled": "You stopped waiting for your agent.",
+  "agent-stale": "The page changed while your agent was working on it.",
+  "agent-gone": "The connection to your agent stopped before it answered.",
 };
+
+const AGENT_FAILURE: Record<AgentStopKind, AiFailure> = {
+  timeout: "agent-timeout", cancelled: "agent-cancelled", stale: "agent-stale", gone: "agent-gone",
+};
+
+/** The source chip's reason for an answer made by the person's agent. */
+export const AGENT_REASON = "Made by your own agent (Claude Code or agy) on this computer, from the page text. Distill checked it like its own AI's answers.";
 
 /** A failed AI call in plain words. `retry` says whether trying again can help, so a surface offers "Try again". */
 export class AiError extends Error {
@@ -47,7 +61,7 @@ export class AiError extends Error {
   constructor(readonly kind: AiFailure) {
     super(AI_WORDS[kind]);
     this.name = "AiError";
-    this.retry = kind === "busy" || kind === "other";
+    this.retry = kind === "busy" || kind === "other" || kind.startsWith("agent-");
   }
 }
 
@@ -71,6 +85,7 @@ function statusOf(e: unknown, raw: string): number | undefined {
  */
 export function toAiError(e: unknown, valuesTask = false): AiError {
   if (e instanceof AiError) return e;
+  if (e instanceof AgentStop) return new AiError(AGENT_FAILURE[e.kind]);
   const raw = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
   const code = (e as { code?: unknown } | null)?.code;
   const status = statusOf(e, raw);
@@ -89,13 +104,30 @@ export function aiWords(e: unknown): string {
   return toAiError(e).message;
 }
 
+/** What a task was made from: the dev fake AI reads it, and the agent's door checks an answer against it. */
+export type RunContext = import("./dev/fake-ai").FakeContext & { readerLang?: string; kinds?: readonly string[] };
+
+/** True when an AI result can be made here at all: Firebase is set up, the dev fake AI runs, or the agent does it. */
+export function aiAvailable(agentActive = agentQueue.active()): boolean {
+  return isFirebaseConfigured() || import.meta.env.DEV || agentActive;
+}
+
 /**
  * Run one task. `schema` is a JSON Schema: it constrains the on-device model (`responseConstraint`) and the cloud
  * model (`responseJsonSchema`). With `schema === null` the reply is plain text and `data` is that string.
  * Every failure leaves here as an `AiError` in plain words; the raw error goes to the console only.
+ *
+ * When the person chose "My agent" and the helper program is connected, a page or structure task with a door goes to
+ * the agent's work queue instead (source "agent"). A values task never does: it stays on the device.
  */
-export async function run<T = unknown>(task: Task, prompt: string, schema: object | null, devContext: import("./dev/fake-ai").FakeContext = {}): Promise<RunResult<T>> {
+export async function run<T = unknown>(task: Task, prompt: string, schema: object | null, devContext: RunContext = {}): Promise<RunResult<T>> {
   try {
+    if (agentQueue.active() && engine.route(task).promptClass !== "values" && engine.agentCanDo(task)) {
+      const started = performance.now();
+      const out = await agentQueue.post(task, prompt, schema, devContext);
+      if (out.kind === "answer") return { data: out.data as T, source: "agent", ms: Math.round(performance.now() - started), reason: AGENT_REASON };
+      // The person pressed "Use Distill's AI instead": the usual way, below.
+    }
     return await runRaw<T>(task, prompt, schema, devContext);
   } catch (e) {
     const err = toAiError(e, isOnDeviceOnlyBuild() || engine.route(task).promptClass === "values");

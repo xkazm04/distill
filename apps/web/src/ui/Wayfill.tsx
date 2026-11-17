@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FieldStructure, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
-import { AI_WORDS, aiWords, run } from "../ai";
+import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
 import { engine } from "./engine";
@@ -202,9 +202,9 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           const parsed = await engine.parseWizard(cached.wizard, s, settings.readerLang);
           if (parsed.steps.length) { w = parsed; o = { kind: "cache" }; }
         }
-        if (!w && (isFirebaseConfigured() || import.meta.env.DEV)) {
+        if (!w && aiAvailable()) {
           const prompt = await engine.prompts.buildWizard(s, settings.readerLang);
-          const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s });
+          const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s, readerLang: settings.readerLang });
           const parsed = await engine.parseWizard(r.data, s, settings.readerLang);
           if (parsed.steps.length) {
             w = parsed;
@@ -217,7 +217,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       }
       if (!w) {
         w = basicWizard(s, settings.readerLang);
-        const aiOn = isFirebaseConfigured() || import.meta.env.DEV;
+        const aiOn = aiAvailable();
         o = { kind: "basic", why: failure !== null ? aiWords(failure) : aiOn ? "The AI could not build the steps this time." : "AI is off." };
       }
       // The place and answers kept for this same form (a reload); else answers carried over by label from the previous

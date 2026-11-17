@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { PageModel, RecastNode, RepairResult } from "@distill/engine";
-import { run } from "../ai";
-import { isFirebaseConfigured } from "../firebase";
+import { aiAvailable, run } from "../ai";
+import { useAgentActive } from "./agentQueue";
 import { enabledRecastKinds } from "./config";
 import { engine } from "./engine";
 import { AiProblem, SourceChip, type AiMeta } from "./chips";
@@ -137,7 +137,7 @@ export function Recast({ page, enabled, fallback, onSource, onSections }: Props)
   const [error, setError] = useState<unknown>(null);
   /** Bumped by "Try again" and by "Rebuild the layout" (which first forgets the kept layout), to build again. */
   const [attempt, setAttempt] = useState(0);
-  const canAi = isFirebaseConfigured() || import.meta.env.DEV;
+  const canAi = aiAvailable(useAgentActive());
 
   useEffect(() => {
     setError(null);
@@ -154,7 +154,7 @@ export function Recast({ page, enabled, fallback, onSource, onSections }: Props)
       try {
         const kinds = await enabledRecastKinds();
         const prompt = await engine.prompts.recast(page, kinds);
-        const r = await run<unknown>("recast", prompt, engine.schemas.recast, { page });
+        const r = await run<unknown>("recast", prompt, engine.schemas.recast, { page, kinds });
         const fixed = await engine.validateAndRepair(r.data, kinds); // the ONE door
         const m: AiMeta = { source: r.source, reason: r.reason, ms: r.ms };
         remember(key, { repair: fixed, meta: m });
