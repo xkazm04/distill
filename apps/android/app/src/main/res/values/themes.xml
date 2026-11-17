@@ -1,0 +1,4 @@
+<resources>
+    <style name="Theme.Envelope" parent="android:Theme.Material.Light.NoActionBar" />
+    <color name="ic_bg">#1F4D4A</color>
+</resources>
