@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Workspace } from "@distill/web/ui";
 // The Distill style ships the brand fonts, self-hosted (an extension page cannot load remote fonts).
@@ -9,11 +9,14 @@ import "./panel.css";
 import { TabHost } from "./host";
 import { connectHandrail } from "./handrailPort";
 import { LookSetting, useLook } from "./look";
+import { tabUpdatedListener } from "./tabEvents";
 
 function Panel() {
   const [tab, setTab] = useState<{ id: number; title: string } | null | undefined>(undefined);
   const [refresh, setRefresh] = useState(0);
   const port = useMemo(() => connectHandrail(), []);
+  const shownTabId = useRef<number | undefined>(undefined);
+  shownTabId.current = tab?.id;
 
   useEffect(() => {
     const read = async () => {
@@ -22,9 +25,8 @@ function Panel() {
     };
     void read();
     const onActivated = () => void read();
-    const onUpdated = (_id: number, info: chrome.tabs.OnUpdatedInfo) => {
-      if (info.status === "complete") { void read(); setRefresh((n) => n + 1); }
-    };
+    // Only the tab this panel shows: another tab finishing its load must not reset the form guide.
+    const onUpdated = tabUpdatedListener(() => shownTabId.current, () => { void read(); setRefresh((n) => n + 1); });
     chrome.tabs.onActivated.addListener(onActivated);
     chrome.tabs.onUpdated.addListener(onUpdated);
     return () => { chrome.tabs.onActivated.removeListener(onActivated); chrome.tabs.onUpdated.removeListener(onUpdated); };
