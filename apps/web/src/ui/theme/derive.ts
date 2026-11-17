@@ -297,7 +297,7 @@ export function floorFailures(b: ThemeBinding): { fg: ColorRole; bg: ColorRole; 
  *
  * `adjusted` names a role when the PAGE's own value for it (text, link) missed its floor and was moved or replaced,
  * or when even the fallback's value could not be fitted to this page. Roles that start from the Distill brand (focus,
- * warnings, the device and cloud chips) and are fitted to the page's background are a design choice, not a repair,
+ * warnings, the device, cloud and agent chips) and are fitted to the page's background are a design choice, not a repair,
  * and are not listed. `--bg` is the page's own and is never changed.
  */
 export function deriveTheme(seed: PageThemeSeed, fallback: ThemeBinding): DerivedTheme {
@@ -343,6 +343,7 @@ export function deriveTheme(seed: PageThemeSeed, fallback: ThemeBinding): Derive
   const warnFg = settle("--warn-fg", null, [warnBg], 4.5);
   const chipDevice = settle("--chip-device", null, [bg], 4.5);
   const chipCloud = settle("--chip-cloud", null, [bg], 4.5);
+  const chipAgent = settle("--chip-agent", null, [bg], 4.5);
 
   const body = fontStack(seed.fontBody, fallback["--font-body"]);
   const display = fontStack(seed.fontDisplay ?? seed.fontBody, fallback["--font-display"]);
@@ -355,7 +356,7 @@ export function deriveTheme(seed: PageThemeSeed, fallback: ThemeBinding): Derive
     "--bg": toHex(bg), "--card": toHex(card), "--fg": toHex(fg), "--muted": toHex(muted), "--line": toHex(line),
     "--accent": toHex(accent), "--accent-fg": toHex(accentFg), "--focus": toHex(focus),
     "--warn-bg": toHex(warnBg), "--warn-fg": toHex(warnFg), "--note-bg": toHex(noteBg),
-    "--chip-device": toHex(chipDevice), "--chip-cloud": toHex(chipCloud),
+    "--chip-device": toHex(chipDevice), "--chip-cloud": toHex(chipCloud), "--chip-agent": toHex(chipAgent),
     "--font-body": body.value, "--font-display": display.value, "--radius": radius,
   };
 

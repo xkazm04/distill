@@ -4,7 +4,7 @@
 //
 // Hot pink (#FF62AD) is only 2.6:1 on paper, so in the light state it is never text, fill-with-text or a link: the
 // action colour is aubergine with butter lettering, and pink appears as a deeper focus ring, the cloud chip ink and in
-// the web shell's decoration (the drip, the grain). On the aubergine ground pink clears 6:1 and becomes the focus ring.
+// the web shell's decoration (the drip, the grain). The agent chip ("Made by your agent") is a blue of its own. On the aubergine ground pink clears 6:1 and becomes the focus ring.
 import type { ThemeBinding } from "./roles";
 
 /** Self-hosted (@fontsource) families first; system faces after, so a context without the fonts still reads well. */
@@ -35,6 +35,7 @@ export const BRAND_LIGHT: ThemeBinding = {
   "--note-bg": "#FFE4F1",
   "--chip-device": "#11694A",
   "--chip-cloud": "#B0145F",
+  "--chip-agent": "#2F45B8", // a blue of its own, far in hue from the device green and the cloud pink
   "--font-body": FONT_BODY,
   "--font-display": FONT_DISPLAY,
   "--radius": RADIUS,
@@ -54,6 +55,7 @@ export const BRAND_DARK: ThemeBinding = {
   "--note-bg": "#4B2050",
   "--chip-device": "#8EE3B9",
   "--chip-cloud": "#FF9ACB",
+  "--chip-agent": "#A9B4FF",
   "--font-body": FONT_BODY,
   "--font-display": FONT_DISPLAY,
   "--radius": RADIUS,

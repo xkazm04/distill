@@ -83,13 +83,17 @@ code { font-size: .9em; padding: .05em .3em; border-radius: .3em; background: co
   display: inline-flex; align-items: center; gap: .4rem; position: relative; padding: .15rem .7rem; border: 2px solid var(--line);
   border-radius: 1rem; font-size: .85rem; font-weight: 700; line-height: 1.4; background: var(--bg); color: var(--fg);
 }
-.chip-on_device, .chip-in_cloud, .chip-model-available { background: color-mix(in srgb, currentColor 8%, var(--bg)); }
-.chip-on_device::before, .chip-in_cloud::before, .chip-model-available::before {
+.chip-on_device, .chip-in_cloud, .chip-agent, .chip-model-available { background: color-mix(in srgb, currentColor 8%, var(--bg)); }
+.chip-on_device::before, .chip-in_cloud::before, .chip-agent::before, .chip-model-available::before {
   content: ""; width: .55em; height: .55em; border-radius: 50%; background: currentColor; flex: none;
 }
 .chip-in_cloud::before { border-radius: .15em; transform: rotate(45deg); }
 .chip-on_device { border-color: var(--chip-device); color: var(--chip-device); }
 .chip-in_cloud { border-color: var(--chip-cloud); color: var(--chip-cloud); }
+/* Made by your agent: its own colour and a square shape (the chip's corners and its mark), so it never reads as the
+   device or the cloud even without colour. */
+.chip-agent { border-color: var(--chip-agent); color: var(--chip-agent); border-radius: .3rem; }
+.chip-agent::before { border-radius: 0; }
 .chip-model-available { border-color: var(--chip-device); color: var(--chip-device); }
 .chip-tip {
   display: none; position: absolute; left: 0; top: 125%; z-index: 5; width: 16rem; max-width: 80vw; padding: .55rem .75rem;
@@ -271,6 +275,12 @@ html:has(.workspace) { font-size: 100%; }
 .ws-legend-device i { border-radius: 50%; }
 .ws-legend-cloud { color: var(--chip-cloud); font-weight: 700; }
 .ws-legend-cloud i { border-radius: 1px; transform: rotate(45deg) scale(.88); }
+.ws-legend-agent { color: var(--chip-agent); font-weight: 700; }
+.ws-legend-agent i { border-radius: 0; }
+.ws-provider { margin: 0; padding: .45rem 0 0; border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 40%, var(--bg)); display: grid; gap: .2rem; font-size: .85rem; }
+.ws-provider legend { padding: 0; font-weight: 700; font-size: .8rem; color: var(--muted); }
+.ws-provider .choice { display: flex; align-items: center; gap: .45rem; min-height: 2rem; }
+.ws-provider .choice input { width: 1.1rem; height: 1.1rem; }
 
 .ws-settings { display: grid; gap: .3rem; font-size: .875rem; }
 .ws-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
@@ -549,6 +559,6 @@ html:has(.workspace) { font-size: 100%; }
   .btn:active:not(:disabled), .btn-primary:hover:not(:disabled) { transform: none; }
 }
 @media (forced-colors: active) {
-  .chip-on_device::before, .chip-in_cloud::before, .chip-model-available::before, .ws-legend i { background: CanvasText; }
+  .chip-on_device::before, .chip-in_cloud::before, .chip-agent::before, .chip-model-available::before, .ws-legend i { background: CanvasText; }
   .ws-navbtn[aria-selected="true"], .ws-navbtn[aria-current="page"] { outline: 2px solid Highlight; }
 }

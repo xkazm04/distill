@@ -18,6 +18,7 @@ export const COLOR_ROLES = [
   "--note-bg",     // informational surface; --fg must stay >= 4.5:1 on it
   "--chip-device", // "On this device" chip ink (>= 4.5:1 on --bg)
   "--chip-cloud",  // "In the cloud" chip ink (>= 4.5:1 on --bg)
+  "--chip-agent",  // "Made by your agent" chip ink (>= 4.5:1 on --bg)
 ] as const;
 
 export const SHAPE_ROLES = [
@@ -44,6 +45,7 @@ export const CONTRAST_FLOORS: ReadonlyArray<{ fg: ColorRole; bg: ColorRole; min:
   { fg: "--warn-fg", bg: "--warn-bg", min: 4.5 },
   { fg: "--chip-device", bg: "--bg", min: 4.5 },
   { fg: "--chip-cloud", bg: "--bg", min: 4.5 },
+  { fg: "--chip-agent", bg: "--bg", min: 4.5 },
 ];
 
 /** What the extension's content script reads from the host page: the seed of a derived theme. */
