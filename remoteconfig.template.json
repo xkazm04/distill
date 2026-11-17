@@ -1,0 +1,8 @@
+{
+  "parameters": {
+    "prompt_version": { "defaultValue": { "value": "1" }, "valueType": "STRING", "description": "Bump to invalidate cached form guides built with an older prompt." },
+    "cloud_model": { "defaultValue": { "value": "gemini-2.5-flash-lite" }, "valueType": "STRING", "description": "Cloud model for page and structure tasks." },
+    "inference_mode": { "defaultValue": { "value": "prefer_on_device" }, "valueType": "STRING", "description": "prefer_on_device | only_on_device | only_in_cloud | prefer_in_cloud. Values tasks ignore this and stay on the device." },
+    "recast_kinds": { "defaultValue": { "value": "summary,keyFacts,steps,checklist,comparison,timeline,callout" }, "valueType": "STRING", "description": "Comma list of Recast section kinds that are switched on." }
+  }
+}

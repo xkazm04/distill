@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "jsx": "react-jsx", "types": ["chrome", "vite/client"] },
+  "include": ["src", "../web/src/ui/globals.d.ts", "vite.config.ts", "vite.content.config.ts"]
+}

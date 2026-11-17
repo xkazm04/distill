@@ -1,0 +1,37 @@
+{
+  "name": "@distill/web",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/ui/index.ts",
+  "exports": {
+    ".": "./src/ui/index.ts",
+    "./ui": "./src/ui/index.ts",
+    "./dom": "./src/ui/dom.ts",
+    "./ui/styles.css": "./src/ui/styles.css",
+    "./firebase": "./src/firebase.ts",
+    "./ai": "./src/ai.ts"
+  },
+  "scripts": {
+    "dev": "vite --port 5181",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@distill/engine": "*",
+    "firebase": "13.4.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "happy-dom": "^21.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

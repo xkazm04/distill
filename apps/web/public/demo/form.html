@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Žádost o dětský příspěvek</title>
+<style>body{font:16px/1.5 Arial,sans-serif;max-width:640px;margin:1rem auto;padding:0 1rem}label{display:block;margin-top:.8rem;font-weight:bold}input,select{width:100%;padding:.4rem;font-size:1rem}fieldset{margin-top:1rem}.hint{font-weight:normal;color:#555;font-size:.9rem}</style>
+</head>
+<body>
+<header><h1>Žádost o dětský příspěvek</h1><p>Vyplňte prosím všechna povinná pole označená hvězdičkou.</p></header>
+<form action="#" method="post" onsubmit="return false">
+  <fieldset><legend>Údaje o žadateli</legend>
+    <label for="jmeno">Jméno *</label><input id="jmeno" name="jmeno" type="text" required>
+    <label for="prijmeni">Příjmení *</label><input id="prijmeni" name="prijmeni" type="text" required>
+    <label for="narozeni">Datum narození * <span class="hint">ve tvaru DD.MM.RRRR</span></label><input id="narozeni" name="narozeni" type="text" placeholder="DD.MM.RRRR" required>
+    <label for="rodne_cislo">Rodné číslo * <span class="hint">9 nebo 10 číslic, s lomítkem nebo bez</span></label><input id="rodne_cislo" name="rodne_cislo" type="text" placeholder="123456/7890" required>
+    <label for="narodnost">Státní příslušnost *</label>
+    <select id="narodnost" name="narodnost" required><option value="">Vyberte</option><option value="CZ">Česká republika</option><option value="UA">Ukrajina</option><option value="SK">Slovensko</option><option value="OTHER">Jiná</option></select>
+  </fieldset>
+  <fieldset><legend>Adresa trvalého pobytu</legend>
+    <label for="ulice">Ulice a číslo popisné *</label><input id="ulice" name="ulice" type="text" required>
+    <label for="mesto">Obec *</label><input id="mesto" name="mesto" type="text" required>
+    <label for="psc">PSČ * <span class="hint">pět číslic</span></label><input id="psc" name="psc" type="text" placeholder="110 00" required>
+  </fieldset>
+  <fieldset><legend>Kontakt</legend>
+    <label for="email">E-mail</label><input id="email" name="email" type="email">
+    <label for="phone">Telefon</label><input id="phone" name="phone" type="tel" placeholder="+420 777 123 456">
+  </fieldset>
+  <label><input id="souhlas" name="souhlas" type="checkbox" value="ano" style="width:auto"> Souhlasím se zpracováním osobních údajů *</label>
+  <p><button type="submit">Odeslat žádost</button></p>
+</form>
+</body>
+</html>
