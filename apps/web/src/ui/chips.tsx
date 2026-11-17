@@ -1,4 +1,5 @@
 import type { InferenceSource } from "@distill/engine";
+import { toAiError } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import type { LocalModel } from "./useLocalModel";
 
@@ -12,6 +13,22 @@ export function SourceChip({ meta }: { meta: AiMeta }) {
       {label}
       <span className="chip-tip" role="tooltip">{meta.reason} ({(meta.ms / 1000).toFixed(1)} s)</span>
     </span>
+  );
+}
+
+/**
+ * A failed AI call, in the router's plain words (never the raw error), with "Try again" when trying again can help.
+ * `after` says what the person sees instead, for example "Showing the page as written."
+ */
+export function AiProblem({ error, after, onRetry }: { error: unknown; after?: string; onRetry?: () => void }) {
+  const ai = toAiError(error);
+  return (
+    <p className="notice notice-warn" role="alert" data-testid="ai-problem" data-kind={ai.kind}>
+      {ai.message}{after ? ` ${after}` : ""}
+      {ai.retry && onRetry && (
+        <>{" "}<button type="button" className="btn btn-small" onClick={onRetry} data-testid="ai-retry">Try again</button></>
+      )}
+    </p>
   );
 }
 

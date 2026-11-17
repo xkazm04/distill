@@ -12,26 +12,90 @@ export interface RunResult<T> {
   reason: string;
 }
 
-export class NotConfiguredError extends Error {
-  constructor() {
-    super("Firebase is not configured, so AI features are off.");
-    this.name = "NotConfiguredError";
+/** The ONE place a person's-values task is pinned to the device. A `values` prompt never gets a cloud model. */
+const VALUES_TASK_MODE = "only_on_device" as const;
+
+/** What went wrong, as a kind the surfaces can design for. The message is always plain words. */
+export type AiFailure = "busy" | "not-genuine" | "device-only" | "not-configured" | "other";
+
+/** Every sentence a person can see about a failed AI call. Raw SDK text never reaches the screen. */
+export const AI_WORDS: Record<AiFailure, string> = {
+  busy: "The AI is busy right now. Try again in a moment.",
+  "not-genuine": "This app could not prove it is genuine to the AI service.",
+  "device-only": "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
+  "not-configured": "Firebase is not configured, so AI features are off.",
+  other: "Something went wrong with the AI.",
+};
+
+/** A failed AI call in plain words. `retry` says whether trying again can help, so a surface offers "Try again". */
+export class AiError extends Error {
+  readonly retry: boolean;
+  constructor(readonly kind: AiFailure) {
+    super(AI_WORDS[kind]);
+    this.name = "AiError";
+    this.retry = kind === "busy" || kind === "other";
   }
 }
 
-/** The ONE place a person's-values task is pinned to the device. A `values` prompt never gets a cloud model. */
-const VALUES_TASK_MODE = "only_on_device" as const;
+export class NotConfiguredError extends AiError {
+  constructor() {
+    super("not-configured");
+  }
+}
+
+/** The status an SDK error carries: `customErrorData.status`, else the "[503 ...]" the SDK writes into the message. */
+function statusOf(e: unknown, raw: string): number | undefined {
+  const s = (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status;
+  if (typeof s === "number") return s;
+  const m = /\[(\d{3})\b/.exec(raw);
+  return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * The ONE place a failure becomes words. `valuesTask` is true when the prompt carried a person's values, so a missing
+ * local model is the device-only case (there is no cloud fallback by law), never a generic error.
+ */
+export function toAiError(e: unknown, valuesTask = false): AiError {
+  if (e instanceof AiError) return e;
+  const raw = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  const code = (e as { code?: unknown } | null)?.code;
+  const status = statusOf(e, raw);
+  const noLocalModel = /on-device model is not available|LanguageModel API not available|ONLY_ON_DEVICE/i.test(raw);
+  if (noLocalModel || (valuesTask && code === "unsupported")) return new AiError("device-only");
+  if (code === "api-not-enabled") return new AiError("other"); // the project's set-up, not the app's identity
+  if (status === 401 || status === 403 || /app ?check/i.test(raw)) return new AiError("not-genuine");
+  if ((status !== undefined && (status === 429 || status >= 500)) || isTransient(e) || (e instanceof Error && e.name === "AbortError")) {
+    return new AiError("busy");
+  }
+  return new AiError("other");
+}
+
+/** The words to show for any error from `run()`. Surfaces call this instead of reading `e.message`. */
+export function aiWords(e: unknown): string {
+  return toAiError(e).message;
+}
 
 /**
  * Run one task. `schema` is a JSON Schema: it constrains the on-device model (`responseConstraint`) and the cloud
  * model (`responseJsonSchema`). With `schema === null` the reply is plain text and `data` is that string.
+ * Every failure leaves here as an `AiError` in plain words; the raw error goes to the console only.
  */
 export async function run<T = unknown>(task: Task, prompt: string, schema: object | null, devContext: import("./dev/fake-ai").FakeContext = {}): Promise<RunResult<T>> {
+  try {
+    return await runRaw<T>(task, prompt, schema, devContext);
+  } catch (e) {
+    const err = toAiError(e, engine.route(task).promptClass === "values");
+    if (err !== e) console.warn(`[distill] AI task "${task}" failed (${err.kind}):`, e);
+    throw err;
+  }
+}
+
+async function runRaw<T>(task: Task, prompt: string, schema: object | null, devContext: import("./dev/fake-ai").FakeContext): Promise<RunResult<T>> {
   const started = performance.now();
 
   if (import.meta.env.DEV && !isFirebaseConfigured()) {
     const fake = await import("./dev/fake-ai");
-    const r = fake.fakeRun(task, devContext);
+    const r = fake.fakeRun(task, devContext, new URLSearchParams(globalThis.location?.search ?? "").get("aifail"));
     return { data: r as T, source: "on_device", ms: Math.round(performance.now() - started), reason: "Fake AI (dev only)" };
   }
 
