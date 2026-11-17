@@ -14,8 +14,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "build": "tsc -p tsconfig.build.json",
-    "install-host": "npm run build && node dist/install.js"
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
