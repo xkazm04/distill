@@ -4,7 +4,7 @@ import { run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { enabledRecastKinds } from "./config";
 import { engine } from "./engine";
-import { SourceChip, type AiMeta } from "./chips";
+import { AiProblem, SourceChip, type AiMeta } from "./chips";
 
 /** One component per kind of the closed vocabulary. Text goes in as React text: never HTML. */
 export function NodeView({ node, onSource }: { node: RecastNode; onSource: (blockId: string) => void }) {
@@ -60,6 +60,39 @@ export function NodeView({ node, onSource }: { node: RecastNode; onSource: (bloc
   );
 }
 
+// ---- the built layout, kept per page ------------------------------------------------------------------------------
+// Switching tabs unmounts Recast. The last layout for the same page is kept here, so coming back shows it again with no
+// second AI call; only "Rebuild the layout" asks the model again. Model output only (it passed validateAndRepair), never
+// a person's values.
+
+interface Built { repair: RepairResult; meta: AiMeta }
+
+const CACHE_SIZE = 20;
+const built = new Map<string, Built>();
+
+/** FNV-1a over the blocks, so the same URL with changed content is a different page. */
+function contentHash(page: PageModel): string {
+  let h = 0x811c9dc5;
+  for (const b of page.blocks) {
+    const s = JSON.stringify([b.id, b.kind, b.level ?? 0, b.text, b.rows ?? []]);
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
+export const layoutKey = (page: PageModel): string => `${page.url}#${contentHash(page)}`;
+
+function remember(key: string, entry: Built): void {
+  built.delete(key);
+  built.set(key, entry);
+  while (built.size > CACHE_SIZE) built.delete(built.keys().next().value as string);
+}
+
+/** Tests only: forget every kept layout. */
+export function forgetLayouts(): void {
+  built.clear();
+}
+
 interface Props {
   page: PageModel;
   enabled: boolean;
@@ -69,14 +102,23 @@ interface Props {
 }
 
 export function Recast({ page, enabled, fallback, onSource }: Props) {
-  const [repair, setRepair] = useState<RepairResult | null>(null);
-  const [meta, setMeta] = useState<AiMeta | null>(null);
+  const key = layoutKey(page);
+  const [repair, setRepair] = useState<RepairResult | null>(() => built.get(key)?.repair ?? null);
+  const [meta, setMeta] = useState<AiMeta | null>(() => built.get(key)?.meta ?? null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  /** Bumped by "Try again" and by "Rebuild the layout" (which first forgets the kept layout), to build again. */
+  const [attempt, setAttempt] = useState(0);
   const canAi = isFirebaseConfigured() || import.meta.env.DEV;
 
   useEffect(() => {
-    setRepair(null); setMeta(null); setError(null);
+    setError(null);
+    const kept = built.get(key);
+    if (kept) {
+      setRepair(kept.repair); setMeta(kept.meta);
+      return;
+    }
+    setRepair(null); setMeta(null);
     if (!enabled || !canAi || page.blocks.length === 0) return;
     let live = true;
     setBusy(true);
@@ -86,28 +128,37 @@ export function Recast({ page, enabled, fallback, onSource }: Props) {
         const prompt = await engine.prompts.recast(page, kinds);
         const r = await run<unknown>("recast", prompt, engine.schemas.recast, { page });
         const fixed = await engine.validateAndRepair(r.data, kinds); // the ONE door
+        const m: AiMeta = { source: r.source, reason: r.reason, ms: r.ms };
+        remember(key, { repair: fixed, meta: m });
         if (!live) return;
         setRepair(fixed);
-        setMeta({ source: r.source, reason: r.reason, ms: r.ms });
+        setMeta(m);
       } catch (e) {
-        if (live) setError(e instanceof Error ? e.message : "Something went wrong.");
+        if (live) setError(e);
       } finally {
         if (live) setBusy(false);
       }
     })();
     return () => { live = false; };
-  }, [page, enabled, canAi]);
+    // `page` is covered by `key` (its url and content); a new object for the same page reuses the kept layout.
+  }, [key, enabled, canAi, attempt]);
+
+  const rebuild = () => { built.delete(key); setAttempt((n) => n + 1); };
+  const rebuildButton = (
+    <button type="button" className="btn btn-small" onClick={rebuild} data-testid="recast-rebuild">Rebuild the layout</button>
+  );
 
   if (!enabled) return <><p className="notice" role="status">The new layout is switched off in your settings. Here is the focus view.</p>{fallback}</>;
   if (!canAi) return <><p className="notice" role="status" data-testid="recast-off">A new layout needs AI, which is off here. Here is the focus view.</p>{fallback}</>;
   if (busy) return <p role="status">Building a clearer layout...</p>;
-  if (error) return <><p className="notice notice-warn" role="alert">{error} Here is the focus view instead.</p>{fallback}</>;
+  if (error !== null) return <><AiProblem error={error} after="Here is the focus view instead." onRetry={() => setAttempt((n) => n + 1)} />{fallback}</>;
   if (!repair) return null;
   if (repair.nodes.length === 0) {
     return (
       <>
         <p className="notice" role="status" data-testid="recast-fallback">
-          Nothing could be shown in the new layout ({repair.dropped} could not be displayed), so here is the focus view.
+          Nothing could be shown in the new layout ({repair.dropped} could not be displayed), so here is the focus view.{" "}
+          {rebuildButton}
         </p>
         {fallback}
       </>
@@ -122,6 +173,7 @@ export function Recast({ page, enabled, fallback, onSource }: Props) {
         <span data-testid="recast-count">
           {n} {n === 1 ? "section" : "sections"} shown{repair.dropped > 0 ? `, ${repair.dropped} could not be displayed` : ""}
         </span>
+        {rebuildButton}
       </div>
       {repair.dropped > 0 && repair.reasons.length > 0 && (
         <details><summary>Why some sections were left out</summary><ul>{repair.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul></details>
