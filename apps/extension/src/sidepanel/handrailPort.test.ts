@@ -8,7 +8,7 @@ const request = vi.fn(async () => true);
 const contains = vi.fn(async () => false);
 
 beforeEach(() => {
-  connect.mockClear(); port.postMessage.mockClear();
+  connect.mockClear(); port.postMessage.mockClear(); port.onMessage.addListener.mockClear();
   request.mockReset().mockResolvedValue(true);
   contains.mockReset().mockResolvedValue(false);
   (globalThis as { chrome?: unknown }).chrome = { runtime: { connect }, permissions: { request, contains } };
@@ -34,6 +34,22 @@ describe("the helper program's connection", () => {
     request.mockResolvedValue(false);
     expect(await requestHelper(connectHandrail())).toBe(false);
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the last status for a view that subscribes late (the helper is missing)", () => {
+    const p = connectHandrail();
+    p.connect();
+    const fromWorker = port.onMessage.addListener.mock.calls.at(-1)![0] as (m: unknown) => void;
+    const missing = { id: "s1", type: "status", payload: { connected: false, reason: "Specified native messaging host not found." } };
+    fromWorker(missing); // before anyone listens
+    const late = vi.fn();
+    p.onMessage(late);
+    expect(late).toHaveBeenCalledWith(missing);
+    fromWorker({ id: "r1", type: "page.read", payload: {} });
+    const later = vi.fn();
+    p.onMessage(later);
+    expect(later).toHaveBeenCalledTimes(1); // only the status is replayed, never a request
+    expect(later).toHaveBeenCalledWith(missing);
   });
 
   it("helperAllowed asks Chrome whether the permission is held", async () => {

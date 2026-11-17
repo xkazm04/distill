@@ -22,20 +22,32 @@ export function connectHandrail(): HelperPort {
   const subs = new Set<(e: HostToPanel) => void>();
   let port: chrome.runtime.Port | null = null;
   let wanted = false;
+  /** The last connection status. The worker may answer before the views subscribe (they mount once the tab is
+   *  found), so a late subscriber gets it at once instead of never hearing that the helper is missing. */
+  let status: HostToPanel | null = null;
+  const deliver = (m: HostToPanel) => {
+    if (m.type === "status") status = m;
+    subs.forEach((cb) => cb(m));
+  };
 
   const open = () => {
     const p = chrome.runtime.connect({ name: HANDRAIL_PORT });
     port = p;
-    p.onMessage.addListener((m: HostToPanel) => subs.forEach((cb) => cb(m)));
+    status = null;
+    p.onMessage.addListener((m: HostToPanel) => deliver(m));
     p.onDisconnect.addListener(() => {
       port = null;
-      subs.forEach((cb) => cb({ id: `s${Date.now()}`, type: "status", payload: { connected: false, reason: "the connection closed" } }));
+      deliver({ id: `s${Date.now()}`, type: "status", payload: { connected: false, reason: "the connection closed" } });
     });
     return p;
   };
 
   return {
-    onMessage(cb) { subs.add(cb); return () => { subs.delete(cb); }; },
+    onMessage(cb) {
+      subs.add(cb);
+      if (status) cb(status);
+      return () => { subs.delete(cb); };
+    },
     post(e: PanelToHost) {
       if (!wanted) return;
       try { (port ?? open()).postMessage(e); } catch { /* disconnected; status already told the panel */ }
