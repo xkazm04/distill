@@ -24,7 +24,7 @@ const fail = (m) => { console.error(`pack-extension: ${m}`); process.exit(1); };
 // The public build needs the Firebase web config (public by design) for Firebase AI Logic; without it the AI is off.
 const REQUIRED = ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_PROJECT_ID", "VITE_FIREBASE_APP_ID"];
 const dotenv = existsSync(".env") ? readFileSync(".env", "utf8") : "";
-const has = (k) => Boolean(process.env[k]?.trim() || new RegExp(`^${k}=\s*\S`, "m").test(dotenv));
+const has = (k) => Boolean(process.env[k]?.trim() || new RegExp(`^${k}=[ \\t]*\\S`, "m") /* "\\" in a template: a bare \s would be just "s" */.test(dotenv));
 const missing = REQUIRED.filter((k) => !has(k));
 if (missing.length) fail(`the Firebase web config is missing (${missing.join(", ")}); fill .env first - the zip would have no AI`);
 
