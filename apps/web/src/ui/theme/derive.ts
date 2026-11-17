@@ -331,7 +331,8 @@ export function deriveTheme(seed: PageThemeSeed, fallback: ThemeBinding): Derive
 
   // Surfaces lean toward the text colour (card) or the accent (note) only as far as body text stays readable on them.
   const card = furthest(bg, fg, dark ? 0.08 : 0.05, fgOn(4.5));
-  const muted = furthest(fg, bg, 0.4, (c) => contrast(c, bg) >= 4.5 + EPS);
+  // Secondary text stays close to body text (at most 30% of the way to the background): the readers are often older.
+  const muted = furthest(fg, bg, 0.3, (c) => contrast(c, bg) >= 4.5 + EPS);
   const line = furthest(fg, bg, 0.55, (c) => contrast(c, bg) >= 3 + EPS);
   const accent = settle("--accent", readableColor(seed.link), [bg], 3);
   const textOnAccent = bestOf([bg, fg], [accent]);
