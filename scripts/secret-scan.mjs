@@ -13,7 +13,7 @@ const patterns = [
   [/AIza[0-9A-Za-z_-]{35}/, "Google API key (Firebase web keys belong in .env, not in git)"],
   [/storePassword|keyPassword\s*=/, "Android signing password"],
 ];
-const banned = [/^\.env(\..*)?$/, /\.(jks|keystore|pem|key)$/, /google-services\.json$/, /^debug-token/];
+const banned = [/^\.env(\.(?!example$).*)?$/, /\.(jks|keystore|pem|key)$/, /google-services\.json$/, /^debug-token/];
 let bad = 0;
 for (const f of files) {
   const base = f.split("/").pop() ?? f;
