@@ -81,6 +81,8 @@ export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) 
   const [error, setError] = useState<unknown>(null);
   /** The model answered, but nothing in the answer could be used. */
   const [nothing, setNothing] = useState(false);
+  /** The model answered in shape with an empty list: every block was already plain enough. A success, not a failure. */
+  const [alreadyPlain, setAlreadyPlain] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   const level = settings.readingLevel;
@@ -91,6 +93,7 @@ export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) 
     setMeta(null);
     setError(null);
     setNothing(false);
+    setAlreadyPlain(false);
     if (level === "original" || !canAi || page.blocks.length === 0) return;
     let live = true;
     setBusy(true);
@@ -102,8 +105,12 @@ export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) 
         const parsed = parseSimplified(r.data, page.blocks);
         setSimple(parsed);
         // An answer with nothing usable is not shown as a result: no source chip, a plain note instead.
-        if (Object.keys(parsed).length === 0 && hasProse(page.blocks)) setNothing(true);
-        else setMeta({ source: r.source, reason: r.reason, ms: r.ms });
+        const answeredEmpty = Array.isArray((r.data as { blocks?: unknown })?.blocks) && (r.data as { blocks: unknown[] }).blocks.length === 0;
+        if (Object.keys(parsed).length === 0 && hasProse(page.blocks) && !answeredEmpty) setNothing(true);
+        else {
+          setMeta({ source: r.source, reason: r.reason, ms: r.ms });
+          if (answeredEmpty) setAlreadyPlain(true);
+        }
       } catch (e) {
         if (live) setError(e);
       } finally {
@@ -137,6 +144,9 @@ export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) 
         {level !== "original" && !canAi && <span role="status">AI is off, so this is the page text as written.</span>}
       </div>
       {error !== null && <AiProblem error={error} after="Showing the page as written." onRetry={() => setAttempt((n) => n + 1)} />}
+      {alreadyPlain && (
+        <p className="notice" role="status" data-testid="simplify-already-plain">This page is already easy to read, so nothing was changed.</p>
+      )}
       {nothing && (
         <p className="notice" role="status" data-testid="simplify-nothing">
           Could not simplify this time. Showing the page as written.{" "}

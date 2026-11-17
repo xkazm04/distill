@@ -217,6 +217,15 @@ describe("FocusView", () => {
     expect(el.textContent).toContain("The office is open on Monday. Bring your passport.");
   });
 
+  it("an in-shape empty answer means the page was already plain: a success with its source, not a failure", async () => {
+    runMock.mockResolvedValue(ok({ blocks: [] }));
+    await render(view());
+    expect(q("simplify-already-plain")?.textContent).toContain("already easy to read");
+    expect(q("simplify-nothing")).toBeNull();
+    expect(q("source-chip")).not.toBeNull();
+    expect(el.textContent).toContain("The office is open on Monday. Bring your passport.");
+  });
+
   it("a failed call shows the router's words, never the raw message, with Try again", async () => {
     runMock.mockRejectedValueOnce(new AiError("not-genuine"));
     await render(view());
