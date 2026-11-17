@@ -10,6 +10,7 @@
     "./ui": "./src/ui/index.ts",
     "./dom": "./src/ui/dom.ts",
     "./ui/styles.css": "./src/ui/styles.css",
+    "./ui/theme/*": "./src/ui/theme/*.ts",
     "./firebase": "./src/firebase.ts",
     "./ai": "./src/ai.ts"
   },
@@ -21,6 +22,8 @@
   },
   "dependencies": {
     "@distill/engine": "*",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource-variable/fredoka": "^5.3.0",
     "firebase": "13.4.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
