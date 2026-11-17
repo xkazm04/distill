@@ -108,6 +108,10 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
   if (isValues && decision.mode !== VALUES_TASK_MODE) {
     throw new Error(`Sieve routed a values task to ${decision.mode}; refusing to send values anywhere but the device.`);
   }
+  // ONLY_ON_DEVICE alone does not keep a prompt on the device: when the browser has no LanguageModel at all, the SDK
+  // builds no on-device adapter and sends EVERY mode to the cloud (@firebase/ai 13.4.0 chromeAdapterFactory returns
+  // undefined -> callCloudOrDevice -> inCloudCall). So the law is enforced here, before a model object exists.
+  if (isValues && typeof LanguageModel === "undefined") throw new AiError("device-only");
 
   const model = getGenerativeModel(
     services.ai,
