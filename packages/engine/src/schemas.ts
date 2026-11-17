@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "letter" | "replyWizard" | "replyDraft", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft", object> = {
   recast: {
     type: "object",
     properties: {
@@ -59,6 +59,18 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "letter" | "repl
       reason: str,
     },
     required: ["kind"],
+  },
+  // The focus view's rewrite: one entry per rewritten block, keyed by the block's id ("b3"). A block left out stays as
+  // written. An array of {id, text} because the common subset has no additionalProperties for id-keyed objects.
+  simplify: {
+    type: "object",
+    properties: {
+      blocks: {
+        type: "array",
+        items: { type: "object", properties: { id: str, text: str }, required: ["id", "text"] },
+      },
+    },
+    required: ["blocks"],
   },
   letter: {
     type: "object",

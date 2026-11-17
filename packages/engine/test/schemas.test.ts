@@ -5,6 +5,7 @@ import letterJson from "../schemas/letter.json";
 import recastJson from "../schemas/recast.json";
 import replyDraftJson from "../schemas/replyDraft.json";
 import replyWizardJson from "../schemas/replyWizard.json";
+import simplifyJson from "../schemas/simplify.json";
 import wizardJson from "../schemas/wizard.json";
 
 // The exported files the Android app reads. A schema added to src/schemas.ts must be exported and listed here.
@@ -14,6 +15,7 @@ const EXPORTED: Record<string, unknown> = {
   recast: recastJson,
   replyDraft: replyDraftJson,
   replyWizard: replyWizardJson,
+  simplify: simplifyJson,
   wizard: wizardJson,
 };
 
@@ -56,6 +58,15 @@ describe("schemas", () => {
       expect(r.reasons.join()).not.toMatch(/not a section type/);
     }
     expect(kinds).toHaveLength(7);
+  });
+
+  it("simplify schema is a list of {id, text} keyed by block id, and the prompt asks for that shape", () => {
+    const simplify = schemas.simplify as { required: string[]; properties: { blocks: { items: { properties: Record<string, unknown>; required: string[] } } } };
+    expect(simplify.required).toEqual(["blocks"]);
+    expect(Object.keys(simplify.properties.blocks.items.properties).sort()).toEqual(["id", "text"]);
+    expect(simplify.properties.blocks.items.required).toEqual(["id", "text"]);
+    const prompt = prompts.simplifyBlocks({ url: "https://x.example/", title: "T", lang: "cs", kind: "article", blocks: [{ id: "b0", kind: "paragraph", text: "Text." }] }, "plain");
+    expect(prompt).toContain('{"blocks": [{"id"');
   });
 });
 

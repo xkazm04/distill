@@ -86,7 +86,7 @@ export const prompts = {
   simplifyBlocks: (page: PageModel, readingLevel: string, readerLang = "en"): string =>
     [
       `Rewrite each block below in ${langName(readerLang)} at a ${readingLevel} reading level: short sentences, common words, same facts. Keep numbers, dates, names and amounts exactly. Do not add anything that is not in the block.`,
-      "Answer with JSON only: an object whose keys are the block ids (for example \"b3\") and whose values are the rewritten text. Skip blocks that are already plain.",
+      "Answer with JSON only: {\"blocks\": [{\"id\": the block id (for example \"b3\"), \"text\": the rewritten text}]}. Plain text only. Skip blocks that are already plain.",
       GUARD,
       "<page>",
       pageText(page),
