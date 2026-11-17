@@ -26,6 +26,16 @@ cognitive load.
 | **Handrail** | your own agent (Claude Code, Antigravity CLI) can read the page and propose answers; nothing is written until you accept | the agent's own; Distill shares only what the page shows |
 | **Envelope** (Android) | photograph or share a letter or paper form: what it says, the deadline, what to do, a reply wizard | on device first, cloud fallback |
 
+## Install
+
+- **Web app**: nothing to install. It is hosted on Firebase Hosting and will be served at
+  `https://distill-hybrid-ai.web.app` from its first deploy. Until then, run it locally: `npm install`, then
+  `npm run dev -w @distill/web`.
+- **Chrome extension**: build it yourself while the core is in development. There is no download yet, because the
+  extension's App Check token must never be published. Follow [apps/extension/README.md](apps/extension/README.md):
+  your own Firebase project, your own debug token, `npm run build -w @distill/extension`, then Load unpacked in
+  `chrome://extensions`.
+
 ## How it uses Firebase
 
 - **Firebase AI Logic** hybrid inference (`prefer_on_device`) for page and structure tasks, `only_on_device` for any
