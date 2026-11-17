@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
     define: defineOf(variant),
     build: {
       target: "es2022",
-      outDir: outDirOf(variant),
+      outDir: mode === "e2e" ? "dist-e2e" : outDirOf(variant), // a test build never lands where a person loads the extension from
       emptyOutDir: true,
       sourcemap: false,
       rollupOptions: {

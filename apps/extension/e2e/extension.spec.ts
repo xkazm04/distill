@@ -120,7 +120,7 @@ test("injection refused: an about:blank page is named as a browser page", async 
 // program installed, the Agent view says so in plain words. Where nativeMessaging is optional and not yet given, the
 // view offers to connect instead, with no error.
 test("agent: without the helper program the Agent view says it is not running", async ({ distill }) => {
-  const manifest = JSON.parse(readFileSync(join(EXTENSION_ROOT, "dist", "manifest.json"), "utf8")) as { optional_permissions?: string[] };
+  const manifest = JSON.parse(readFileSync(join(EXTENSION_ROOT, "dist-e2e", "manifest.json"), "utf8")) as { optional_permissions?: string[] };
   const optional = manifest.optional_permissions?.includes("nativeMessaging") ?? false;
   const tab = await distill.openTab("form");
   const panel = await distill.openPanel(tab.id);

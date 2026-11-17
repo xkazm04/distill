@@ -22,4 +22,5 @@ firestore-debug.log
 google-services.json
 apps/extension/e2e/out/
 dist-public/
+dist-e2e/
 apps/extension/release/

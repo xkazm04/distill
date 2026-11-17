@@ -22,6 +22,7 @@ const EVERY_BUILD = [
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "a private key"],
   [/"private_key"\s*:/, "a service-account key"],
   [/sk-ant-[A-Za-z0-9_-]{20,}/, "an Anthropic key"],
+  [/__distillFakeHelper/, "the e2e-only fake helper (build with npm run build, not build:e2e)"],
 ];
 const PUBLIC_ONLY = [
   [/recaptcha/i, "reCAPTCHA code"],

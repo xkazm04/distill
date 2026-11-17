@@ -24,7 +24,7 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
 
 ## How it works
 
-- The harness copies `dist` to a temporary folder and adds `host_permissions: ["<all_urls>"]` to the copy's manifest.
+- The harness builds `dist-e2e` (`npm run build:e2e`, no `.env`, never the `dist` a person loads) and copies it to a temporary folder and adds `host_permissions: ["<all_urls>"]` to the copy's manifest.
   This is for the tests only: it stands in for the click on the toolbar icon (the activeTab grant), which a test cannot
   give. The real `dist` is never changed. `test.use({ grantHelper: true })` also grants the optional `nativeMessaging`.
 - The agent scenarios play the helper program in the service worker: the e2e build (`vite --mode e2e`) has a fake

@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     define: defineOf(variant),
     build: {
       target: "es2022",
-      outDir: outDirOf(variant),
+      outDir: mode === "e2e" ? "dist-e2e" : outDirOf(variant),
       emptyOutDir: false,
       sourcemap: false,
       lib: { entry: "src/content.ts", name: "DistillContent", formats: ["iife"], fileName: () => "content.js" },

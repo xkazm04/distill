@@ -14,7 +14,7 @@ import type { Envelope, HandrailTool } from "../../../tools/handrail/src/types.j
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const EXTENSION_ROOT = resolve(here, "..");
-const DIST = join(EXTENSION_ROOT, "dist");
+const DIST = join(EXTENSION_ROOT, "dist-e2e") /* npm run build:e2e, never the dist a person loads */;
 const DEMO = resolve(EXTENSION_ROOT, "../web/public/demo");
 export const OUT = join(here, "out");
 
