@@ -32,3 +32,27 @@ describe("TabHost", () => {
     expect(host.label()).toBe("Žádost o průkaz");
   });
 });
+
+describe("TabHost page actions", () => {
+  it("lists actions through the content script", async () => {
+    const sendMessage = vi.fn(async () => ({ ok: true, data: [{ actionId: "a0", label: "Next", kind: "button" }] }));
+    (globalThis as { chrome?: unknown }).chrome = { tabs: { sendMessage }, scripting: { executeScript: vi.fn() } };
+    expect(await new TabHost(3, () => "").listActions()).toEqual([{ actionId: "a0", label: "Next", kind: "button" }]);
+    expect(sendMessage).toHaveBeenCalledWith(3, { type: "distill:listActions" });
+  });
+
+  it("clicks once: no fresh content script and no second try when the page cannot be reached", async () => {
+    const sendMessage = vi.fn(async () => { throw new Error("Could not establish connection. Receiving end does not exist."); });
+    const executeScript = vi.fn(async () => []);
+    (globalThis as { chrome?: unknown }).chrome = { tabs: { sendMessage }, scripting: { executeScript } };
+    await expect(new TabHost(3, () => "").doAction("a0")).rejects.toThrow(/Receiving end/);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it("a click that navigated away before it answered counts as done", async () => {
+    const sendMessage = vi.fn(async () => { throw new Error("The message port closed before a response was received."); });
+    (globalThis as { chrome?: unknown }).chrome = { tabs: { sendMessage }, scripting: { executeScript: vi.fn() } };
+    await expect(new TabHost(3, () => "").doAction("a0")).resolves.toBeUndefined();
+  });
+});

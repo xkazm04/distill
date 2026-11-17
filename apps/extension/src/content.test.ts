@@ -59,3 +59,23 @@ describe("distill:pageChanged", () => {
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith({ type: "distill:pageChanged", reason: "mutation" }), { timeout: 3000 });
   });
 });
+
+describe("distill:listActions and distill:doAction", () => {
+  it("lists controls by label (never typed values) and clicks only the one asked, by the last listing", async () => {
+    (document.getElementById("jmeno") as HTMLInputElement).value = "TYPED-BY-PERSON";
+    document.querySelector("main")!.insertAdjacentHTML("beforeend", `<button type="button" id="go">Next page</button><a href="/help?token=SECRET">Help</a>`);
+    const clicked: string[] = [];
+    document.getElementById("go")!.addEventListener("click", () => clicked.push("go"));
+    const actions = await ask<Array<{ actionId: string; label: string; kind: string; href?: string }>>({ type: "distill:listActions" });
+    expect(actions.map((a) => `${a.label}:${a.kind}`)).toEqual(["Next page:button", "Help:link"]);
+    expect(actions[1]?.href).toBe(`${location.origin}/help`);
+    expect(JSON.stringify(actions)).not.toMatch(/TYPED-BY-PERSON|SECRET/);
+
+    await ask({ type: "distill:doAction", actionId: actions[0]!.actionId });
+    expect(clicked).toEqual(["go"]);
+    await expect(ask({ type: "distill:doAction", actionId: "a99" })).rejects.toThrow(/no longer on the page/);
+    document.getElementById("go")!.remove();
+    await expect(ask({ type: "distill:doAction", actionId: actions[0]!.actionId })).rejects.toThrow(/no longer on the page/);
+    expect(clicked).toEqual(["go"]);
+  });
+});

@@ -56,6 +56,19 @@ describe("Handrail relay", () => {
     await vi.waitFor(() => expect(connectNative).toHaveBeenCalledWith("dev.distill.handrail"));
     expect(nativePort.postMessage).toHaveBeenCalledWith({ id: "1", type: "tool.result", payload: { ok: true, result: {} } });
   });
+
+  it("tells the panel it is connected once the helper program stays up: connected follows the port", async () => {
+    contains.mockResolvedValue(true);
+    const panel = panelPort();
+    listeners.connect!(panel);
+    await vi.waitFor(() => expect(connectNative).toHaveBeenCalled());
+    expect(panel.postMessage).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(panel.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "status", payload: { connected: true } })), { timeout: 2000 });
+  });
+
+  it("has no e2e fake helper outside an e2e build", () => {
+    expect((globalThis as { __distillFakeHelper?: unknown }).__distillFakeHelper).toBeUndefined();
+  });
 });
 
 describe("chrome.tabs.onRemoved", () => {

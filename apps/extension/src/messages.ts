@@ -1,6 +1,6 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
-import type { FormStructure, FormValues, PageModel } from "@distill/engine";
+import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
@@ -14,7 +14,11 @@ export type ContentRequest =
   | { type: "distill:getTheme" }
   /** Outline a block of the last read (by its id) or a step's fields in the focus colour, and scroll it into view;
    *  null clears it. Never touches the outline of filled fields (distill:highlight). */
-  | { type: "distill:locate"; target: LocateTarget | null; color?: string };
+  | { type: "distill:locate"; target: LocateTarget | null; color?: string }
+  /** What can be clicked in the page, by label only (engine extractActions); the content script keeps the elements. */
+  | { type: "distill:listActions" }
+  /** Click the control `actionId` of the last distill:listActions. Sent only after the person pressed Accept. */
+  | { type: "distill:doAction"; actionId: string };
 
 /** What distill:locate points at: a block of the PageModel or the fields of a form step (the shared UI's LocateTarget). */
 export type LocateTarget = { blockId: string } | { fieldIds: string[] };
@@ -29,6 +33,9 @@ export interface ContentReplies {
   /** Computed colours, fonts and radius only (see pageTheme.ts): no value, no text. */
   "distill:getTheme": PageThemeSeed;
   "distill:locate": { ok: true };
+  /** Labels, kinds and link addresses (origin + path): never a value typed into the page. */
+  "distill:listActions": PageAction[];
+  "distill:doAction": { ok: true };
 }
 
 /**

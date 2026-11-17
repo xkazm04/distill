@@ -1,7 +1,7 @@
 // Runs in the page (the DOM lives here). Injected on demand by the side panel through chrome.scripting, so the
 // extension holds no standing access to any site: it reads a page only with the activeTab grant from clicking its
 // icon, or a site the person allowed from the panel.
-import { extractForm, extractPage, readValues, writeValues } from "@distill/engine";
+import { extractActions, extractForm, extractPage, readValues, writeValues } from "@distill/engine";
 import { applyHighlight, applyLocate, fieldElements } from "@distill/web/dom";
 import type { ContentRequest, ContentResponse, LocateTarget, PageChanged } from "./messages";
 import { readPageTheme } from "./pageTheme";
@@ -13,6 +13,15 @@ declare global {
 
 /** Block id -> the element of the page it was read from, by the last distill:getPage. Never leaves the page. */
 let sources = new Map<string, Element>();
+/** Action id -> the control it names, by the last distill:listActions. Never leaves the page. */
+let controls = new Map<string, Element>();
+
+/** Clicks a control the person accepted. Only one from the last listing, and only while it is still in the page. */
+function doAction(actionId: string): void {
+  const el = controls.get(actionId);
+  if (!el || !el.isConnected) throw new Error("That button or link is no longer on the page.");
+  (el as HTMLElement).click();
+}
 
 const reducedMotion = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -42,6 +51,13 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:highlight": applyHighlight(document, req.fieldIds, req.color); return { ok: true };
     case "distill:getTheme": return readPageTheme(document);
     case "distill:locate": locate(req.target, req.color); return { ok: true };
+    case "distill:listActions": {
+      const next = new Map<string, Element>();
+      const actions = extractActions(document, location.href, (id, el) => next.set(id, el));
+      controls = next;
+      return actions;
+    }
+    case "distill:doAction": doAction(req.actionId); return { ok: true };
   }
 }
 

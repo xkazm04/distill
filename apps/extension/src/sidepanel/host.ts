@@ -1,4 +1,4 @@
-import type { FormStructure, FormValues, PageModel } from "@distill/engine";
+import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { LocateTarget, PageHost } from "@distill/web/ui";
 import { focusColor } from "@distill/web/dom";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
@@ -55,6 +55,19 @@ export class TabHost implements PageHost {
    *  view, instantly under reduced motion). The tab is always beside the panel, so the Workspace calls this always. */
   async locate(target: LocateTarget | null): Promise<void> {
     await this.send<"distill:locate">({ type: "distill:locate", target, color: focusColor() });
+  }
+  /** What can be clicked in the tab, by label only: for the agent's page actions. */
+  listActions(): Promise<PageAction[]> { return this.send<"distill:listActions">({ type: "distill:listActions" }); }
+  /**
+   * Clicks a control of the last listActions, after the person accepted. Sent ONCE: never retried through a fresh
+   * content script, so a lost reply (the click navigated the tab) can never click twice.
+   */
+  async doAction(actionId: string): Promise<void> {
+    await this.sendOnce<"distill:doAction">({ type: "distill:doAction", actionId }).catch((e: unknown) => {
+      // The click started a navigation and the page went away before it answered: the click happened.
+      if (e instanceof Error && /message port closed/i.test(e.message)) return;
+      throw e;
+    });
   }
   /** The page's colours, fonts and corner radius, for "Match this page". */
   getTheme(): Promise<PageThemeSeed> { return this.send<"distill:getTheme">({ type: "distill:getTheme" }); }
