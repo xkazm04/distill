@@ -35,6 +35,16 @@ android {
         compose = true
         buildConfig = true
     }
+    // The JVM unit tests read the engine's exported contract (schemas/*.json and the golden prompts), so they rerun
+    // whenever the engine changes it.
+    val engine = rootProject.file("../../packages/engine")
+    testOptions {
+        unitTests.all {
+            it.systemProperty("distill.engine", engine.absolutePath)
+            it.inputs.dir(engine.resolve("schemas")).withPropertyName("engineSchemas")
+            it.inputs.file(engine.resolve("test/fixtures/prompts.golden.json")).withPropertyName("enginePrompts")
+        }
+    }
 }
 
 kotlin {
@@ -69,4 +79,9 @@ dependencies {
 
     // On-device OCR, bundled Latin model (no download).
     implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // JVM unit tests: the real org.json (android.jar only has stubs) and kotlin-reflect for the schema drift check.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
+    testImplementation("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
 }
