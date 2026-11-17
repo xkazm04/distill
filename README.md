@@ -28,9 +28,8 @@ cognitive load.
 
 ## Install
 
-- **Web app**: nothing to install. It is hosted on Firebase Hosting and will be served at
-  `https://distill-hybrid-ai.web.app` from its first deploy. Until then, run it locally: `npm install`, then
-  `npm run dev -w @distill/web`.
+- **Web app**: nothing to install - open **https://distill-hybrid-ai.web.app** in Chrome. To run it locally:
+  `npm install`, then `npm run dev -w @distill/web`.
 - **Chrome extension**: build it yourself while the core is in development. There is no download yet, because the
   extension's App Check token must never be published. Follow [apps/extension/README.md](apps/extension/README.md):
   your own Firebase project, your own debug token, `npm run build -w @distill/extension`, then Load unpacked in
