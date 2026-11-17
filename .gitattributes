@@ -4,3 +4,4 @@
 *.webp binary
 *.jar binary
 *.bat text eol=crlf
+apps/web/index.html text eol=lf
