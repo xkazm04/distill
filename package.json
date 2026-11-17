@@ -18,8 +18,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run typecheck && npm test && npm run secret-scan",
+    "check": "npm run typecheck && npm test && npm run secret-scan && npm run check-tokens",
     "secret-scan": "node scripts/secret-scan.mjs",
+    "check-tokens": "node scripts/check-tokens.mjs",
     "check:dist": "node scripts/check-dist.mjs",
     "deploy:web": "npm run build -w @distill/web && npm run check:dist && npx -y firebase-tools@latest deploy --only hosting --project distill-hybrid-ai --non-interactive",
     "test:rules": "firebase emulators:exec --only firestore --project demo-distill \"npm run test:emulator -w @distill/rules-test\""
