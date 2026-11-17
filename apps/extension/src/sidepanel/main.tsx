@@ -11,6 +11,17 @@ import { connectHandrail } from "./handrailPort";
 import { LookSetting, useLook } from "./look";
 import { tabUpdatedListener } from "./tabEvents";
 
+/**
+ * `sidepanel.html?tabId=<n>` pins the panel to tab n: it shows that tab and ignores which tab is active. The end-to-end
+ * harness opens the panel this way in an ordinary page. Harmless in production: it only picks which tab the panel
+ * shows, and the access rules for reading that tab still apply.
+ */
+function pinnedTabId(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get("tabId");
+  if (raw === null || !/^\d+$/.test(raw)) return undefined;
+  return Number(raw);
+}
+
 function Panel() {
   const [tab, setTab] = useState<{ id: number; title: string } | null | undefined>(undefined);
   const [refresh, setRefresh] = useState(0);
@@ -19,12 +30,15 @@ function Panel() {
   shownTabId.current = tab?.id;
 
   useEffect(() => {
+    const pinned = pinnedTabId(location.search);
     const read = async () => {
-      const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const t = pinned === undefined
+        ? (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
+        : await chrome.tabs.get(pinned).catch(() => undefined);
       setTab(t?.id !== undefined ? { id: t.id, title: t.title ?? "" } : null);
     };
     void read();
-    const onActivated = () => void read();
+    const onActivated = () => { if (pinned === undefined) void read(); };
     // Only the tab this panel shows: another tab finishing its load must not reset the form guide.
     const onUpdated = tabUpdatedListener(() => shownTabId.current, () => { void read(); setRefresh((n) => n + 1); });
     chrome.tabs.onActivated.addListener(onActivated);
