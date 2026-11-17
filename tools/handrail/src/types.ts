@@ -17,6 +17,23 @@ export interface HandrailProposal {
  */
 export type ProposalCreate = HandrailProposal & { fingerprint: string };
 
+/**
+ * The `action.propose` payload (PROTOCOL.md section 3): click one control from `page_actions`, bound to the page the
+ * agent read by its pageToken. Protocol-level, not in types.ts.
+ */
+export interface ActionProposalCreate {
+  proposalId: string;
+  actionId: string;
+  rationale: string;
+  pageToken: string;
+}
+
+/** The `task.answer` payload: the agent's answer to one queued task, as JSON text. */
+export interface TaskAnswer {
+  taskId: string;
+  json: string;
+}
+
 export type ProposalVerdict = "accepted" | "rejected" | "pending";
 
 /** Host <-> extension envelope (native messaging). */

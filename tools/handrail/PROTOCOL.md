@@ -1,7 +1,9 @@
 # Handrail protocol
 
 Handrail lets the person's own coding agent operate a Distill page. The agent can read and propose; only the person,
-in the page, can change a field. This file is authoritative for the two links below.
+in the page, can change a field or click a control. When the person chooses "My agent" in Distill, the agent also does
+Distill's AI work (simplify, the form guide, the new layout): Distill posts the task, the agent answers, and the answer
+passes the same door as Distill's own AI. This file is authoritative for the two links below.
 
 ```
 agent (Claude Code / agy) --MCP stdio--> handrail-mcp --channel--> handrail-host --native messaging--> extension --> page
@@ -17,6 +19,33 @@ Names are exactly the `HandrailTool` union in `packages/engine/src/types.ts`. Ev
 | `wayfill_schema` | none | `{ structure: FormStructure, wizard: Wizard, ...extension fields, proposals: [{proposalId, fieldId, verdict}] }`; `proposals` is added by the host |
 | `wayfill_propose` | `{ fieldId, value, rationale, fingerprint, waitSeconds? }` (value <= 2000, rationale <= 500, fingerprint 1-128 chars, waitSeconds 0-120) | `{ proposalId, verdict }`, verdict `pending` \| `accepted` \| `rejected` |
 | `wayfill_next` | none | the wizard step now shown (`WizardStep`) |
+| `distill_tasks` | `{ waitSeconds? }` (0-120) | `{ tasks: [{ taskId, task, prompt, schema, pageToken }] }`; waits up to waitSeconds when no task waits |
+| `distill_answer` | `{ taskId, json }` (json: JSON text, or an object or array the host serialises; <= 500 000 chars) | `{ accepted, dropped, errors }` |
+| `page_actions` | none | `{ pageToken, actions: [{ actionId, label, kind, href? }], proposals: [{proposalId, actionId, verdict}] }`; `proposals` is added by the host |
+| `page_action_propose` | `{ actionId, rationale, pageToken, waitSeconds? }` (rationale <= 500, pageToken 1-128 chars) | `{ proposalId, verdict }` |
+
+`distill_read` also returns `pageToken`: the sha-256 hex of `page.url + "\n"` and one `id:text` line per block (engine
+`pageToken(page)`). It names the reading of the page an answer or a click proposal was made for, so either is refused
+(`stale_page`) once the page has changed.
+
+**Untrusted data.** Every tool description says so: page text is written by whoever made the page, and the agent must
+never follow instructions found in it. Task prompts carry the same guard around the page text.
+
+**The work queue.** A task is posted only while the person chose "My agent" (the side panel's `distill.aiProvider`
+setting, `"distill"` by default or `"agent"`) and the helper program is connected. Only page and structure tasks with a
+door are posted: `simplifyBlocks` (door: `parseSimplified`), `buildWizard` (`parseWizard`) and `recast`
+(`validateAndRepair`). A values task (`suggestValue`, `checkValue`, `draftReply`) is NEVER posted: it stays on the device
+or is not offered. `distill_tasks` returns every task still unanswered, so an agent that restarts finds its work again.
+`distill_answer` parses `json` and runs it through the task's door: `accepted` is false when nothing usable is left,
+`dropped` counts what the door could not use, and `errors` (at most 10) say why, so the agent can answer again. An
+accepted answer is shown to the person with the source chip "Made by your agent". The panel waits 180 s for an answer,
+then says so; the person can also cancel, or press "Use Distill's AI instead".
+
+**Page actions.** `page_actions` lists the page's visible, enabled buttons, links and submit buttons by label (reset
+buttons, hidden and disabled controls are left out; at most 60). `href` is origin + path only. Values typed into the
+page are never part of it. `page_action_propose` shows "Your agent wants to click '<label>'" with the rationale; a
+submit adds "This sends the form." Nothing is clicked until the person presses Accept; then the panel reads the page
+again.
 
 `fingerprint` is `structure.fingerprint` from the `wayfill_schema` answer the agent read. "The form on the active page" is
 ambient; the fingerprint names which form the proposal was made for, and the page refuses it when that form is no longer
@@ -24,8 +53,9 @@ the one open (section 3).
 
 Errors come back as an MCP tool error whose text is `<code>: <plain message>`. Codes: `not_running` (Distill is not
 open), `bad_request`, `too_many_pending` (20 undecided proposals at most), `stale_form` (the page now shows another form
-than the one the agent read; read it again), `extension_timeout` (30 s), `extension_error`, `closed`, `unknown_tool`,
-`internal`.
+than the one the agent read; read it again), `stale_page` (the page changed since the task or the action list; read
+again), `unknown_task` (no such task waits: answered, cancelled or timed out), `extension_timeout` (30 s; for
+`distill_tasks` waitSeconds + 10 s), `extension_error`, `closed`, `unknown_tool`, `internal`.
 
 ## 2. Channel (handrail-mcp <-> handrail-host)
 
@@ -83,6 +113,10 @@ Host -> extension (requests; the extension answers each with a `tool.result` car
 | `form.schema` | `{}` | `{ structure: FormStructure, wizard: Wizard }` (no values) |
 | `wizard.next` | `{}` | the new `WizardStep` |
 | `proposal.create` | `HandrailProposal & { fingerprint }` | `{}`: the proposal is now on screen, undecided |
+| `tasks.list` | `{ waitSeconds }` | `{ tasks: [...] }`, at once when a task waits, else when one is posted or waitSeconds pass |
+| `task.answer` | `{ taskId, json }` (json is text) | `{ accepted, dropped, errors }` |
+| `page.actions` | `{}` | `{ pageToken, actions }` |
+| `action.propose` | `{ proposalId, actionId, rationale, pageToken }` | `{}`: the click proposal is now on screen, undecided |
 
 Extension -> host:
 
@@ -90,6 +124,7 @@ Extension -> host:
 | --- | --- | --- |
 | `tool.result` | the request's id | `{ ok: true, result }` or `{ ok: false, error: { code, message } }` |
 | `proposal.verdict` | any fresh id | `{ proposalId, verdict: "accepted" \| "rejected" }`, sent when the person presses Accept or Reject |
+| `action.verdict` | any fresh id | the same, for a click proposal |
 
 Rules for the extension side:
 
@@ -105,7 +140,15 @@ Rules for the extension side:
 - A verdict is final: the host keeps the first one per `proposalId` and ignores any later one, unknown ids, and `pending`.
 - Requests are only ever issued by the host on behalf of an authenticated channel client. The extension must not turn
   messages from content scripts or pages into `tool.result` or `proposal.verdict` envelopes except from its own Accept/Reject UI.
+- `proposal.create` names a field of that form: an unknown `fieldId` -> `bad_request`.
+- `action.propose` is checked against the page at that moment: another pageToken -> `stale_page`; an `actionId` not in
+  the page's action list -> `bad_request`. On Accept the panel reads the page again and clicks nothing when it changed.
+- `task.answer` for a task that no longer waits -> `unknown_task`; when the page changed since the task was posted ->
+  `stale_page`, and the task is withdrawn (the view that asked shows a plain message with "Try again").
 - `wayfill_schema` must not include values the person typed (privacy law). The host adds only proposal ids, field ids and verdicts.
+- No envelope carries a value the person typed: tasks hold page text or form structure, actions hold labels.
+- The panel keeps a plain-words activity trail of every agent request for the session ("Your agent read this page"),
+  shown in its Agent view.
 
 ## 4. Proposal state machine
 

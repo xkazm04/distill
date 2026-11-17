@@ -1,4 +1,4 @@
-import type { ProposalCreate, ProposalVerdict } from "./types.js";
+import type { ActionProposalCreate, ProposalCreate, ProposalVerdict } from "./types.js";
 import { HandrailError } from "./types.js";
 
 export const MAX_PENDING = 20;
@@ -6,34 +6,23 @@ export const MAX_VALUE_CHARS = 2000;
 export const MAX_RATIONALE_CHARS = 500;
 export const MAX_FINGERPRINT_CHARS = 128;
 
-interface Entry {
-  proposal: ProposalCreate;
+interface Entry<P> {
+  proposal: P;
   verdict: ProposalVerdict;
   waiters: Array<(v: ProposalVerdict) => void>;
 }
 
 /**
- * The proposal state machine: pending -> accepted | rejected, and nothing else. A verdict is final; a second verdict
- * for the same proposal is ignored (the person's first answer stands). The store only records what the person said;
- * it never writes a field, and there is no code path here that could.
+ * The verdict state machine shared by field proposals and action proposals: pending -> accepted | rejected, and
+ * nothing else. A verdict is final; a second verdict for the same proposal is ignored (the person's first answer
+ * stands). The book only records what the person said; it never writes a field or clicks anything.
  */
-export class ProposalStore {
-  private readonly entries = new Map<string, Entry>();
+class VerdictBook<P extends { proposalId: string }> {
+  protected readonly entries = new Map<string, Entry<P>>();
 
-  create(input: { proposalId: string; fieldId: unknown; value: unknown; rationale: unknown; fingerprint: unknown }): ProposalCreate {
-    if (typeof input.fingerprint !== "string" || input.fingerprint.trim() === "" || input.fingerprint.length > MAX_FINGERPRINT_CHARS) {
-      throw new HandrailError("bad_request", "fingerprint must be the structure.fingerprint from wayfill_schema, so the proposal is bound to the form you read");
-    }
-    if (typeof input.fieldId !== "string" || input.fieldId.trim() === "") throw new HandrailError("bad_request", "fieldId must be a non-empty string");
-    if (typeof input.value !== "string") throw new HandrailError("bad_request", "value must be a string");
-    if (typeof input.rationale !== "string" || input.rationale.trim() === "") throw new HandrailError("bad_request", "rationale must be a non-empty string, so the person can see why");
-    if (input.value.length > MAX_VALUE_CHARS) throw new HandrailError("bad_request", `value is longer than ${MAX_VALUE_CHARS} characters`);
-    if (input.rationale.length > MAX_RATIONALE_CHARS) throw new HandrailError("bad_request", `rationale is longer than ${MAX_RATIONALE_CHARS} characters`);
+  protected add(proposal: P): P {
     if (this.pendingCount() >= MAX_PENDING) throw new HandrailError("too_many_pending", "Too many proposals are waiting for the person. Wait for them to answer.");
-    if (this.entries.has(input.proposalId)) throw new HandrailError("bad_request", "duplicate proposalId");
-    const proposal: ProposalCreate = {
-      proposalId: input.proposalId, fieldId: input.fieldId, value: input.value, rationale: input.rationale, fingerprint: input.fingerprint,
-    };
+    if (this.entries.has(proposal.proposalId)) throw new HandrailError("bad_request", "duplicate proposalId");
     this.entries.set(proposal.proposalId, { proposal, verdict: "pending", waiters: [] });
     return proposal;
   }
@@ -48,7 +37,7 @@ export class ProposalStore {
     return true;
   }
 
-  /** The page refused the proposal or never acknowledged it: it was never on screen, so it leaves the store. */
+  /** The page refused the proposal or never acknowledged it: it was never on screen, so it leaves the book. */
   withdraw(proposalId: string): void {
     const e = this.entries.get(proposalId);
     if (e && e.verdict === "pending") this.entries.delete(proposalId);
@@ -62,10 +51,6 @@ export class ProposalStore {
     let n = 0;
     for (const e of this.entries.values()) if (e.verdict === "pending") n++;
     return n;
-  }
-
-  list(): Array<{ proposalId: string; fieldId: string; verdict: ProposalVerdict }> {
-    return [...this.entries.values()].map((e) => ({ proposalId: e.proposal.proposalId, fieldId: e.proposal.fieldId, verdict: e.verdict }));
   }
 
   /** Resolves with the verdict, or "pending" when `ms` passes first. */
@@ -82,5 +67,47 @@ export class ProposalStore {
       }, ms);
       e.waiters.push(done);
     });
+  }
+}
+
+const checkRationale = (r: unknown): string => {
+  if (typeof r !== "string" || r.trim() === "") throw new HandrailError("bad_request", "rationale must be a non-empty string, so the person can see why");
+  if (r.length > MAX_RATIONALE_CHARS) throw new HandrailError("bad_request", `rationale is longer than ${MAX_RATIONALE_CHARS} characters`);
+  return r;
+};
+
+/** Field proposals (wayfill_propose). */
+export class ProposalStore extends VerdictBook<ProposalCreate> {
+  create(input: { proposalId: string; fieldId: unknown; value: unknown; rationale: unknown; fingerprint: unknown }): ProposalCreate {
+    if (typeof input.fingerprint !== "string" || input.fingerprint.trim() === "" || input.fingerprint.length > MAX_FINGERPRINT_CHARS) {
+      throw new HandrailError("bad_request", "fingerprint must be the structure.fingerprint from wayfill_schema, so the proposal is bound to the form you read");
+    }
+    if (typeof input.fieldId !== "string" || input.fieldId.trim() === "") throw new HandrailError("bad_request", "fieldId must be a non-empty string");
+    if (typeof input.value !== "string") throw new HandrailError("bad_request", "value must be a string");
+    const rationale = checkRationale(input.rationale);
+    if (input.value.length > MAX_VALUE_CHARS) throw new HandrailError("bad_request", `value is longer than ${MAX_VALUE_CHARS} characters`);
+    return this.add({ proposalId: input.proposalId, fieldId: input.fieldId, value: input.value, rationale, fingerprint: input.fingerprint });
+  }
+
+  list(): Array<{ proposalId: string; fieldId: string; verdict: ProposalVerdict }> {
+    return [...this.entries.values()].map((e) => ({ proposalId: e.proposal.proposalId, fieldId: e.proposal.fieldId, verdict: e.verdict }));
+  }
+}
+
+/** Action proposals (page_action_propose): "Your agent wants to click ...". */
+export class ActionProposalStore extends VerdictBook<ActionProposalCreate> {
+  create(input: { proposalId: string; actionId: unknown; rationale: unknown; pageToken: unknown }): ActionProposalCreate {
+    if (typeof input.pageToken !== "string" || input.pageToken.trim() === "" || input.pageToken.length > MAX_FINGERPRINT_CHARS) {
+      throw new HandrailError("bad_request", "pageToken must be the pageToken from page_actions, so the proposal is bound to the page you read");
+    }
+    if (typeof input.actionId !== "string" || input.actionId.trim() === "" || input.actionId.length > 32) {
+      throw new HandrailError("bad_request", "actionId must be an actionId from page_actions");
+    }
+    const rationale = checkRationale(input.rationale);
+    return this.add({ proposalId: input.proposalId, actionId: input.actionId, rationale, pageToken: input.pageToken });
+  }
+
+  list(): Array<{ proposalId: string; actionId: string; verdict: ProposalVerdict }> {
+    return [...this.entries.values()].map((e) => ({ proposalId: e.proposal.proposalId, actionId: e.proposal.actionId, verdict: e.verdict }));
   }
 }

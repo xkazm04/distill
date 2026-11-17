@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PENDING, ProposalStore } from "../src/proposals.js";
+import { ActionProposalStore, MAX_PENDING, ProposalStore } from "../src/proposals.js";
 
 const mk = (s: ProposalStore, id = "p1") => s.create({ proposalId: id, fieldId: "f1", value: "Jana", rationale: "Your passport says so", fingerprint: "fpA" });
 
@@ -51,5 +51,29 @@ describe("proposal state machine", () => {
     const w = s.waitForVerdict("p1", 1000);
     s.resolve("p1", "rejected");
     expect(await w).toBe("rejected");
+  });
+});
+
+describe("action proposals", () => {
+  const base = { proposalId: "x", actionId: "a0", rationale: "Go to the next page", pageToken: "ptA" };
+  it("take one final verdict, like field proposals", () => {
+    const s = new ActionProposalStore();
+    s.create(base);
+    expect(s.list()).toEqual([{ proposalId: "x", actionId: "a0", verdict: "pending" }]);
+    expect(s.resolve("x", "rejected")).toBe(true);
+    expect(s.resolve("x", "accepted")).toBe(false);
+    expect(s.verdict("x")).toBe("rejected");
+  });
+  it("need an actionId, a rationale and the pageToken of the page read", () => {
+    const s = new ActionProposalStore();
+    expect(() => s.create({ ...base, actionId: "" })).toThrow(/actionId/);
+    expect(() => s.create({ ...base, rationale: " " })).toThrow(/rationale/);
+    expect(() => s.create({ ...base, pageToken: undefined })).toThrow(/pageToken/);
+    expect(() => s.create({ ...base, pageToken: "p".repeat(200) })).toThrow(/pageToken/);
+  });
+  it("are capped like field proposals", () => {
+    const s = new ActionProposalStore();
+    for (let i = 0; i < MAX_PENDING; i++) s.create({ ...base, proposalId: `p${i}` });
+    expect(() => s.create({ ...base, proposalId: "over" })).toThrow(/Too many/);
   });
 });
