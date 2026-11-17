@@ -26,6 +26,10 @@ English step-by-step wizard that fills the original form (Wayfill), a generated 
 ## Gates
 
 `npm run check` (typecheck, tests, secret scan) at the root. Android: `apps/android/gradlew assembleDebug`.
+Extension end to end: `npm run e2e -w @distill/extension` (real Chromium; not part of check). Tests and the e2e build
+are **hermetic**: every Vite config that reads the root `.env` points `envDir` at its own package in `test`/`e2e` mode,
+so the main checkout (which has a real `.env`) runs exactly what a worktree runs. A new package that reads `.env` does
+the same, or its tests pass in worktrees and fail in the main checkout (hit twice: web, then extension).
 
 ## Git
 
