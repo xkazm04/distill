@@ -26,20 +26,24 @@ const STEPS: { title: string; body: string }[] = [
   },
 ];
 
+/** Where the build-it-yourself extension steps are (README, Install). There is no download yet. */
+export const EXTENSION_STEPS_URL = "https://github.com/xkazm04/distill#install";
+
+const buildIt = (
+  <a href={EXTENSION_STEPS_URL} target="_blank" rel="noreferrer">build the Distill extension yourself</a>
+);
+
 /** Stagger order for the entrance animation (CSS reads --i). */
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export function Home({ onPaste }: { onPaste: (input: string) => void }) {
   const [text, setText] = useState("");
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<"empty" | "url" | null>(null);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim()) { setNote("Paste some text or a page first."); return; }
-    if (looksLikeUrl(text)) {
-      setNote("A web page cannot open other websites from here. Install the Distill extension to read any page, or copy the page text and paste it here.");
-      return;
-    }
+    if (!text.trim()) { setNote("empty"); return; }
+    if (looksLikeUrl(text)) { setNote("url"); return; }
     setNote(null);
     onPaste(text);
   }
@@ -68,7 +72,14 @@ export function Home({ onPaste }: { onPaste: (input: string) => void }) {
           <form onSubmit={submit} className="paste paste-card reveal" style={at(2)}>
             <label htmlFor="paste">Paste the text or HTML of a page, or a letter</label>
             <textarea id="paste" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste here" />
-            {note && <p className="notice" role="status" data-testid="home-note">{note}</p>}
+            {note && (
+              <p className="notice" role="status" data-testid="home-note">
+                {note === "empty" ? "Paste some text or a page first." : (
+                  <>A web page cannot open other websites. Copy the page text and paste it here, or {buildIt} to
+                    read any page.</>
+                )}
+              </p>
+            )}
             <button type="submit" className="btn btn-primary drip">Make it clear</button>
           </form>
         </div>
@@ -111,8 +122,8 @@ export function Home({ onPaste }: { onPaste: (input: string) => void }) {
       <footer className="home-foot">
         <Coil className="foot-coil" turns={6} />
         <p className="muted">
-          This page cannot fetch other websites for you. The Distill browser extension reads the page you are on.
-          What you type in a form stays on your device.
+          This page cannot open other websites for you. To read any page you are on, {buildIt}; there is no
+          download yet. What you type in a form stays on your device.
         </p>
       </footer>
     </main>
