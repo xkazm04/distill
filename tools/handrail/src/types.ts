@@ -1,6 +1,8 @@
 // Local mirror of the Handrail part of the wire contract (packages/engine/src/types.ts). It is mirrored, not imported,
 // so the built host does not pull the engine source into its build; test/contract.test.ts fails if the two drift.
-export type HandrailTool = "distill_read" | "wayfill_schema" | "wayfill_propose" | "wayfill_next";
+export type HandrailTool =
+  | "distill_read" | "wayfill_schema" | "wayfill_propose" | "wayfill_next"
+  | "distill_tasks" | "distill_answer" | "page_actions" | "page_action_propose";
 
 export interface HandrailProposal {
   proposalId: string;

@@ -8,22 +8,8 @@ import { BlocksSkeleton, enter } from "./loading";
 
 type Simplified = Record<string, string>;
 
-/** Reads schemas.simplify ({blocks:[{id,text}]}) and the shapes a model plausibly returns anyway: [{id,text}] or
- *  {id: text}. Unknown ids and empty texts are ignored. */
-export function parseSimplified(data: unknown, blocks: Block[]): Simplified {
-  const ids = new Set(blocks.map((b) => b.id));
-  const out: Simplified = {};
-  const list = Array.isArray(data) ? data : Array.isArray((data as { blocks?: unknown })?.blocks) ? (data as { blocks: unknown[] }).blocks : null;
-  if (list) {
-    for (const item of list) {
-      const { id, text } = (item ?? {}) as { id?: unknown; text?: unknown };
-      if (typeof id === "string" && typeof text === "string" && text.trim() && ids.has(id)) out[id] = text;
-    }
-  } else if (data && typeof data === "object") {
-    for (const [id, text] of Object.entries(data)) if (typeof text === "string" && text.trim() && ids.has(id)) out[id] = text;
-  }
-  return out;
-}
+/** The one door for simplified text lives in the engine (the agent's answers pass it too). */
+export const parseSimplified = engine.parseSimplified;
 
 /** Whether a page has text the simplify prompt is meant to rewrite (paragraphs and lists). */
 export const hasProse = (blocks: Block[]): boolean => blocks.some((b) => b.kind === "paragraph" || b.kind === "list");

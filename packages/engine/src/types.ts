@@ -199,7 +199,8 @@ export interface RepairResult {
 // ---------------------------------------------------------------------------------------------------------------
 
 export type InferenceMode = "prefer_on_device" | "only_on_device" | "only_in_cloud" | "prefer_in_cloud";
-export type InferenceSource = "on_device" | "in_cloud";
+/** `agent`: the person's own CLI agent (Claude Code or agy) did the work over Handrail; its answer passed the same door. */
+export type InferenceSource = "on_device" | "in_cloud" | "agent";
 
 /** The local model is a state machine, not a boolean (Chrome Prompt API availability strings). */
 export type LocalModelState = "unavailable" | "downloadable" | "downloading" | "available";
@@ -265,7 +266,9 @@ export type RemoteConfigKey = keyof typeof REMOTE_CONFIG_DEFAULTS;
 // Handrail (local agent bridge). Tool names are exact; MCP tool name = the string below.
 // ---------------------------------------------------------------------------------------------------------------
 
-export type HandrailTool = "distill_read" | "wayfill_schema" | "wayfill_propose" | "wayfill_next";
+export type HandrailTool =
+  | "distill_read" | "wayfill_schema" | "wayfill_propose" | "wayfill_next"
+  | "distill_tasks" | "distill_answer" | "page_actions" | "page_action_propose";
 
 export interface HandrailProposal {
   proposalId: string;
