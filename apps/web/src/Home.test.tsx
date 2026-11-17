@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EXTENSION_STEPS_URL, Home } from "./Home";
+import { EXTENSION_STEPS_URL, Home, PRIVACY_URL } from "./Home";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -35,6 +35,13 @@ describe("Home paste note", () => {
     await paste("");
     const foot = host?.querySelector(".home-foot a");
     expect(foot?.getAttribute("href")).toBe(EXTENSION_STEPS_URL);
+  });
+
+  it("links the privacy policy from the footer", async () => {
+    await paste("");
+    const link = host?.querySelector('.home-foot [data-testid="privacy-link"]');
+    expect(link?.getAttribute("href")).toBe(PRIVACY_URL);
+    expect(link?.textContent).toBe("Privacy policy");
   });
 
   it("passes pasted text on", async () => {

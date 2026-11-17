@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Distill privacy policy</title>
+<meta name="description" content="What Distill keeps, where it keeps it, and what it never sends.">
+<link rel="icon" href="favicon.ico">
+<style>
+  /* No script on this page: it renders under the hosted Content-Security-Policy (style-src allows inline styles). */
+  :root {
+    --bg: #FFF8F0; --fg: #371C46; --muted: #5d4a68; --line: #e6d9cf; --panel: #ffffff; --mark: #FFE66B;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #26112F; --fg: #FFF8F0; --muted: #d9c9e0; --line: #4a2d58; --panel: #371C46; --mark: #FFE66B; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 18px/1.6 "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .5rem; }
+  h2 { font-size: 1.3rem; margin: 2.2rem 0 .6rem; }
+  p, li { max-width: 40rem; }
+  a { color: inherit; text-underline-offset: 3px; }
+  a:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+  .muted { color: var(--muted); }
+  .short { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; }
+  .short li { margin: .3rem 0; }
+  mark { background: var(--mark); color: #371C46; padding: 0 .2em; border-radius: 3px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: 1rem; }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .6rem; border-bottom: 1px solid var(--line); }
+  th { font-weight: 700; }
+  thead th { border-bottom: 2px solid var(--fg); }
+  footer { margin-top: 3rem; font-size: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">Back to Distill</a></p>
+  <h1>Privacy policy</h1>
+  <p class="muted">Last changed on 17 November 2026. This policy covers the Distill web app and the Distill extension for Chrome.</p>
+
+  <section class="short" aria-label="In short">
+    <p><strong>In short</strong></p>
+    <ul>
+      <li><mark>What you type into a form stays on your device.</mark> Distill never sends it anywhere and never saves it online.</li>
+      <li>The AI runs on your device first, with Gemini Nano, the model built into Chrome.</li>
+      <li>The extension you can download uses only the model on your device. It sends nothing to the cloud and saves nothing online.</li>
+      <li>No analytics. No ads. No tracking. We do not sell or share anything.</li>
+    </ul>
+  </section>
+
+  <h2>Your typed answers</h2>
+  <p>
+    When Distill guides you through a form, the answers you type, and any help with them (suggestions, checks), stay
+    on your device. Suggestions and checks run only with the AI model on your device. If your device has no model,
+    Distill tells you so and you type your answers yourself. Nothing is sent to the cloud instead.
+  </p>
+  <p>
+    Your place in a form guide and your answers are kept in your browser while you work, so a page reload does not
+    lose them. They are cleared when you close the tab, or when you choose "Forget my answers".
+  </p>
+
+  <h2>The AI and where it runs</h2>
+  <p>
+    Distill uses Firebase AI Logic from Google. It first tries Gemini Nano, the AI model built into Chrome, which runs
+    on your computer: then the page never leaves your device. Each result shows where it was made: "On this device" or
+    "In the cloud".
+  </p>
+  <p>
+    In the web app, and in an extension you build yourself, Distill can ask the cloud (Google's Gemini models through
+    Firebase AI Logic) when your device cannot help. Then it sends the text of the page, or the questions and labels of
+    a form: the structure, never your answers. Google handles that text under the
+    <a href="https://firebase.google.com/terms/data-processing-terms">Firebase data processing terms</a>.
+  </p>
+  <p>
+    The extension you can download never asks the cloud. If the model on your device is not ready, it shows the page
+    as written, a simple guide for forms, and the reading view instead.
+  </p>
+
+  <h2>What each version stores, and where</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col">What</th><th scope="col">Web app</th><th scope="col">Extension you build yourself</th><th scope="col">Extension you download</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Your typed answers</th>
+          <td>Only on your device</td><td>Only on your device</td><td>Only on your device</td>
+        </tr>
+        <tr>
+          <th scope="row">Your settings (reading level, language, layout on or off)</th>
+          <td>On your device, and a copy in Firestore under an anonymous account</td>
+          <td>On your device, and a copy in Firestore under an anonymous account</td>
+          <td>Only on your device</td>
+        </tr>
+        <tr>
+          <th scope="row">Form guides (the steps Distill made for a form, without answers)</th>
+          <td>In Firestore, under your anonymous account, so the same form opens faster next time</td>
+          <td>In Firestore, under your anonymous account</td>
+          <td>Not saved</td>
+        </tr>
+        <tr>
+          <th scope="row">Page text sent to the AI</th>
+          <td>Only when your device cannot help: to Google's Gemini models</td>
+          <td>Only when your device cannot help: to Google's Gemini models</td>
+          <td>Never: the AI runs only on your device</td>
+        </tr>
+        <tr>
+          <th scope="row">Account</th>
+          <td>An anonymous account, made for you, with no name, email or password</td>
+          <td>An anonymous account, made for you</td>
+          <td>None</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Firestore is Google's cloud database. Only you can read the documents under your anonymous account. They never hold
+    an answer you typed: the app refuses to save one, and so do the database rules.
+  </p>
+
+  <h2>Proving the app is genuine</h2>
+  <p>
+    The web app uses Firebase App Check with Google reCAPTCHA Enterprise, so only the real app can use the cloud AI.
+    reCAPTCHA looks at information about your browser and device to do this, under
+    <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The extension you download does not use
+    App Check or reCAPTCHA, because it never calls the cloud.
+  </p>
+  <p>
+    The web app, and an extension you build yourself, also read a few app settings from Firebase Remote Config (for
+    example, which cloud model to use). For this, Firebase gives your browser a random installation id. The extension
+    you download does not do this.
+  </p>
+
+  <h2>Pages the extension reads</h2>
+  <p>
+    The extension reads a page only when you open Distill on it, or on sites you allow it to read. It reads the page
+    text and the form fields to make the reading view and the form guide. It also reads the page's colours and fonts to
+    match its look. It does not keep a history of the pages you visit.
+  </p>
+
+  <h2>Connecting an AI agent (Handrail)</h2>
+  <p>
+    If you choose to connect a helper program on your computer, an AI agent you run can read the page in Distill and
+    propose answers. Nothing changes in a form until you accept it. What the agent does with what it reads is up to the
+    agent you chose and its own terms. Distill asks for your permission before it connects.
+  </p>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>No analytics, no usage tracking, no advertising.</li>
+    <li>We do not sell, rent or share your information.</li>
+    <li>We do not use your information for anything except making Distill work for you.</li>
+  </ul>
+  <p>
+    Like any website, the web app is served by a hosting service (Firebase Hosting from Google), which receives normal
+    request details such as your IP address to send you the page.
+  </p>
+
+  <h2>Removing your information</h2>
+  <p>
+    Your typed answers are only in your browser: close the tab or choose "Forget my answers". To remove settings and
+    form guides kept on your device, clear this site's data in your browser, or remove the extension. Data under an
+    anonymous account in the cloud is not linked to your name. To ask us to remove it, write to us (see below).
+  </p>
+
+  <h2>Changes and contact</h2>
+  <p>
+    When this policy changes, we update this page and the date at the top. Distill is open source. Questions or
+    requests: open an issue at <a href="https://github.com/xkazm04/distill/issues">github.com/xkazm04/distill</a>.
+  </p>
+
+  <footer class="muted"><a href="./">Back to Distill</a></footer>
+</main>
+</body>
+</html>

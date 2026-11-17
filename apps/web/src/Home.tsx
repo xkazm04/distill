@@ -29,6 +29,9 @@ const STEPS: { title: string; body: string }[] = [
 /** Where the build-it-yourself extension steps are (README, Install). There is no download yet. */
 export const EXTENSION_STEPS_URL = "https://github.com/xkazm04/distill#install";
 
+/** The privacy policy, a static page next to the app (apps/web/public/privacy.html, hosted at /privacy.html). */
+export const PRIVACY_URL = "privacy.html";
+
 const buildIt = (
   <a href={EXTENSION_STEPS_URL} target="_blank" rel="noreferrer">build the Distill extension yourself</a>
 );
@@ -125,6 +128,7 @@ export function Home({ onPaste }: { onPaste: (input: string) => void }) {
           This page cannot open other websites for you. To read any page you are on, {buildIt}; there is no
           download yet. What you type in a form stays on your device.
         </p>
+        <p className="muted"><a href={PRIVACY_URL} data-testid="privacy-link">Privacy policy</a></p>
       </footer>
     </main>
   );
