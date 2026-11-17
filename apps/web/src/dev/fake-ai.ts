@@ -40,6 +40,12 @@ function failFor(task: Task, fail: string | null | undefined): "empty" | null {
   }
 }
 
+/** `?aidelay=<ms>` holds every fake answer that long (at most 60 s), to see the loading states. */
+export function fakeDelay(search: string | undefined): Promise<void> {
+  const ms = Math.min(Number(new URLSearchParams(search ?? "").get("aidelay")) || 0, 60_000);
+  return ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve();
+}
+
 export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unknown {
   const empty = failFor(task, fail) === "empty";
   const blocks = ctx.page?.blocks ?? [];

@@ -95,6 +95,7 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
 
   if (import.meta.env.DEV && !isFirebaseConfigured()) {
     const fake = await import("./dev/fake-ai");
+    await fake.fakeDelay(globalThis.location?.search);
     const r = fake.fakeRun(task, devContext, new URLSearchParams(globalThis.location?.search ?? "").get("aifail"));
     return { data: r as T, source: "on_device", ms: Math.round(performance.now() - started), reason: "Fake AI (dev only)" };
   }
