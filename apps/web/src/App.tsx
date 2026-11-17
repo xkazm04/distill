@@ -4,6 +4,7 @@ import { IframeHost } from "./webHost";
 import { Home } from "./Home";
 import { fromPaste, loadDemo, type Loaded } from "./sources";
 import { devHandrailPort } from "./devHandrail";
+import { Header } from "./brand/Header";
 
 type Route = { kind: "home" } | { kind: "demo"; id: string; tab: Tab } | { kind: "page"; tab: Tab };
 const TABS: Tab[] = ["focus", "wayfill", "recast", "handrail"];
@@ -27,10 +28,15 @@ export function App() {
     return () => removeEventListener("hashchange", on);
   }, []);
 
-  if (route.kind === "home" || (route.kind === "page" && !pasted)) {
-    return <Home onPaste={(t) => { pasted = fromPaste(t); location.hash = "#/page/focus"; }} />;
-  }
-  return <Page route={route} />;
+  const home = route.kind === "home" || (route.kind === "page" && !pasted);
+  return (
+    <div className={home ? "shell shell-home-page" : "shell shell-work"}>
+      <Header />
+      {home
+        ? <Home onPaste={(t) => { pasted = fromPaste(t); location.hash = "#/page/focus"; }} />
+        : <main className="work"><Page route={route as Exclude<Route, { kind: "home" }>} /></main>}
+    </div>
+  );
 }
 
 function Page({ route }: { route: Exclude<Route, { kind: "home" }> }) {
@@ -57,7 +63,7 @@ function Page({ route }: { route: Exclude<Route, { kind: "home" }> }) {
 
   return (
     <>
-      <p className="topbar"><a href="#/">Home</a></p>
+      <p className="topbar"><a href="#/"><span aria-hidden="true">←</span>Home</a></p>
       {error && <p className="notice notice-warn" role="alert">{error}</p>}
       {!host && !error && <p role="status">Opening the page...</p>}
       {host && <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} />}

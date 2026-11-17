@@ -1,0 +1,217 @@
+/* The web shell's brand layer: everything Worm Type that is not a theme role (riso grain, the coil, the hero print,
+   the drip, the entrance). The extension never loads this file; the shared UI only sees roles. */
+:root {
+  --ink-aubergine: #371C46;
+  --ink-pink: #FF62AD;
+  --ink-pink-soft: #FFD3E8;
+  --ink-butter: #FFE66B;
+  --ink-paper: #FFF8F0;
+  --ink-plum: #5A3470;
+  --print-edge: var(--ink-aubergine);
+  --misprint: color-mix(in srgb, var(--ink-pink) 70%, transparent);
+  --grain-opacity: .2;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .22 0 0 0 0 .11 0 0 0 0 .27 0 0 0 -2.2 1.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-theme="dark"] {
+  --print-edge: var(--ink-paper);
+  --misprint: color-mix(in srgb, var(--ink-pink) 80%, transparent);
+  --grain-opacity: .13;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .97 0 0 0 0 .94 0 0 0 -2.2 1.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The shell owns the width; the ground is painted on <html> so the grain can sit between it and the content. */
+html { background: var(--bg); }
+body { background: transparent; }
+#root { max-width: none; padding: 0; }
+.shell { position: relative; isolation: isolate; min-height: 100vh; }
+
+/* Riso grain: speckle on the paper ground only (cards and text sit above it). */
+.shell::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: var(--grain); background-size: 220px; opacity: var(--grain-opacity);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .shell::before { display: none; }
+}
+
+/* Header */
+.shell-head {
+  max-width: 74rem; margin: 0 auto; padding: .9rem 1.25rem .5rem; display: flex; align-items: center;
+  justify-content: space-between; gap: 1rem;
+}
+.shell-home { display: inline-block; flex: none; border-radius: .6rem; padding: .25rem; margin-left: -.25rem; line-height: 0; }
+.shell-mark { display: block; height: 2.75rem; width: auto; transition: transform .25s cubic-bezier(.3, 1.4, .6, 1); }
+.shell-home:hover .shell-mark { transform: rotate(-2.5deg) scale(1.03); }
+.shell-home-page .shell-head .shell-home { visibility: hidden; } /* the hero carries the big mark on Home */
+.shell-work .shell-head { max-width: calc(52rem + .5rem); padding-inline: 1rem .75rem; }
+
+/* Settings > Appearance */
+.theme-switch {
+  display: inline-flex; gap: .15rem; margin: 0; padding: .2rem; border: 2px solid var(--line); border-radius: 999px;
+  background: var(--card); min-width: 0;
+}
+.theme-switch label {
+  position: relative; display: inline-flex; align-items: center; gap: .35rem; min-height: 2.5rem; min-width: 2.5rem;
+  padding: 0 .8rem; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: .9rem; color: var(--fg);
+  transition: background-color .15s, color .15s;
+}
+.theme-switch label:hover:not(.on) { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.theme-switch label.on { background: var(--accent); color: var(--accent-fg); }
+.theme-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.theme-switch label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.theme-switch svg { width: 1.15rem; height: 1.15rem; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Workspace pages keep the calm reading column; the brand stays in the chrome. */
+.work { max-width: 52rem; margin: 0 auto; padding: 0 1rem 4rem; }
+.work .topbar a {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 2.5rem; padding: 0 1rem 0 .8rem; border: 2px solid var(--line);
+  border-radius: 999px; background: var(--card); color: var(--fg); font-weight: 700; text-decoration: none;
+}
+.work .topbar a:hover { border-color: var(--fg); }
+.work .topbar { margin: .25rem 0 .5rem; }
+
+/* ---------- Home ---------- */
+.home { max-width: 74rem; margin: 0 auto; padding: .5rem 1.25rem 3rem; }
+
+/* The hero print: the scene with the real wordmark set into its empty corner. */
+.hero-print {
+  position: relative; margin: 0; border: 2px solid var(--print-edge); border-radius: 1.75rem; overflow: hidden;
+  background: var(--ink-paper); box-shadow: .7rem .7rem 0 var(--ink-pink);
+}
+.hero-scene { display: block; width: 100%; height: auto; }
+.hero-mark { position: absolute; left: 4.2%; top: 6.5%; width: 34%; margin: 0; line-height: 0; }
+.hero-mark img { display: block; width: 100%; height: auto; }
+
+.hero-copy {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 2rem 3.5rem; align-items: start;
+  margin-top: 3rem;
+}
+.tagline {
+  margin: 0 0 1rem; font-family: var(--font-display); font-weight: 700; font-size: clamp(2.3rem, 5.2vw, 3.9rem);
+  line-height: 1.02; letter-spacing: -.015em; color: var(--fg); text-wrap: balance;
+  text-shadow: .05em .045em 0 var(--misprint);
+}
+.hero-words .lead { font-size: 1.25rem; line-height: 1.55; max-width: 32rem; margin: 0; }
+@media (prefers-contrast: more), (forced-colors: active) { .tagline { text-shadow: none; } }
+
+.paste-card {
+  background: var(--card); border: 2px solid var(--line); border-radius: 1.4rem; padding: 1.25rem 1.4rem 1.6rem;
+  box-shadow: .5rem .5rem 0 var(--ink-butter);
+}
+.paste-card textarea { min-height: 8.5rem; }
+
+/* The drip on the primary action: a pink drop hangs from the button and falls when you point at it. */
+.btn.drip { position: relative; padding-inline: 1.5rem; }
+.btn.drip::after {
+  content: ""; position: absolute; right: 1.35rem; top: calc(100% + .05rem); width: .7rem; height: .7rem;
+  background: var(--ink-pink); border-radius: 0 50% 50% 50%; transform: rotate(45deg); transform-origin: 50% 50%;
+  pointer-events: none;
+}
+.btn.drip:hover::after, .btn.drip:focus-visible::after { animation: drip-fall 1.2s cubic-bezier(.55, 0, .85, .35) infinite; }
+@keyframes drip-fall {
+  0% { transform: translateY(0) rotate(45deg) scale(.6); opacity: 1; }
+  25% { transform: translateY(0) rotate(45deg) scale(1); }
+  80% { transform: translateY(1.6rem) rotate(45deg) scale(.95); opacity: 1; }
+  100% { transform: translateY(2rem) rotate(45deg) scale(.9); opacity: 0; }
+}
+
+.section-title { font-size: clamp(1.5rem, 3vw, 2.1rem); margin: 3.5rem 0 1.25rem; }
+
+/* Examples */
+.home .demos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+.home .demos > li { display: flex; }
+.home .demo {
+  flex: 1; margin: 0; padding: 0; overflow: hidden; gap: 0; border-radius: 1.25rem;
+  box-shadow: .4rem .4rem 0 color-mix(in srgb, var(--line) 45%, transparent);
+  transition: transform .25s cubic-bezier(.3, 1.3, .6, 1), box-shadow .25s, border-color .15s;
+}
+.home .demo:hover { transform: translateY(-.3rem) rotate(-.6deg); box-shadow: .6rem .7rem 0 var(--ink-pink); border-color: var(--fg); }
+.home .demo:focus-visible { outline-offset: 4px; }
+.demo-plate { display: grid; place-items: center; height: 9rem; border-bottom: 2px solid var(--line); position: relative; overflow: hidden; }
+.demo-plate::after { content: ""; position: absolute; inset: 0; background-image: var(--grain); background-size: 220px; opacity: .35; mix-blend-mode: multiply; pointer-events: none; }
+.demo-form .demo-plate { background: var(--ink-butter); }
+.demo-article .demo-plate { background: var(--ink-pink-soft); }
+.demo-pricing .demo-plate { background: var(--ink-plum); }
+.demo-art { width: 9.5rem; height: auto; transition: transform .35s cubic-bezier(.3, 1.4, .6, 1); }
+.home .demo:hover .demo-art { transform: scale(1.06) rotate(2deg); }
+.demo-art .a-sheet { fill: var(--ink-paper); stroke: var(--ink-aubergine); stroke-width: 2; }
+.demo-art .a-ink { fill: var(--ink-aubergine); }
+.demo-art .a-ink-soft { fill: color-mix(in srgb, var(--ink-aubergine) 30%, var(--ink-paper)); }
+.demo-art .a-field { fill: none; stroke: var(--ink-aubergine); stroke-width: 1.6; stroke-dasharray: 3 2.5; }
+.demo-art .a-badge { fill: var(--ink-pink); stroke: var(--ink-aubergine); stroke-width: 2; }
+.demo-art .a-tick { fill: none; stroke: var(--ink-paper); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.demo-art .a-mark { fill: var(--ink-butter); }
+.demo-pricing .a-badge { fill: var(--ink-butter); }
+.demo-text { display: grid; gap: .3rem; padding: 1.1rem 1.25rem .4rem; }
+.demo-text strong { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; line-height: 1.2; }
+.demo-go { margin-top: auto; padding: .5rem 1.25rem 1.15rem; font-weight: 700; color: var(--accent); }
+.demo-go span { display: inline-block; transition: transform .2s; }
+.home .demo:hover .demo-go span { transform: translateX(.3rem); }
+
+/* How it works: the coil runs through the three numbered stops. */
+.how-track { position: relative; }
+.coil path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* From the centre of stop 1 to the centre of stop 3 (three columns, 2rem gaps). */
+.how-coil { position: absolute; left: 1.6rem; top: .3rem; width: calc((100% - 4rem) * 2 / 3 + 4rem); height: 2.6rem; z-index: 0; overflow: hidden; }
+.how-coil path { stroke: var(--ink-butter); stroke-width: 3.5; }
+:root[data-theme="light"] .how-coil path { stroke: color-mix(in srgb, var(--ink-butter) 84%, var(--ink-aubergine)); stroke-width: 3; }
+.how-steps { position: relative; z-index: 1; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; }
+.how-step h3 { font-size: 1.3rem; margin: 1rem 0 .4rem; }
+.how-step p { margin: 0; color: var(--fg); max-width: 22rem; }
+.how-num {
+  display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; background: var(--ink-butter);
+  color: var(--ink-aubergine); border: 2px solid var(--ink-aubergine); box-shadow: .2rem .2rem 0 var(--ink-aubergine);
+  font-family: var(--font-display); font-weight: 700; font-size: 1.45rem;
+}
+:root[data-theme="dark"] .how-num { box-shadow: .2rem .2rem 0 var(--ink-pink); }
+
+.home-foot { margin-top: 4rem; text-align: center; }
+.home-foot p { max-width: 36rem; margin: .75rem auto 0; }
+.foot-coil { width: 8rem; height: auto; }
+.foot-coil path { stroke: var(--ink-pink); stroke-width: 3; }
+
+/* Entrance: a short staggered rise, the mark settles in, the coil draws itself. */
+.reveal { animation: rise .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(1.1rem); } }
+.hero-mark { animation: settle .9s .3s cubic-bezier(.3, 1.35, .5, 1) both; }
+@keyframes settle { from { opacity: 0; transform: translateY(-.6rem) rotate(-4deg) scale(.94); } }
+.how-coil path { stroke-dasharray: 1; animation: draw 2.2s .7s cubic-bezier(.4, 0, .2, 1) both; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .hero-mark, .how-coil path { animation: none; }
+  .btn.drip:hover::after, .btn.drip:focus-visible::after { animation: none; }
+  .home .demo, .home .demo:hover, .home .demo:hover .demo-art, .shell-home:hover .shell-mark { transform: none; transition: none; }
+}
+
+/* Narrow screens */
+@media (max-width: 900px) {
+  .hero-copy { grid-template-columns: minmax(0, 1fr); margin-top: 2rem; }
+  .home .demos { grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+  .home .demo { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); grid-template-rows: 1fr auto; }
+  .demo-plate { grid-row: span 2; height: auto; min-height: 100%; border-bottom: 0; border-right: 2px solid var(--line); }
+  .demo-art { width: 6rem; }
+  .demo-text { padding: .9rem 1rem .2rem; }
+  .demo-text strong { font-size: 1.15rem; }
+  .demo-go { padding: .4rem 1rem .9rem; }
+  .how-coil { display: none; }
+  .how-steps { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .how-step { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); column-gap: 1rem; position: relative; }
+  .how-step .how-num { grid-row: span 2; }
+  .how-step h3 { margin: .45rem 0 .25rem; }
+  .how-step:not(:last-child)::before {
+    content: ""; position: absolute; left: 1.55rem; top: 3.6rem; bottom: -1.2rem; border-left: 3px dotted var(--ink-pink);
+  }
+}
+@media (max-width: 560px) {
+  .shell-head { padding: .7rem 1rem .4rem; }
+  .shell-mark { height: 2.25rem; }
+  .theme-label { display: none; }
+  .theme-switch label { padding: 0 .55rem; justify-content: center; }
+  .home { padding: .25rem 1rem 2.5rem; }
+  .hero-print { border-radius: 1.1rem; box-shadow: .4rem .4rem 0 var(--ink-pink); }
+  .hero-mark { width: 40%; left: 4%; top: 5%; }
+  .paste-card { padding: 1rem 1rem 1.4rem; box-shadow: .35rem .35rem 0 var(--ink-butter); }
+  .section-title { margin-top: 2.6rem; }
+  .work { padding: 0 1rem 3rem; }
+}

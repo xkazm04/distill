@@ -7,6 +7,7 @@ import "@fontsource-variable/fredoka/wght.css";
 import { App } from "./App";
 import { startTheme } from "./brand/theme";
 import "./ui/styles.css";
+import "./brand/brand.css";
 
 // Bind the brand roles before React renders anything (index.html already stamped the ground colour).
 startTheme();
