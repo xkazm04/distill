@@ -1,18 +1,20 @@
 // The extension end to end: the built side panel drives a real tab through the content script. AI is off here (the
 // worktree build has no Firebase config), so these prove the no-AI paths; the owner checks Gemini Nano by hand.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { expect, test } from "./harness";
+import { EXTENSION_ROOT, expect, test } from "./harness";
 
 const ARTICLE_TITLE = "City council approves new bus routes after months of debate";
 const FORM_TITLE = "Žádost o dětský příspěvek";
-const CANNOT_READ = "Distill cannot read this page.";
-
-/** A view in the sidebar. At the panel's width the sidebar is a drawer behind "Menu", so this finds it hidden too. */
+/** A view in the sidebar. At the panel's width the sidebar is a drawer, so this finds it hidden too. */
 const view = (panel: Page, name: RegExp) => panel.getByRole("tab", { name, includeHidden: true });
-/** Choose a view as a person would at the panel's width: open the menu, then the view. */
+/** Choose a view as a person would at the panel's width: one click in the strip of views. */
 async function pick(panel: Page, name: RegExp) {
-  if (!(await panel.getByRole("tab", { name }).isVisible())) await panel.getByRole("button", { name: "Menu" }).click();
-  await panel.getByRole("tab", { name }).click();
+  await panel.locator(".workspace").waitFor(); // the views exist once the panel has read the tab
+  const strip = panel.getByTestId("view-strip");
+  if (await strip.isVisible()) await strip.getByRole("button", { name }).click();
+  else await panel.getByRole("tab", { name }).click();
 }
 const step = (panel: Page) => panel.getByTestId("wf-step");
 
@@ -104,61 +106,57 @@ test("tab switch: the panel follows the active tab", async ({ distill }) => {
   await expect(panel.getByRole("heading", { level: 1 })).toHaveText(FORM_TITLE);
 });
 
-test("injection refused: a chrome:// page shows a plain message", async ({ distill }) => {
-  const tab = await distill.openTab("blank");
-  await tab.page.goto("chrome://version");
-  const panel = await distill.openPanel(tab.id);
-  await expect(panel.getByTestId("page-error")).toContainText(CANNOT_READ);
-  // Not a crash: the panel still stands, with its views.
-  await expect(panel.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(view(panel, /^Read/)).toHaveCount(1);
-});
-
-test("injection refused: an about:blank page shows a plain message", async ({ distill }) => {
+// Pages no extension may read are named as browser pages: no button, no error.
+test("injection refused: an about:blank page is named as a browser page", async ({ distill }) => {
   const tab = await distill.openTab("blank");
   await tab.page.goto("about:blank");
   const panel = await distill.openPanel(tab.id);
-  await expect(panel.getByTestId("page-error")).toContainText(CANNOT_READ);
-  await expect(panel.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(panel.getByTestId("browser-page")).toHaveText("Browser pages cannot be read.Open a normal web page.");
+  await expect(panel.getByTestId("page-error")).toHaveCount(0);
+  await expect(panel.getByTestId("browser-page").getByRole("button")).toHaveCount(0);
 });
 
 // Handrail in real Chrome: the panel's port reaches the service worker, which tries the native host. With no helper
-// program installed, the Agent view says so in plain words.
+// program installed, the Agent view says so in plain words. Where nativeMessaging is optional and not yet given, the
+// view offers to connect instead, with no error.
 test("agent: without the helper program the Agent view says it is not running", async ({ distill }) => {
-  // FOUND BROKEN (WP15, 2026-11-17): the service worker answers at once with { connected: false, "Specified native
-  // messaging host not found." }, but connectHandrail() opens the port when the panel first renders and only
-  // useHandrail's effect subscribes, after the tab is found and the Workspace mounts. The status arrives with no
-  // subscriber and is dropped, so the Agent view says "No suggestions waiting." forever. Remove this line when
-  // handrailPort.ts keeps the last status for late subscribers; the test then passes.
-  test.fail(true, "handrailPort drops the status that arrives before the Workspace subscribes");
+  const manifest = JSON.parse(readFileSync(join(EXTENSION_ROOT, "dist", "manifest.json"), "utf8")) as { optional_permissions?: string[] };
+  const optional = manifest.optional_permissions?.includes("nativeMessaging") ?? false;
   const tab = await distill.openTab("form");
   const panel = await distill.openPanel(tab.id);
   await expect(view(panel, /^Agent/)).toContainText("Not connected");
   await pick(panel, /^Agent/);
-  await expect(panel.getByTestId("handrail-offline")).toContainText("The helper program is not running", { timeout: 5_000 });
+  if (optional) {
+    await expect(panel.getByTestId("handrail-connect")).toBeVisible();
+    await expect(panel.getByTestId("handrail-offline")).toHaveCount(0);
+  } else {
+    await expect(panel.getByTestId("handrail-offline")).toContainText("The helper program is not running", { timeout: 5_000 });
+  }
 });
 
-// ---- These need WP14 (follow tabs and pages, keep the guide, point at the source, ask for access). Switch each one
-// on (test.fixme -> test) when WP14 lands; the data-testids are the ones WP14 provides.
+// ---- Follow tabs and pages, keep the guide, point at the source, ask for access (WP14).
 
 test.describe("without host access", () => {
   test.use({ grantHosts: false });
-  test.fixme("access needed: the shipped manifest asks for access instead of failing", async ({ distill }) => {
+  test("access needed: the shipped manifest asks for access instead of failing", async ({ distill }) => {
     const tab = await distill.openTab("article");
     const panel = await distill.openPanel(tab.id);
     await expect(panel.getByTestId("access-needed")).toBeVisible();
+    await expect(panel.getByTestId("access-needed")).toContainText("Distill needs your OK to read this page.");
+    await expect(panel.getByRole("button", { name: "Allow on all sites" })).toBeVisible();
     await expect(panel.getByTestId("page-error")).toHaveCount(0);
   });
 });
 
-test.fixme("browser page: a chrome:// page is named as a browser page", async ({ distill }) => {
+test("browser page: a chrome:// page is named as a browser page", async ({ distill }) => {
   const tab = await distill.openTab("blank");
   await tab.page.goto("chrome://version");
   const panel = await distill.openPanel(tab.id);
   await expect(panel.getByTestId("browser-page")).toBeVisible();
+  await expect(panel.getByTestId("page-error")).toHaveCount(0);
 });
 
-test.fixme("page change: a single-page app's new content is read again", async ({ distill }) => {
+test("page change: a single-page app's new content is read again", async ({ distill }) => {
   const tab = await distill.openTab("article");
   const panel = await distill.openPanel(tab.id);
   await expect(panel.locator("article.reading")).toContainText("The city council voted 9 to 4");
@@ -170,7 +168,7 @@ test.fixme("page change: a single-page app's new content is read again", async (
   await expect(panel.locator("article.reading")).toContainText("the central library opens every Sunday");
 });
 
-test.fixme("form changed: the guide says the form changed under it", async ({ distill }) => {
+test("form changed: the guide says the form changed under it", async ({ distill }) => {
   const tab = await distill.openTab("form");
   const panel = await distill.openPanel(tab.id);
   await pick(panel, /^Fill a form/);
@@ -183,7 +181,7 @@ test.fixme("form changed: the guide says the form changed under it", async ({ di
   await expect(panel.getByTestId("form-changed")).toBeVisible();
 });
 
-test.fixme("guide kept: a reload of the tab carries the answers over", async ({ distill }) => {
+test("guide kept: a reload of the tab keeps the step and puts the answers back", async ({ distill }) => {
   const tab = await distill.openTab("form");
   const panel = await distill.openPanel(tab.id);
   await pick(panel, /^Fill a form/);
@@ -192,15 +190,37 @@ test.fixme("guide kept: a reload of the tab carries the answers over", async ({ 
   await expect(tab.page.locator("#jmeno")).toHaveValue("Jana");
 
   await tab.page.reload();
-  await expect(panel.getByTestId("carried-over")).toBeVisible();
+  await expect(panel.getByTestId("wf-restored")).toBeVisible();
   await expect(step(panel).locator("label").first()).toContainText("Příjmení");
   await expect(panel.getByTestId("wf-answered")).toHaveText(/^1 of \d+ answered$/);
+  await expect(tab.page.locator("#jmeno")).toHaveValue("Jana"); // written into the reloaded form again
 });
 
-test.fixme("locate: pointing at a block outlines its source in the tab", async ({ distill }) => {
+test("carried over: the next form on the same site gets the same-label answer, marked", async ({ distill }) => {
+  const tab = await distill.openTab("form");
+  const panel = await distill.openPanel(tab.id);
+  await pick(panel, /^Fill a form/);
+  await step(panel).locator("input").first().fill("Jana");
+  await step(panel).getByRole("button", { name: "Next" }).click();
+  await expect(tab.page.locator("#jmeno")).toHaveValue("Jana");
+
+  // "Page 2" on the same site: a new form whose first field has the same label.
+  await tab.page.goto(`${distill.origin}/blank.html?page2`);
+  await expect(panel.getByTestId("no-form")).toBeVisible();
+  await tab.page.evaluate(() => {
+    const form = document.createElement("form");
+    form.innerHTML = "<label for=\"jmeno2\">Jméno *</label><input id=\"jmeno2\" name=\"jmeno2\"><label for=\"obec2\">Obec</label><input id=\"obec2\" name=\"obec2\">";
+    document.body.append(form);
+  });
+  await expect(panel.getByTestId("carried-over")).toContainText("Carried over from the previous page");
+  await expect(step(panel).locator("input").first()).toHaveValue("Jana");
+  await expect(tab.page.locator("#jmeno2")).toHaveValue(""); // nothing is written until the person presses Next
+});
+
+test("locate: pointing at a block outlines its source in the tab", async ({ distill }) => {
   const tab = await distill.openTab("article");
   const panel = await distill.openPanel(tab.id);
-  await panel.locator("article.reading [data-block]").nth(1).hover();
+  await panel.locator("article.reading [data-block]", { hasText: "The city council voted 9 to 4" }).hover();
   await expect(tab.page.locator("[data-distill-locate]")).toHaveCount(1);
   await expect(tab.page.locator("[data-distill-locate]")).toContainText("The city council voted 9 to 4");
 });

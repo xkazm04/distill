@@ -42,16 +42,22 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   with the filled outline; Back and Next keep the answers.
 - New layout: without AI it says so and shows the focus view.
 - Tab switch: the panel follows the active tab, both ways.
-- Pages Distill may not read (`chrome://`, `about:blank`): a plain message, not a crash.
-- Agent: with no helper program installed, the Agent view should say it is not running. Today this is an expected
-  failure: the panel drops the service worker's status message (see the test).
+- Pages no extension may read (`chrome://`, `about:blank`): "Browser pages cannot be read.", with no button and no error.
+- Access: with the shipped manifest (no host access) the panel shows "Distill needs your OK to read this page." with
+  "Allow on all sites", instead of an error.
+- Agent: with no helper program installed, the Agent view says it is not running (or, where nativeMessaging is an
+  optional permission not yet given, offers "Connect your helper program").
+- Following the page: a single-page app's new content is read again; a form that changed under the guide says so; a
+  reload keeps the guide's step and puts the passed answers back into the form; the next form on the same site gets a
+  same-label answer, marked "Carried over from the previous page"; pointing at a block in Read outlines its source in
+  the tab.
 
 Expected failures (`test.fail`, shown with a cross but counted as passing) are bugs the harness found; each carries the
-reason. When the bug is fixed the test reports "expected to fail, but passed": remove the `test.fail` line.
+reason. When the bug is fixed the test reports "expected to fail, but passed": remove the `test.fail` line. There are
+none today.
 
-Skipped (`test.fixme`) scenarios wait for the stand-up 2 reliability work (WP14): asking for access, naming a browser
-page, re-reading a single-page app, a form that changed under the guide, the guide kept across a reload, and pointing at
-the source in the tab. Switch each one on when its feature lands.
+Without host access Chrome hides every tab's URL from the extension, so `tabIdOf` takes the newly opened (active) tab
+whose URL is hidden.
 
 ## What it cannot prove
 
@@ -60,7 +66,8 @@ the source in the tab. Switch each one on when its feature lands.
 - **The real side panel.** Chrome's side panel frame (its width, opening from the toolbar icon, staying open across
   tabs) cannot be driven by Playwright; the panel runs here as a page in a tab.
 - **The activeTab gesture.** The test manifest grants host access up front, so the "click the icon first" path and its
-  messages are not exercised (the access-needed scenario, with the shipped manifest, waits for WP14).
+  messages are not exercised. The access-needed scenario runs the shipped manifest, but cannot press Chrome's
+  permission prompt, so a grant is proven by the unit tests (chrome.permissions mocked), not here.
 
 ## The owner's Nano check, once per wave
 

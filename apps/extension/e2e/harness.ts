@@ -93,9 +93,19 @@ export class Distill {
     page.on("pageerror", (e) => this.errors.push({ page: role, text: `uncaught: ${e.message}` }));
   }
 
-  /** The Chrome tab id of `page`, found from the service worker by a unique URL. */
+  /**
+   * The Chrome tab id of `page`, found from the service worker by a unique URL. Without host access (the shipped
+   * manifest, `grantHosts: false`) Chrome hides every tab's URL from the extension, so the tab just opened - the
+   * active one, whose URL is hidden - is taken instead.
+   */
   async tabIdOf(url: string): Promise<number> {
-    const id = await this.worker.evaluate(async (u) => (await chrome.tabs.query({})).find((t) => t.url === u)?.id, url);
+    const id = await this.worker.evaluate(async (u) => {
+      const tabs = await chrome.tabs.query({});
+      const byUrl = tabs.find((t) => t.url === u)?.id;
+      if (byUrl !== undefined) return byUrl;
+      const hidden = tabs.filter((t) => t.active && t.url === undefined);
+      return hidden.length === 1 ? hidden[0]?.id : undefined;
+    }, url);
     if (typeof id !== "number") throw new Error(`no tab with ${url}`);
     return id;
   }
