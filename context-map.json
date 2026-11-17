@@ -1,0 +1,300 @@
+{
+  "version": 2,
+  "project": {
+    "slug": "distill",
+    "name": "Distill"
+  },
+  "groups": [
+    {
+      "name": "Distill Engine",
+      "domain": "shared"
+    },
+    {
+      "name": "Web App",
+      "domain": "feature"
+    },
+    {
+      "name": "Chrome Extension",
+      "domain": "feature"
+    },
+    {
+      "name": "Android App",
+      "domain": "feature"
+    },
+    {
+      "name": "Handrail",
+      "domain": "integration"
+    },
+    {
+      "name": "Platform",
+      "domain": "infrastructure"
+    }
+  ],
+  "contexts": [
+    {
+      "name": "engine-extraction",
+      "group": "Distill Engine",
+      "category": "lib",
+      "description": "Reads a document into a PageModel and a FormStructure, writes values back into fields, fingerprints forms and strips URLs to origin+path. Pure TS, DOM types only.",
+      "file_paths": [
+        "packages/engine/src/dom.ts",
+        "packages/engine/src/fingerprint.ts",
+        "packages/engine/src/form.ts",
+        "packages/engine/src/page.ts",
+        "packages/engine/src/url.ts",
+        "packages/engine/test/env.d.ts",
+        "packages/engine/test/fixtures/czech-residence-form.html",
+        "packages/engine/test/fixtures/news-article.html",
+        "packages/engine/test/fixtures/saas-pricing.html",
+        "packages/engine/test/helpers.ts",
+        "packages/engine/test/form.test.ts",
+        "packages/engine/test/page.test.ts",
+        "packages/engine/test/url.test.ts"
+      ],
+      "entry_points": []
+    },
+    {
+      "name": "engine-contract",
+      "group": "Distill Engine",
+      "category": "lib",
+      "description": "The wire contract (types.ts), the Sieve router (values tasks only_on_device), prompt builders, JSON schemas and their export, and the one validation door for Recast specs and wizards.",
+      "file_paths": [
+        "packages/engine/package.json",
+        "packages/engine/schemas/classify.json",
+        "packages/engine/schemas/letter.json",
+        "packages/engine/schemas/recast.json",
+        "packages/engine/schemas/wizard.json",
+        "packages/engine/scripts/export-schemas.mjs",
+        "packages/engine/src/index.ts",
+        "packages/engine/src/prompts.ts",
+        "packages/engine/src/repair.ts",
+        "packages/engine/src/route.ts",
+        "packages/engine/src/sanitize.ts",
+        "packages/engine/src/schemas.ts",
+        "packages/engine/src/types.ts",
+        "packages/engine/src/wizard.ts",
+        "packages/engine/test/privacy.test.ts",
+        "packages/engine/test/repair.test.ts",
+        "packages/engine/test/route.test.ts",
+        "packages/engine/test/schemas.test.ts",
+        "packages/engine/test/wizard.test.ts",
+        "packages/engine/tsconfig.json",
+        "packages/engine/vitest.config.ts"
+      ],
+      "entry_points": [
+        "packages/engine/src/index.ts"
+      ]
+    },
+    {
+      "name": "workspace-ui",
+      "group": "Web App",
+      "category": "ui",
+      "description": "The shared reading surface used by both the web app and the extension side panel: focus view, Wayfill wizard, Recast renderer, Handrail proposals, chips and the page-host interface.",
+      "file_paths": [
+        "apps/web/src/ui/FocusView.tsx",
+        "apps/web/src/ui/HandrailPanel.tsx",
+        "apps/web/src/ui/Recast.tsx",
+        "apps/web/src/ui/Wayfill.tsx",
+        "apps/web/src/ui/Workspace.tsx",
+        "apps/web/src/ui/chips.tsx",
+        "apps/web/src/ui/config.ts",
+        "apps/web/src/ui/dom.ts",
+        "apps/web/src/ui/engine.ts",
+        "apps/web/src/ui/globals.d.ts",
+        "apps/web/src/ui/guide.ts",
+        "apps/web/src/ui/handrailTypes.ts",
+        "apps/web/src/ui/host.ts",
+        "apps/web/src/ui/index.ts",
+        "apps/web/src/ui/parse.test.ts",
+        "apps/web/src/ui/styles.css",
+        "apps/web/src/ui/useLocalModel.ts"
+      ],
+      "entry_points": [
+        "apps/web/src/ui/Workspace.tsx"
+      ]
+    },
+    {
+      "name": "ai-and-data",
+      "group": "Web App",
+      "category": "lib",
+      "description": "Firebase init (App Check, anonymous Auth, Firestore, Remote Config), the one AI wrapper with hybrid routing, timeout and retry, Firestore documents, the device-only profile, rules tests and the dev-only fake AI.",
+      "file_paths": [
+        "apps/web/src/ai.retry.test.ts",
+        "apps/web/src/ai.ts",
+        "apps/web/src/dev/fake-ai.ts",
+        "apps/web/src/firebase.ts",
+        "apps/web/src/rules.test.ts",
+        "apps/web/src/ui/data.ts",
+        "apps/web/src/ui/profile.ts"
+      ],
+      "entry_points": [
+        "apps/web/src/ai.ts"
+      ]
+    },
+    {
+      "name": "theme-system",
+      "group": "Web App",
+      "category": "lib",
+      "description": "The theme role vocabulary, the brand binding (light/dark), applyBinding, and deriveTheme which builds a page-matched binding with WCAG contrast floors.",
+      "file_paths": [
+        "apps/web/src/ui/theme/apply.ts",
+        "apps/web/src/ui/theme/brand.test.ts",
+        "apps/web/src/ui/theme/brand.ts",
+        "apps/web/src/ui/theme/derive.test.ts",
+        "apps/web/src/ui/theme/derive.ts",
+        "apps/web/src/ui/theme/roles.ts"
+      ],
+      "entry_points": []
+    },
+    {
+      "name": "web-shell",
+      "group": "Web App",
+      "category": "ui",
+      "description": "The hosted app's shell and brand: header with the wordmark and appearance switch, Home with the hero, demo pages, the sandboxed iframe host, favicons and og image.",
+      "file_paths": [
+        "apps/web/index.html",
+        "apps/web/package.json",
+        "apps/web/public/demo/article.html",
+        "apps/web/public/demo/form.html",
+        "apps/web/public/demo/pricing.html",
+        "apps/web/src/App.tsx",
+        "apps/web/src/Home.tsx",
+        "apps/web/src/brand/Coil.tsx",
+        "apps/web/src/brand/DemoArt.tsx",
+        "apps/web/src/brand/Header.tsx",
+        "apps/web/src/brand/Wordmark.tsx",
+        "apps/web/src/brand/brand.css",
+        "apps/web/src/brand/theme.test.ts",
+        "apps/web/src/brand/theme.ts",
+        "apps/web/src/devHandrail.ts",
+        "apps/web/src/main.tsx",
+        "apps/web/src/sources.ts",
+        "apps/web/src/webHost.tsx",
+        "apps/web/tsconfig.json",
+        "apps/web/vite.config.ts"
+      ],
+      "entry_points": [
+        "apps/web/src/main.tsx"
+      ]
+    },
+    {
+      "name": "chrome-extension",
+      "group": "Chrome Extension",
+      "category": "ui",
+      "description": "MV3 side panel, content script (extraction, write-back, page look), background relay to the Handrail native host, page-matched look setting; build-it-yourself distribution.",
+      "file_paths": [
+        "apps/extension/HANDRAIL.md",
+        "apps/extension/README.md",
+        "apps/extension/package.json",
+        "apps/extension/public/manifest.json",
+        "apps/extension/sidepanel.html",
+        "apps/extension/src/background.ts",
+        "apps/extension/src/content.ts",
+        "apps/extension/src/distribution.test.ts",
+        "apps/extension/src/messages.test.ts",
+        "apps/extension/src/messages.ts",
+        "apps/extension/src/pageTheme.test.ts",
+        "apps/extension/src/pageTheme.ts",
+        "apps/extension/src/sidepanel/applyBinding.ts",
+        "apps/extension/src/sidepanel/handrailPort.ts",
+        "apps/extension/src/sidepanel/host.ts",
+        "apps/extension/src/sidepanel/look.test.ts",
+        "apps/extension/src/sidepanel/look.tsx",
+        "apps/extension/src/sidepanel/main.tsx",
+        "apps/extension/src/sidepanel/panel.css",
+        "apps/extension/tsconfig.json",
+        "apps/extension/vite.config.ts",
+        "apps/extension/vite.content.config.ts"
+      ],
+      "entry_points": [
+        "apps/extension/src/background.ts",
+        "apps/extension/src/content.ts",
+        "apps/extension/src/sidepanel/main.tsx"
+      ]
+    },
+    {
+      "name": "android-envelope",
+      "group": "Android App",
+      "category": "ui",
+      "description": "Envelope: share or photograph a letter, on-device OCR, hybrid AI letter reading (what it says, deadline, what to do) and a reply wizard.",
+      "file_paths": [
+        "apps/android/app/build.gradle.kts",
+        "apps/android/app/src/debug/kotlin/dev/distill/envelope/AppCheckProviders.kt",
+        "apps/android/app/src/main/AndroidManifest.xml",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/Ai.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/Letter.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/LetterViewModel.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/MainActivity.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/Ocr.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/Prompts.kt",
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/Routing.kt",
+        "apps/android/app/src/main/res/drawable/ic_fg.xml",
+        "apps/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+        "apps/android/app/src/main/res/values/strings.xml",
+        "apps/android/app/src/main/res/values/themes.xml",
+        "apps/android/app/src/release/kotlin/dev/distill/envelope/AppCheckProviders.kt",
+        "apps/android/build.gradle.kts",
+        "apps/android/gradle.properties",
+        "apps/android/gradle/wrapper/gradle-wrapper.properties",
+        "apps/android/gradlew",
+        "apps/android/gradlew.bat",
+        "apps/android/settings.gradle.kts"
+      ],
+      "entry_points": [
+        "apps/android/app/src/main/kotlin/dev/distill/envelope/MainActivity.kt"
+      ]
+    },
+    {
+      "name": "handrail-bridge",
+      "group": "Handrail",
+      "category": "api",
+      "description": "A local MCP stdio server and a Chrome native messaging host joined by a token-guarded pipe, so Claude Code or Antigravity can read a page and propose answers the person must accept.",
+      "file_paths": [
+        "tools/handrail/PROTOCOL.md",
+        "tools/handrail/README.md",
+        "tools/handrail/package.json",
+        "tools/handrail/src/bin/handrail-host.ts",
+        "tools/handrail/src/bin/handrail-mcp.ts",
+        "tools/handrail/src/channel.ts",
+        "tools/handrail/src/framing.ts",
+        "tools/handrail/src/host.ts",
+        "tools/handrail/src/install.ts",
+        "tools/handrail/src/mcp.ts",
+        "tools/handrail/src/proposals.ts",
+        "tools/handrail/src/types.ts",
+        "tools/handrail/test/channel.test.ts",
+        "tools/handrail/test/contract.test.ts",
+        "tools/handrail/test/framing.test.ts",
+        "tools/handrail/test/install.test.ts",
+        "tools/handrail/test/mcp.test.ts",
+        "tools/handrail/test/proposals.test.ts",
+        "tools/handrail/tsconfig.build.json",
+        "tools/handrail/tsconfig.json"
+      ],
+      "entry_points": [
+        "tools/handrail/src/bin/handrail-mcp.ts",
+        "tools/handrail/src/bin/handrail-host.ts"
+      ]
+    },
+    {
+      "name": "platform-config",
+      "group": "Platform",
+      "category": "config",
+      "description": "Firebase project config (hosting, Firestore rules and indexes, Remote Config template), root workspace scripts, the secret scan and the never-ship dist check.",
+      "file_paths": [
+        ".ai/manifest.yaml",
+        ".env.example",
+        ".firebaserc",
+        "firebase.json",
+        "firestore.indexes.json",
+        "firestore.rules",
+        "package.json",
+        "remoteconfig.template.json",
+        "tsconfig.base.json",
+        "scripts/check-dist.mjs",
+        "scripts/secret-scan.mjs"
+      ],
+      "entry_points": []
+    }
+  ]
+}
