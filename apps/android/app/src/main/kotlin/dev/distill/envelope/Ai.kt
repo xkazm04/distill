@@ -82,12 +82,12 @@ object Ai {
         }.getOrNull()
     }
 
-    /** Run one task. Page and structure tasks prefer the device; a values task is device-only, no cloud fallback. */
+    /** Run one task (every Envelope task answers in JSON). A values task is device-only, no cloud fallback. */
     suspend fun run(task: Task, prompt: String): AiOutcome {
         if (!configured) return AiOutcome.Failed("Firebase is not configured, so the AI cannot run yet.")
         return try {
             val (modelName, mode) = remoteConfig()
-            val response = model(modelName, task, mode, json = task != Task.SUGGEST_VALUE).generateContent(prompt)
+            val response = model(modelName, task, mode, json = true).generateContent(prompt)
             val text = response.text?.trim().orEmpty()
             if (text.isEmpty()) return AiOutcome.Failed("The AI gave no answer. Please try again.")
             val where = if (response.inferenceSource == InferenceSource.ON_DEVICE) Where.ON_DEVICE else Where.IN_CLOUD

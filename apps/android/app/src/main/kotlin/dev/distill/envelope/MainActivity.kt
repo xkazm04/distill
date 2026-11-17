@@ -215,9 +215,15 @@ private fun Result(vm: LetterViewModel) {
             }
         }
         vm.draftNote?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-        vm.draft?.let {
+        vm.draft?.let { d ->
             SourceChips(vm.draftWhere, null)
-            Text(it, style = MaterialTheme.typography.bodyLarge)
+            Text("Your reply, ready to send", style = MaterialTheme.typography.titleMedium)
+            Text(d.reply, style = MaterialTheme.typography.bodyLarge)
+            d.translation?.let {
+                Text("What it says in English", style = MaterialTheme.typography.titleMedium)
+                Text(it, style = MaterialTheme.typography.bodyLarge)
+            }
+            Text("Words in [square brackets] are for you to fill in before you send it.", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

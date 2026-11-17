@@ -32,13 +32,13 @@ class LetterViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var localState: String? by mutableStateOf(null)
         private set
-    var steps = mutableStateListOf<WizardStep>()
+    var steps = mutableStateListOf<ReplyStep>()
         private set
     /** What the person types. Lives in memory on this device only; never stored, never sent to the cloud. */
     val answers = mutableStateMapOf<String, String>()
     var wizardNote: String? by mutableStateOf(null)
         private set
-    var draft: String? by mutableStateOf(null)
+    var draft: ReplyDraft? by mutableStateOf(null)
         private set
     var draftWhere: Where? by mutableStateOf(null)
         private set
@@ -91,10 +91,10 @@ class LetterViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun buildWizard() {
-        when (val out = Ai.run(Task.BUILD_WIZARD, replyWizardPrompt(letterText))) {
+        when (val out = Ai.run(Task.BUILD_REPLY_WIZARD, buildReplyWizardPrompt(letterText))) {
             is AiOutcome.Failed -> wizardNote = out.message
             is AiOutcome.Ok -> {
-                val s = parseWizardSteps(out.text)
+                val s = parseReplyWizard(out.text)
                 if (s.isEmpty()) wizardNote = "This letter does not seem to need a reply."
                 else steps.addAll(s)
             }
@@ -103,14 +103,20 @@ class LetterViewModel(app: Application) : AndroidViewModel(app) {
 
     fun draftReply() {
         val l = letter ?: return
-        val given = steps.mapNotNull { s -> answers[s.stepId]?.takeIf { it.isNotBlank() }?.let { s to it } }
+        val given = steps.mapNotNull { s ->
+            answers[s.stepId]?.takeIf { it.isNotBlank() }?.let { ReplyAnswer(s.stepId, s.question, it) }
+        }
         if (given.isEmpty()) { draftNote = "Answer at least one question first."; return }
         drafting = true; draftNote = null
         viewModelScope.launch {
             // Values class: route() makes this device-only. When the phone has no local model it says so.
-            when (val out = Ai.run(Task.SUGGEST_VALUE, draftReplyPrompt(l, given))) {
+            when (val out = Ai.run(Task.DRAFT_REPLY, draftReplyPrompt(l, given))) {
                 is AiOutcome.Failed -> draftNote = out.message
-                is AiOutcome.Ok -> { draft = out.text; draftWhere = out.where }
+                is AiOutcome.Ok -> {
+                    val d = parseReplyDraft(out.text)
+                    if (d == null) draftNote = "The reply could not be understood. Please try again."
+                    else { draft = d; draftWhere = out.where }
+                }
             }
             drafting = false
         }
