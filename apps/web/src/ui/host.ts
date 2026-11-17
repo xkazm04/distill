@@ -20,9 +20,9 @@ export interface PageHost {
   /** Web only: the pane that holds the original page (the iframe). Always mounted, shown when `original` is on. */
   originalPane?(visible: boolean): ReactNode;
   /**
-   * Web only, used while the original is shown beside Distill: outline `target` in the original in the theme's focus
-   * colour and scroll it into view (instantly under reduced motion); null clears it. Never touches the outline that
-   * `highlight` put on filled fields. The extension does not implement it: there the tab itself is beside the panel.
+   * Outline `target` in the original in the theme's focus colour and scroll it into view (instantly under reduced
+   * motion); null clears it. Never touches the outline that `highlight` put on filled fields. The web app calls it while
+   * the original is beside Distill; the extension always, because there the tab itself is beside the panel.
    */
   locate?(target: LocateTarget | null): Promise<void>;
 }

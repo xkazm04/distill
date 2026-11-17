@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
 import type { RunResult } from "../ai";
 import type { LocateTarget, PageHost } from "./host";
+import type { GuideState, GuideStore } from "./guideStore";
 
 const runMock = vi.hoisted(() => vi.fn());
 vi.mock("../ai", async (importOriginal) => ({ ...(await importOriginal<typeof import("../ai")>()), run: runMock }));
@@ -121,13 +122,6 @@ describe("view keys", () => {
 
 describe("the Original control", () => {
   it("offers Beside only with a pane for the original and room for it", async () => {
-    await mount(new FakeHost());
-    expect(radio("beside")).toBeNull();
-    expect(radio("hide")?.checked).toBe(true);
-    expect(radio("full")).not.toBeNull();
-    await act(async () => root!.unmount());
-    root = createRoot(el);
-
     await mount(new PaneHost());
     expect(radio("beside")).not.toBeNull();
     await act(async () => root!.unmount());
@@ -136,6 +130,15 @@ describe("the Original control", () => {
     width = BESIDE_MIN_WIDTH - 1;
     await mount(new PaneHost());
     expect(radio("beside")).toBeNull();
+    expect(radio("hide")?.checked).toBe(true);
+    expect(radio("full")).not.toBeNull();
+  });
+
+  it("is not there on a host without a pane (the extension): the tab beside the panel is the original", async () => {
+    await mount(new FakeHost());
+    expect(q("original-control")).toBeNull();
+    expect(radio("full")).toBeNull();
+    expect((el.querySelector("#panel") as HTMLElement).hidden).toBe(false);
   });
 
   it("reads the kept choice back and keeps a new one", async () => {
@@ -166,17 +169,8 @@ describe("the Original control", () => {
     expect(host.showOriginal).toHaveBeenLastCalledWith(false);
   });
 
-  it("Full on a host without a pane says the tab is the original, with a way back", async () => {
-    await mount(new FakeHost());
-    await choose("full");
-    expect(q("original-note")?.textContent).toContain("You are looking at the original page");
-    await act(async () => { button("Back to Distill")!.click(); });
-    expect(q("original-note")).toBeNull();
-    expect(radio("hide")?.checked).toBe(true);
-  });
-
   it("choosing a view from Full shows Distill again", async () => {
-    await mount(new FakeHost());
+    await mount(new PaneHost());
     await choose("full");
     await key(document.body, "3");
     expect((el.querySelector("#panel") as HTMLElement).hidden).toBe(false);
@@ -301,15 +295,18 @@ describe("one way to the original", () => {
     expect((el.querySelector("#panel") as HTMLElement).hidden).toBe(false);
   });
 
-  it("the done step's Show original form shows it in full without a pane", async () => {
-    await mount(new FakeHost(), "wayfill");
+  it("the done step's Show original form only outlines the fields without a pane: the tab is the original", async () => {
+    const host = new FakeHost();
+    const highlight = vi.spyOn(host, "highlight");
+    await mount(host, "wayfill");
     await act(async () => { button("Skip")!.click(); });
     await act(async () => { button("Skip")!.click(); });
     await settle();
     await act(async () => { button("Show original form")!.click(); });
     await settle();
-    expect(radio("full")?.checked).toBe(true);
-    expect(q("original-note")).not.toBeNull();
+    expect(highlight).toHaveBeenCalled();
+    expect((el.querySelector("#panel") as HTMLElement).hidden).toBe(false);
+    expect(q("original-control")).toBeNull();
   });
 });
 
@@ -334,5 +331,180 @@ describe("loading never looks frozen", () => {
     await key(document.body, "3");
     expect(el.querySelector(".recast [data-testid='skeleton']")).not.toBeNull();
     expect(el.querySelector(".recast [role='status']")?.textContent).toBe("Building a clearer layout...");
+  });
+});
+
+// ---- the extension's host: no pane of its own, the tab itself is beside the panel ---------------------------------
+
+describe("pointing at the source in the tab (a host without a pane)", () => {
+  const block = (id: string) => el.querySelector(`[data-block="${id}"]`)!;
+
+  it("Read: pointing at a block locates it in the tab, with no Beside to choose first", async () => {
+    const host = new FakeHost();
+    await mount(host);
+    host.locate.mockClear();
+    await fire(block("b1"), "pointerover");
+    expect(host.locate).toHaveBeenLastCalledWith({ blockId: "b1" });
+  });
+
+  it("Fill a form: every step change locates the step's fields in the tab", async () => {
+    const host = new FakeHost();
+    await mount(host, "wayfill");
+    expect(host.locate).toHaveBeenLastCalledWith({ fieldIds: ["jmeno"] });
+    await act(async () => { button("Skip")!.click(); });
+    await settle();
+    expect(host.locate).toHaveBeenLastCalledWith({ fieldIds: ["mesto"] });
+  });
+
+  it("New layout: From the page locates the source block in the tab and stays in the layout", async () => {
+    const host = new FakeHost();
+    await mount(host, "recast");
+    await act(async () => { el.querySelector<HTMLButtonElement>(".src")!.click(); });
+    expect(host.locate).toHaveBeenLastCalledWith({ blockId: "b1" });
+    expect(selected()).toBe("tab-recast");
+  });
+});
+
+/** A page whose text (and form) can change under the panel, as a live tab does. */
+class LiveHost extends FakeHost {
+  page: PageModel = PAGE;
+  form: FormStructure = FORM;
+  override async getPage() { return this.page; }
+  override async getForm() { return this.form; }
+}
+
+type WsProps = Parameters<typeof Workspace>[0];
+async function show(props: WsProps) {
+  await act(async () => { root!.render(<Workspace {...props} />); });
+  await settle();
+}
+
+describe("the page changes under the panel (changeKey)", () => {
+  it("Read refreshes in place: the new text shows with no reading skeleton in between", async () => {
+    const host = new LiveHost();
+    await show({ host, initialTab: "focus", changeKey: 0 });
+    expect(el.textContent).toContain("Bring your passport.");
+    host.page = { ...PAGE, blocks: [...PAGE.blocks, { id: "b3", kind: "paragraph", text: "Parking is behind the building." }] };
+    await act(async () => { root!.render(<Workspace host={host} initialTab="focus" changeKey={1} />); });
+    expect(el.querySelector(".ws-status")).toBeNull(); // never back to "Reading the page..."
+    await settle();
+    expect(el.textContent).toContain("Parking is behind the building.");
+  });
+
+  it("Fill a form keeps its step when the form is the same one", async () => {
+    const host = new LiveHost();
+    await show({ host, initialTab: "wayfill", changeKey: 0 });
+    await act(async () => { button("Skip")!.click(); });
+    await settle();
+    expect(q("wf-step")?.textContent).toContain("Step 2 of 2");
+    const builds = runMock.mock.calls.filter(([t]) => t === "buildWizard").length;
+    const reads = vi.spyOn(host, "getForm");
+    await show({ host, initialTab: "wayfill", changeKey: 1 });
+    expect(reads).toHaveBeenCalled(); // the form was read again, and found to be the same one
+    expect(q("wf-step")?.textContent).toContain("Step 2 of 2");
+    expect(q("form-changed")).toBeNull();
+    expect(runMock.mock.calls.filter(([t]) => t === "buildWizard").length).toBe(builds); // no new guide was built
+  });
+
+  it("Fill a form offers to start again when the form changed, and then starts at step 1", async () => {
+    const host = new LiveHost();
+    await show({ host, initialTab: "wayfill", changeKey: 0 });
+    await act(async () => { button("Skip")!.click(); });
+    await settle();
+    host.form = { ...FORM, fingerprint: "fp2", fields: [{ fieldId: "ulice", kind: "text", label: "Ulice", required: false }] };
+    await show({ host, initialTab: "wayfill", changeKey: 1 });
+    expect(q("form-changed")?.textContent).toContain("This form changed");
+    expect(q("wf-step")?.textContent).toContain("Step 2 of 2"); // nothing moved until the person chooses
+    await act(async () => { button("Start again")!.click(); });
+    await settle();
+    expect(q("form-changed")).toBeNull();
+    expect(q("wf-step")?.textContent).toContain("Step 1 of 1");
+  });
+});
+
+describe("the guide keeps its place (GuideStore)", () => {
+  const memoryStore = () => {
+    const m = new Map<string, GuideState>();
+    const store = {
+      load: vi.fn(async (k: string) => m.get(k) ?? null),
+      save: vi.fn(async (k: string, s: GuideState) => { m.set(k, structuredClone(s)); }),
+      clear: vi.fn(async (k: string) => { m.delete(k); }),
+    } satisfies GuideStore;
+    return { m, store };
+  };
+  const type = async (id: string, v: string) => {
+    const input = el.querySelector<HTMLInputElement>(`#wf-${id}`)!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, v);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+
+  it("saves every step change and restores the step and answers after a reload", async () => {
+    const { m, store } = memoryStore();
+    await show({ host: new FakeHost(), initialTab: "wayfill", guideStore: store });
+    await type("jmeno", "Jana");
+    await act(async () => { button("Next")!.click(); });
+    await settle();
+    expect(m.get("fp")).toEqual({ stepIndex: 1, answers: { jmeno: "Jana" } });
+
+    await act(async () => root!.unmount()); // the page is reloaded: a new panel, the same tab
+    root = createRoot(el);
+    await show({ host: new FakeHost(), initialTab: "wayfill", guideStore: store });
+    expect(q("wf-step")?.textContent).toContain("Step 2 of 2");
+    expect(q("wf-restored")).not.toBeNull();
+    await act(async () => { button("Back")!.click(); });
+    expect(el.querySelector<HTMLInputElement>("#wf-jmeno")?.value).toBe("Jana");
+  });
+
+  it("restores the step when the same tab loads the page again (refreshKey)", async () => {
+    const { store } = memoryStore();
+    const host = new FakeHost();
+    await show({ host, initialTab: "wayfill", guideStore: store, refreshKey: 0 });
+    await act(async () => { button("Skip")!.click(); });
+    await settle();
+    await show({ host, initialTab: "wayfill", guideStore: store, refreshKey: 1 });
+    expect(q("wf-step")?.textContent).toContain("Step 2 of 2");
+  });
+
+  it("carries an answer over to the next page's field with the same label, and says so", async () => {
+    const { m, store } = memoryStore();
+    m.set("labels:https://office.example", { stepIndex: 0, answers: { "město": "Brno" } });
+    const host = new LiveHost();
+    host.form = { ...FORM, fingerprint: "page2", fields: [{ fieldId: "city2", kind: "text", label: "Město:*", required: true }] };
+    await show({ host, initialTab: "wayfill", guideStore: store });
+    expect(el.querySelector<HTMLInputElement>("#wf-city2")?.value).toBe("Brno");
+    expect(q("carried-over")?.textContent).toContain("Carried over from the previous page");
+    expect(q("wf-step")?.textContent).toContain("Step 1 of 1"); // the person still presses Next
+    await type("city2", "Praha");
+    expect(q("carried-over")).toBeNull();
+  });
+
+  it("Forget my answers clears what this device kept for the form and the site", async () => {
+    const { m, store } = memoryStore();
+    await show({ host: new FakeHost(), initialTab: "wayfill", guideStore: store });
+    await type("jmeno", "Jana");
+    await act(async () => { button("Next")!.click(); });
+    await settle();
+    expect(m.get("labels:https://office.example")?.answers).toEqual({ "jméno": "Jana" });
+    await act(async () => { button("Forget my answers")!.click(); });
+    await settle();
+    expect(store.clear).toHaveBeenCalledWith("fp");
+    expect(store.clear).toHaveBeenCalledWith("labels:https://office.example");
+    expect(m.has("labels:https://office.example")).toBe(false);
+    expect(m.get("fp")?.answers).toEqual({});
+    expect(q("wf-kept")?.textContent).toContain("were forgotten");
+  });
+});
+
+describe("the Agent view when the helper needs the person's OK", () => {
+  it("offers Connect your helper program, which asks the shell to connect", async () => {
+    const port = { onMessage: () => () => undefined, post: vi.fn(), disconnect: vi.fn() };
+    const connect = vi.fn();
+    await show({ host: new FakeHost(), handrail: port, onConnectHelper: connect });
+    await key(document.body, "4");
+    expect(q("handrail-connect")).not.toBeNull();
+    await act(async () => { button("Connect your helper program")!.click(); });
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 });

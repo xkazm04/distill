@@ -6,6 +6,7 @@ import { getFormGuide, saveFormGuide } from "./data";
 import { engine } from "./engine";
 import { accentColor } from "./dom";
 import { setGuide } from "./guide";
+import { labelsKey, normLabel, type GuideStore } from "./guideStore";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
 import { SourceChip, type AiMeta } from "./chips";
 import { WizardSkeleton } from "./loading";
@@ -75,7 +76,46 @@ interface Props {
   onSteps?: (n: number) => void;
   /** Told the fields of the step on screen on every step change (empty when no step is on screen). */
   onStep?: (fieldIds: string[]) => void;
+  /** Device-only storage for the guide's place and answers (sessionStorage on the web, chrome.storage.session in the
+   *  extension). Without it the guide starts at step 1 every time it is built. */
+  guideStore?: GuideStore;
+  /** Bumped when the page was loaded again (a reload or a navigation): the guide is built again and restored. */
+  reloadKey?: number;
+  /** Bumped when the page changed in place: the guide keeps its place while the form is still the same one. */
+  changeKey?: number;
 }
+
+/** Field kinds whose answer can sensibly move to the next page of a form. Ticks and choices are never carried. */
+const CARRY_KINDS = new Set<FieldStructure["kind"]>(["text", "textarea", "email", "tel", "number", "date", "select"]);
+
+/** The answers worth keeping by label for the next page of this form: typed answers to text-like fields. */
+export function answersByLabel(fields: readonly FieldStructure[], values: FormValues): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of fields) {
+    const v = (values[f.fieldId] ?? "").trim();
+    const key = normLabel(f.label);
+    if (v && key && CARRY_KINDS.has(f.kind)) out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * Answers from an earlier page of the same site for the fields of this form that have the same label and are still
+ * empty. A select takes the answer only when it is one of its options.
+ */
+export function carryOver(fields: readonly FieldStructure[], byLabel: Record<string, string>, present: FormValues): FormValues {
+  const out: FormValues = {};
+  for (const f of fields) {
+    if (!CARRY_KINDS.has(f.kind) || (present[f.fieldId] ?? "").trim()) continue;
+    const v = byLabel[normLabel(f.label)];
+    if (!v) continue;
+    if (f.kind === "select" && !f.options?.some((o) => o.value === v)) continue;
+    out[f.fieldId] = v;
+  }
+  return out;
+}
+
+const nonEmpty = (v: FormValues): FormValues => Object.fromEntries(Object.entries(v).filter(([, x]) => x.trim() !== ""));
 
 /** Why Next could not write a step's answers into the original form. */
 export interface WriteProblem {
@@ -107,7 +147,7 @@ function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values:
   }).filter(Boolean).join(", ");
 }
 
-export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep }: Props) {
+export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep, guideStore, reloadKey = 0, changeKey = 0 }: Props) {
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
   const [noForm, setNoForm] = useState<NoForm>("none");
   const [structure, setStructure] = useState<FormStructure | null>(null);
@@ -120,6 +160,15 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [remember, setRemember] = useState(false);
   const [profile, setProfile] = useState<FormValues>(() => loadProfile());
   const [aid, setAid] = useState<Record<string, { text: string; meta: AiMeta }>>({});
+  /** fieldId -> the answer carried over from the previous page of this form (noted on screen until it is changed). */
+  const [carried, setCarried] = useState<FormValues>({});
+  /** The guide picked up where it was before a reload. */
+  const [restored, setRestored] = useState(false);
+  /** The form on the page is no longer the one this guide was built for. */
+  const [changed, setChanged] = useState(false);
+  const [forgotten, setForgotten] = useState(false);
+  /** Bumped by "Start again" (and by a change while there is nothing to keep) to build the guide afresh. */
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -171,12 +220,62 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         const aiOn = isFirebaseConfigured() || import.meta.env.DEV;
         o = { kind: "basic", why: failure !== null ? aiWords(failure) : aiOn ? "The AI could not build the steps this time." : "AI is off." };
       }
+      // The place and answers kept for this same form (a reload); else answers carried over by label from the previous
+      // page of this site's form. Both come from this device's own storage only.
+      const kept = guideStore ? await guideStore.load(s.fingerprint).catch(() => null) : null;
+      let carry: FormValues = {};
+      if (guideStore && !kept) {
+        const byLabel = await guideStore.load(labelsKey(s.url)).catch(() => null);
+        if (byLabel) carry = carryOver(s.fields, byLabel.answers, present);
+      }
       if (!live) return;
-      setStructure(s); setWizard(w); setOrigin(o); setValues(present); setIdx(0); setFilled([]); setProblem(null);
+      setStructure(s); setWizard(w); setOrigin(o); setFilled([]); setProblem(null);
+      setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry });
+      setIdx(kept ? Math.min(kept.stepIndex, w.steps.length) : 0);
+      setCarried(carry);
+      setRestored(!!kept && (kept.stepIndex > 0 || Object.keys(nonEmpty(kept.answers)).length > 0));
+      setChanged(false); setForgotten(false);
       setPhase("ready");
     })();
     return () => { live = false; };
-  }, [host, settings.readerLang]);
+    // The shell's guideStore is fixed for its life; a new store object must not rebuild the guide.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, settings.readerLang, reloadKey, nonce]);
+
+  // The page changed in place: the same form keeps the guide's place; another form (or none) offers to start again.
+  const now = useRef({ phase, structure });
+  now.current = { phase, structure };
+  const seenChange = useRef(changeKey);
+  useEffect(() => {
+    if (seenChange.current === changeKey) return;
+    seenChange.current = changeKey;
+    const { phase: ph, structure: cur } = now.current;
+    if (ph !== "ready" || !cur) { setNonce((n) => n + 1); return; } // nothing to keep: just read it again
+    let on = true;
+    host.getForm(0).then(
+      (s) => { if (on) setChanged(s.fingerprint !== cur.fingerprint || s.fields.length === 0); },
+      () => { if (on) setChanged(true); },
+    );
+    return () => { on = false; };
+  }, [changeKey, host]);
+
+  // Every step change (and every answer) is kept on this device, so a reload picks up here.
+  useEffect(() => {
+    if (phase !== "ready" || !structure || !guideStore) return;
+    void guideStore.save(structure.fingerprint, { stepIndex: idx, answers: values }).catch(() => undefined);
+  }, [phase, structure, idx, values, guideStore]);
+  // On every step change, the answers by label, for the next page of this site's form.
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+  useEffect(() => {
+    if (phase !== "ready" || !structure || !guideStore) return;
+    const mine = answersByLabel(structure.fields, valuesRef.current);
+    if (!Object.keys(mine).length) return;
+    const key = labelsKey(structure.url);
+    void guideStore.load(key)
+      .then((kept) => guideStore.save(key, { stepIndex: 0, answers: { ...(kept?.answers ?? {}), ...mine } }))
+      .catch(() => undefined);
+  }, [phase, structure, idx, guideStore]);
 
   const steps = wizard?.steps ?? [];
   const step = steps[idx];
@@ -230,7 +329,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const stepFields = (step?.fieldIds ?? []).map((id) => fields.get(id)).filter((f): f is FieldStructure => !!f);
   const missing = stepFields.filter((f) => f.required && f.kind !== "file" && !(values[f.fieldId] ?? "").trim());
 
-  const go = (n: number) => { setProblem(null); setIdx(n); };
+  const go = (n: number) => { setProblem(null); setRestored(false); setIdx(n); };
 
   /** Writes the step's answers into the original form, and moves on only when every answer was written. */
   async function commit(skip: boolean) {
@@ -282,6 +381,13 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     }
   }
 
+  /** "Forget my answers": the guide's kept answers for this form and this site go from this device. */
+  async function forget() {
+    if (!guideStore || !structure) return;
+    await Promise.all([guideStore.clear(structure.fingerprint), guideStore.clear(labelsKey(structure.url))]).catch(() => undefined);
+    setValues({}); setCarried({}); setRestored(false); setForgotten(true);
+  }
+
   const localReady = model.state === "available";
   const hasProfile = Object.keys(profile).length > 0;
   const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
@@ -306,6 +412,18 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         <span className="muted" data-testid="wf-answered">{answered} of {steps.length} answered</span>
         {chip}
       </div>
+
+      {changed && (
+        <div className="notice" role="status" data-testid="form-changed">
+          <p>This form changed on the page, so these steps may not fit it any more.</p>
+          <div className="nav">
+            <button type="button" className="btn btn-small btn-primary" onClick={() => { setChanged(false); setNonce((n) => n + 1); }}>Start again</button>
+          </div>
+        </div>
+      )}
+      {restored && !changed && (
+        <p className="muted wf-saved" role="status" data-testid="wf-restored">Picked up where you left off. Your answers were kept on this device.</p>
+      )}
 
       <div className="ws-content wf-grid ws-enter">
         <ol className="wf-steps" aria-label="Steps">
@@ -354,6 +472,9 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                         {f.label}{f.required && <span className="req"> (required)</span>}
                         <span className="wf-orig"> label on the form</span>
                       </label>
+                      {carried[f.fieldId] !== undefined && carried[f.fieldId] === values[f.fieldId] && (
+                        <small className="muted" data-testid="carried-over">Carried over from the previous page. Check it, then press Next.</small>
+                      )}
                       <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
                       {f.kind !== "file" && f.kind !== "checkbox" && (
                         <div className="field-tools">
@@ -411,6 +532,14 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
             </div>
           )}
 
+          {guideStore && (
+            <p className="muted wf-saved" data-testid="wf-kept">
+              {forgotten
+                ? "Your answers to this form were forgotten on this device. What is already filled in on the page stays there."
+                : "Your answers to this form are kept on this device until you close the tab, so a reload does not lose them."}
+              {!forgotten && <>{" "}<button type="button" className="btn btn-link" onClick={() => void forget()}>Forget my answers</button></>}
+            </p>
+          )}
           {hasProfile && (
             <p className="muted wf-saved">
               {Object.keys(profile).length} saved answers are on this device only.{" "}

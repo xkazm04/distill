@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Workspace, type PageHost, type Tab } from "./ui";
+import { sessionGuideStore, Workspace, type PageHost, type Tab } from "./ui";
 import { IframeHost } from "./webHost";
 import { Home } from "./Home";
 import { DEMOS, fromPaste, loadDemo, type Loaded } from "./sources";
@@ -20,6 +20,8 @@ export function parseHash(hash: string): Route {
 }
 
 let pasted: Loaded | null = null;
+/** The form guide keeps its place and answers in this tab's sessionStorage (device only), so a reload picks up there. */
+const guideStore = sessionGuideStore();
 
 export function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(location.hash));
@@ -112,7 +114,7 @@ function Page({ route }: { route: Exclude<Route, { kind: "home" }> }) {
     );
   }
   return (
-    <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} homeHref="#/"
+    <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} guideStore={guideStore} homeHref="#/"
       brand={<a className="ws-brand-link" href="#/" aria-label="Distill home"><Wordmark tone="paper" className="ws-mark" sizes="100px" /></a>}
       pages={<Pages route={route} />}
       footer={<ThemeSwitch />} />

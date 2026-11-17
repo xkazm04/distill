@@ -8,6 +8,7 @@ import { HandrailPanel, useHandrail } from "./HandrailPanel";
 import { keptSections, Recast } from "./Recast";
 import { Wayfill } from "./Wayfill";
 import type { HandrailPort } from "./handrailTypes";
+import type { GuideStore } from "./guideStore";
 import type { LocateTarget, PageHost } from "./host";
 import { clampSplit, readOriginal, readSplit, SPLIT, writeOriginal, writeSplit, type OriginalLayout } from "./prefs";
 import { useLocalModel } from "./useLocalModel";
@@ -38,8 +39,16 @@ interface Props {
   handrail?: HandrailPort | null;
   initialTab?: Tab;
   onTab?: (t: Tab) => void;
-  /** Extension: the page may change under the panel; bump to re-read it. */
+  /** Extension: the page was loaded again (a reload or a navigation in the tab); bump to read it afresh. */
   refreshKey?: number;
+  /** Extension: the page changed in place (its content or its address, without a load); bump to re-read it without
+   *  resetting the views. Read refreshes in place; Fill a form keeps its place while the form is the same one. */
+  changeKey?: number;
+  /** Where the form guide keeps its place and answers, on this device only (see guideStore.ts). */
+  guideStore?: GuideStore;
+  /** Extension: the helper program (Handrail) needs the person's OK first. Present until it is given; the Agent view
+   *  offers it as "Connect your helper program". */
+  onConnectHelper?: () => void;
   /** The shell's mark, at the top of the sidebar and of the narrow top bar. Without it: the word "Distill". */
   brand?: ReactNode;
   /** The shell's list of pages (links), under "Pages" in the sidebar. */
@@ -75,7 +84,7 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
   return width;
 }
 
-export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, brand, pages, footer, homeHref }: Props) {
+export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, changeKey = 0, guideStore, onConnectHelper, brand, pages, footer, homeHref }: Props) {
   const [tab, setTabState] = useState<Tab>(initialTab);
   const [page, setPage] = useState<PageModel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,10 +125,12 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
       writeOriginal(m);
     }
   }, []);
-  /** The one "show me the original" action of the views: beside Distill when it fits, instead of it otherwise. */
+  /** The one "show me the original" action of the views: beside Distill when it fits, instead of it otherwise. A host
+   *  without a pane (the extension) has nothing to show: the tab beside the panel is the original. */
   const showOriginal = useCallback(() => {
+    if (!host.originalPane) return;
     if (canBeside) { setFull(false); setChoice("beside"); } else setFull(true);
-  }, [canBeside]);
+  }, [canBeside, host]);
   useEffect(() => { void host.showOriginal(mode !== "hide"); }, [host, mode]);
 
   const setTab = useCallback((t: Tab) => { setTabState(t); onTab?.(t); }, [onTab]);
@@ -127,24 +138,25 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   /** Choosing a view always shows Distill again (the original stays beside it when it was). */
   const pick = useCallback((t: Tab) => { setFull(false); setDrawer(false); setTab(t); }, [setTab]);
 
-  // ---- pointing at the source in the original, only while it is beside --------------------------------------------
+  // ---- pointing at the source in the original: while it is beside, or always where the tab itself is beside -------
+  const pointable = beside || (!host.originalPane && !!host.locate);
   const locate = useCallback((t: LocateTarget | null) => {
-    if (beside && host.locate) void host.locate(t).catch(() => undefined);
-  }, [beside, host]);
+    if (pointable && host.locate) void host.locate(t).catch(() => undefined);
+  }, [pointable, host]);
   const stepFields = useRef<string[]>([]);
   const onStep = useCallback((ids: string[]) => {
     stepFields.current = ids;
-    if (beside && tab === "wayfill") locate(ids.length ? { fieldIds: ids } : null);
-  }, [beside, tab, locate]);
+    if (pointable && tab === "wayfill") locate(ids.length ? { fieldIds: ids } : null);
+  }, [pointable, tab, locate]);
   useEffect(() => {
-    if (!beside) return;
+    if (!pointable) return;
     locate(tab === "wayfill" && stepFields.current.length ? { fieldIds: stepFields.current } : null);
-  }, [beside, tab, locate]);
-  const wasBeside = useRef(false);
+  }, [pointable, tab, locate]);
+  const wasPointable = useRef(false);
   useEffect(() => {
-    if (wasBeside.current && !beside) void host.locate?.(null).catch(() => undefined);
-    wasBeside.current = beside;
-  }, [beside, host]);
+    if (wasPointable.current && !pointable) void host.locate?.(null).catch(() => undefined);
+    wasPointable.current = pointable;
+  }, [pointable, host]);
 
   useEffect(() => {
     let live = true;
@@ -158,6 +170,25 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
     );
     return () => { live = false; };
   }, [host, refreshKey]);
+
+  // The page changed in place: read it again and show the new reading where the old one was, with no skeleton and no
+  // reset. An identical reading changes nothing (no new AI call); a failed one keeps what is on screen.
+  const seenChange = useRef(changeKey);
+  useEffect(() => {
+    if (seenChange.current === changeKey) return;
+    seenChange.current = changeKey;
+    let live = true;
+    host.getPage().then(
+      (p) => {
+        if (!live) return;
+        setPage((old) => (old && JSON.stringify(old) === JSON.stringify(p) ? old : p));
+        setSections(keptSections(p));
+        setError(null);
+      },
+      () => undefined,
+    );
+    return () => { live = false; };
+  }, [host, changeKey]);
 
   // Settings: device copy first (instant), then the Firestore copy when there is one.
   useEffect(() => {
@@ -226,7 +257,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
 
   const focus = page ? (
     <FocusView page={page} settings={settings} onSettings={changeSettings} scrollToBlock={scrollTo}
-      onLocate={beside ? (id) => locate(id ? { blockId: id } : null) : undefined} />
+      onLocate={pointable ? (id) => locate(id ? { blockId: id } : null) : undefined} />
   ) : null;
   const current = views.find((v) => v.id === tab);
 
@@ -298,7 +329,8 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
                 </span>
               )}
             </div>
-            <OriginalControl mode={mode} canBeside={canBeside} onChange={chooseOriginal} />
+            {/* The extension has no Original control: the tab beside the panel is the original, never changed. */}
+            {host.originalPane && <OriginalControl mode={mode} canBeside={canBeside} onChange={chooseOriginal} />}
           </header>
 
           <ConfigNotice />
@@ -348,26 +380,32 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
               {page && keepWayfill && (
                 <div hidden={tab !== "wayfill"} data-testid="wayfill-pane">
                   <Wayfill host={host} settings={settings} model={model} onSteps={setSteps} onStep={onStep}
-                    onShowOriginal={showOriginal} />
+                    onShowOriginal={showOriginal} guideStore={guideStore} reloadKey={refreshKey} changeKey={changeKey} />
                 </div>
               )}
               {page && tab === "recast" && (
                 <Recast page={page} enabled={settings.recastEnabled} fallback={focus} onSections={setSections}
                   onSource={(id) => {
-                    if (beside) locate({ blockId: id });
+                    if (pointable) locate({ blockId: id });
                     else { setScrollTo(id); setTab("focus"); }
                   }} />
               )}
-              {tab === "handrail" && handrail !== undefined && <div className="ws-pad"><HandrailPanel state={agent} /></div>}
+              {tab === "handrail" && handrail !== undefined && (
+                <div className="ws-pad">
+                  {onConnectHelper && (
+                    <div className="card" data-testid="handrail-connect">
+                      <h2>Connect your helper program</h2>
+                      <p>
+                        A helper program on your computer can read this page and suggest answers. Chrome will ask whether
+                        Distill may talk to programs on your computer. Nothing is filled in until you press Accept.
+                      </p>
+                      <button type="button" className="btn btn-primary" onClick={onConnectHelper}>Connect your helper program</button>
+                    </div>
+                  )}
+                  <HandrailPanel state={agent} />
+                </div>
+              )}
             </div>
-
-            {/* Hosts without a pane of their own (the extension): the original is the tab itself. */}
-            {mode === "full" && !host.originalPane && (
-              <div className="ws-pad" data-testid="original-note">
-                <p>You are looking at the original page, exactly as it is. Nothing here has been changed except the fields you filled in.</p>
-                <button type="button" className="btn btn-primary" onClick={() => chooseOriginal("hide")}>Back to Distill</button>
-              </div>
-            )}
           </div>
         </div>
       </div>
