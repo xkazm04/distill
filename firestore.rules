@@ -1,8 +1,9 @@
 rules_version = '2';
 
 // No document in this database ever holds a value a person typed. Only settings, glossary terms and cached form guides
-// (structure + wizard) are stored. formGuides are shared between signed-in people, so a write must match the
-// FormGuideDoc shape exactly and may not carry a `values` key anywhere in it.
+// (structure + wizard) are stored, all under the person's own users/{uid}. A form guide write must match the
+// FormGuideDoc shape exactly and may not carry a `values` key anywhere in it. Form guides are per person for now
+// (owner, 2026-11-17: "Per-person cache now, shared later"); the old shared top-level formGuides path is closed.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -26,27 +27,31 @@ service cloud.firestore {
           && request.resource.data.plain is string && request.resource.data.plain.size() <= 1000
           && request.resource.data.lang is string && request.resource.data.lang.size() <= 16;
       }
+
+      match /formGuides/{fingerprint} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && !('values' in request.resource.data)
+          && request.resource.data.keys().hasOnly(['structure', 'wizard', 'updatedAt'])
+          && request.resource.data.updatedAt is string
+          && request.resource.data.structure is map
+          && request.resource.data.structure.keys().hasOnly(['fingerprint', 'url', 'lang', 'title', 'fields'])
+          && !('values' in request.resource.data.structure)
+          && request.resource.data.structure.fingerprint == fingerprint
+          && request.resource.data.structure.fields is list
+          && request.resource.data.structure.fields.size() <= 300
+          && request.resource.data.wizard is map
+          && request.resource.data.wizard.keys().hasOnly(['fingerprint', 'readerLang', 'steps'])
+          && !('values' in request.resource.data.wizard)
+          && request.resource.data.wizard.fingerprint == fingerprint
+          && request.resource.data.wizard.steps is list
+          && request.resource.data.wizard.steps.size() <= 300;
+      }
     }
 
+    // The old shared cache: closed. Documents left there are never read or written again.
     match /formGuides/{fingerprint} {
-      allow read: if signedIn();
-      allow create, update: if signedIn()
-        && !('values' in request.resource.data)
-        && request.resource.data.keys().hasOnly(['structure', 'wizard', 'updatedAt'])
-        && request.resource.data.updatedAt is string
-        && request.resource.data.structure is map
-        && request.resource.data.structure.keys().hasOnly(['fingerprint', 'url', 'lang', 'title', 'fields'])
-        && !('values' in request.resource.data.structure)
-        && request.resource.data.structure.fingerprint == fingerprint
-        && request.resource.data.structure.fields is list
-        && request.resource.data.structure.fields.size() <= 300
-        && request.resource.data.wizard is map
-        && request.resource.data.wizard.keys().hasOnly(['fingerprint', 'readerLang', 'steps'])
-        && !('values' in request.resource.data.wizard)
-        && request.resource.data.wizard.fingerprint == fingerprint
-        && request.resource.data.wizard.steps is list
-        && request.resource.data.wizard.steps.size() <= 300;
-      allow delete: if false;
+      allow read, write: if false;
     }
 
     match /{document=**} {

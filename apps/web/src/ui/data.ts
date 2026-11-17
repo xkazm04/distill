@@ -53,11 +53,15 @@ export async function listGlossary(): Promise<GlossaryDoc[]> {
   return snap.docs.map((d) => d.data() as GlossaryDoc);
 }
 
-/** The cached wizard for a form, or null. The caller must still run it through `parseWizard`: the cache is shared. */
+// Form guides are per person for now (owner, 2026-11-17: "Per-person cache now, shared later"):
+// users/{uid}/formGuides/{fingerprint}. Guides saved earlier under the old shared top-level path are ignored, not moved.
+const guidePath = (uid: string, fingerprint: string): [string, string, string, string] => ["users", uid, "formGuides", fingerprint];
+
+/** This person's cached wizard for a form, or null. The caller still runs it through `parseWizard`: it is model output. */
 export async function getFormGuide(fingerprint: string): Promise<FormGuideDoc | null> {
   const fb = await getFirebase();
   if (!fb?.uid) return null;
-  const snap = await getDoc(doc(fb.db, "formGuides", fingerprint));
+  const snap = await getDoc(doc(fb.db, ...guidePath(fb.uid, fingerprint)));
   return snap.exists() ? (snap.data() as FormGuideDoc) : null;
 }
 
@@ -66,5 +70,5 @@ export async function saveFormGuide(structure: FormStructure, wizard: Wizard): P
   if (!fb?.uid) return;
   const guide: FormGuideDoc = { structure, wizard, updatedAt: new Date().toISOString() };
   assertNoValues(guide, "formGuides");
-  await setDoc(doc(fb.db, "formGuides", structure.fingerprint), guide);
+  await setDoc(doc(fb.db, ...guidePath(fb.uid, structure.fingerprint)), guide);
 }

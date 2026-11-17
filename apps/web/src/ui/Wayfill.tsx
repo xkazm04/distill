@@ -106,7 +106,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
       try {
         const cached = isFirebaseConfigured() ? await getFormGuide(s.fingerprint).catch(() => null) : null;
         if (cached) {
-          // The cache is shared between people, so it passes the same door as a fresh model answer.
+          // The saved guide is earlier model output (and may be shared later), so it passes the same door as a fresh answer.
           const parsed = await engine.parseWizard(cached.wizard, s, settings.readerLang);
           if (parsed.steps.length) { w = parsed; o = { kind: "cache" }; }
         }
