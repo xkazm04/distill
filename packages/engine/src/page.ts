@@ -69,25 +69,28 @@ const isHint = (el: Element): boolean => tag(el) === "small" || HINT_CLASS.test(
  * The human text of a form, never its values: headings, instructions, legends (as headings), and the field labels with
  * their help text as a list. Controls are skipped whole, so neither a typed value nor a chosen option is ever read.
  */
-function collectForm(form: Element, push: (b: Omit<Block, "id">) => void, skipped: (el: Element) => boolean): void {
+function collectForm(form: Element, push: Push, skipped: (el: Element) => boolean): void {
   let items: string[] = [];
+  /** Where each list item was read from; the list's source is the smallest element that holds them all. */
+  let from: Element[] = [];
   const flush = (): void => {
-    if (items.length) push({ kind: "list", text: items.join("\n") });
+    if (items.length) push({ kind: "list", text: items.join("\n") }, from.reduce(commonAncestor));
     items = [];
+    from = [];
   };
-  const item = (text: string): void => {
-    if (text) items.push(text);
+  const item = (text: string, el: Element): void => {
+    if (text) { items.push(text); from.push(el); }
   };
-  const hint = (text: string): void => {
+  const hint = (text: string, el: Element): void => {
     if (!text) return;
     if (items.length) items[items.length - 1] += ` - ${text}`;
-    else items.push(text);
+    else { items.push(text); from.push(el); }
   };
 
   const walk = (el: Element, depth: number): void => {
     let run: string[] = [];
     const flushRun = (): void => {
-      item(collapse(run.join(" ")));
+      item(collapse(run.join(" ")), el);
       run = [];
     };
     for (const child of Array.from(el.childNodes)) {
@@ -107,20 +110,20 @@ function collectForm(form: Element, push: (b: Omit<Block, "id">) => void, skippe
       if (/^h[1-6]$/.test(t) || t === "legend") {
         flush();
         const text = humanText(c);
-        if (text) push({ kind: "heading", text, level: t === "legend" ? Math.min(depth + 1, 6) : Number(t[1]) });
+        if (text) push({ kind: "heading", text, level: t === "legend" ? Math.min(depth + 1, 6) : Number(t[1]) }, c);
       } else if (t === "fieldset") {
         flush();
         walk(c, depth + 1);
         flush();
       } else if (t === "label") {
-        item(textOf(c, (e) => isControl(e) || isHint(e)));
-        Array.from(c.querySelectorAll("*")).filter((e) => isHint(e) && !isHidden(e)).forEach((e) => hint(humanText(e)));
+        item(textOf(c, (e) => isControl(e) || isHint(e)), c);
+        Array.from(c.querySelectorAll("*")).filter((e) => isHint(e) && !isHidden(e)).forEach((e) => hint(humanText(e), e));
       } else if (isHint(c)) {
-        hint(humanText(c));
+        hint(humanText(c), c);
       } else if (t === "p" && !holdsInput(c)) {
         flush();
         const text = humanText(c);
-        if (text) push({ kind: "paragraph", text });
+        if (text) push({ kind: "paragraph", text }, c);
       } else {
         walk(c, depth);
       }
@@ -131,12 +134,18 @@ function collectForm(form: Element, push: (b: Omit<Block, "id">) => void, skippe
   flush();
 }
 
-function collectBlocks(root: Element, url: string, formPage: boolean): Block[] {
+/** Adds a block, read from `el`. */
+type Push = (b: Omit<Block, "id">, el: Element) => void;
+
+/** The blocks of `root`, each with the element it was read from (same order, same length). */
+function collectBlocks(root: Element, url: string, formPage: boolean): { blocks: Block[]; sources: Element[] } {
   const blocks: Block[] = [];
-  const push = (b: Omit<Block, "id">): void => {
+  const sources: Element[] = [];
+  const push: Push = (b, el) => {
     const last = blocks[blocks.length - 1];
     if (last && last.kind === b.kind && last.text === b.text && b.kind !== "image") return;
     blocks.push({ id: `b${blocks.length}`, ...b });
+    sources.push(el);
   };
   // On a form page, a page-level <header> that holds the h1 carries the form's title and instructions, so it is content.
   // A <nav> inside it is still noise on its own.
@@ -156,33 +165,33 @@ function collectBlocks(root: Element, url: string, formPage: boolean): Block[] {
     }
     if (/^h[1-6]$/.test(t)) {
       const text = textOf(el);
-      if (text) push({ kind: "heading", text, level: Number(t[1]) });
+      if (text) push({ kind: "heading", text, level: Number(t[1]) }, el);
     } else if (t === "p") {
       const text = textOf(el);
-      if (text) push({ kind: "paragraph", text });
+      if (text) push({ kind: "paragraph", text }, el);
     } else if (t === "ul" || t === "ol") {
       const items = Array.from(el.children).filter((c) => tag(c) === "li" && !isHidden(c)).map((li) => textOf(li)).filter(Boolean);
-      if (items.length) push({ kind: "list", text: items.join("\n") });
+      if (items.length) push({ kind: "list", text: items.join("\n") }, el);
     } else if (t === "table") {
       const rows = Array.from(el.querySelectorAll("tr"))
         .map((tr) => Array.from(tr.children).filter((c) => ["td", "th"].includes(tag(c))).map((c) => textOf(c)))
         .filter((r) => r.some(Boolean));
-      if (rows.length) push({ kind: "table", text: rows.map((r) => r.join(" | ")).join("\n"), rows });
+      if (rows.length) push({ kind: "table", text: rows.map((r) => r.join(" | ")).join("\n"), rows }, el);
     } else if (t === "blockquote") {
       const text = textOf(el);
-      if (text) push({ kind: "quote", text });
+      if (text) push({ kind: "quote", text }, el);
     } else if (t === "pre") {
       const text = (el.textContent ?? "").replace(/\s+$/, "").replace(/^\n+/, "");
-      if (text.trim()) push({ kind: "code", text });
+      if (text.trim()) push({ kind: "code", text }, el);
     } else if (t === "img") {
       const alt = collapse(attr(el, "alt"));
       const src = absUrl(attr(el, "src"), url);
-      if (alt && src) push({ kind: "image", text: alt, src });
+      if (alt && src) push({ kind: "image", text: alt, src }, el);
     } else {
       let run: Node[] = [];
       const flush = (): void => {
         const text = collapse(run.map((n) => (n.nodeType === 3 ? n.nodeValue ?? "" : textOf(n))).join(" "));
-        if (text) push({ kind: "paragraph", text });
+        if (text) push({ kind: "paragraph", text }, el);
         run = [];
       };
       for (const child of Array.from(el.childNodes)) {
@@ -199,7 +208,7 @@ function collectBlocks(root: Element, url: string, formPage: boolean): Block[] {
     }
   };
   visit(root, true);
-  return blocks;
+  return { blocks, sources };
 }
 
 const PRICE_RE = /([$€£]\s?\d|\d[\d.,]*\s?(€|Kč|USD|EUR|CZK|£|\$))/g;
@@ -243,14 +252,20 @@ function commonAncestor(a: Element, b: Element): Element {
   return b.ownerDocument.documentElement;
 }
 
-export function extractPage(doc: Document, url: string): PageModel {
+export interface ExtractOptions {
+  /** Called once per block with its final id and the element of `doc` the block was read from, so a host can point
+   *  at a block's source in the original page. The element never goes into the PageModel. */
+  onSource?: (blockId: string, el: Element) => void;
+}
+
+export function extractPage(doc: Document, url: string, opts?: ExtractOptions): PageModel {
   const forms = listForms(doc);
   const form = dominantForm(doc, forms);
   let root = pickRoot(doc);
   // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.
   if (form && (root === form || form.contains(root))) root = form.parentElement ?? form;
   else if (form && !root.contains(form)) root = commonAncestor(root, form);
-  const blocks = collectBlocks(root, url, !!form);
+  const { blocks, sources } = collectBlocks(root, url, !!form);
 
   let host = "";
   try {
@@ -267,9 +282,14 @@ export function extractPage(doc: Document, url: string): PageModel {
   // heading, unless it only repeats the title; and a leading heading that only repeats the title is not shown again.
   if (h1Text && !sameText(h1Text, title) && !blocks.some((b) => sameText(b.text, h1Text))) {
     blocks.unshift({ id: "", kind: "heading", text: h1Text, level: 1 });
+    sources.unshift(outside as Element);
   }
-  if (blocks[0]?.kind === "heading" && sameText(blocks[0].text, title)) blocks.shift();
+  if (blocks[0]?.kind === "heading" && sameText(blocks[0].text, title)) {
+    blocks.shift();
+    sources.shift();
+  }
   blocks.forEach((b, i) => (b.id = `b${i}`));
+  if (opts?.onSource) blocks.forEach((b, i) => opts.onSource?.(b.id, sources[i] as Element));
 
   const page: PageModel = {
     url: publicUrl(url),
