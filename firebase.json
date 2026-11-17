@@ -11,5 +11,12 @@
     ]
   },
   "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
-  "remoteconfig": { "template": "remoteconfig.template.json" }
+  "remoteconfig": { "template": "remoteconfig.template.json" },
+  "emulators": {
+    "singleProjectMode": true,
+    "hub": { "host": "127.0.0.1", "port": 5189 },
+    "firestore": { "host": "127.0.0.1", "port": 5187, "websocketPort": 5188 },
+    "hosting": { "host": "127.0.0.1", "port": 5188 },
+    "ui": { "enabled": false }
+  }
 }

@@ -13,6 +13,7 @@ build/
 .idea/
 .firebase/
 firebase-debug.log
+firestore-debug.log
 .ai/lens-scan/
 .ai/*.local.*
 .build-*/

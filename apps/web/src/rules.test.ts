@@ -1,3 +1,5 @@
+// A fast text smoke check of firestore.rules that runs in `npm run check`. It cannot evaluate a request: the proof that
+// the rules allow the owner and refuse everyone else is packages/rules-test, run in the emulator by `npm run test:rules`.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";

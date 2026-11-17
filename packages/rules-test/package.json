@@ -1,0 +1,18 @@
+{
+  "name": "@distill/rules-test",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Firestore security rules evaluated by the real rules engine in the Firestore emulator. Run from the repo root with `npm run test:rules`.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:emulator": "vitest run"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

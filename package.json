@@ -21,6 +21,10 @@
     "check": "npm run typecheck && npm test && npm run secret-scan",
     "secret-scan": "node scripts/secret-scan.mjs",
     "check:dist": "node scripts/check-dist.mjs",
-    "deploy:web": "npm run build -w @distill/web && npm run check:dist && npx -y firebase-tools@latest deploy --only hosting --project distill-hybrid-ai --non-interactive"
+    "deploy:web": "npm run build -w @distill/web && npm run check:dist && npx -y firebase-tools@latest deploy --only hosting --project distill-hybrid-ai --non-interactive",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-distill \"npm run test:emulator -w @distill/rules-test\""
+  },
+  "devDependencies": {
+    "firebase-tools": "15.34.2"
   }
 }

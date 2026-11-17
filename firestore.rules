@@ -4,46 +4,64 @@ rules_version = '2';
 // (structure + wizard) are stored, all under the person's own users/{uid}. A form guide write must match the
 // FormGuideDoc shape exactly and may not carry a `values` key anywhere in it. Form guides are per person for now
 // (owner, 2026-11-17: "Per-person cache now, shared later"); the old shared top-level formGuides path is closed.
+//
+// Size caps. Every string field the rules can see has a length cap, every list a member cap, and every document id a
+// format or length cap, so one write is bounded well under Firestore's 1 MiB document limit for what the rules can see.
+// What rules CANNOT cap (they have no loops and no counters): the size of each member inside structure.fields and
+// wizard.steps (only the list lengths are capped; the 1 MiB document limit is the ceiling), the NUMBER of glossary
+// terms or form guides one person keeps, and the number of anonymous accounts. Those need App Check enforcement,
+// a budget alert and a TTL or cleanup job, all outside this file. Rules also cannot look inside list members, so a
+// `values` key nested in one field or step is not refused here: the wire types have no such key (FieldStructure,
+// WizardStep in packages/engine/src/types.ts), and assertNoValues (apps/web/src/ui/data.ts) checks the top two levels.
+// The Firestore emulator proves these rules: `npm run test:rules` (packages/rules-test).
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function shortString(v, max) { return v is string && v.size() <= max; }
 
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid)
         && request.resource.data.keys().hasOnly(['readingLevel', 'readerLang', 'recastEnabled'])
         && request.resource.data.readingLevel in ['plain', 'standard', 'original']
-        && request.resource.data.readerLang is string && request.resource.data.readerLang.size() <= 16
+        && shortString(request.resource.data.readerLang, 16)
         && request.resource.data.recastEnabled is bool;
       allow delete: if isOwner(uid);
 
       match /glossary/{termId} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
+          && termId.size() <= 128
           && request.resource.data.keys().hasOnly(['term', 'plain', 'lang'])
-          && request.resource.data.term is string && request.resource.data.term.size() <= 200
-          && request.resource.data.plain is string && request.resource.data.plain.size() <= 1000
-          && request.resource.data.lang is string && request.resource.data.lang.size() <= 16;
+          && shortString(request.resource.data.term, 200)
+          && shortString(request.resource.data.plain, 1000)
+          && shortString(request.resource.data.lang, 16);
       }
 
+      // {fingerprint} is the sha-256 hex the engine computes (packages/engine/src/fingerprint.ts): 64 lowercase hex.
       match /formGuides/{fingerprint} {
         allow read, delete: if isOwner(uid);
         allow create, update: if isOwner(uid)
+          && fingerprint.matches('^[0-9a-f]{64}$')
           && !('values' in request.resource.data)
           && request.resource.data.keys().hasOnly(['structure', 'wizard', 'updatedAt'])
-          && request.resource.data.updatedAt is string
+          && shortString(request.resource.data.updatedAt, 40)
           && request.resource.data.structure is map
           && request.resource.data.structure.keys().hasOnly(['fingerprint', 'url', 'lang', 'title', 'fields'])
           && !('values' in request.resource.data.structure)
           && request.resource.data.structure.fingerprint == fingerprint
+          && shortString(request.resource.data.structure.url, 2048)
+          && shortString(request.resource.data.structure.lang, 16)
+          && shortString(request.resource.data.structure.title, 1000)
           && request.resource.data.structure.fields is list
           && request.resource.data.structure.fields.size() <= 300
           && request.resource.data.wizard is map
           && request.resource.data.wizard.keys().hasOnly(['fingerprint', 'readerLang', 'steps'])
           && !('values' in request.resource.data.wizard)
           && request.resource.data.wizard.fingerprint == fingerprint
+          && shortString(request.resource.data.wizard.readerLang, 32)
           && request.resource.data.wizard.steps is list
           && request.resource.data.wizard.steps.size() <= 300;
       }
