@@ -164,10 +164,10 @@ describe("Recast", () => {
     runMock.mockResolvedValue(layout);
     const view = (p: PageModel) => <Recast page={p} enabled fallback={<p>focus</p>} onSource={() => undefined} />;
     await render(view(page()));
-    expect(q("recast-count")?.textContent).toContain("1 section shown");
+    expect(q("recast-count")?.textContent).toContain("1 section built from the page");
     await act(async () => root!.render(<p>other tab</p>));
     await render(view(page())); // a new object for the same page
-    expect(q("recast-count")?.textContent).toContain("1 section shown");
+    expect(q("recast-count")?.textContent).toContain("1 section built from the page");
     expect(runMock).toHaveBeenCalledTimes(1);
   });
 

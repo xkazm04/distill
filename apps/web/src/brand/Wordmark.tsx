@@ -16,8 +16,9 @@ const SETS = {
 export const WORDMARK_RATIO = 1219 / 497;
 
 interface Props {
-  /** "auto" takes the cut the active theme binds for its ground; "ink" always (the mark sits on the paper of the hero print). */
-  tone?: "auto" | "ink";
+  /** "auto" takes the cut the active theme binds for its ground; "ink" always (the mark sits on the paper of the hero
+   *  print); "paper" always (the mark sits on the aubergine sidebar of the workspace, the same in both themes). */
+  tone?: "auto" | "ink" | "paper";
   /** The rendered CSS width, for the browser's pick from the srcset. */
   sizes: string;
   className?: string;
@@ -25,7 +26,7 @@ interface Props {
 
 export function Wordmark({ tone = "auto", sizes, className }: Props) {
   const art = useShellArt();
-  const set = tone === "ink" ? "ink" : art.wordmark;
+  const set = tone === "auto" ? art.wordmark : tone;
   return (
     <img className={className} src={set === "ink" ? ink720 : paper720} srcSet={SETS[set]} sizes={sizes}
       width={1219} height={497} alt="Distill" decoding="async" />

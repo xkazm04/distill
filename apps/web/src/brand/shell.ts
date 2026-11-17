@@ -24,6 +24,18 @@ export const SHELL_TOKENS = [
   "--coil-ink",       // the How-it-works coil: butter, deepened with aubergine on paper so it still shows
   "--coil-width",
   "--num-shadow",     // the offset shadow behind the numbered stops
+  // The workbench sidebar (and its compact top bar): the brand aubergine in both states, as chrome. brand.css binds the
+  // shared UI's --sb-* names to these on the web; the extension keeps the role-derived defaults of ui/styles.css.
+  "--side-ground",
+  "--side-ink",       // text on the ground
+  "--side-muted",     // secondary text on the ground
+  "--side-line",
+  "--side-hover",
+  "--side-active",    // the current item's ground
+  "--side-current",   // the current item's text
+  "--side-drip",      // the one pink accent: the drip bar on the current item
+  "--side-focus",     // focus ring on the ground
+  "--side-scrim",     // the shade behind the open drawer
 ] as const;
 
 export type ShellToken = (typeof SHELL_TOKENS)[number];
@@ -57,8 +69,24 @@ const INKS = {
   "--ink-plum": PLUM,
 } as const;
 
+/** The sidebar is chrome: the same aubergine ground and paper ink in both states, so the brand lives there while the
+ *  work area follows the theme. Paper at 74% over aubergine keeps secondary text well above 4.5:1. */
+const SIDE = {
+  "--side-ground": "var(--ink-aubergine)",
+  "--side-ink": "var(--ink-paper)",
+  "--side-muted": "color-mix(in srgb, var(--ink-paper) 74%, var(--ink-aubergine))",
+  "--side-line": "color-mix(in srgb, var(--ink-paper) 22%, var(--ink-aubergine))",
+  "--side-hover": "color-mix(in srgb, var(--ink-paper) 8%, var(--ink-aubergine))",
+  "--side-active": "color-mix(in srgb, var(--ink-paper) 15%, var(--ink-aubergine))",
+  "--side-current": "var(--ink-butter)",
+  "--side-drip": "var(--ink-pink)",
+  "--side-focus": "var(--ink-butter)",
+  "--side-scrim": "color-mix(in srgb, var(--ink-aubergine) 60%, transparent)",
+} as const;
+
 export const SHELL_LIGHT: ShellBinding = {
   ...INKS,
+  ...SIDE,
   "--print-edge": "var(--ink-aubergine)",
   "--misprint": "color-mix(in srgb, var(--ink-pink) 70%, transparent)",
   "--grain": grain(INK.aubergine, "1.25"),
@@ -70,6 +98,7 @@ export const SHELL_LIGHT: ShellBinding = {
 
 export const SHELL_DARK: ShellBinding = {
   ...INKS,
+  ...SIDE,
   "--print-edge": "var(--ink-paper)",
   "--misprint": "color-mix(in srgb, var(--ink-pink) 80%, transparent)",
   "--grain": grain(INK.paper, "1.2"),

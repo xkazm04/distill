@@ -40,16 +40,26 @@ const MODEL_TEXT: Record<string, string> = {
   available: "Model on this device: ready",
 };
 
-export function ModelStatus({ model }: { model: LocalModel }) {
+/** The local model and where results are made: the sidebar's model card. Keeps the page roles (--bg, --fg) whatever
+ *  ground it sits on, so the device and cloud colours keep their contrast in every theme. */
+export function ModelCard({ model }: { model: LocalModel }) {
+  const pct = model.state === "downloading" && model.progress !== null ? Math.round(model.progress * 100) : null;
   return (
-    <span className="model-status" data-testid="model-state" data-state={model.state}>
-      <span className={`chip chip-model-${model.state}`}>{MODEL_TEXT[model.state]}
-        {model.state === "downloading" && model.progress !== null ? ` ${Math.round(model.progress * 100)}%` : ""}
-      </span>
+    <section className="ws-model" aria-label="AI model" data-testid="model-state" data-state={model.state}>
+      <p className="ws-model-status">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10.5 18h3" /></svg>
+        <span role="status">{MODEL_TEXT[model.state]}{pct !== null ? ` ${pct}%` : ""}</span>
+      </p>
+      {pct !== null && <progress className="ws-model-bar" max={100} value={pct} aria-label="Download progress" />}
       {model.state === "downloadable" && (
-        <button type="button" className="btn btn-small" onClick={() => void model.download()}>Download the model</button>
+        <button type="button" className="btn btn-primary btn-small" onClick={() => void model.download()}>Download the model</button>
       )}
-    </span>
+      <ul className="ws-legend" aria-label="Where results are made">
+        <li className="ws-legend-device"><i aria-hidden="true" />On this device</li>
+        <li className="ws-legend-cloud"><i aria-hidden="true" />In the cloud</li>
+        <li>Each result shows where it ran.</li>
+      </ul>
+    </section>
   );
 }
 

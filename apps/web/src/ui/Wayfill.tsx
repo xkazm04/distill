@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FieldStructure, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
@@ -58,7 +58,7 @@ export function originChip(o: Exclude<Origin, { kind: "ai" }>): { text: string; 
 
 function modelNote(state: LocalModel["state"]): string {
   switch (state) {
-    case "downloadable": return "Suggestions need the model on this device. Download it from the top of the page, or type your answers.";
+    case "downloadable": return "Suggestions need the model on this device. Download it from the menu, or type your answers.";
     case "downloading": return "The model on this device is still downloading. Suggestions will work when it is ready.";
     case "checking": return "Checking whether suggestions can run on this device.";
     default: return AI_WORDS["device-only"];
@@ -70,6 +70,10 @@ interface Props {
   settings: UserSettingsDoc;
   model: LocalModel;
   onShowOriginal: () => void;
+  /** Told how many steps the guide has once it is built (0 when the page has no form): the sidebar's count. */
+  onSteps?: (n: number) => void;
+  /** Told the fields of the step on screen on every step change (empty when no step is on screen). */
+  onStep?: (fieldIds: string[]) => void;
 }
 
 /** Why Next could not write a step's answers into the original form. */
@@ -91,7 +95,18 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
 /** Why there is no guide: the page has no fillable field, or the page could not be read at all. */
 type NoForm = "none" | "unreadable";
 
-export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
+/** The answer to a step as the person sees it on the stepper: option labels, "Yes" for a ticked box. Screen only. */
+function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
+  return ids.map((id) => {
+    const v = (values[id] ?? "").trim();
+    const f = fields.get(id);
+    if (!v || !f) return "";
+    if (f.kind === "checkbox") return v === "false" ? "" : "Yes";
+    return f.options?.find((o) => o.value === v)?.label ?? v;
+  }).filter(Boolean).join(", ");
+}
+
+export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep }: Props) {
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
   const [noForm, setNoForm] = useState<NoForm>("none");
   const [structure, setStructure] = useState<FormStructure | null>(null);
@@ -164,6 +179,15 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
 
   const steps = wizard?.steps ?? [];
   const step = steps[idx];
+  // The parent's callbacks are read through refs, so a new callback identity never re-runs these effects.
+  const report = useRef({ onSteps, onStep });
+  report.current = { onSteps, onStep };
+  useEffect(() => {
+    if (phase === "noform") report.current.onSteps?.(0);
+    else if (phase === "ready" && wizard) report.current.onSteps?.(wizard.steps.length);
+  }, [phase, wizard]);
+  const stepKey = phase === "ready" && step ? step.fieldIds.join("\u0000") : "";
+  useEffect(() => { report.current.onStep?.(stepKey ? stepKey.split("\u0000") : []); }, [stepKey]);
   useEffect(() => {
     if (!structure || !wizard) return;
     setGuide({
@@ -179,12 +203,14 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
     return map;
   }, [structure]);
 
-  if (phase === "loading") return <p role="status">Reading the form...</p>;
+  if (phase === "loading") return <div className="ws-content"><p role="status">Reading the form...</p></div>;
   if (phase === "noform" || !structure || !wizard) {
     return (
-      <div className="card" role="status" data-testid="no-form" data-reason={noForm}>
-        <h3>{noForm === "none" ? "There is no form to fill on this page" : "Distill could not read a form on this page"}</h3>
-        <p>Open a page with a form to use the step-by-step guide. You can still read this page in the other views.</p>
+      <div className="ws-content">
+        <div className="ws-empty" role="status" data-testid="no-form" data-reason={noForm}>
+          <h3>{noForm === "none" ? "There is no form to fill on this page" : "Distill could not read a form on this page"}</h3>
+          <p>Open a page with a form to use the step-by-step guide. You can still read this page in the other views.</p>
+        </div>
       </div>
     );
   }
@@ -249,95 +275,140 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
   const hasProfile = Object.keys(profile).length > 0;
   const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
 
+  const answered = steps.filter((st) => st.fieldIds.some((id) => filled.includes(id))).length;
+  const chip = (
+    <>
+      {origin?.kind === "ai" && <SourceChip meta={origin.meta} />}
+      {origin && origin.kind !== "ai" && (
+        <span className={origin.kind === "basic" ? "chip chip-basic" : "chip"} title={originChip(origin).title} data-testid="origin-chip">
+          {originChip(origin).text}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <section aria-labelledby="wf-h" className="wayfill">
-      <div className="wf-head">
-        <h2 id="wf-h">{structure.title || "Form guide"}</h2>
-        <button type="button" className="btn" onClick={showOriginal} data-testid="show-original-form">Show original form</button>
-      </div>
-      <div className="result-meta">
-        {origin?.kind === "ai" && <SourceChip meta={origin.meta} />}
-        {origin && origin.kind !== "ai" && (
-          <span className={origin.kind === "basic" ? "chip chip-basic" : "chip"} title={originChip(origin).title} data-testid="origin-chip">
-            {originChip(origin).text}
-          </span>
-        )}
+      <div className="ws-toolbar">
+        <h2 id="wf-h" className="ws-tool-label">{structure.title || "Form guide"}</h2>
+        <span className="ws-grow" />
+        <span className="muted" data-testid="wf-answered">{answered} of {steps.length} answered</span>
+        <button type="button" className="btn btn-small wf-show-original" onClick={showOriginal} data-testid="show-original-form">Show original form</button>
+        {chip}
       </div>
 
-      {!finished && step && (
-        <>
-          <p className="progress-label" id="wf-progress-l">Step {idx + 1} of {steps.length}</p>
-          <progress aria-labelledby="wf-progress-l" max={steps.length} value={idx + 1} />
-          <div className="card" data-testid="wf-step">
-            <h3>{step.question}</h3>
-            <p>{step.explanation}</p>
-            {step.example && <p className="example"><strong>Example:</strong> {step.example}</p>}
-            {step.expectedFormat && <p className="format"><strong>Format:</strong> {step.expectedFormat}</p>}
+      <div className="ws-content wf-grid">
+        <ol className="wf-steps" aria-label="Steps">
+          {steps.map((st, i) => {
+            const done = st.fieldIds.some((id) => filled.includes(id));
+            const shown = done ? shownAnswer(st.fieldIds, fields, values) : "";
+            const state = i === idx ? "current" : done ? "done" : i < idx ? "skipped" : "todo";
+            return (
+              <li key={st.stepId}>
+                <button type="button" className={`wf-stepbtn ${state}`} aria-current={i === idx ? "step" : undefined} onClick={() => go(i)}>
+                  <span className="wf-dot" aria-hidden="true">{done && i !== idx ? "" : i + 1}</span>
+                  <span className="wf-q">
+                    {st.question}
+                    {state === "done" && <span className="visually-hidden"> (answered)</span>}
+                    {state === "skipped" && <span className="visually-hidden"> (skipped)</span>}
+                  </span>
+                  {shown && <span className="wf-v">{shown}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
-            {stepFields.map((f) => (
-              <div key={f.fieldId} className="field">
-                <label htmlFor={`wf-${f.fieldId}`}>{f.label}{f.required && <span className="req"> (required)</span>}</label>
-                <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
-                {f.kind !== "file" && f.kind !== "checkbox" && (
-                  <div className="field-tools">
-                    {localReady ? (
-                      <>
-                        {hasProfile && <button type="button" className="btn btn-small" onClick={() => void suggest(f)}>Suggest from my saved answers</button>}
-                        {(values[f.fieldId] ?? "").trim() && <button type="button" className="btn btn-small" onClick={() => void check(f)}>Check this answer</button>}
-                      </>
-                    ) : (
-                      <small className="muted" data-testid="suggest-note">{modelNote(model.state)}</small>
-                    )}
-                    {aid[f.fieldId] && <span role="status">{aid[f.fieldId]?.text} <SourceChip meta={aid[f.fieldId]!.meta} /></span>}
+        <div className="wf-main">
+          {!finished && step && (
+            <>
+              <div className="wf-bar">
+                <p className="progress-label" id="wf-progress-l">Step {idx + 1} of {steps.length}</p>
+                <progress aria-labelledby="wf-progress-l" max={steps.length} value={idx + 1} />
+              </div>
+              <div className="card wf-card" data-testid="wf-step">
+                <p className="wf-kick" aria-hidden="true">Step {idx + 1} of {steps.length}</p>
+                <h3>{step.question}</h3>
+                <p className="wf-expl">{step.explanation}</p>
+                {(step.expectedFormat || step.example) && (
+                  <p className="wf-fmt">
+                    {step.expectedFormat && <span className="format"><strong>Format</strong> {step.expectedFormat}</span>}
+                    {step.example && <span className="example"><strong>Example</strong> {step.example}</span>}
+                  </p>
+                )}
+
+                <div className={stepFields.length > 1 ? "wf-fields cols" : "wf-fields"}>
+                  {stepFields.map((f) => (
+                    <div key={f.fieldId} className={f.kind === "textarea" || f.kind === "radio" || f.kind === "checkbox" ? "field wide" : "field"}>
+                      <label htmlFor={`wf-${f.fieldId}`}>
+                        {f.label}{f.required && <span className="req"> (required)</span>}
+                        <span className="wf-orig"> label on the form</span>
+                      </label>
+                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
+                      {f.kind !== "file" && f.kind !== "checkbox" && (
+                        <div className="field-tools">
+                          {localReady ? (
+                            <>
+                              {hasProfile && <button type="button" className="btn btn-small" onClick={() => void suggest(f)}>Suggest from my saved answers</button>}
+                              {(values[f.fieldId] ?? "").trim() && <button type="button" className="btn btn-small" onClick={() => void check(f)}>Check this answer</button>}
+                            </>
+                          ) : (
+                            <small className="muted" data-testid="suggest-note">{modelNote(model.state)}</small>
+                          )}
+                          {aid[f.fieldId] && <span role="status">{aid[f.fieldId]?.text} <SourceChip meta={aid[f.fieldId]!.meta} /></span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {problem && (
+                  <div className="notice notice-warn" role="alert" data-testid="write-problem">
+                    <p>{writeProblemText(problem, (id) => fields.get(id)?.label || id)}</p>
+                    <div className="nav">
+                      <button type="button" className="btn btn-small" onClick={showOriginal}>Show original form</button>
+                      {problem.unreachable && <button type="button" className="btn btn-small" onClick={() => void commit(false)}>Try again</button>}
+                      <button type="button" className="btn btn-small btn-link" onClick={() => go(idx + 1)}>Go to the next step</button>
+                    </div>
                   </div>
                 )}
-              </div>
-            ))}
-            {problem && (
-              <div className="notice notice-warn" role="alert" data-testid="write-problem">
-                <p>{writeProblemText(problem, (id) => fields.get(id)?.label || id)}</p>
+                {missing.length > 0 && <p className="muted wf-need">Fill in the required answer to continue, or skip this step.</p>}
+
+                <label className="remember">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                  Remember my answers on this device only, to suggest them next time
+                </label>
+
                 <div className="nav">
-                  <button type="button" className="btn btn-small" onClick={showOriginal}>Show original form</button>
-                  {problem.unreachable && <button type="button" className="btn btn-small" onClick={() => void commit(false)}>Try again</button>}
-                  <button type="button" className="btn btn-small btn-link" onClick={() => go(idx + 1)}>Go to the next step</button>
+                  <button type="button" className="btn" disabled={idx === 0} onClick={() => go(idx - 1)}>Back</button>
+                  <span className="ws-grow" />
+                  <button type="button" className="btn btn-link" onClick={() => void commit(true)}>Skip</button>
+                  <button type="button" className="btn btn-primary" disabled={missing.length > 0} onClick={() => void commit(false)}>
+                    {idx === steps.length - 1 ? "Finish" : "Next"}
+                  </button>
                 </div>
               </div>
-            )}
-            {missing.length > 0 && <p className="muted">Fill in the required answer to continue, or skip this step.</p>}
-          </div>
+            </>
+          )}
 
-          <label className="remember">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            Remember my answers on this device only, to suggest them next time
-          </label>
+          {finished && (
+            <div className="card wf-card" data-testid="wf-done">
+              <h3>All steps done</h3>
+              <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
+              <div className="nav">
+                <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
+                <button type="button" className="btn btn-primary" onClick={showOriginal}>Show original form</button>
+              </div>
+            </div>
+          )}
 
-          <div className="nav">
-            <button type="button" className="btn" disabled={idx === 0} onClick={() => go(idx - 1)}>Back</button>
-            <button type="button" className="btn btn-link" onClick={() => void commit(true)}>Skip</button>
-            <button type="button" className="btn btn-primary" disabled={missing.length > 0} onClick={() => void commit(false)}>
-              {idx === steps.length - 1 ? "Finish" : "Next"}
-            </button>
-          </div>
-        </>
-      )}
-
-      {finished && (
-        <div className="card" data-testid="wf-done">
-          <h3>All steps done</h3>
-          <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
-          <div className="nav">
-            <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
-            <button type="button" className="btn btn-primary" onClick={showOriginal}>Show original form</button>
-          </div>
+          {hasProfile && (
+            <p className="muted wf-saved">
+              {Object.keys(profile).length} saved answers are on this device only.{" "}
+              <button type="button" className="btn btn-link" onClick={() => { clearProfile(); setProfile({}); }}>Delete them</button>
+            </p>
+          )}
         </div>
-      )}
-
-      {hasProfile && (
-        <p className="muted">
-          {Object.keys(profile).length} saved answers are on this device only.{" "}
-          <button type="button" className="btn btn-link" onClick={() => { clearProfile(); setProfile({}); }}>Delete them</button>
-        </p>
-      )}
+      </div>
     </section>
   );
 }

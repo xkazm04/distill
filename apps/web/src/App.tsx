@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Workspace, type PageHost, type Tab } from "./ui";
 import { IframeHost } from "./webHost";
 import { Home } from "./Home";
-import { fromPaste, loadDemo, type Loaded } from "./sources";
+import { DEMOS, fromPaste, loadDemo, type Loaded } from "./sources";
 import { devHandrailPort } from "./devHandrail";
-import { Header } from "./brand/Header";
+import { Header, ThemeSwitch } from "./brand/Header";
+import { Wordmark } from "./brand/Wordmark";
 
 type Route = { kind: "home" } | { kind: "demo"; id: string; tab: Tab } | { kind: "page"; tab: Tab };
 const TABS: Tab[] = ["focus", "wayfill", "recast", "handrail"];
@@ -29,13 +30,54 @@ export function App() {
   }, []);
 
   const home = route.kind === "home" || (route.kind === "page" && !pasted);
-  return (
-    <div className={home ? "shell shell-home-page" : "shell shell-work"}>
+  // Home keeps its header; a page opens the workbench, whose sidebar carries the mark and the theme choice.
+  return home ? (
+    <div className="shell shell-home-page">
       <Header />
-      {home
-        ? <Home onPaste={(t) => { pasted = fromPaste(t); location.hash = "#/page/focus"; }} />
-        : <main className="work"><Page route={route as Exclude<Route, { kind: "home" }>} /></main>}
+      <Home onPaste={(t) => { pasted = fromPaste(t); location.hash = "#/page/focus"; }} />
     </div>
+  ) : (
+    <div className="shell shell-work">
+      <Page route={route as Exclude<Route, { kind: "home" }>} />
+    </div>
+  );
+}
+
+const ICON: Record<string, ReactNode> = {
+  form: <path d="M6 3h9l4 4v14H6zM9 10h7M9 14h7M9 18h4" />,
+  article: <path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" />,
+  pricing: <path d="M4 5h16v14H4zM4 10h16M10 10v9" />,
+  pasted: <path d="M9 4h6v3H9zM7 5.5H5V21h14V5.5h-2" />,
+  paste: <path d="M12 5v14M5 12h14" />,
+};
+
+function NavIcon({ id }: { id: string }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{ICON[id]}</svg>;
+}
+
+/** The sidebar's Pages: the three examples, the pasted page when there is one, and a way back to paste another. */
+function Pages({ route }: { route: Exclude<Route, { kind: "home" }> }) {
+  const here = (id: string) => (route.kind === "demo" ? route.id === id : id === "pasted");
+  return (
+    <ul className="ws-pages">
+      {DEMOS.map((d) => (
+        <li key={d.id}>
+          <a className="ws-navbtn" href={`#/demo/${d.id}/${route.tab}`} aria-current={here(d.id) ? "page" : undefined}>
+            <NavIcon id={d.id} /><span className="ws-two">{d.title}</span>
+          </a>
+        </li>
+      ))}
+      {pasted && (
+        <li>
+          <a className="ws-navbtn" href={`#/page/${route.tab}`} aria-current={here("pasted") ? "page" : undefined}>
+            <NavIcon id="pasted" /><span className="ws-two">{pasted.name}</span>
+          </a>
+        </li>
+      )}
+      <li>
+        <a className="ws-navbtn ws-ghost" href="#/"><NavIcon id="paste" /><span className="ws-two">Paste a page</span></a>
+      </li>
+    </ul>
   );
 }
 
@@ -61,12 +103,18 @@ function Page({ route }: { route: Exclude<Route, { kind: "home" }> }) {
     location.hash = route.kind === "demo" ? `#/demo/${route.id}/${t}` : `#/page/${t}`;
   };
 
+  if (!host) {
+    return (
+      <main className="work">
+        <p className="topbar"><a href="#/"><span aria-hidden="true">←</span>Home</a></p>
+        {error ? <p className="notice notice-warn" role="alert">{error}</p> : <p role="status">Opening the page...</p>}
+      </main>
+    );
+  }
   return (
-    <>
-      <p className="topbar"><a href="#/"><span aria-hidden="true">←</span>Home</a></p>
-      {error && <p className="notice notice-warn" role="alert">{error}</p>}
-      {!host && !error && <p role="status">Opening the page...</p>}
-      {host && <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} />}
-    </>
+    <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} homeHref="#/"
+      brand={<a className="ws-brand-link" href="#/" aria-label="Distill home"><Wordmark tone="paper" className="ws-mark" sizes="100px" /></a>}
+      pages={<Pages route={route} />}
+      footer={<ThemeSwitch />} />
   );
 }

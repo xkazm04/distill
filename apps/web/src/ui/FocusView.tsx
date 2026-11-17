@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from "react";
 import type { Block, PageModel, UserSettingsDoc } from "@distill/engine";
 import { run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
@@ -27,26 +27,27 @@ export function parseSimplified(data: unknown, blocks: Block[]): Simplified {
 /** Whether a page has text the simplify prompt is meant to rewrite (paragraphs and lists). */
 export const hasProse = (blocks: Block[]): boolean => blocks.some((b) => b.kind === "paragraph" || b.kind === "list");
 
-export function BlockView({ block, text }: { block: Block; text: string }) {
-  const id = `block-${block.id}`;
+/** `locatable`: the original is beside the view, so each block takes keyboard focus to point at its source. */
+export function BlockView({ block, text, locatable }: { block: Block; text: string; locatable?: boolean }) {
+  const a = { id: `block-${block.id}`, "data-block": block.id, tabIndex: locatable ? 0 : undefined };
   switch (block.kind) {
     case "heading": {
       const level = Math.min(Math.max(block.level ?? 2, 1), 6);
       const Tag = `h${Math.min(level + 1, 6)}` as "h2";
-      return <Tag id={id}>{text}</Tag>;
+      return <Tag {...a}>{text}</Tag>;
     }
     case "list":
-      return <ul id={id}>{text.split("\n").map((t, i) => <li key={i}>{t}</li>)}</ul>;
+      return <ul {...a}>{text.split("\n").map((t, i) => <li key={i}>{t}</li>)}</ul>;
     case "quote":
-      return <blockquote id={id}>{text}</blockquote>;
+      return <blockquote {...a}>{text}</blockquote>;
     case "code":
-      return <pre id={id}><code>{text}</code></pre>;
+      return <pre {...a}><code>{text}</code></pre>;
     case "image":
       // The renderer never fetches an image: it shows the alt text only.
-      return <p id={id} className="image-alt">Picture: {text || "no description"}</p>;
+      return <p {...a} className="image-alt">Picture: {text || "no description"}</p>;
     case "table":
       return (
-        <div id={id} className="table-wrap">
+        <div {...a} className="table-wrap">
           <table>
             <tbody>
               {(block.rows ?? []).map((row, r) => (
@@ -57,7 +58,7 @@ export function BlockView({ block, text }: { block: Block; text: string }) {
         </div>
       );
     default:
-      return <p id={id}>{text}</p>;
+      return <p {...a}>{text}</p>;
   }
 }
 
@@ -66,6 +67,8 @@ interface Props {
   settings: UserSettingsDoc;
   onSettings: (s: UserSettingsDoc) => void;
   scrollToBlock?: string | null;
+  /** Present only while the original is beside: the block the person points at or focuses, null when they leave. */
+  onLocate?: (blockId: string | null) => void;
 }
 
 const LEVELS: { value: UserSettingsDoc["readingLevel"]; label: string; hint: string }[] = [
@@ -74,7 +77,7 @@ const LEVELS: { value: UserSettingsDoc["readingLevel"]; label: string; hint: str
   { value: "original", label: "As written", hint: "The page text with no changes" },
 ];
 
-export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) {
+export function FocusView({ page, settings, onSettings, scrollToBlock, onLocate }: Props) {
   const [simple, setSimple] = useState<Simplified>({});
   const [meta, setMeta] = useState<AiMeta | null>(null);
   const [busy, setBusy] = useState(false);
@@ -124,41 +127,65 @@ export function FocusView({ page, settings, onSettings, scrollToBlock }: Props) 
     if (scrollToBlock) document.getElementById(`block-${scrollToBlock}`)?.scrollIntoView({ block: "center" });
   }, [scrollToBlock]);
 
+  // Pointing at the source while the original is beside: the block under the pointer or with focus, one call per
+  // change, null when the person leaves the text.
+  const pointed = useRef<string | null>(null);
+  useEffect(() => { pointed.current = null; }, [onLocate]);
+  const point = (id: string | null) => {
+    if (!onLocate || id === pointed.current) return;
+    pointed.current = id;
+    onLocate(id);
+  };
+  const blockOf = (t: EventTarget | null): string | null =>
+    t instanceof Element ? t.closest("[data-block]")?.getAttribute("data-block") ?? null : null;
+  const locating = onLocate ? {
+    onPointerOver: (e: PointerEvent) => point(blockOf(e.target)),
+    onPointerLeave: () => point(null),
+    onFocus: (e: FocusEvent) => point(blockOf(e.target)),
+    onBlur: (e: FocusEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) point(null); },
+  } : {};
+
+  const levelLabel = useId();
+  const hint = LEVELS.find((l) => l.value === level)?.hint;
+
   return (
-    <section aria-labelledby="focus-h">
+    <section aria-labelledby="focus-h" className="ws-read">
       <h2 id="focus-h" className="visually-hidden">Focus view</h2>
-      <fieldset className="levels">
-        <legend>Reading level</legend>
-        {LEVELS.map((l) => (
-          <label key={l.value} className={settings.readingLevel === l.value ? "on" : ""}>
-            <input type="radio" name="level" value={l.value} checked={settings.readingLevel === l.value}
-              onChange={() => onSettings({ ...settings, readingLevel: l.value })} />
-            <span>{l.label}</span><small>{l.hint}</small>
-          </label>
-        ))}
-      </fieldset>
-
-      <div className="result-meta">
-        {busy && <span role="status">Making this easier to read...</span>}
+      <div className="ws-toolbar">
+        <span className="ws-tool-label" id={levelLabel}>Reading level</span>
+        <div className="seg levels" role="radiogroup" aria-labelledby={levelLabel}>
+          {LEVELS.map((l) => (
+            <label key={l.value} className={level === l.value ? "on" : ""} title={l.hint}>
+              <input type="radio" className="visually-hidden" name="level" value={l.value} checked={level === l.value}
+                onChange={() => onSettings({ ...settings, readingLevel: l.value })} />
+              <span>{l.label}</span>
+            </label>
+          ))}
+        </div>
+        <span className="muted ws-hint">{hint}</span>
+        <span className="ws-grow" />
+        {busy && <span role="status" className="muted">Making this easier to read...</span>}
         {meta && <SourceChip meta={meta} />}
-        {level !== "original" && !canAi && <span role="status">AI is off, so this is the page text as written.</span>}
+        {level !== "original" && !canAi && <span role="status" className="muted">AI is off, so this is the page text as written.</span>}
       </div>
-      {error !== null && <AiProblem error={error} after="Showing the page as written." onRetry={() => setAttempt((n) => n + 1)} />}
-      {alreadyPlain && (
-        <p className="notice" role="status" data-testid="simplify-already-plain">This page is already easy to read, so nothing was changed.</p>
-      )}
-      {nothing && (
-        <p className="notice" role="status" data-testid="simplify-nothing">
-          Could not simplify this time. Showing the page as written.{" "}
-          <button type="button" className="btn btn-small" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
-        </p>
-      )}
+      <div className="ws-content">
+        {error !== null && <AiProblem error={error} after="Showing the page as written." onRetry={() => setAttempt((n) => n + 1)} />}
+        {alreadyPlain && (
+          <p className="notice" role="status" data-testid="simplify-already-plain">This page is already easy to read, so nothing was changed.</p>
+        )}
+        {nothing && (
+          <p className="notice" role="status" data-testid="simplify-nothing">
+            Could not simplify this time. Showing the page as written.{" "}
+            <button type="button" className="btn btn-small" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
+          </p>
+        )}
 
-      <article className="reading" lang={page.lang}>
-        <h2 className="page-title">{page.title}</h2>
-        {page.blocks.length === 0 && <p>No readable text was found on this page.</p>}
-        {page.blocks.map((b) => <BlockView key={b.id} block={b} text={simple[b.id] ?? b.text} />)}
-      </article>
+        <article className={onLocate ? "reading locating" : "reading"} lang={page.lang} {...locating}>
+          <h2 className="page-title">{page.title}</h2>
+          {page.blocks.length === 0 && <p>No readable text was found on this page.</p>}
+          {page.blocks.map((b) => <BlockView key={b.id} block={b} text={simple[b.id] ?? b.text} locatable={!!onLocate} />)}
+        </article>
+      </div>
     </section>
   );
 }
