@@ -120,14 +120,17 @@ describe("deriveTheme", () => {
     expectSound(t.binding);
   });
 
-  it("keeps green for on-device and purple for cloud on any background", () => {
+  it("keeps each chip on its brand hue (device and cloud stay distinguishable) on any background", () => {
+    // The chips' hues come from the fallback brand binding, whatever the brand chooses; derivation may only move
+    // lightness. Circular hue distance, so pink (~330) and red (~0) compare correctly.
+    const dist = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
     for (const bg of ["#ffffff", "#0d1117", "#6b8e23", "#7b2d8b", "#808080"]) {
       const fb = pickFallback({ bg }, BRAND_LIGHT, BRAND_DARK);
       const b = deriveTheme({ bg }, fb).binding;
-      expect(hueOf(b["--chip-device"]), `device on ${bg}`).toBeGreaterThan(90);
-      expect(hueOf(b["--chip-device"]), `device on ${bg}`).toBeLessThan(170);
-      expect(hueOf(b["--chip-cloud"]), `cloud on ${bg}`).toBeGreaterThan(250);
-      expect(hueOf(b["--chip-cloud"]), `cloud on ${bg}`).toBeLessThan(300);
+      for (const role of ["--chip-device", "--chip-cloud"] as const) {
+        expect(dist(hueOf(b[role]), hueOf(fb[role])), `${role} on ${bg}`).toBeLessThan(25);
+      }
+      expect(dist(hueOf(b["--chip-device"]), hueOf(b["--chip-cloud"])), `chips apart on ${bg}`).toBeGreaterThan(60);
     }
   });
 

@@ -1,12 +1,6 @@
 /* Side-panel-only styles. Every value comes from a theme role, so the panel follows the page's look or the Distill
    style without branching on which one is active. */
 
-/* TODO(WP5): drop these four rules once apps/web/src/ui/styles.css consumes --font-body, --font-display and --radius. */
-body { font-family: var(--font-body); }
-h1, h2, h3 { font-family: var(--font-display); }
-.btn, .tab, .card, .node, .levels { border-radius: var(--radius); }
-.field input[type=text], .field input[type=email], .field input[type=tel], .field select, .field textarea { border-radius: var(--radius); }
-
 .look { margin-top: 1.5rem; border-top: 2px solid var(--line); padding-top: .6rem; }
 .look label { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-weight: 600; }
 .look select { font: inherit; font-weight: 400; min-height: 2.75rem; padding: .3rem .6rem; border: 2px solid var(--fg);

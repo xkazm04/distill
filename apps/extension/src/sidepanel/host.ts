@@ -1,6 +1,6 @@
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
 import type { PageHost } from "@distill/web/ui";
-import type { PageThemeSeed } from "../../../web/src/ui/theme/roles";
+import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 import type { ContentReplies, ContentRequest, ContentResponse } from "../messages";
 
 const CANNOT_READ = "Distill cannot read this page. Click the Distill icon while you are on a normal web page.";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BRAND_DARK, BRAND_LIGHT } from "../../../web/src/ui/theme/brand";
-import { ROLES } from "../../../web/src/ui/theme/roles";
+import { BRAND_DARK, BRAND_LIGHT } from "@distill/web/ui/theme/brand";
+import { ROLES } from "@distill/web/ui/theme/roles";
 import { applyBinding } from "./applyBinding";
 import { chooseTheme, lookNote } from "./look";
 

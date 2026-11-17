@@ -2,9 +2,9 @@
 // style. Matching never costs readability: deriveTheme holds every contrast floor, and a person whose system asks
 // for more contrast always gets the Distill style.
 import { useEffect, useMemo, useState } from "react";
-import { BRAND_DARK, BRAND_LIGHT } from "../../../web/src/ui/theme/brand";
-import { deriveTheme, isDarkColor, pickFallback, readableColor } from "../../../web/src/ui/theme/derive";
-import type { PageThemeSeed, ThemeBinding } from "../../../web/src/ui/theme/roles";
+import { BRAND_DARK, BRAND_LIGHT } from "@distill/web/ui/theme/brand";
+import { deriveTheme, isDarkColor, pickFallback, readableColor } from "@distill/web/ui/theme/derive";
+import type { PageThemeSeed, ThemeBinding } from "@distill/web/ui/theme/roles";
 import { applyBinding } from "./applyBinding";
 
 export type Look = "page" | "distill";

@@ -1,8 +1,8 @@
 // Runs in the page (content script). Reads only COMPUTED STYLE - colours, fonts, a corner radius and the colour-scheme
 // hint - so the side panel can match the site. It never reads a form value, an attribute a person typed, or any text
 // content: the seed is presentation only, and it stays inside the browser.
-import { parseColor, MIN_ALPHA } from "../../web/src/ui/theme/derive";
-import type { PageThemeSeed } from "../../web/src/ui/theme/roles";
+import { parseColor, MIN_ALPHA } from "@distill/web/ui/theme/derive";
+import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 const MAIN = "main, [role='main'], article";
 const CONTROL = "button, input[type='submit'], input[type='button'], input[type='text'], input[type='search'], input[type='email'], input:not([type])";

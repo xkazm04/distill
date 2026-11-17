@@ -1,7 +1,7 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
-import type { PageThemeSeed } from "../../web/src/ui/theme/roles";
+import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
   | { type: "distill:ping" }

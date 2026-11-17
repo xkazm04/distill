@@ -1,6 +1,9 @@
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Workspace } from "@distill/web/ui";
+// The Distill style ships the brand fonts, self-hosted (an extension page cannot load remote fonts).
+import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
+import "@fontsource-variable/fredoka/wght.css";
 import "@distill/web/ui/styles.css";
 import "./panel.css";
 import { TabHost } from "./host";
