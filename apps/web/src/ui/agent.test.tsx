@@ -92,7 +92,8 @@ const q = (id: string) => el.querySelector(`[data-testid="${id}"]`);
 const all = (id: string) => [...el.querySelectorAll(`[data-testid="${id}"]`)];
 const button = (text: string, scope: ParentNode = el) => [...scope.querySelectorAll("button")].find((b) => b.textContent === text);
 const click = async (b: Element | null | undefined) => { await act(async () => { (b as HTMLElement).click(); }); };
-const trail = () => all("trail-line").map((l) => l.textContent?.replace(/^\S+\s/, "") ?? "");
+/** The trail's lines without their times (the time's format follows the machine's locale). */
+const trail = () => all("trail-line").map((l) => (l.textContent ?? "").slice((l.querySelector("time")?.textContent ?? "").length).trim());
 const tabButton = (label: string) => [...el.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((b) => b.textContent?.startsWith(label));
 
 describe("connected reflects the port", () => {
