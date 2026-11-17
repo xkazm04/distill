@@ -26,14 +26,14 @@ const STEPS: { title: string; body: string }[] = [
   },
 ];
 
-/** Where the build-it-yourself extension steps are (README, Install). There is no download yet. */
+/** Where the extension install routes are (README, Install): the release download and build-it-yourself. */
 export const EXTENSION_STEPS_URL = "https://github.com/xkazm04/distill#install";
 
 /** The privacy policy, a static page next to the app (apps/web/public/privacy.html, hosted at /privacy.html). */
 export const PRIVACY_URL = "privacy.html";
 
 const buildIt = (
-  <a href={EXTENSION_STEPS_URL} target="_blank" rel="noreferrer">build the Distill extension yourself</a>
+  <a href={EXTENSION_STEPS_URL} target="_blank" rel="noreferrer">get the Distill extension</a>
 );
 
 /** Stagger order for the entrance animation (CSS reads --i). */
@@ -125,8 +125,7 @@ export function Home({ onPaste }: { onPaste: (input: string) => void }) {
       <footer className="home-foot">
         <Coil className="foot-coil" turns={6} />
         <p className="muted">
-          This page cannot open other websites for you. To read any page you are on, {buildIt}; there is no
-          download yet. What you type in a form stays on your device.
+          This page cannot open other websites for you. To read any page you are on, {buildIt}. What you type in a form stays on your device.
         </p>
         <p className="muted"><a href={PRIVACY_URL} data-testid="privacy-link">Privacy policy</a></p>
       </footer>

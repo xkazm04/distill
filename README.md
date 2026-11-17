@@ -30,10 +30,12 @@ cognitive load.
 
 - **Web app**: nothing to install - open **https://distill-hybrid-ai.web.app** in Chrome. To run it locally:
   `npm install`, then `npm run dev -w @distill/web`.
-- **Chrome extension**: build it yourself while the core is in development. There is no download yet, because the
-  extension's App Check token must never be published. Follow [apps/extension/README.md](apps/extension/README.md):
-  your own Firebase project, your own debug token, `npm run build -w @distill/extension`, then Load unpacked in
-  `chrome://extensions`.
+- **Chrome extension**, two routes ([apps/extension/README.md](apps/extension/README.md)):
+  - **Download** the on-device build from the [latest release](https://github.com/xkazm04/distill/releases/latest),
+    unzip it, and Load unpacked in `chrome://extensions`. Its AI runs only on your device with Gemini Nano (Chrome 138+),
+    or through your own agent (Claude Code or agy, set up with `npm run agent:setup`). It holds no credentials.
+  - **Build it yourself** for the cloud fallback too: your own Firebase project and App Check debug token, then
+    `npm run build -w @distill/extension`.
 
 ## How it uses Firebase
 
