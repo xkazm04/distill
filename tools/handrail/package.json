@@ -1,0 +1,29 @@
+{
+  "name": "@distill/handrail",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Handrail: lets your own coding agent read a Distill page and propose form values; the person accepts each one in the page.",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "handrail-mcp": "dist/bin/handrail-mcp.js",
+    "handrail-host": "dist/bin/handrail-host.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json",
+    "install-host": "npm run build && node dist/install.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

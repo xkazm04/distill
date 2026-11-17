@@ -1,0 +1,36 @@
+// Local mirror of the Handrail part of the wire contract (packages/engine/src/types.ts). It is mirrored, not imported,
+// so the built host does not pull the engine source into its build; test/contract.test.ts fails if the two drift.
+export type HandrailTool = "distill_read" | "wayfill_schema" | "wayfill_propose" | "wayfill_next";
+
+export interface HandrailProposal {
+  proposalId: string;
+  fieldId: string;
+  value: string;
+  rationale: string;
+}
+
+export type ProposalVerdict = "accepted" | "rejected" | "pending";
+
+/** Host <-> extension envelope (native messaging). */
+export interface Envelope<T = unknown> {
+  id: string;
+  type: string;
+  payload: T;
+}
+
+/** MCP server -> host, over the channel: one JSON object per line. */
+export type ChannelMessage =
+  | { type: "hello"; token: string; v: 1 }
+  | { id: string; type: "call"; tool: HandrailTool; args: Record<string, unknown> };
+
+/** Host -> MCP server. */
+export type ChannelReply =
+  | { type: "hello.ok"; v: 1 }
+  | { id: string; type: "result"; ok: true; result: unknown }
+  | { id: string; type: "result"; ok: false; error: { code: string; message: string } };
+
+export class HandrailError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+  }
+}
