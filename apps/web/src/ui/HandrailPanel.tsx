@@ -4,6 +4,7 @@ import type { PageHost } from "./host";
 import { newId, type HandrailPort, type ToolError } from "./handrailTypes";
 import { getGuide } from "./guide";
 import { basicWizard } from "./Wayfill";
+import { accentColor } from "./dom";
 
 type Decided = HandrailProposal & { verdict: "accepted" | "rejected" };
 
@@ -82,7 +83,7 @@ export function HandrailPanel({ host, port }: { host: PageHost; port: HandrailPo
         const s = await ensureStructure();
         const r = await host.writeValues(s, { [p.fieldId]: p.value });
         if (r.failed.length) throw new Error("The field could not be filled. Please type it in the original form.");
-        await host.highlight([p.fieldId]);
+        await host.highlight([p.fieldId], accentColor());
       } catch (e) {
         setMessage(e instanceof Error ? e.message : "Could not fill the field.");
         return; // nothing was written, so the proposal stays pending

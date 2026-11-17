@@ -34,7 +34,7 @@ export class IframeHost implements PageHost {
   }
   async readValues(s: FormStructure): Promise<FormValues> { return engine.readValues(await this.doc(), s); }
   async writeValues(s: FormStructure, v: FormValues) { return engine.writeValues(await this.doc(), s, v); }
-  async highlight(ids: string[]) { applyHighlight(await this.doc(), ids); }
+  async highlight(ids: string[], color?: string) { applyHighlight(await this.doc(), ids, color); }
   async showOriginal() { /* the shell shows or hides the pane */ }
 
   originalPane(visible: boolean): ReactNode {
@@ -50,7 +50,7 @@ function OriginalPane({ host, visible }: { host: IframeHost; visible: boolean })
   }, [host]);
   return (
     <div className="panel original-pane" hidden={!visible} data-testid="original-pane">
-      <p className="muted">The original page. Fields that Distill filled are outlined in blue.</p>
+      <p className="muted">The original page. Fields that Distill filled have a coloured outline.</p>
       <div ref={box} />
     </div>
   );

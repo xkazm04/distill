@@ -16,7 +16,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:getForm": return extractForm(document, location.href, req.formIndex);
     case "distill:readValues": return readValues(document, req.structure);
     case "distill:writeValues": return writeValues(document, req.structure, req.values);
-    case "distill:highlight": applyHighlight(document, req.fieldIds); return { ok: true };
+    case "distill:highlight": applyHighlight(document, req.fieldIds, req.color); return { ok: true };
     case "distill:getTheme": return readPageTheme(document);
   }
 }

@@ -12,8 +12,9 @@ export interface PageHost {
   /** Device-only. The result must never be put in a cloud-eligible prompt. */
   readValues(structure: FormStructure): Promise<FormValues>;
   writeValues(structure: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[] }>;
-  /** Outline these fields in the original page (empty array clears). */
-  highlight(fieldIds: string[]): Promise<void>;
+  /** Outline these fields in the original page (empty array clears) in `color`: the active theme's accent, resolved
+   *  by the caller with `accentColor()`. Hosts pass it to `applyHighlight`, which falls back when it is unreadable. */
+  highlight(fieldIds: string[], color?: string): Promise<void>;
   /** Show (true) or hide (false) the untouched original. In the extension the original is the tab itself. */
   showOriginal(on: boolean): Promise<void>;
   /** Web only: the pane that holds the original page (the iframe). Always mounted, shown when `original` is on. */

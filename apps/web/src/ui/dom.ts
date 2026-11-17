@@ -1,12 +1,33 @@
 // DOM helpers shared by the web host (iframe document) and the extension content script. No React here.
+import { readableColor, toHex } from "./theme/derive";
+
 const MARK = "data-distill-mark";
+/** Used only when the theme's accent cannot be read as a solid colour. */
+export const HIGHLIGHT_FALLBACK = "#0b5fff";
 
 function fieldElement(doc: Document, fieldId: string): HTMLElement | null {
   return doc.getElementById(fieldId) ?? (doc.getElementsByName(fieldId)[0] as HTMLElement | undefined) ?? null;
 }
 
-/** Outline the given fields (and clear any earlier outline). Reversible: the original inline style is restored. */
-export function applyHighlight(doc: Document, fieldIds: readonly string[]): void {
+/** The active theme's `--accent`, resolved now to a colour string (the brand on the web, the matched page in the
+ *  extension's side panel). Falls back to HIGHLIGHT_FALLBACK when it is missing or unreadable. */
+export function accentColor(doc: Document = document): string {
+  try {
+    const root = doc.documentElement;
+    const view = doc.defaultView;
+    const raw = (view ? view.getComputedStyle(root).getPropertyValue("--accent") : "").trim() || root.style.getPropertyValue("--accent").trim();
+    const c = readableColor(raw);
+    return c ? toHex(c) : HIGHLIGHT_FALLBACK;
+  } catch {
+    return HIGHLIGHT_FALLBACK;
+  }
+}
+
+/** Outline the given fields (and clear any earlier outline) in `color`, normalised to hex so no other CSS can ride
+ *  along. Reversible: the original inline style is restored. */
+export function applyHighlight(doc: Document, fieldIds: readonly string[], color?: string): void {
+  const solid = readableColor(color);
+  const outline = `3px solid ${solid ? toHex(solid) : HIGHLIGHT_FALLBACK}`;
   doc.querySelectorAll<HTMLElement>(`[${MARK}]`).forEach((el) => {
     el.style.outline = el.getAttribute(MARK) ?? "";
     el.removeAttribute(MARK);
@@ -15,7 +36,7 @@ export function applyHighlight(doc: Document, fieldIds: readonly string[]): void
     const el = fieldElement(doc, id);
     if (!el) continue;
     el.setAttribute(MARK, el.style.outline);
-    el.style.outline = "3px solid #0b5fff";
+    el.style.outline = outline;
     el.style.outlineOffset = "2px";
   }
   fieldIds.length && fieldElement(doc, fieldIds[0] as string)?.scrollIntoView?.({ block: "center" });

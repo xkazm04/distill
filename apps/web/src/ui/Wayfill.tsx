@@ -4,6 +4,7 @@ import { run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
 import { engine } from "./engine";
+import { accentColor } from "./dom";
 import { setGuide } from "./guide";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
 import { SourceChip, type AiMeta } from "./chips";
@@ -168,7 +169,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
       const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
       setFilled(nextFilled);
       setFailed(res.failed);
-      await host.highlight(nextFilled);
+      await host.highlight(nextFilled, accentColor());
       if (remember) setProfile(rememberAnswers(mine));
     }
     setIdx(idx + 1);
@@ -204,7 +205,7 @@ export function Wayfill({ host, settings, model, onShowOriginal }: Props) {
 
   const localReady = model.state === "available";
   const hasProfile = Object.keys(profile).length > 0;
-  const showOriginal = () => { void host.highlight(filled).then(onShowOriginal); };
+  const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
 
   return (
     <section aria-labelledby="wf-h" className="wayfill">

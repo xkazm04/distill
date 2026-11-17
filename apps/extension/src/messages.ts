@@ -9,7 +9,8 @@ export type ContentRequest =
   | { type: "distill:getForm"; formIndex: number }
   | { type: "distill:readValues"; structure: FormStructure }
   | { type: "distill:writeValues"; structure: FormStructure; values: FormValues }
-  | { type: "distill:highlight"; fieldIds: string[] }
+  /** `color`: the side panel's accent at call time; the content script normalises it or falls back. */
+  | { type: "distill:highlight"; fieldIds: string[]; color?: string }
   | { type: "distill:getTheme" };
 
 export interface ContentReplies {

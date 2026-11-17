@@ -35,7 +35,9 @@ export class TabHost implements PageHost {
   getForm(formIndex = 0): Promise<FormStructure> { return this.send<"distill:getForm">({ type: "distill:getForm", formIndex }); }
   readValues(structure: FormStructure): Promise<FormValues> { return this.send<"distill:readValues">({ type: "distill:readValues", structure }); }
   writeValues(structure: FormStructure, values: FormValues) { return this.send<"distill:writeValues">({ type: "distill:writeValues", structure, values }); }
-  async highlight(fieldIds: string[]) { await this.send({ type: "distill:highlight", fieldIds }); }
+  async highlight(fieldIds: string[], color?: string) {
+    await this.send({ type: "distill:highlight", fieldIds, ...(color ? { color } : {}) });
+  }
   /** The page's colours, fonts and corner radius, for "Match this page". */
   getTheme(): Promise<PageThemeSeed> { return this.send<"distill:getTheme">({ type: "distill:getTheme" }); }
   /** The original is the tab itself; the panel just tells the person so. */
