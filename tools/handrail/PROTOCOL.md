@@ -15,12 +15,17 @@ Names are exactly the `HandrailTool` union in `packages/engine/src/types.ts`. Ev
 | --- | --- | --- |
 | `distill_read` | none | the active tab's `PageModel` |
 | `wayfill_schema` | none | `{ structure: FormStructure, wizard: Wizard, ...extension fields, proposals: [{proposalId, fieldId, verdict}] }`; `proposals` is added by the host |
-| `wayfill_propose` | `{ fieldId, value, rationale, waitSeconds? }` (value <= 2000, rationale <= 500 chars, waitSeconds 0-120) | `{ proposalId, verdict }`, verdict `pending` \| `accepted` \| `rejected` |
+| `wayfill_propose` | `{ fieldId, value, rationale, fingerprint, waitSeconds? }` (value <= 2000, rationale <= 500, fingerprint 1-128 chars, waitSeconds 0-120) | `{ proposalId, verdict }`, verdict `pending` \| `accepted` \| `rejected` |
 | `wayfill_next` | none | the wizard step now shown (`WizardStep`) |
 
+`fingerprint` is `structure.fingerprint` from the `wayfill_schema` answer the agent read. "The form on the active page" is
+ambient; the fingerprint names which form the proposal was made for, and the page refuses it when that form is no longer
+the one open (section 3).
+
 Errors come back as an MCP tool error whose text is `<code>: <plain message>`. Codes: `not_running` (Distill is not
-open), `bad_request`, `too_many_pending` (20 undecided proposals at most), `extension_timeout` (30 s), `extension_error`,
-`closed`, `unknown_tool`, `internal`.
+open), `bad_request`, `too_many_pending` (20 undecided proposals at most), `stale_form` (the page now shows another form
+than the one the agent read; read it again), `extension_timeout` (30 s), `extension_error`, `closed`, `unknown_tool`,
+`internal`.
 
 ## 2. Channel (handrail-mcp <-> handrail-host)
 
@@ -77,7 +82,7 @@ Host -> extension (requests; the extension answers each with a `tool.result` car
 | `page.read` | `{}` | `PageModel` |
 | `form.schema` | `{}` | `{ structure: FormStructure, wizard: Wizard }` (no values) |
 | `wizard.next` | `{}` | the new `WizardStep` |
-| `proposal.create` | `HandrailProposal` | `{}`: the proposal is now on screen, undecided |
+| `proposal.create` | `HandrailProposal & { fingerprint }` | `{}`: the proposal is now on screen, undecided |
 
 Extension -> host:
 
@@ -88,6 +93,13 @@ Extension -> host:
 
 Rules for the extension side:
 
+- The extension answers every request whichever Distill view is on screen; no request waits for the person to open a
+  particular view. `wizard.next` moves the step-by-step guide when the person has opened it for this page (it stays open,
+  hidden, while they look at another view) and answers `extension_error` when it is not open.
+- `proposal.create` is checked against the form on the page at that moment: no `fingerprint` -> `bad_request`; another
+  fingerprint, or no form -> `stale_form`. Only a matching proposal is shown and acknowledged. On Accept the extension
+  reads the form again and writes nothing when the fingerprint no longer matches; the proposal stays undecided until the
+  person rejects it.
 - The page shows the proposal with its `rationale` and writes the field only when the person presses Accept; the extension
   then sends `proposal.verdict`. Handrail has no message that writes a field, and the host never sends one.
 - A verdict is final: the host keeps the first one per `proposalId` and ignores any later one, unknown ids, and `pending`.
@@ -97,7 +109,9 @@ Rules for the extension side:
 
 ## 4. Proposal state machine
 
-`pending` -> `accepted` | `rejected`. Nothing else. At most 20 proposals may be `pending` at once; `value` and `rationale`
+`pending` -> `accepted` | `rejected`. Nothing else. A proposal the page refused (`stale_form`, `bad_request`) or did not
+acknowledge (`extension_timeout`, `closed`) is withdrawn: the host forgets it, so it is not listed in `wayfill_schema`, does
+not count as pending, and a late verdict for it is ignored as an unknown id. At most 20 proposals may be `pending` at once; `value` and `rationale`
 are length-capped and `rationale` is required so the person can see why. `waitSeconds` makes `wayfill_propose` hold its
 answer until a verdict or the deadline, whichever is first; on the deadline it returns `pending` and the verdict can be seen
 later in `wayfill_schema`.

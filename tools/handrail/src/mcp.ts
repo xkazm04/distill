@@ -44,9 +44,10 @@ export function createMcpServer(caller: Caller): McpServer {
   }, () => run("wayfill_schema", {}));
 
   server.registerTool("wayfill_propose", {
-    description: `Propose one value for one form field. The proposal appears in the page with your rationale beside Accept and Reject buttons. ${NOTHING_WRITTEN} Returns a proposalId and the verdict "pending", "accepted" or "rejected". Set waitSeconds to wait for the person's answer (up to 120); otherwise the verdict is "pending" and you can see it later in wayfill_schema.`,
+    description: `Propose one value for one field of the form you read with wayfill_schema, passing that form's fingerprint. The proposal appears in the page with your rationale beside Accept and Reject buttons. ${NOTHING_WRITTEN} Returns a proposalId and the verdict "pending", "accepted" or "rejected". Set waitSeconds to wait for the person's answer (up to 120); otherwise the verdict is "pending" and you can see it later in wayfill_schema.`,
     inputSchema: {
       fieldId: z.string().min(1).describe("The fieldId from wayfill_schema."),
+      fingerprint: z.string().min(1).max(128).describe("The structure.fingerprint from wayfill_schema: the form you read. If the page now shows another form, the proposal is refused with stale_form; read the form again."),
       value: z.string().max(2000).describe("The value you propose, in the format the field expects."),
       rationale: z.string().min(1).max(500).describe("Plain words telling the person why this value."),
       waitSeconds: z.number().min(0).max(120).optional().describe("How long to wait for the person's verdict. Default 0."),

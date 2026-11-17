@@ -32,11 +32,15 @@ async function rig(verdict: "accepted" | "rejected" | "never") {
     queueMicrotask(() => {
       const ok = (result: unknown) => host.receive({ id: env.id, type: "tool.result", payload: { ok: true, result } });
       if (env.type === "page.read") ok({ url: "https://x.test", title: "T", lang: "cs", kind: "form", blocks: [] });
-      else if (env.type === "form.schema") ok({ structure: { fields: [{ fieldId: "name" }] }, wizard: { steps: [] } });
+      else if (env.type === "form.schema") ok({ structure: { fingerprint: "fpA", fields: [{ fieldId: "name" }] }, wizard: { steps: [] } });
       else if (env.type === "wizard.next") ok({ stepId: "name" });
       else if (env.type === "proposal.create") {
+        const p = env.payload as { proposalId: string; fingerprint: string };
+        if (p.fingerprint !== "fpA") {
+          host.receive({ id: env.id, type: "tool.result", payload: { ok: false, error: { code: "stale_form", message: "The form on the page is not the one you read." } } });
+          return;
+        }
         ok({});
-        const p = env.payload as { proposalId: string };
         if (verdict !== "never") setTimeout(() => host.receive({ id: "v1", type: "proposal.verdict", payload: { proposalId: p.proposalId, verdict } }), 20);
       }
     });
@@ -73,34 +77,50 @@ describe("handrail-mcp through the SDK client", () => {
 
   it("propose: pending at once, accepted when the fake host says so", async () => {
     const { client, seen } = await rig("accepted");
-    const quick = text(await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana", rationale: "From your passport" } }));
+    const quick = text(await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana", rationale: "From your passport", fingerprint: "fpA" } }));
     expect(quick.verdict).toBe("pending");
     expect(typeof quick.proposalId).toBe("string");
     await new Promise((r) => setTimeout(r, 80));
     const schema = text(await client.callTool({ name: "wayfill_schema", arguments: {} }));
     expect(schema.proposals).toEqual([{ proposalId: quick.proposalId, fieldId: "name", verdict: "accepted" }]);
 
-    const waited = text(await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana K", rationale: "Longer form", waitSeconds: 5 } }));
+    const waited = text(await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana K", rationale: "Longer form", fingerprint: "fpA", waitSeconds: 5 } }));
     expect(waited.verdict).toBe("accepted");
     const created = seen.filter((e) => e.type === "proposal.create");
     expect(created).toHaveLength(2);
-    expect(created[0]?.payload).toMatchObject({ fieldId: "name", value: "Jana", rationale: "From your passport" });
+    expect(created[0]?.payload).toMatchObject({ fieldId: "name", value: "Jana", rationale: "From your passport", fingerprint: "fpA" });
   });
 
   it("returns rejected, and pending when the person has not answered by the deadline", async () => {
     const r = await rig("rejected");
-    const rej = text(await r.client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c", waitSeconds: 5 } }));
+    const rej = text(await r.client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c", fingerprint: "fpA", waitSeconds: 5 } }));
     expect(rej.verdict).toBe("rejected");
     const n = await rig("never");
-    const pend = text(await n.client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c", waitSeconds: 0.05 } }));
+    const pend = text(await n.client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c", fingerprint: "fpA", waitSeconds: 0.05 } }));
     expect(pend.verdict).toBe("pending");
   });
 
   it("rejects a bad proposal as a tool error and sends nothing to the page", async () => {
     const { client, seen } = await rig("accepted");
-    const r = await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c".repeat(600) } });
+    const r = await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "a", value: "b", rationale: "c".repeat(600), fingerprint: "fpA" } });
     expect(r.isError).toBe(true);
     expect(seen.filter((e) => e.type === "proposal.create")).toHaveLength(0);
+  });
+
+  it("refuses a proposal without the form fingerprint and sends nothing to the page", async () => {
+    const { client, seen } = await rig("accepted");
+    const r = await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana", rationale: "From your passport" } });
+    expect(r.isError).toBe(true);
+    expect(seen.filter((e) => e.type === "proposal.create")).toHaveLength(0);
+  });
+
+  it("passes the page's stale_form refusal to the agent and forgets the proposal", async () => {
+    const { client } = await rig("accepted");
+    const r = (await client.callTool({ name: "wayfill_propose", arguments: { fieldId: "name", value: "Jana", rationale: "From your passport", fingerprint: "fpOld" } })) as { isError?: boolean; content: Array<{ text: string }> };
+    expect(r.isError).toBe(true);
+    expect(r.content[0]?.text).toMatch(/^stale_form: /);
+    const schema = text(await client.callTool({ name: "wayfill_schema", arguments: {} }));
+    expect(schema.proposals).toEqual([]);
   });
 
   it("says plainly when Distill is not open", async () => {

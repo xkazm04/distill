@@ -7,9 +7,11 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 const tool: Same<Local.HandrailTool, Engine.HandrailTool> = true;
 const proposal: Same<Local.HandrailProposal, Engine.HandrailProposal> = true;
 const verdict: Same<Local.ProposalVerdict, Engine.ProposalVerdict> = true;
+// The proposal.create payload is protocol-level: the wire proposal plus the fingerprint of the form the agent read.
+const create: Same<Local.ProposalCreate, Engine.HandrailProposal & { fingerprint: string }> = true;
 
 describe("wire contract mirror", () => {
   it("matches packages/engine/src/types.ts", () => {
-    expect([tool, proposal, verdict]).toEqual([true, true, true]);
+    expect([tool, proposal, verdict, create]).toEqual([true, true, true, true]);
   });
 });

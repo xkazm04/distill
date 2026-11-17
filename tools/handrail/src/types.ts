@@ -9,6 +9,12 @@ export interface HandrailProposal {
   rationale: string;
 }
 
+/**
+ * The `proposal.create` payload (PROTOCOL.md section 3): the proposal plus the fingerprint of the form the agent read.
+ * Protocol-level, not in types.ts; test/contract.test.ts pins it to `HandrailProposal & { fingerprint: string }`.
+ */
+export type ProposalCreate = HandrailProposal & { fingerprint: string };
+
 export type ProposalVerdict = "accepted" | "rejected" | "pending";
 
 /** Host <-> extension envelope (native messaging). */

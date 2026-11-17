@@ -1,12 +1,13 @@
-import type { HandrailProposal, ProposalVerdict } from "./types.js";
+import type { ProposalCreate, ProposalVerdict } from "./types.js";
 import { HandrailError } from "./types.js";
 
 export const MAX_PENDING = 20;
 export const MAX_VALUE_CHARS = 2000;
 export const MAX_RATIONALE_CHARS = 500;
+export const MAX_FINGERPRINT_CHARS = 128;
 
 interface Entry {
-  proposal: HandrailProposal;
+  proposal: ProposalCreate;
   verdict: ProposalVerdict;
   waiters: Array<(v: ProposalVerdict) => void>;
 }
@@ -19,7 +20,10 @@ interface Entry {
 export class ProposalStore {
   private readonly entries = new Map<string, Entry>();
 
-  create(input: { proposalId: string; fieldId: unknown; value: unknown; rationale: unknown }): HandrailProposal {
+  create(input: { proposalId: string; fieldId: unknown; value: unknown; rationale: unknown; fingerprint: unknown }): ProposalCreate {
+    if (typeof input.fingerprint !== "string" || input.fingerprint.trim() === "" || input.fingerprint.length > MAX_FINGERPRINT_CHARS) {
+      throw new HandrailError("bad_request", "fingerprint must be the structure.fingerprint from wayfill_schema, so the proposal is bound to the form you read");
+    }
     if (typeof input.fieldId !== "string" || input.fieldId.trim() === "") throw new HandrailError("bad_request", "fieldId must be a non-empty string");
     if (typeof input.value !== "string") throw new HandrailError("bad_request", "value must be a string");
     if (typeof input.rationale !== "string" || input.rationale.trim() === "") throw new HandrailError("bad_request", "rationale must be a non-empty string, so the person can see why");
@@ -27,7 +31,9 @@ export class ProposalStore {
     if (input.rationale.length > MAX_RATIONALE_CHARS) throw new HandrailError("bad_request", `rationale is longer than ${MAX_RATIONALE_CHARS} characters`);
     if (this.pendingCount() >= MAX_PENDING) throw new HandrailError("too_many_pending", "Too many proposals are waiting for the person. Wait for them to answer.");
     if (this.entries.has(input.proposalId)) throw new HandrailError("bad_request", "duplicate proposalId");
-    const proposal: HandrailProposal = { proposalId: input.proposalId, fieldId: input.fieldId, value: input.value, rationale: input.rationale };
+    const proposal: ProposalCreate = {
+      proposalId: input.proposalId, fieldId: input.fieldId, value: input.value, rationale: input.rationale, fingerprint: input.fingerprint,
+    };
     this.entries.set(proposal.proposalId, { proposal, verdict: "pending", waiters: [] });
     return proposal;
   }
@@ -40,6 +46,12 @@ export class ProposalStore {
     e.verdict = verdict;
     for (const w of e.waiters.splice(0)) w(verdict);
     return true;
+  }
+
+  /** The page refused the proposal or never acknowledged it: it was never on screen, so it leaves the store. */
+  withdraw(proposalId: string): void {
+    const e = this.entries.get(proposalId);
+    if (e && e.verdict === "pending") this.entries.delete(proposalId);
   }
 
   verdict(proposalId: string): ProposalVerdict | undefined {

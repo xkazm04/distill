@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { ProposalStore } from "./proposals.js";
-import type { Envelope, HandrailProposal } from "./types.js";
+import type { Envelope, ProposalCreate } from "./types.js";
 import { HandrailError } from "./types.js";
 
 export const EXTENSION_TIMEOUT_MS = 30_000;
@@ -36,13 +36,19 @@ export class Host {
   };
 
   private async propose(args: Record<string, unknown>): Promise<unknown> {
-    const proposal: HandrailProposal = this.proposals.create({
-      proposalId: randomUUID(), fieldId: args["fieldId"], value: args["value"], rationale: args["rationale"],
+    const proposal: ProposalCreate = this.proposals.create({
+      proposalId: randomUUID(), fieldId: args["fieldId"], value: args["value"], rationale: args["rationale"], fingerprint: args["fingerprint"],
     });
     const waitRaw = args["waitSeconds"];
     const wait = typeof waitRaw === "number" && Number.isFinite(waitRaw) ? Math.min(Math.max(waitRaw, 0), MAX_WAIT_SECONDS) : 0;
-    // The ack says the page has the proposal on screen; the verdict arrives later as its own envelope.
-    await this.ask("proposal.create", proposal);
+    // The ack says the page has the proposal on screen; the verdict arrives later as its own envelope. A refusal
+    // (stale_form: the page changed) or no answer means it was never shown, so it does not count toward MAX_PENDING.
+    try {
+      await this.ask("proposal.create", proposal);
+    } catch (e) {
+      this.proposals.withdraw(proposal.proposalId);
+      throw e;
+    }
     const verdict = await this.proposals.waitForVerdict(proposal.proposalId, wait * 1000);
     return { proposalId: proposal.proposalId, verdict };
   }

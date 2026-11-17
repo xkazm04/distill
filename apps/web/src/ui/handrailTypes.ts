@@ -8,12 +8,18 @@ export interface Envelope<T extends string = string, P = unknown> {
   payload: P;
 }
 
+/**
+ * The `proposal.create` payload: the proposal plus the fingerprint of the form the agent read (`structure.fingerprint`
+ * from `wayfill_schema`). The panel refuses it with `stale_form` when the form open now has another fingerprint.
+ */
+export type ProposalCreate = HandrailProposal & { fingerprint: string };
+
 /** Host -> extension. Every request is answered with a `tool.result` under the same id. */
 export type HostToPanel =
   | Envelope<"page.read", Record<string, never>>
   | Envelope<"form.schema", Record<string, never>>
   | Envelope<"wizard.next", Record<string, never>>
-  | Envelope<"proposal.create", HandrailProposal>
+  | Envelope<"proposal.create", ProposalCreate>
   // Not in PROTOCOL.md: the background worker's own note that the native host went away.
   | Envelope<"status", { connected: boolean; reason?: string }>;
 
