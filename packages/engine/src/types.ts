@@ -99,6 +99,64 @@ export interface Wizard {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Letters and replies (Envelope). A letter is text the person chose to share (page class). Their answers to the reply
+// wizard are their own details (values class): they exist only in `ReplyAnswer`, which never crosses the cloud boundary.
+// ---------------------------------------------------------------------------------------------------------------
+
+export interface LetterAction {
+  /** What the person has to do, in the reader's language. */
+  what: string;
+  /** By when, as the letter writes it. */
+  by?: string;
+}
+
+/** What `readLetter` returns (schemas/letter.json). Free text is in the reader's language; dates, amounts and names exactly as written. */
+export interface Letter {
+  sender?: string;
+  subject?: string;
+  /** BCP-47 primary tag of the language the letter is written in, e.g. "cs". A reply is written in this language. */
+  lang?: string;
+  summary: string;
+  deadline?: string;
+  amountDue?: string;
+  actions: LetterAction[];
+}
+
+/** One question the person answers so a reply can be written. Built from the letter text only. */
+export interface ReplyStep {
+  /** `r0`, `r1`, ... in order. */
+  stepId: string;
+  /** In the reader's language. */
+  question: string;
+  /** Why the reply needs it, in plain words. */
+  explanation: string;
+  example?: string;
+  expectedFormat?: string;
+}
+
+export interface ReplyWizard {
+  readerLang: string;
+  /** Empty when the letter needs no reply. */
+  steps: ReplyStep[];
+}
+
+/** The person's answer to one ReplyStep. Device-only, like FormValues. */
+export interface ReplyAnswer {
+  stepId: string;
+  /** The step's question, so the drafting prompt knows what the answer means. */
+  question: string;
+  value: string;
+}
+
+/** What `draftReply` returns (schemas/replyDraft.json). */
+export interface ReplyDraft {
+  /** The reply, in the letter's language, ready to send. */
+  reply: string;
+  /** The same reply in the reader's language, so the person knows what they send. Omitted when the languages match. */
+  translation?: string;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Recast (generated layout). Closed vocabulary: a kind the renderer does not know is dropped AND counted.
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -146,7 +204,7 @@ export type InferenceSource = "on_device" | "in_cloud";
 /** The local model is a state machine, not a boolean (Chrome Prompt API availability strings). */
 export type LocalModelState = "unavailable" | "downloadable" | "downloading" | "available";
 
-/** `values` = the prompt carries a person's form values or profile: device only, no fallback. */
+/** `values` = the prompt carries a person's form values, profile or reply answers: device only, no fallback. */
 export type PromptClass = "page" | "structure" | "values";
 
 export type Task =
@@ -157,7 +215,9 @@ export type Task =
   | "explainField"      // structure
   | "suggestValue"      // values
   | "checkValue"        // values
-  | "readLetter";       // page (Envelope: OCR text of a letter the person chose to share)
+  | "readLetter"        // page (Envelope: OCR text of a letter the person chose to share)
+  | "buildReplyWizard"  // page (Envelope: the same letter text; never the person's answers)
+  | "draftReply";       // values (Envelope: carries the person's answers)
 
 export interface RouteDecision {
   task: Task;

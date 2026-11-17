@@ -5,10 +5,12 @@ const CLASS_OF: Record<Task, PromptClass> = {
   simplifyBlocks: "page",
   recast: "page",
   readLetter: "page",
+  buildReplyWizard: "page",
   buildWizard: "structure",
   explainField: "structure",
   suggestValue: "values",
   checkValue: "values",
+  draftReply: "values",
 };
 
 const MODES: readonly InferenceMode[] = ["prefer_on_device", "only_on_device", "only_in_cloud", "prefer_in_cloud"];
