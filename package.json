@@ -1,0 +1,17 @@
+{
+  "name": "distill",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Only what matters on the page: a focus view, an English wizard for forms in any language, and a generated layout, on-device first with Firebase AI Logic hybrid inference.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/*", "apps/web", "apps/extension", "tools/handrail"],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run typecheck && npm test && npm run secret-scan",
+    "secret-scan": "node scripts/secret-scan.mjs"
+  }
+}
