@@ -7,6 +7,9 @@
     "subject": {
       "type": "string"
     },
+    "lang": {
+      "type": "string"
+    },
     "summary": {
       "type": "string"
     },

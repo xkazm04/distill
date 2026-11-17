@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "letter", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "letter" | "replyWizard" | "replyDraft", object> = {
   recast: {
     type: "object",
     properties: {
@@ -65,11 +65,40 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "letter", object
     properties: {
       sender: str,
       subject: str,
+      lang: str,
       summary: str,
       deadline: str,
       amountDue: str,
       actions: { type: "array", items: { type: "object", properties: { what: str, by: str }, required: ["what"] } },
     },
     required: ["summary", "actions"],
+  },
+  replyWizard: {
+    type: "object",
+    properties: {
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            stepId: str,
+            question: str,
+            explanation: str,
+            example: str,
+            expectedFormat: str,
+          },
+          required: ["stepId", "question", "explanation"],
+        },
+      },
+    },
+    required: ["steps"],
+  },
+  replyDraft: {
+    type: "object",
+    properties: {
+      reply: str,
+      translation: str,
+    },
+    required: ["reply"],
   },
 };

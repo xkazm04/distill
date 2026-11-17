@@ -1,4 +1,4 @@
-import type { FieldStructure, FormStructure, FormValues, PageModel } from "./types.js";
+import type { FieldStructure, FormStructure, FormValues, Letter, PageModel, ReplyAnswer } from "./types.js";
 import { NODE_KINDS } from "./repair.js";
 
 const PAGE_BUDGET = 12000;
@@ -53,6 +53,24 @@ function findField(s: FormStructure, fieldId: string): FieldStructure {
   if (!f) throw new Error(`distill-engine: no field "${fieldId}" in this form`);
   return f;
 }
+
+/** One line of text: newlines become " / ", so a value cannot open a new section of the prompt. */
+const oneLine = (t: string): string => t.trim().replace(/\r?\n/g, " / ");
+
+/** A read letter, by known keys only (extra properties never reach a prompt). */
+function describeLetter(l: Letter): string[] {
+  const lines: string[] = [];
+  if (l.sender) lines.push(`Sender: ${oneLine(l.sender)}`);
+  if (l.subject) lines.push(`Subject: ${oneLine(l.subject)}`);
+  lines.push(`Summary: ${oneLine(l.summary)}`);
+  if (l.deadline) lines.push(`Deadline: ${oneLine(l.deadline)}`);
+  if (l.amountDue) lines.push(`Amount due: ${oneLine(l.amountDue)}`);
+  for (const a of l.actions) lines.push(`Asks: ${oneLine(a.what)}${a.by ? ` (by ${oneLine(a.by)})` : ""}`);
+  return lines;
+}
+
+/** The language a reply is written in: the letter's own, else the reader's. */
+const replyLang = (l: Letter, readerLang: string): string => (l.lang && l.lang !== "und" ? l.lang : readerLang);
 
 export const prompts = {
   classifyPage: (page: PageModel): string =>
@@ -145,10 +163,44 @@ export const prompts = {
   readLetter: (ocrText: string, readerLang = "en"): string =>
     [
       `Read this letter and explain it in ${langName(readerLang)} in plain words for someone who may not read the original language well.`,
-      "Answer with JSON only: {\"sender\", \"subject\", \"summary\" (two or three short sentences), \"deadline\" (date, if any), \"amountDue\" (if any), \"actions\": [{\"what\", \"by\"}]}. Leave out what the letter does not say. Keep dates, amounts and names exactly.",
+      "Answer with JSON only: {\"sender\", \"subject\", \"lang\" (the language the letter is written in, as a short code such as cs or de), \"summary\" (two or three short sentences), \"deadline\" (date, if any), \"amountDue\" (if any), \"actions\": [{\"what\", \"by\"}]}. Leave out what the letter does not say. Keep dates, amounts and names exactly.",
       GUARD,
       "<letter>",
       ocrText.slice(0, PAGE_BUDGET),
       "</letter>",
     ].join("\n"),
+
+  // Envelope's reply wizard. It sees the letter text only, never what the person answers, so it is page class.
+  buildReplyWizard: (letterText: string, readerLang = "en"): string =>
+    [
+      `Someone received the letter below and may need to answer it. Work out the few facts only they can give so that a reply can be written, and ask for each one in ${langName(readerLang)}.`,
+      "Answer with JSON only: {\"steps\": [{\"stepId\", \"question\", \"explanation\", \"example\", \"expectedFormat\"}]}. stepId is r0, r1, r2 and so on, in order. At most 5 steps.",
+      "question: one short, plain question for the person. explanation: one calm sentence on why the reply needs it. expectedFormat: the format in plain words (for example DD.MM.YYYY). example: a made-up example of the format, never a real person's data. Leave out example or expectedFormat when they do not apply.",
+      "Do not ask for what the letter already says. Never ask for passwords, PINs or full card numbers. If the letter needs no reply, answer {\"steps\": []}.",
+      GUARD,
+      "<letter>",
+      letterText.slice(0, PAGE_BUDGET),
+      "</letter>",
+    ].join("\n"),
+
+  // Values class: carries the person's answers. Device-only (route() says so); it never goes to the cloud.
+  draftReply: (letter: Letter, answers: readonly ReplyAnswer[], readerLang = "en"): string => {
+    const target = replyLang(letter, readerLang);
+    const shape =
+      target === readerLang
+        ? "Answer with JSON only: {\"reply\": the reply as plain text}."
+        : `Answer with JSON only: {\"reply\": the reply as plain text, \"translation\": the same reply in ${langName(readerLang)}, so the person knows what they send}.`;
+    return [
+      `Write a short, polite reply to the letter described below, in ${langName(target)}. Use only the facts given: the letter details and the person's answers. The answers may be in another language; carry their meaning into the reply.`,
+      "Do not invent names, dates, numbers or amounts. Where the reply needs a fact that is not given (for example the letter's reference number), write a placeholder in square brackets, such as [reference number].",
+      shape + " Plain text only: no markdown, no HTML.",
+      GUARD,
+      "<letter>",
+      ...describeLetter(letter),
+      "</letter>",
+      "<answers>",
+      ...answers.map((a) => `Question: ${oneLine(a.question)}\nAnswer: ${oneLine(a.value)}`),
+      "</answers>",
+    ].join("\n");
+  },
 };

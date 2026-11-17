@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractForm, extractPage, prompts, readValues, route, writeValues, type FormStructure, type Task } from "../src/index.js";
+import { extractForm, extractPage, prompts, readValues, route, writeValues, type FormStructure, type Letter, type ReplyAnswer, type Task } from "../src/index.js";
 import { parse } from "./helpers.js";
 import czech from "./fixtures/czech-residence-form.html?raw";
 
@@ -54,6 +54,37 @@ describe("payload privacy", () => {
     prompts.buildWizard({ ...structure, values: { jmeno: "Zqxvlenka" } }, "en");
     expect(prompts.buildWizard(dirty as unknown as FormStructure, "en")).not.toContain("Zqxvlenka");
     expect(prompts.explainField(dirty as unknown as FormStructure, "jmeno", "en")).not.toContain("Zqxvlenka");
+  });
+
+  it("of the two reply prompts, only draftReply carries the person's answers, and it routes on device only", () => {
+    const letterText = "Vážený pane, pošlete nám prosím číslo pasu do 30. 11. 2026. Číslo jednací: OAM-1234/2026.";
+    const letter: Letter = {
+      sender: "Ministerstvo vnitra",
+      lang: "cs",
+      summary: "The ministry asks for your passport number by 30 November 2026.",
+      deadline: "30. 11. 2026",
+      actions: [{ what: "Send your passport number", by: "30. 11. 2026" }],
+    };
+    const answers: ReplyAnswer[] = [
+      { stepId: "r0", question: "What is your passport number?", value: SECRETS.rc },
+      { stepId: "r1", question: "Your full name?", value: `${SECRETS.jmeno} ${SECRETS.prijmeni}` },
+      { stepId: "r2", question: "Anything to add?", value: SECRETS.poznamka },
+    ];
+
+    // The wizard takes the shared letter text and nothing else: answers cannot reach it, not even by mistake.
+    const wizard = prompts.buildReplyWizard(letterText, "en");
+    // @ts-expect-error the reply wizard takes letter text, not the person's answers
+    prompts.buildReplyWizard(answers, "en");
+    expect(wizard).toContain("OAM-1234/2026");
+    for (const a of answers) expect(wizard).not.toContain(a.value);
+    for (const part of ["Zqxvlenka", "Wbrtnovsky", "870619", "ZQX"]) expect(wizard).not.toContain(part);
+    expect(route("buildReplyWizard", "prefer_in_cloud").promptClass).toBe("page");
+
+    const draft = prompts.draftReply(letter, answers, "en");
+    for (const a of answers) expect(draft).toContain(a.value);
+    for (const cfg of ["only_in_cloud", "prefer_in_cloud", "prefer_on_device", undefined]) {
+      expect(route("draftReply", cfg)).toMatchObject({ promptClass: "values", mode: "only_on_device" });
+    }
   });
 
   it("only the values-class prompts carry a person's details, and they route on device only", async () => {

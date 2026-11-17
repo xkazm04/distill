@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stepId": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "expectedFormat": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stepId",
+          "question",
+          "explanation"
+        ]
+      }
+    }
+  },
+  "required": [
+    "steps"
+  ]
+}
