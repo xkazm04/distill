@@ -5,7 +5,7 @@ import { defineOf, outDirOf, variantOf } from "./vite.config";
 export default defineConfig(({ mode }) => {
   const variant = variantOf(mode);
   return {
-    envDir: "../..",
+    envDir: mode === "e2e" ? "." : "../..", // the e2e build reads no .env, so it is the same in every checkout
     define: defineOf(variant),
     build: {
       target: "es2022",

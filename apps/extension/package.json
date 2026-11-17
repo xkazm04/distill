@@ -8,8 +8,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "build": "vite build && vite build --config vite.content.config.ts",
-    "e2e": "npm run build && tsc -p e2e && playwright test -c e2e/playwright.config.ts",
-    "build:public": "vite build --mode public && vite build --config vite.content.config.ts --mode public"
+    "e2e": "npm run build:e2e && tsc -p e2e && playwright test -c e2e/playwright.config.ts",
+    "build:public": "vite build --mode public && vite build --config vite.content.config.ts --mode public",
+    "build:e2e": "vite build --mode e2e && vite build --config vite.content.config.ts --mode e2e"
   },
   "dependencies": {
     "@distill/engine": "*",
