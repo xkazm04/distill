@@ -45,25 +45,50 @@ export async function run<T = unknown>(task: Task, prompt: string, schema: objec
     throw new Error(`Sieve routed a values task to ${decision.mode}; refusing to send values anywhere but the device.`);
   }
 
-  const model = getGenerativeModel(services.ai, {
-    // The engine's mode strings are the SDK's InferenceMode strings, exactly.
-    mode: mode as SdkMode,
-    onDeviceParams: schema ? { promptOptions: { responseConstraint: schema } } : undefined,
-    // A values task has no cloud configuration at all, so there is nothing to fall back to.
-    inCloudParams: isValues
-      ? undefined
-      : {
-          model: remoteValue(services, "cloud_model"),
-          generationConfig: schema
-            ? { responseMimeType: "application/json", responseJsonSchema: schema as { [k: string]: unknown } }
-            : undefined,
-        },
-  });
+  const model = getGenerativeModel(
+    services.ai,
+    {
+      // The engine's mode strings are the SDK's InferenceMode strings, exactly.
+      mode: mode as SdkMode,
+      onDeviceParams: schema ? { promptOptions: { responseConstraint: schema } } : undefined,
+      // A values task has no cloud configuration at all, so there is nothing to fall back to.
+      inCloudParams: isValues
+        ? undefined
+        : {
+            model: remoteValue(services, "cloud_model"),
+            generationConfig: schema
+              ? { responseMimeType: "application/json", responseJsonSchema: schema as { [k: string]: unknown } }
+              : undefined,
+          },
+    },
+    // The SDK's default is 180 s, which a person reads as a frozen screen. Measured 2026-11-17 on the live app: the
+    // wizard answers in 3-8 s, and a "high demand" 500 left Wayfill on "Reading the form..." for over a minute.
+    { timeout: CLOUD_TIMEOUT_MS },
+  );
 
-  const result = await model.generateContent(prompt);
+  const result = await withRetry(() => model.generateContent(prompt));
   const text = result.response.text();
   const data = (schema ? JSON.parse(stripFence(text)) : text) as T;
   return { data, source: sourceOf(result.response.inferenceSource, decision, mode), ms: Math.round(performance.now() - started), reason: decision.reason };
+}
+
+const CLOUD_TIMEOUT_MS = 25_000;
+const RETRY_DELAY_MS = 1_500;
+
+/** A transient cloud failure (overload, rate limit, timeout) earns ONE retry; anything else surfaces at once. */
+export function isTransient(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return /\[(429|500|502|503|504)\b|high demand|overloaded|timed? ?out|timeout|aborted/i.test(m);
+}
+
+export async function withRetry<R>(call: () => Promise<R>, delayMs = RETRY_DELAY_MS): Promise<R> {
+  try {
+    return await call();
+  } catch (e) {
+    if (!isTransient(e)) throw e;
+    await new Promise((r) => setTimeout(r, delayMs));
+    return call();
+  }
 }
 
 function stripFence(text: string): string {
