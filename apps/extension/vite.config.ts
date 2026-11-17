@@ -52,7 +52,9 @@ export default defineConfig(({ mode }) => {
   const variant = variantOf(mode);
   return {
     plugins: [react(), ...(variant === "public" ? [publicStubs()] : [])],
-    envDir: "../..",
+    // Tests are hermetic: in test mode no .env is read (this package has none), so the main checkout with a real .env
+    // runs the same tests as a worktree without one (the web app does the same).
+    envDir: mode === "test" ? "." : "../..",
     base: "./",
     define: defineOf(variant),
     build: {
