@@ -1,6 +1,6 @@
 // The theme ROLE VOCABULARY - the one authority. Every shared component styles itself only through these CSS custom
 // properties; no component branches on which theme is active. Two theme sources bind them:
-//   - the web app binds the Distill brand (light and dark) in apps/web/src/ui/theme/brand.css;
+//   - the web app binds the Distill brand (light and dark) from apps/web/src/ui/theme/brand.ts;
 //   - the extension binds roles DERIVED from the host page (deriveTheme in ./derive.ts), with contrast floors.
 // Every role must be bound in every theme state; theme tests prove it. Add a role here first, then bind it everywhere.
 
