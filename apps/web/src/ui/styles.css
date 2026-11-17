@@ -562,3 +562,15 @@ html:has(.workspace) { font-size: 100%; }
   .chip-on_device::before, .chip-in_cloud::before, .chip-agent::before, .chip-model-available::before, .ws-legend i { background: CanvasText; }
   .ws-navbtn[aria-selected="true"], .ws-navbtn[aria-current="page"] { outline: 2px solid Highlight; }
 }
+
+/* "My agent": the waiting cards and the activity trail */
+.agent-waiting { display: grid; gap: .4rem; margin: .5rem 0; }
+.agent-waiting .notice { margin: 0; }
+.agent-waiting p { margin: 0 0 .3rem; }
+.agent-waiting-h { display: flex; align-items: center; gap: .5rem; font-weight: 700; }
+.agent-waiting-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 0; flex: none; }
+.agent-waiting .nav { display: flex; flex-wrap: wrap; gap: .4rem; }
+.hr-trail { margin-top: 1rem; border-top: 1px solid color-mix(in srgb, var(--line) 40%, var(--bg)); padding-top: .6rem; }
+.hr-trail h3 { font-size: .95rem; margin: 0 0 .4rem; }
+.hr-trail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; font-size: .875rem; }
+.hr-trail time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: .35rem; }

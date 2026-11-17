@@ -78,7 +78,7 @@ describe("Handrail answers whichever tab is open", () => {
     act(() => port.emit({ id: "r1", type: "page.read", payload: {} }));
     act(() => port.emit({ id: "r2", type: "form.schema", payload: {} }));
     await settle(() => !!port.answer("r1") && !!port.answer("r2"));
-    expect(port.answer("r1")).toEqual({ ok: true, result: PAGE });
+    expect(port.answer("r1")).toEqual({ ok: true, result: { ...PAGE, pageToken: expect.stringMatching(/^[0-9a-f]{64}$/) } });
     const schema = port.answer("r2") as { ok: true; result: { structure: FormStructure; wizard: { fingerprint: string } } };
     expect(schema.ok).toBe(true);
     expect(schema.result.structure.fingerprint).toBe("fpA");

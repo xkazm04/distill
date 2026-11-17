@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, loadLocalSettings, loadRemoteSettings, saveSettings }
 import { ConfigNotice, ModelCard } from "./chips";
 import { FocusView } from "./FocusView";
 import { HandrailPanel, useHandrail } from "./HandrailPanel";
+import { AgentWaiting } from "./AgentWaiting";
 import { keptSections, Recast } from "./Recast";
 import { Wayfill } from "./Wayfill";
 import type { HandrailPort } from "./handrailTypes";
@@ -87,7 +88,7 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
   return width;
 }
 
-export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, changeKey = 0, guideStore, onConnectHelper, brand, pages, footer, homeHref }: Props) {
+export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, changeKey: pageChangeKey = 0, guideStore, onConnectHelper, brand, pages, footer, homeHref }: Props) {
   const [tab, setTabState] = useState<Tab>(initialTab);
   const [page, setPage] = useState<PageModel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +99,10 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   const [drawer, setDrawer] = useState(false);
   const model = useLocalModel();
   // The agent bridge lives as long as the Workspace: requests are answered and proposals kept whichever tab is open.
-  const agent = useHandrail(handrail, host);
+  // A click the person accepted may change the page in place: read it again, as for any change the tab reports.
+  const [agentClicks, setAgentClicks] = useState(0);
+  const changeKey = pageChangeKey + agentClicks;
+  const agent = useHandrail(handrail, host, useCallback(() => setAgentClicks((n) => n + 1), []));
   // Once the person opens "Fill a form" for this page, the guide stays mounted (hidden on other tabs), so its step and
   // answers survive a tab switch and the agent can read and move it from any tab. A new page starts closed again.
   const [wayfillHost, setWayfillHost] = useState<PageHost | null>(null);
@@ -207,7 +211,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
   }, []);
   const changeSettings = (s: UserSettingsDoc) => { setSettings(s); void saveSettings(s).catch(() => undefined); };
 
-  const waiting = handrail !== undefined && tab !== "handrail" ? agent.pending.length : 0;
+  const waiting = handrail !== undefined && tab !== "handrail" ? agent.pending.length + agent.actions.length : 0;
   const views: { id: Tab; label: string; sub?: string }[] = [
     { id: "focus", label: "Read", sub: page ? `${page.blocks.length} ${page.blocks.length === 1 ? "block" : "blocks"}` : undefined },
     {
@@ -394,10 +398,13 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
               )}
               {waiting > 0 && (
                 <p className="notice ws-waiting" role="status" data-testid="agent-waiting">
-                  Your helper program suggested {waiting === 1 ? "an answer" : `${waiting} answers`}. Nothing is filled in until you accept.{" "}
+                  {agent.actions.length === 0
+                    ? <>Your helper program suggested {waiting === 1 ? "an answer" : `${waiting} answers`}. Nothing is filled in until you accept.</>
+                    : <>Your agent is asking you about {waiting === 1 ? "one thing" : `${waiting} things`}. Nothing is filled in or clicked until you accept.</>}{" "}
                   <button type="button" className="btn btn-link" onClick={() => pick("handrail")}>See suggestions</button>
                 </p>
               )}
+              {handrail !== undefined && <AgentWaiting />}
               {page && tab === "focus" && focus}
               {page && keepWayfill && (
                 <div hidden={tab !== "wayfill"} data-testid="wayfill-pane">

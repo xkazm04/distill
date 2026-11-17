@@ -1,6 +1,6 @@
 // What the shared UI needs from "the page it is looking at". The web app implements it over a sandboxed iframe holding
 // pasted or demo HTML; the extension implements it over messages to a content script in the real tab.
-import type { FormStructure, FormValues, PageModel } from "@distill/engine";
+import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { ReactNode } from "react";
 
 export interface PageHost {
@@ -25,6 +25,10 @@ export interface PageHost {
    * the original is beside Distill; the extension always, because there the tab itself is beside the panel.
    */
   locate?(target: LocateTarget | null): Promise<void>;
+  /** What can be clicked in the page, by label only (engine extractActions). Extension only: the agent's page actions. */
+  listActions?(): Promise<PageAction[]>;
+  /** Clicks the control `actionId` of the LAST listActions. Called only after the person pressed Accept. */
+  doAction?(actionId: string): Promise<void>;
 }
 
 /** What `locate` points at: a block of the PageModel (by its id) or the fields of a form step. */
