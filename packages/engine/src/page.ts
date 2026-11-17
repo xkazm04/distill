@@ -141,7 +141,11 @@ function collectBlocks(root: Element, url: string, formPage: boolean): Block[] {
   // On a form page, a page-level <header> that holds the h1 carries the form's title and instructions, so it is content.
   // A <nav> inside it is still noise on its own.
   const pageHeader = (el: Element): boolean => formPage && tag(el) === "header" && !!el.querySelector("h1");
-  const skipped = (el: Element): boolean => SKIP_TAGS.has(tag(el)) || isHidden(el) || (isNoise(el) && !pageHeader(el));
+  // A control (input, textarea, select, a contenteditable editor) holds what a PERSON typed, never page content. It is
+  // skipped everywhere, not only inside a <form>: an email draft in a contenteditable region is a value, and page
+  // models feed cloud-eligible prompts (CLAUDE.md law: values never leave the device).
+  const skipped = (el: Element): boolean =>
+    SKIP_TAGS.has(tag(el)) || isControl(el) || isHidden(el) || (isNoise(el) && !pageHeader(el));
 
   const visit = (el: Element, isRoot: boolean): void => {
     const t = tag(el);
