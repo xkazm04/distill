@@ -38,12 +38,20 @@ export interface ExpectedField {
   probes?: Probe[];
   note?: string;
 }
+/** One step of a form shown in steps: what a person does to reach it (nothing, for the first), and the keys of the
+ *  fields it shows. The engine is run again on each step, as the apps re-read a form when the page changes. */
+export interface FormStep {
+  do?: HandStep[];
+  fields: string[];
+}
 export interface Expectation {
   title: string;
   models: string;
   requires?: Capability[];
   source?: string;
   fields: ExpectedField[];
+  /** Absent: one step, every field visible on load. */
+  steps?: FormStep[];
   byHand: HandStep[];
 }
 export interface Fixture {
@@ -105,6 +113,18 @@ export function lintExpectation(fx: Fixture): string[] {
     for (const p of f.probes ?? []) if ((p.prop === undefined) === (p.attr === undefined)) out.push(`${f.key}: a probe names a prop or an attr`);
   }
   if (!e.fields.some((f) => f.value !== undefined)) out.push("no field has a value to write");
+  if (e.steps) {
+    const seen = new Map<string, number>();
+    e.steps.forEach((st, i) => {
+      if (i > 0 && !st.do?.length) out.push(`step ${i + 1}: says nothing a person does to reach it`);
+      for (const k of st.fields) {
+        if (!keys.has(k)) out.push(`step ${i + 1}: unknown field ${k}`);
+        if (seen.has(k)) out.push(`${k}: listed in step ${(seen.get(k) as number) + 1} and step ${i + 1}`);
+        seen.set(k, i);
+      }
+    });
+    for (const k of keys) if (!seen.has(k)) out.push(`${k}: in no step`);
+  }
   return out;
 }
 
@@ -327,49 +347,72 @@ export async function runFixture(fx: Fixture, caps: Record<Capability, boolean>)
   const w = await open(fx.html, urlFor(fx.slug));
   const doc = w.document as unknown as Document;
   try {
-    const structure = await extractForm(doc, urlFor(fx.slug));
     const fields = fx.expect.fields;
-    const sets = fields.map((f) => new Set(locate(doc, f.locator)));
+    const steps: FormStep[] = fx.expect.steps ?? [{ fields: fields.map((f) => f.key) }];
+    const stepOf = new Map<string, number>();
+    steps.forEach((st, k) => st.fields.forEach((key) => stepOf.set(key, k)));
     const matched: (FieldStructure | undefined)[] = fields.map(() => undefined);
-    res.engineFields = structure.fields.length;
-    for (const ef of structure.fields) {
-      const els = elementsForFieldId(doc, ef.fieldId);
-      const i = sets.findIndex((s) => els.some((el) => s.has(el)));
-      if (i < 0) res.notes.push(`extra: engine field "${ef.fieldId}" ("${ef.label}") is not a field a person would list`);
-      else if (matched[i]) res.notes.push(`extra: engine field "${ef.fieldId}" ("${ef.label}") is a second piece of ${fields[i]?.key}`);
-      else matched[i] = ef;
+    const matchedAt: (number | undefined)[] = fields.map(() => undefined);
+    const many = steps.length > 1;
+
+    for (let k = 0; k < steps.length; k++) {
+      const st = steps[k] as FormStep;
+      const at = many ? ` (step ${k + 1})` : "";
+      if (st.do?.length) await byHand(w, st.do);
+      // Each step is read as it shows: hidden parts of a form are not the engine's to fill until they appear.
+      const structure = await extractForm(doc, urlFor(fx.slug));
+      const sets = fields.map((f) => new Set(locate(doc, f.locator)));
+      const fresh: number[] = [];
+      for (const ef of structure.fields) {
+        const els = elementsForFieldId(doc, ef.fieldId);
+        const i = sets.findIndex((s) => els.some((el) => s.has(el)));
+        if (i >= 0 && (matchedAt[i] ?? k) < k) continue; // read again on a later step: the same field, counted once
+        res.engineFields++;
+        const f = fields[i];
+        if (i < 0 || !f) res.notes.push(`extra${at}: engine field "${ef.fieldId}" ("${ef.label}") is not a field a person would list`);
+        else if (matched[i]) res.notes.push(`extra${at}: engine field "${ef.fieldId}" ("${ef.label}") is a second piece of ${f.key}`);
+        else if ((stepOf.get(f.key) ?? 0) > k) res.notes.push(`extra${at}: engine field "${ef.fieldId}" is ${f.key}, read while its step was still hidden`);
+        else {
+          matched[i] = ef;
+          matchedAt[i] = k;
+          fresh.push(i);
+        }
+      }
+
+      const values: FormValues = {};
+      for (const i of fresh) {
+        const f = fields[i] as ExpectedField;
+        const ef = matched[i] as FieldStructure;
+        res.detected++;
+        if (normLabel(ef.label) === normLabel(f.label)) res.labels++;
+        else res.notes.push(`label: ${f.key} is "${ef.label}", want "${f.label}"`);
+        const want = f.options ?? 0;
+        const got = ef.options?.length ?? 0;
+        if (ef.kind === f.kind && ef.required === f.required && got === want) res.shapes++;
+        else res.notes.push(`shape: ${f.key} is ${ef.kind}/${ef.required ? "required" : "optional"}/${got} options, want ${f.kind}/${f.required ? "required" : "optional"}/${want} options`);
+        if (f.value !== undefined) values[ef.fieldId] = f.value;
+      }
+
+      const out = writeValues(doc, structure, values);
+      await settle(w);
+      res.claimed += out.written.length;
+      for (const i of fresh) {
+        const f = fields[i] as ExpectedField;
+        if (f.value === undefined) continue;
+        const ef = matched[i] as FieldStructure;
+        const why = failingProbes(doc, f);
+        if (!why.length) res.filled++;
+        else if (out.written.includes(ef.fieldId)) {
+          res.falseClaims++;
+          res.notes.push(`FALSE CLAIM: ${f.key} reported written, but ${why[0]}`);
+        } else res.notes.push(`not filled: ${f.key} (engine reported it failed)`);
+      }
     }
 
-    const values: FormValues = {};
     fields.forEach((f, i) => {
-      const ef = matched[i];
-      if (!ef) {
-        res.notes.push(`missed: ${f.key} ("${f.label}", ${f.kind})`);
-        return;
-      }
-      res.detected++;
-      if (normLabel(ef.label) === normLabel(f.label)) res.labels++;
-      else res.notes.push(`label: ${f.key} is "${ef.label}", want "${f.label}"`);
-      const want = f.options ?? 0;
-      const got = ef.options?.length ?? 0;
-      if (ef.kind === f.kind && ef.required === f.required && got === want) res.shapes++;
-      else res.notes.push(`shape: ${f.key} is ${ef.kind}/${ef.required ? "required" : "optional"}/${got} options, want ${f.kind}/${f.required ? "required" : "optional"}/${want} options`);
-      if (f.value !== undefined) values[ef.fieldId] = f.value;
-    });
-
-    const out = writeValues(doc, structure, values);
-    await settle(w);
-    res.claimed = out.written.length;
-    fields.forEach((f, i) => {
-      if (f.value === undefined) return;
-      const ef = matched[i];
-      const why = failingProbes(doc, f);
-      const claimed = !!ef && out.written.includes(ef.fieldId);
-      if (!why.length) res.filled++;
-      else if (claimed) {
-        res.falseClaims++;
-        res.notes.push(`FALSE CLAIM: ${f.key} reported written, but ${why[0]}`);
-      } else res.notes.push(`not filled: ${f.key}${ef ? " (engine reported it failed)" : " (not detected)"}`);
+      if (matched[i]) return;
+      res.notes.push(`missed: ${f.key} ("${f.label}", ${f.kind})${many ? ` in step ${(stepOf.get(f.key) ?? 0) + 1}` : ""}`);
+      if (f.value !== undefined) res.notes.push(`not filled: ${f.key} (not detected)`);
     });
   } finally {
     await closeWin(w);

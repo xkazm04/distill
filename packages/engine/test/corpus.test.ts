@@ -3,7 +3,7 @@
 // The baseline changes only through `npm run bench:forms:update`; see test/corpus/README.md.
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  checkFixture, compareToBaseline, lintExpectation, loadCorpus, openFixture, probeCapabilities, readBaseline, runCorpus,
+  checkFixture, compareToBaseline, lintExpectation, loadCorpus, openFixture, probeCapabilities, readBaseline, runCorpus, runFixture,
   type Capability, type CorpusResult,
 } from "./bench/forms.js";
 
@@ -43,6 +43,23 @@ describe("form corpus", () => {
     el.dispatchEvent(new w.Event("input", { bubbles: true }) as unknown as Event);
     expect(doc.getElementById("davka")!.getAttribute("data-state-jmeno")).toBe("");
     await w.happyDOM.close();
+  });
+
+  it("reads a form in steps one step at a time: a field read while its step is hidden counts against precision", async () => {
+    const fx = corpus.find((f) => f.slug === "multi-step")!;
+    const shown = { ...fx, html: fx.html.replace('<section id="krok-2" hidden>', '<section id="krok-2">') };
+    expect(shown.html).not.toBe(fx.html);
+    const r = await runFixture(shown, caps);
+    expect(r.notes.filter((n) => n.includes("read while its step was still hidden"))).toHaveLength(5);
+    expect([r.detected, r.engineFields]).toEqual([9, 14]);
+  });
+
+  it("lints the steps of a form: every field in exactly one step, and a way to reach each later step", () => {
+    const fx = corpus.find((f) => f.slug === "multi-step")!;
+    const bad = { ...fx, expect: { ...fx.expect, steps: [{ fields: ["prijmeni", "jmeno", "nope"] }, { fields: ["jmeno"] }] } };
+    expect(lintExpectation(bad)).toEqual(expect.arrayContaining([
+      "step 1: unknown field nope", "step 2: says nothing a person does to reach it", "jmeno: listed in step 1 and step 2", "mzda: in no step",
+    ]));
   });
 
   it("leaves out of the totals only the fixtures the environment cannot run", () => {

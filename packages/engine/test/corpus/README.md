@@ -36,9 +36,16 @@ really fills a form. It is the honest "before" number; improve the engine, not t
     "value": "Olena",                     // what the person answers in the wizard (choices: the visible option text)
     "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }]  // or "attr": "aria-checked"
   }],
+  "steps": [{ "fields": ["jmeno"] }, { "do": [{ "click": "#dalsi" }], "fields": ["..."] }],  // optional: a form in steps
   "byHand": [{ "type": "#jmeno", "text": "Olena" }, { "click": "..." }, { "choose": "select", "option": "..." }, { "pick": "input[type=date]", "value": "1990-03-05" }]
 }
 ```
+
+`steps` is for a form shown in steps. The engine skips hidden fields on purpose (honeypots, and fields the person
+cannot see should not be filled); the apps read the form again when the page changes. So a step lists its fields and
+what a person does to reach it (`do`, the same kinds of hand steps as `byHand`; nothing for the first), and the
+benchmark reads each step only once it shows. Every field is in exactly one step. Without `steps`, the whole form is
+one step, read on load.
 
 The label is the text as a sighted person reads it beside the field (trailing `*` and `:` ignored); for a field with
 no visible label, its accessible name. Comparison is case-sensitive, so a `name`-attribute fallback does not pass.
@@ -52,8 +59,11 @@ no visible label, its accessible name. Comparison is case-sensitive, so a `name`
    then the `byHand` steps run (keydown, beforeinput, the character, input, keyup per character; real clicks; native
    select choice) with no engine code, and every probe must pass. `corpus.test.ts` fails if a runnable fixture is not
    sound, so a broken fixture cannot quietly drop out of the totals.
-3. **The engine run**, on another fresh copy: `extractForm(document)` on the top document, as the web app and the
-   extension call it, then `writeValues` with the values, then the probes.
+3. **The engine run**, on another fresh copy, per step (one step unless the fixture declares `steps`): the step's
+   `do` actions, then `extractForm(document)` on the top document, as the web app and the extension call it, then
+   `writeValues` with the values of the fields first found in this step, then their probes.
+   - A field read again on a later step counts once. A field read while its own step is still hidden counts as an
+     extra (against precision): hidden fields are not the engine's to fill.
    - An engine field matches a listed field when its `fieldId` equals the `id` or `name` attribute of one of the
      listed field's elements, searched through open shadow roots and same-origin frames. The first match counts;
      a further engine field on the same listed field is a "second piece" (a split) and counts against precision.

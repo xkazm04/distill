@@ -1,6 +1,6 @@
 {
   "title": "Žádost o zaměstnaneckou kartu",
-  "models": "A multi-step form: step 2 is already in the page but carries the hidden attribute until the person presses Pokračovat. A person lists the fields of both steps; the benchmark runs the engine once on the page as it loads.",
+  "models": "A multi-step form: step 2 is already in the page but carries the hidden attribute until the person presses Pokračovat. A person lists the fields of both steps. The engine skips hidden fields on purpose (honeypots, and fields the person cannot see), and the apps read the form again when the page changes, so the benchmark runs the engine on each step as it appears: step 1 on load, step 2 after Pokračovat.",
   "requires": ["javascript"],
   "fields": [
     { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
@@ -21,6 +21,10 @@
       "probes": [{ "at": "#pracoviste", "prop": "value", "equals": "Průmyslová 1, Brno" }] },
     { "key": "mzda", "locator": "#mzda", "kind": "number", "label": "Hrubá měsíční mzda (Kč)", "required": true, "value": "42000",
       "probes": [{ "at": "#mzda", "prop": "value", "equals": "42000" }] }
+  ],
+  "steps": [
+    { "fields": ["prijmeni", "jmeno", "obcanstvi", "pas"] },
+    { "do": [{ "click": "#dalsi" }], "fields": ["zamestnavatel", "ico", "misto", "pracoviste", "mzda"] }
   ],
   "byHand": [
     { "type": "#prijmeni", "text": "Kovalenko" },
