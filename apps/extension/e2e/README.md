@@ -44,6 +44,10 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   and says AI is off.
 - Fill a form: the no-AI guide with the form's own Czech labels; an answer typed in the panel lands in the tab's field,
   with the filled outline; Back and Next keep the answers.
+- A form in a frame: the demo form embedded in a same-origin iframe (`/framed-form.html`) is read and filled from the
+  top frame's content script, with no permission beyond activeTab and scripting; the answer lands in the frame's
+  field with the filled outline. (A cross-origin frame is out of reach without host access to its origin; the
+  engine skips it.)
 - New layout: without AI it says so and shows the focus view.
 - Tab switch: the panel follows the active tab, both ways.
 - Pages no extension may read (`chrome://`, `about:blank`): "Browser pages cannot be read.", with no button and no error.

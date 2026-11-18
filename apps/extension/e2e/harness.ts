@@ -59,7 +59,8 @@ function prepareExtension(grantHosts: boolean, grantHelper: boolean): string {
 
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
 
-/** Serves apps/web/public/demo on 127.0.0.1, any free port. `/blank.html` is a tiny page for tests that need a tab. */
+/** Serves apps/web/public/demo on 127.0.0.1, any free port. `/blank.html` is a tiny page for tests that need a tab;
+ *  `/framed-form.html` embeds the demo form in a same-origin iframe, as a town site embeds a form service's form. */
 async function serveDemo(): Promise<{ server: Server; origin: string }> {
   const server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
@@ -68,6 +69,13 @@ async function serveDemo(): Promise<{ server: Server; origin: string }> {
     if (path === "/blank.html") {
       res.writeHead(200, { "content-type": TYPES[".html"] as string });
       res.end("<!doctype html><html lang=\"en\"><head><title>Blank</title></head><body><p>Blank test page.</p></body></html>");
+      return;
+    }
+    if (path === "/framed-form.html") {
+      res.writeHead(200, { "content-type": TYPES[".html"] as string });
+      res.end("<!doctype html><html lang=\"cs\"><head><title>Formulář v rámu</title></head><body><main><h1>Formulář v rámu</h1>"
+        + "<p>Formulář je vložen z formulářové služby obce.</p>"
+        + "<iframe id=\"frame\" src=\"/form.html\" title=\"Formulář\" style=\"width:100%;height:900px;border:0\"></iframe></main></body></html>");
       return;
     }
     const file = normalize(join(DEMO, path));

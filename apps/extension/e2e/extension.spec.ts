@@ -73,6 +73,23 @@ test("form: the no-AI guide fills the real tab", async ({ distill }) => {
   await expect(tab.page.locator("#prijmeni")).toHaveValue("");
 });
 
+test("framed form: the guide reads and fills a form in a same-origin frame", async ({ distill }) => {
+  const tab = await distill.openTab("framed-form");
+  const panel = await distill.openPanel(tab.id);
+  await pick(panel, /^Fill a form/);
+  await expect(panel.getByTestId("origin-chip")).toHaveText("No AI used");
+  await expect(step(panel).locator("label").first()).toContainText("Jméno");
+
+  await step(panel).locator("input").first().fill("Jana");
+  await step(panel).getByRole("button", { name: "Next" }).click();
+
+  // The answer is in the field inside the frame, outlined as filled; the content script runs in the top frame only.
+  const jmeno = tab.page.frameLocator("#frame").locator("#jmeno");
+  await expect(jmeno).toHaveValue("Jana");
+  await expect(jmeno).toHaveAttribute("data-distill-mark", /.*/);
+  await expect(panel.getByTestId("wf-answered")).toHaveText(/^1 of \d+ answered$/);
+});
+
 test("pricing: New layout falls back to the focus view without AI", async ({ distill }) => {
   const tab = await distill.openTab("pricing");
   const panel = await distill.openPanel(tab.id);
