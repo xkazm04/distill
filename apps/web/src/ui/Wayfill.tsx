@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FieldError, FieldStructure, FormErrors, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
+import type { FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -7,6 +7,7 @@ import { engine } from "./engine";
 import { accentColor } from "./dom";
 import { setGuide } from "./guide";
 import { labelsKey, normLabel, type GuideStore } from "./guideStore";
+import { guideChangedText, guideChip, guideKind, guideSource, notFromGuideText, quoteCaption, type GuideLibrary } from "./guides";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
 import { SourceChip, type AiMeta } from "./chips";
 import { WizardSkeleton } from "./loading";
@@ -49,10 +50,28 @@ export function basicWizard(s: FormStructure, readerLang: string): Wizard {
   };
 }
 
-type Origin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
+/** Where steps came from when no library guide covers them: a model (and where it ran), this person's saved guide,
+ *  or the form's own labels. */
+type PathOrigin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
+
+/** A guide from the library. Not an AI result: it has no AiMeta and never shows a device or cloud chip. When the form
+ *  changed since the guide was written, `rest` says where the steps for the new or changed fields came from. */
+interface GuideOrigin {
+  kind: "guide";
+  guide: FormGuide;
+  /** Fields of the form on screen that are new or changed since the guide (0 for an exact match). */
+  changed: number;
+  quotes: Record<string, GuideQuote>;
+  notes: string[];
+  /** The ids of the steps that came from the guide. */
+  fromGuide: string[];
+  rest: PathOrigin | null;
+}
+
+type Origin = PathOrigin | GuideOrigin;
 
 /** The chip that says where the steps came from, when no AI ran for them. */
-export function originChip(o: Exclude<Origin, { kind: "ai" }>): { text: string; title: string } {
+export function originChip(o: Extract<Origin, { kind: "cache" | "basic" }>): { text: string; title: string } {
   return o.kind === "cache"
     ? { text: "Saved guide (no AI used)", title: "Steps saved earlier for this same form. No AI ran now." }
     : { text: "No AI used", title: `${o.why} These steps use the form's own labels.` };
@@ -121,6 +140,9 @@ interface Props {
   reloadKey?: number;
   /** Bumped when the page changed in place: the guide keeps its place while the form is still the same one. */
   changeKey?: number;
+  /** The guide library (guides/README.md), matched on this device. A matching guide comes before everything else:
+   *  this person's saved guide, the model and the form's own labels. Without it, no library guide is used. */
+  guides?: GuideLibrary;
 }
 
 /** Field kinds whose answer can sensibly move to the next page of a form. Ticks and choices are never carried. */
@@ -186,7 +208,61 @@ function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values:
   }).filter(Boolean).join(", ");
 }
 
-export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep, guideStore, reloadKey = 0, changeKey = 0 }: Props) {
+/** Steps from the normal path (the model, else the form's own labels) for a structure: the whole form, or only the
+ *  fields a library guide does not cover. `cache` also tries this person's saved guide first (whole forms only). */
+async function pathWizard(s: FormStructure, readerLang: string, cache: boolean): Promise<{ wizard: Wizard; origin: PathOrigin }> {
+  let failure: unknown = null;
+  try {
+    const cached = cache && isFirebaseConfigured() ? await getFormGuide(s.fingerprint).catch(() => null) : null;
+    if (cached) {
+      // The saved guide is earlier model output (and may be shared later), so it passes the same door as a fresh answer.
+      const parsed = await engine.parseWizard(cached.wizard, s, readerLang);
+      if (parsed.steps.length) return { wizard: parsed, origin: { kind: "cache" } };
+    }
+    if (aiAvailable()) {
+      const prompt = await engine.prompts.buildWizard(s, readerLang);
+      const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s, readerLang });
+      const parsed = await engine.parseWizard(r.data, s, readerLang);
+      if (parsed.steps.length) {
+        if (cache) void saveFormGuide(s, parsed).catch(() => undefined); // structure + wizard only, never values
+        return { wizard: parsed, origin: { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms } } };
+      }
+    }
+  } catch (e) {
+    failure = e; // fall through to the basic steps; run() already turned it into plain words
+  }
+  const why = failure !== null ? aiWords(failure) : aiAvailable() ? "The AI could not build the steps this time." : "AI is off.";
+  return { wizard: basicWizard(s, readerLang), origin: { kind: "basic", why } };
+}
+
+/** The library guide for this form in the reader's language, with the normal path's steps for any field it does not
+ *  cover; null when no usable guide matches. */
+async function libraryWizard(s: FormStructure, readerLang: string, guides: GuideLibrary): Promise<{ wizard: Wizard; origin: GuideOrigin } | null> {
+  const lib = await guides.load();
+  const m = engine.matchGuide(s, lib, { drafts: guides.drafts });
+  const g = m ? engine.guideWizard(m, s, readerLang) : null;
+  if (!m || !g || !g.wizard.steps.length) return null;
+  let wizard = g.wizard;
+  let rest: PathOrigin | null = null;
+  if (g.rest.length) {
+    const other = await pathWizard(engine.narrowStructure(s, g.rest), readerLang, false);
+    wizard = engine.mergeWizards(s, g.wizard, other.wizard).wizard;
+    rest = other.origin;
+  }
+  return {
+    wizard,
+    origin: { kind: "guide", guide: m.guide, changed: g.rest.length, quotes: g.quotes, notes: g.notes, fromGuide: g.wizard.steps.map((st) => st.stepId), rest },
+  };
+}
+
+/** The chip for steps the normal path made: where the model ran, or why no AI was used. */
+function PathChip({ origin }: { origin: PathOrigin }) {
+  if (origin.kind === "ai") return <SourceChip meta={origin.meta} />;
+  const c = originChip(origin);
+  return <span className={origin.kind === "basic" ? "chip chip-basic" : "chip"} title={c.title} data-testid="origin-chip">{c.text}</span>;
+}
+
+export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep, guideStore, reloadKey = 0, changeKey = 0, guides }: Props) {
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
   const [noForm, setNoForm] = useState<NoForm>("none");
   const [formProblem, setFormProblem] = useState<FormProblem | null>(null);
@@ -240,34 +316,12 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         return;
       }
       const present = await host.readValues(s).catch(() => ({}) as FormValues);
-      let w: Wizard | null = null;
-      let o: Origin | null = null;
-      let failure: unknown = null;
-      try {
-        const cached = isFirebaseConfigured() ? await getFormGuide(s.fingerprint).catch(() => null) : null;
-        if (cached) {
-          // The saved guide is earlier model output (and may be shared later), so it passes the same door as a fresh answer.
-          const parsed = await engine.parseWizard(cached.wizard, s, settings.readerLang);
-          if (parsed.steps.length) { w = parsed; o = { kind: "cache" }; }
-        }
-        if (!w && aiAvailable()) {
-          const prompt = await engine.prompts.buildWizard(s, settings.readerLang);
-          const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s, readerLang: settings.readerLang });
-          const parsed = await engine.parseWizard(r.data, s, settings.readerLang);
-          if (parsed.steps.length) {
-            w = parsed;
-            o = { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms } };
-            void saveFormGuide(s, parsed).catch(() => undefined); // structure + wizard only, never values
-          }
-        }
-      } catch (e) {
-        failure = e; // fall through to the basic steps; run() already turned it into plain words
-      }
-      if (!w) {
-        w = basicWizard(s, settings.readerLang);
-        const aiOn = aiAvailable();
-        o = { kind: "basic", why: failure !== null ? aiWords(failure) : aiOn ? "The AI could not build the steps this time." : "AI is off." };
-      }
+      // Precedence: a guide from the library (checked by a person), then this person's saved guide, then the model,
+      // then the form's own labels. The library is matched here, on this device.
+      const fromLibrary = guides ? await libraryWizard(s, settings.readerLang, guides).catch((e: unknown) => { console.warn("[distill] guide library:", e); return null; }) : null;
+      const built = fromLibrary ?? (await pathWizard(s, settings.readerLang, true));
+      const w: Wizard = built.wizard;
+      const o: Origin = built.origin;
       // The place and answers kept for this same form (a reload); else answers carried over by label from the previous
       // page of this site's form. Both come from this device's own storage only.
       const kept = guideStore ? await guideStore.load(s.fingerprint).catch(() => null) : null;
@@ -542,16 +596,16 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   /** The page's own words are in the page's language; the browser's own message is in the browser's. */
   const errLang = (e: FieldError): string | undefined => (e.source !== "native" && structure.lang !== "und" ? structure.lang : undefined);
   const note = errorNote(model.state);
-  const chip = (
-    <>
-      {origin?.kind === "ai" && <SourceChip meta={origin.meta} />}
-      {origin && origin.kind !== "ai" && (
-        <span className={origin.kind === "basic" ? "chip chip-basic" : "chip"} title={originChip(origin).title} data-testid="origin-chip">
-          {originChip(origin).text}
-        </span>
-      )}
-    </>
-  );
+  const fromGuide = origin?.kind === "guide" ? origin : null;
+  const chip = fromGuide ? (
+    <span className={`chip chip-guide chip-guide-${guideKind(fromGuide.guide)}`} title={guideChip(fromGuide.guide).title} data-testid="guide-chip" data-kind={guideKind(fromGuide.guide)}>
+      {guideChip(fromGuide.guide).text}
+    </span>
+  ) : origin && origin.kind !== "guide" ? <PathChip origin={origin} /> : null;
+  const source = fromGuide ? guideSource(fromGuide.guide) : null;
+  /** The step on screen is not from the guide (the form changed there since the guide was written). */
+  const stepNotFromGuide = !!fromGuide && !!step && !fromGuide.fromGuide.includes(step.stepId);
+  const quote = fromGuide && step ? fromGuide.quotes[step.stepId] : undefined;
 
   return (
     <section aria-labelledby="wf-h" className="wayfill">
@@ -563,6 +617,25 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         {chip}
       </div>
 
+      {fromGuide && source && (
+        <div className={`notice wf-guide wf-guide-${guideKind(fromGuide.guide)}`} data-testid="guide-source" data-kind={guideKind(fromGuide.guide)}>
+          <p>
+            <strong>{fromGuide.guide.formName.en}</strong> <span className="muted" lang={fromGuide.guide.formLang}>({fromGuide.guide.formName.cs})</span>
+          </p>
+          <p>
+            {source.before}
+            {source.link && <a href={fromGuide.guide.instructionsUrl} target="_blank" rel="noopener noreferrer" data-testid="guide-instructions">{source.link}</a>}
+            {source.after}
+            {source.by && <> {source.by}</>}
+          </p>
+          {fromGuide.changed > 0 && <p data-testid="guide-changed"><strong>{guideChangedText(fromGuide.guide, fromGuide.changed)}</strong></p>}
+          {fromGuide.notes.length > 0 && (
+            <ul className="wf-guide-notes" data-testid="guide-notes">
+              {fromGuide.notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
       {changed && (
         <div className="notice" role="status" data-testid="form-changed">
           <p>This form changed on the page, so these steps may not fit it any more.</p>
@@ -621,7 +694,19 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
               <div className="card wf-card" data-testid="wf-step">
                 <p className="wf-kick" aria-hidden="true">Step {idx + 1} of {steps.length}</p>
                 <h3>{step.question}</h3>
+                {stepNotFromGuide && fromGuide && (
+                  <p className="wf-notguide" data-testid="not-from-guide">
+                    {notFromGuideText(fromGuide.guide)} {fromGuide.rest && <PathChip origin={fromGuide.rest} />}
+                  </p>
+                )}
                 <p className="wf-expl">{step.explanation}</p>
+                {quote && fromGuide && (
+                  <figure className="wf-official" data-testid="guide-quote">
+                    <figcaption>{quoteCaption(fromGuide.guide, quote.lang)}:</figcaption>
+                    <blockquote lang={quote.lang} cite={quote.url ?? fromGuide.guide.instructionsUrl}>{quote.text}</blockquote>
+                    {quote.url && <a href={quote.url} target="_blank" rel="noopener noreferrer">Where this is written</a>}
+                  </figure>
+                )}
                 {(step.expectedFormat || step.example) && (
                   <p className="wf-fmt">
                     {step.expectedFormat && <span className="format"><strong>Format</strong> {step.expectedFormat}</span>}

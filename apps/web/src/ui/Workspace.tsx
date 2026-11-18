@@ -10,6 +10,7 @@ import { keptSections, Recast } from "./Recast";
 import { Wayfill } from "./Wayfill";
 import type { HandrailPort } from "./handrailTypes";
 import type { GuideStore } from "./guideStore";
+import type { GuideLibrary } from "./guides";
 import type { LocateTarget, PageHost } from "./host";
 import { clampSplit, readOriginal, readSplit, SPLIT, writeOriginal, writeSplit, type OriginalLayout } from "./prefs";
 import { useLocalModel } from "./useLocalModel";
@@ -61,6 +62,9 @@ interface Props {
   footer?: ReactNode;
   /** Where "Home" in the header leads. No Home link without it (the extension has no home page). */
   homeHref?: string;
+  /** The guide library (guides/README.md): the web app fetches it from its own origin, the extension bundles it. The
+   *  form guide matches it on this device and uses a matching guide before anything else. */
+  guides?: GuideLibrary;
 }
 
 /** True when a key press belongs to a field the person is typing in. */
@@ -88,7 +92,7 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
   return width;
 }
 
-export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, changeKey: pageChangeKey = 0, guideStore, onConnectHelper, brand, pages, footer, homeHref }: Props) {
+export function Workspace({ host, handrail, initialTab = "focus", onTab, refreshKey = 0, changeKey: pageChangeKey = 0, guideStore, onConnectHelper, brand, pages, footer, homeHref, guides }: Props) {
   const [tab, setTabState] = useState<Tab>(initialTab);
   const [page, setPage] = useState<PageModel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -409,7 +413,7 @@ export function Workspace({ host, handrail, initialTab = "focus", onTab, refresh
               {page && keepWayfill && (
                 <div hidden={tab !== "wayfill"} data-testid="wayfill-pane">
                   <Wayfill host={host} settings={settings} model={model} onSteps={setSteps} onStep={onStep}
-                    onShowOriginal={showOriginal} guideStore={guideStore} reloadKey={refreshKey} changeKey={changeKey} />
+                    onShowOriginal={showOriginal} guideStore={guideStore} reloadKey={refreshKey} changeKey={changeKey} guides={guides} />
                 </div>
               )}
               {page && tab === "recast" && (

@@ -389,6 +389,20 @@ html:has(.workspace) { font-size: 100%; }
 .wf-error .muted { color: inherit; }
 .notice .wf-error { margin: .35rem 0 0; padding: 0; border: 0; background: none; }
 .wf-stepbtn.flagged .wf-dot { border-color: var(--warn-fg); border-width: 2px; }
+/* A guide from the library. Not an AI result, so it never looks like the device, cloud or agent chips: a book mark
+   (two strokes) and the plain text colour. A draft is dashed and in the warning colours; the demo guide is dotted. */
+.chip-guide { border-color: var(--fg); border-radius: .3rem; }
+.chip-guide::before { content: ""; width: .5em; height: .65em; border: 2px solid currentColor; border-left-width: 4px; border-radius: 1px; flex: none; }
+.chip-guide-draft { border-style: dashed; background: var(--warn-bg); color: var(--warn-fg); border-color: var(--warn-fg); }
+.chip-guide-demo { border-style: dotted; }
+.wf-guide p { margin: 0; }
+.wf-guide p + p { margin-top: .25rem; }
+.wf-guide-draft { background: var(--warn-bg); color: var(--warn-fg); border-left-color: var(--warn-fg); }
+.wf-guide-notes { margin: .4rem 0 0; padding-left: 1.2rem; }
+.wf-official { margin: 0 0 .8rem; padding: .45rem .8rem; border-left: 4px solid var(--line); background: var(--note-bg); border-radius: calc(var(--radius) * .6); font-size: .9rem; }
+.wf-official figcaption { font-weight: 600; color: var(--muted); font-size: .84rem; }
+.wf-official blockquote { margin: .15rem 0 0; font-style: italic; }
+.wf-notguide { margin: 0 0 .5rem; font-size: .875rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .workspace .remember { margin: .7rem 0 0; padding-top: .6rem; border-top: 1px solid color-mix(in srgb, var(--line) 35%, var(--card)); font-size: .875rem; color: var(--muted); align-items: center; }
 .workspace .remember input { width: 1.1rem; height: 1.1rem; margin-top: 0; }
 .workspace .wf-card .nav { margin: .75rem 0 0; justify-content: flex-start; align-items: center; gap: .5rem; }
