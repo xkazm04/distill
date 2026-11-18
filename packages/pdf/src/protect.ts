@@ -10,6 +10,8 @@
 // for the new file (`context.security.getEncryptFn`), the file is written without object streams, and a fresh
 // decrypting parse of the new bytes must give back every string and every stream byte for byte, with the same flags.
 // Anything less and nothing is saved: an unprotected or garbled copy is never handed out.
+// Reported upstream: https://github.com/cantoo-scribe/pdf-lib/issues/183. When a release fixes it, the string pass
+// here can go; the byte-for-byte check after saving stays.
 import {
   PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFStream, PDFString, type PDFObject, type PDFRef,
 } from "@cantoo/pdf-lib";
