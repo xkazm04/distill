@@ -379,7 +379,9 @@
         "kind": "date",
         "label": "Vyplněno dne"
       }
-    ]
+    ],
+    "reader": "pdf/2",
+    "source": "d9cad56f2e021ba8d65a1e46f2d4fe511106b941afdeeb865a36b13bd0e87e75"
   },
   "wizards": {
     "en": {

@@ -154,7 +154,9 @@
         "kind": "text",
         "label": "Vyplněno dne: Podpis pojištěnce* (zákonného zástupce, opatrovníka, poručníka)"
       }
-    ]
+    ],
+    "reader": "pdf/2",
+    "source": "cc2e6f94b4a0b0798fb06ee5ebdaf5386a41af382b2fb12e52ba8c4382bcc956"
   },
   "wizards": {
     "en": {
