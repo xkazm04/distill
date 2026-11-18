@@ -50,6 +50,15 @@ for (const dist of dists) {
     if (kind === "public") for (const [re, what] of PUBLIC_ONLY) if (re.test(text)) found.push(what);
     for (const what of found) { console.error(`check-dist: ${what} is in ${f}`); bad++; }
   }
+  // The web app serves the guide library as one file; a build people use carries no draft guide (guides/README.md).
+  if (kind === "web") {
+    const lib = join(dist, "guides", "library.json");
+    if (!existsSync(lib)) { console.error(`check-dist: ${lib} is missing (the guide library)`); bad++; }
+    else {
+      const guides = JSON.parse(readFileSync(lib, "utf8")).guides ?? [];
+      for (const g of guides) if (!(g.status === "reviewed" || g.demo === true)) { console.error(`check-dist: the draft guide ${g.id} is in ${lib}`); bad++; }
+    }
+  }
   const note = kind === "own" ? " (own build: holds your debug token by design; never share it)" : "";
   console.log(`check-dist: ${dist} [${kind}] ${files.length} files scanned${note}`);
 }

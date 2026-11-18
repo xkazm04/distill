@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { sessionGuideStore, Workspace, type PageHost, type Tab } from "./ui";
+import { fetchedLibrary, guideLibrary, sessionGuideStore, Workspace, type PageHost, type Tab } from "./ui";
 import { IframeHost } from "./webHost";
 import { Home } from "./Home";
 import { DEMOS, fromPaste, loadDemo, readPdfFile, type Loaded, type OpenedPdf } from "./sources";
@@ -26,6 +26,9 @@ let pasted: Loaded | null = null;
 let opened: OpenedPdf | null = null;
 /** The form guide keeps its place and answers in this tab's sessionStorage (device only), so a reload picks up there. */
 const guideStore = sessionGuideStore();
+/** The guide library: the whole of it, fetched once from this app's own origin at one fixed address, and matched on this
+ *  device. The request says nothing about the form on screen. Drafts only on the dev server with VITE_GUIDE_DRAFTS=1. */
+const guides = guideLibrary(() => fetchedLibrary(new URL("guides/library.json", document.baseURI).href)(), { drafts: import.meta.env.VITE_GUIDE_DRAFTS === "1" });
 
 export function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(location.hash));
@@ -135,7 +138,7 @@ function Page({ route }: { route: Exclude<Route, { kind: "home" }> }) {
     );
   }
   return (
-    <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} guideStore={guideStore} homeHref="#/"
+    <Workspace host={host} initialTab={route.tab} onTab={setTab} handrail={devHandrailPort()} guideStore={guideStore} guides={guides} homeHref="#/"
       brand={<a className="ws-brand-link" href="#/" aria-label="Distill home"><Wordmark tone="paper" className="ws-mark" sizes="100px" /></a>}
       pages={<Pages route={route} />}
       footer={<ThemeSwitch />} />
