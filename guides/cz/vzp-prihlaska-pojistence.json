@@ -1,0 +1,511 @@
+{
+  "guideVersion": 1,
+  "id": "cz/vzp-prihlaska-pojistence",
+  "status": "draft",
+  "authority": {
+    "name": "Všeobecná zdravotní pojišťovna České republiky",
+    "nameEn": "the General Health Insurance Company of the Czech Republic (VZP)"
+  },
+  "formName": {
+    "cs": "Přihláška pojištěnce",
+    "en": "Registration of an insured person (VZP)",
+    "uk": "Заява про реєстрацію застрахованої особи (VZP)"
+  },
+  "formLang": "cs",
+  "officialFormUrl": "https://www.vzp.cz/formulare/prihlaska-pojistence.pdf",
+  "instructionsUrl": "https://www.vzp.cz/formulare/prihlaska-pojistence.pdf",
+  "draftedOn": "2026-11-18",
+  "match": {
+    "format": "pdf",
+    "fingerprints": [
+      "6f4b18b31072ff83bf3e753c9d59bed8a9f05a1450cd59c731c49e8e043098bb"
+    ],
+    "titles": [
+      "Přihláška pojištěnce"
+    ],
+    "fields": [
+      {
+        "fieldId": "Příjmení_pojištěnce_(povinné_pole)",
+        "kind": "text",
+        "label": "Příjmení"
+      },
+      {
+        "fieldId": "Jméno_pojištěnce_(povinné_pole)",
+        "kind": "text",
+        "label": "Jméno"
+      },
+      {
+        "fieldId": "Rodné_příjmení_pojištěnce",
+        "kind": "text",
+        "label": "Rodné příjmení"
+      },
+      {
+        "fieldId": "Titul_pojištěnce",
+        "kind": "text",
+        "label": "Titul"
+      },
+      {
+        "fieldId": "Datum_narození_pojištěnce_ve_formátu_DD.MM.RRRR_(povinné_pole)",
+        "kind": "text",
+        "label": "Datum narození"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890_(povinné_pole)",
+        "kind": "text",
+        "label": "Číslo pojištěnce (rodné číslo)"
+      },
+      {
+        "fieldId": "Označte_-_pohlaví:_muž",
+        "kind": "checkbox",
+        "label": "muž"
+      },
+      {
+        "fieldId": "Označte_-_pohlaví:_žena",
+        "kind": "checkbox",
+        "label": "žena"
+      },
+      {
+        "fieldId": "Číslo_OP_/_pasu_/_povolení_k_pobytu_pojištěnce_(povinné_pole)",
+        "kind": "text",
+        "label": "Číslo OP / pasu / povolení k pobytu"
+      },
+      {
+        "fieldId": "Označte_-_trvalý_pobyt_v_ČR:_ano",
+        "kind": "checkbox",
+        "label": "ano"
+      },
+      {
+        "fieldId": "Označte_-_trvalý_pobyt_v_ČR:_ne",
+        "kind": "checkbox",
+        "label": "ne"
+      },
+      {
+        "fieldId": "Kontaktní_adresa_-_ulice",
+        "kind": "text",
+        "label": "Ulice"
+      },
+      {
+        "fieldId": "Kontaktní_adresa_-_číslo_popisné_/_orientační",
+        "kind": "text",
+        "label": "Číslo popisné / orientační"
+      },
+      {
+        "fieldId": "Kontaktní_adresa_-_PSČ",
+        "kind": "text",
+        "label": "PSČ"
+      },
+      {
+        "fieldId": "Kontaktní_adresa_-_obec",
+        "kind": "text",
+        "label": "Obec"
+      },
+      {
+        "fieldId": "Telefon_včetně_mezinárodní_předvolby_ve_formátu_+420_123_456_789",
+        "kind": "text",
+        "label": "Telefon"
+      },
+      {
+        "fieldId": "E-mail",
+        "kind": "text",
+        "label": "E-mail"
+      },
+      {
+        "fieldId": "Příjmení_zástupce,_opatrovníka_nebo_poručníka",
+        "kind": "text",
+        "label": "Příjmení"
+      },
+      {
+        "fieldId": "Jméno_zástupce,_opatrovníka_nebo_poručníka",
+        "kind": "text",
+        "label": "Jméno"
+      },
+      {
+        "fieldId": "Datum_narození_zástupce,_opatrovníka_nebo_poručníka_ve_formátu_DD.MM.RRRR",
+        "kind": "text",
+        "label": "Datum narození"
+      },
+      {
+        "fieldId": "U_novorozence_číslo_pojištěnce_matky/otce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890",
+        "kind": "text",
+        "label": "U novorozence číslo pojištěnce (rodné číslo) matky/otce"
+      },
+      {
+        "fieldId": "Kód_dosavadní_zdravotní_pojišťovny_ve_formátu_XXX",
+        "kind": "text",
+        "label": "Kód"
+      },
+      {
+        "fieldId": "Název_dosavadní_zdravotní_pojišťovny",
+        "kind": "text",
+        "label": "Název dosavadní zdravotní pojišťovny"
+      },
+      {
+        "fieldId": "Změna_pojišťovny_od_data_-_ve_formátu_DD.MM.RRRR",
+        "kind": "text",
+        "label": "Změna pojišťovny od"
+      },
+      {
+        "fieldId": "Vyplněno_dne_-_vyplňte_datum_ve_formátu_DD.MM.RRRR",
+        "kind": "text",
+        "label": "Vyplněno dne"
+      },
+      {
+        "fieldId": "Podpis_pojištěnce,_zákonného_zástupce,_opatrovníka_nebo_poručníka",
+        "kind": "text",
+        "label": "Vyplněno dne: Podpis pojištěnce* (zákonného zástupce, opatrovníka, poručníka)"
+      }
+    ]
+  },
+  "wizards": {
+    "en": {
+      "notes": [
+        "VZP's own instructions for this form are on page 2 of the same PDF (Poučení k formuláři Přihláška pojištěnce). They say the form is for changing your health insurer to VZP and for registering a newborn.",
+        "VZP's form page says that to report changes of your details you use another form, Přihláška a evidenční list pojištěnce.",
+        "By law you can change your health insurer once in 12 months, and only from 1 January or 1 July. The application must be filed with VZP at least 3 months before the change.",
+        "Fields marked with a star (*) on the form are required (povinná pole)."
+      ],
+      "steps": [
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "Příjmení_pojištěnce_(povinné_pole)",
+            "Jméno_pojištěnce_(povinné_pole)"
+          ],
+          "question": "What are your surname and first name?",
+          "explanation": "Příjmení is your surname and Jméno your first name. Both are required on this form."
+        },
+        {
+          "stepId": "birth-name-title",
+          "fieldIds": [
+            "Rodné_příjmení_pojištěnce",
+            "Titul_pojištěnce"
+          ],
+          "question": "Do you have a surname at birth or an academic title to give?",
+          "explanation": "Rodné příjmení is your surname at birth. Titul is an academic title. Neither is marked as required; leave a box empty if it does not apply to you."
+        },
+        {
+          "stepId": "birth-date",
+          "fieldIds": [
+            "Datum_narození_pojištěnce_ve_formátu_DD.MM.RRRR_(povinné_pole)"
+          ],
+          "question": "What is your date of birth?",
+          "explanation": "Required. The form asks for day, month and year as two digits, two digits and four digits, separated by dots.",
+          "example": "05.03.1990",
+          "expectedFormat": "DD.MM.YYYY"
+        },
+        {
+          "stepId": "insured-number",
+          "fieldIds": [
+            "Číslo_pojištěnce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890_(povinné_pole)"
+          ],
+          "question": "What is your insured person's number (číslo pojištěnce)?",
+          "explanation": "For Czech citizens it is the birth number. If you are changing your insurer, give the number your current Czech insurer has you under. If you were never registered with a Czech health insurer, write your date of birth as DD.MM.YYYY instead, and the insurer gives you a number.",
+          "expectedFormat": "123456/7890, or DD.MM.YYYY if you have no number yet",
+          "official": {
+            "text": "Číslo pojištěnce – u občanů ČR rodné číslo. Cizinci, kteří mění zdravotní pojišťovnu, uvedou číslo pojištěnce, pod kterým byli evidováni u dosavadní zdravotní pojišťovny. Cizinec, který dosud nebyl v ČR přihlášen u žádné zdravotní pojišťovny, uvede datum narození ve formátu DD.MM.RRRR a zdravotní pojišťovna mu číslo pojištěnce přidělí.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "sex",
+          "fieldIds": [
+            "Označte_-_pohlaví:_muž",
+            "Označte_-_pohlaví:_žena"
+          ],
+          "question": "What is your sex, as the form asks it?",
+          "explanation": "Pohlaví (sex) is required. Tick one box: muž (male) or žena (female)."
+        },
+        {
+          "stepId": "id-document",
+          "fieldIds": [
+            "Číslo_OP_/_pasu_/_povolení_k_pobytu_pojištěnce_(povinné_pole)"
+          ],
+          "question": "What is the number of your identity card, passport or residence permit?",
+          "explanation": "Required. OP is a Czech identity card (občanský průkaz), pas is a passport, povolení k pobytu is a residence permit. Write the number of the one document you use."
+        },
+        {
+          "stepId": "permanent-residence",
+          "fieldIds": [
+            "Označte_-_trvalý_pobyt_v_ČR:_ano",
+            "Označte_-_trvalý_pobyt_v_ČR:_ne"
+          ],
+          "question": "Do you have permanent residence (trvalý pobyt) in Czechia?",
+          "explanation": "Tick ano (yes) or ne (no). The form and its instructions do not explain this further. If you are not sure whether your residence status is trvalý pobyt, ask VZP before you answer."
+        },
+        {
+          "stepId": "address",
+          "fieldIds": [
+            "Kontaktní_adresa_-_ulice",
+            "Kontaktní_adresa_-_číslo_popisné_/_orientační",
+            "Kontaktní_adresa_-_PSČ",
+            "Kontaktní_adresa_-_obec"
+          ],
+          "question": "What is your address for letters (korespondenční adresa)?",
+          "explanation": "The form marks this address as required. Ulice is the street, Číslo popisné / orientační the house number(s), PSČ the postcode and Obec the town. If a representative fills the form for you, the instructions say to give the address for letters for that person.",
+          "example": "Křižíkova / 148/34 / 186 00 / Praha 8"
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "Telefon_včetně_mezinárodní_předvolby_ve_formátu_+420_123_456_789",
+            "E-mail"
+          ],
+          "question": "How can VZP reach you by phone or e-mail?",
+          "explanation": "Neither is marked as required. The form asks for the phone number with the international prefix.",
+          "expectedFormat": "+420 123 456 789"
+        },
+        {
+          "stepId": "representative",
+          "fieldIds": [
+            "Příjmení_zástupce,_opatrovníka_nebo_poručníka",
+            "Jméno_zástupce,_opatrovníka_nebo_poručníka",
+            "Datum_narození_zástupce,_opatrovníka_nebo_poručníka_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "Is someone filling this in as your legal representative, guardian or curator? If so, what are their surname, first name and date of birth?",
+          "explanation": "Leave these empty if you fill the form for yourself. The form says these details are required when the insured person is represented. The instructions add that a representative proves it with a document, for example a child's birth certificate.",
+          "official": {
+            "text": "V případě zastoupení pojištěnce při registraci jsou tyto údaje o zákonném zástupci, opatrovníkovi nebo poručníkovi povinné.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "newborn",
+          "fieldIds": [
+            "U_novorozence_číslo_pojištěnce_matky/otce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890"
+          ],
+          "question": "Are you registering a newborn? Then give the mother's insured person's number (birth number).",
+          "explanation": "Only for a newborn. The child becomes insured with the insurer of the mother on the day of birth. If the mother is not in Czech public health insurance, the father's insurer applies and you give the father's number instead.",
+          "expectedFormat": "123456/7890",
+          "official": {
+            "text": "Při přihlášení novorozence se uvede rodné číslo matky – dítě se stává dnem narození pojištěncem zdravotní pojišťovny, u které je pojištěna matka dítěte v den jeho narození.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "previous-insurer",
+          "fieldIds": [
+            "Kód_dosavadní_zdravotní_pojišťovny_ve_formátu_XXX",
+            "Název_dosavadní_zdravotní_pojišťovny"
+          ],
+          "question": "Which health insurer are you leaving?",
+          "explanation": "Kód is the three-digit code of your current Czech health insurer and Název its name. Leave them empty if you were never insured with a Czech health insurer.",
+          "expectedFormat": "3 digits"
+        },
+        {
+          "stepId": "change-date",
+          "fieldIds": [
+            "Změna_pojišťovny_od_data_-_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "From which date do you change to VZP?",
+          "explanation": "A change is possible only from 1 January or 1 July. Apply between 1 January and 31 March for a change on 1 July, or between 1 July and 30 September for a change on 1 January of the next year.",
+          "expectedFormat": "DD.MM.YYYY",
+          "official": {
+            "text": "Přihlášku lze tedy podat pouze v období od 1. ledna do 31. března při změně pojišťovny k 1. červenci kalendářního roku a od 1. července do 30. září při změně pojišťovny k 1. lednu následujícího roku.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "filled-on",
+          "fieldIds": [
+            "Vyplněno_dne_-_vyplňte_datum_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "On what date are you filling in the form?",
+          "explanation": "Vyplněno dne means filled in on. Today's date, as day, month and year.",
+          "expectedFormat": "DD.MM.YYYY"
+        },
+        {
+          "stepId": "signature",
+          "fieldIds": [
+            "Podpis_pojištěnce,_zákonného_zástupce,_opatrovníka_nebo_poručníka"
+          ],
+          "question": "The form must be signed by you (or your representative).",
+          "explanation": "The signature is required, and the instructions speak of an application with a signature. A name typed here is not a handwritten signature: leave this box empty, print the filled form and sign it by hand.",
+          "official": {
+            "text": "Přihlášku opatřenou podpisem je pojištěnec, jeho zákonný zástupce, opatrovník nebo poručník povinen podat vybrané zdravotní pojišťovně",
+            "lang": "cs"
+          }
+        }
+      ]
+    },
+    "uk": {
+      "notes": [
+        "Офіційні інструкції VZP до цієї форми є на сторінці 2 того самого PDF (Poučení k formuláři Přihláška pojištěnce). Там сказано, що форма призначена для зміни медичної страхової компанії на VZP і для реєстрації новонародженої дитини.",
+        "На сторінці форми VZP сказано, що для повідомлення про зміну ваших даних використовується інша форма, Přihláška a evidenční list pojištěnce.",
+        "За законом змінити медичну страхову компанію можна один раз на 12 місяців і лише з 1 січня або з 1 липня. Заяву треба подати до VZP щонайменше за 3 місяці до зміни.",
+        "Поля, позначені на формі зірочкою (*), є обов'язковими (povinná pole)."
+      ],
+      "steps": [
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "Příjmení_pojištěnce_(povinné_pole)",
+            "Jméno_pojištěnce_(povinné_pole)"
+          ],
+          "question": "Яке ваше прізвище та ім'я?",
+          "explanation": "Příjmení означає прізвище, Jméno означає ім'я. Обидва поля на цій формі обов'язкові."
+        },
+        {
+          "stepId": "birth-name-title",
+          "fieldIds": [
+            "Rodné_příjmení_pojištěnce",
+            "Titul_pojištěnce"
+          ],
+          "question": "Чи маєте ви прізвище при народженні або науковий ступінь, які треба вказати?",
+          "explanation": "Rodné příjmení означає прізвище при народженні. Titul означає науковий ступінь або звання. Жодне з цих полів не позначене як обов'язкове; залиште поле порожнім, якщо воно вас не стосується."
+        },
+        {
+          "stepId": "birth-date",
+          "fieldIds": [
+            "Datum_narození_pojištěnce_ve_formátu_DD.MM.RRRR_(povinné_pole)"
+          ],
+          "question": "Яка ваша дата народження?",
+          "explanation": "Обов'язкове поле. Форма просить день, місяць і рік: дві цифри, дві цифри і чотири цифри, розділені крапками.",
+          "example": "05.03.1990",
+          "expectedFormat": "ДД.ММ.РРРР"
+        },
+        {
+          "stepId": "insured-number",
+          "fieldIds": [
+            "Číslo_pojištěnce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890_(povinné_pole)"
+          ],
+          "question": "Який ваш номер застрахованої особи (číslo pojištěnce)?",
+          "explanation": "Для громадян Чехії це родне число (rodné číslo). Якщо ви змінюєте страхову компанію, вкажіть номер, під яким вас веде ваша теперішня чеська страхова компанія. Якщо ви ще ніколи не були зареєстровані в чеській медичній страховій компанії, напишіть замість цього дату народження у форматі ДД.ММ.РРРР, і страхова компанія призначить вам номер.",
+          "expectedFormat": "123456/7890 або ДД.ММ.РРРР, якщо номера ще немає",
+          "official": {
+            "text": "Číslo pojištěnce – u občanů ČR rodné číslo. Cizinci, kteří mění zdravotní pojišťovnu, uvedou číslo pojištěnce, pod kterým byli evidováni u dosavadní zdravotní pojišťovny. Cizinec, který dosud nebyl v ČR přihlášen u žádné zdravotní pojišťovny, uvede datum narození ve formátu DD.MM.RRRR a zdravotní pojišťovna mu číslo pojištěnce přidělí.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "sex",
+          "fieldIds": [
+            "Označte_-_pohlaví:_muž",
+            "Označte_-_pohlaví:_žena"
+          ],
+          "question": "Яка ваша стать, як питає форма?",
+          "explanation": "Pohlaví (стать) є обов'язковим полем. Позначте одне поле: muž (чоловіча) або žena (жіноча)."
+        },
+        {
+          "stepId": "id-document",
+          "fieldIds": [
+            "Číslo_OP_/_pasu_/_povolení_k_pobytu_pojištěnce_(povinné_pole)"
+          ],
+          "question": "Який номер вашого посвідчення особи, паспорта або дозволу на проживання?",
+          "explanation": "Обов'язкове поле. OP означає чеське посвідчення особи (občanský průkaz), pas означає паспорт, povolení k pobytu означає дозвіл на проживання. Напишіть номер одного документа, яким ви користуєтеся."
+        },
+        {
+          "stepId": "permanent-residence",
+          "fieldIds": [
+            "Označte_-_trvalý_pobyt_v_ČR:_ano",
+            "Označte_-_trvalý_pobyt_v_ČR:_ne"
+          ],
+          "question": "Чи маєте ви постійне проживання (trvalý pobyt) у Чехії?",
+          "explanation": "Позначте ano (так) або ne (ні). Ні форма, ні інструкції цього детальніше не пояснюють. Якщо ви не впевнені, чи ваш статус проживання є trvalý pobyt, запитайте VZP перед відповіддю."
+        },
+        {
+          "stepId": "address",
+          "fieldIds": [
+            "Kontaktní_adresa_-_ulice",
+            "Kontaktní_adresa_-_číslo_popisné_/_orientační",
+            "Kontaktní_adresa_-_PSČ",
+            "Kontaktní_adresa_-_obec"
+          ],
+          "question": "Яка ваша адреса для листування (korespondenční adresa)?",
+          "explanation": "Форма позначає цю адресу як обов'язкову. Ulice означає вулицю, Číslo popisné / orientační означає номер будинку, PSČ означає поштовий індекс, Obec означає населений пункт. Якщо форму за вас заповнює представник, інструкції кажуть вказати адресу для листування для цієї особи.",
+          "example": "Křižíkova / 148/34 / 186 00 / Praha 8"
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "Telefon_včetně_mezinárodní_předvolby_ve_formátu_+420_123_456_789",
+            "E-mail"
+          ],
+          "question": "Як VZP може зв'язатися з вами телефоном або електронною поштою?",
+          "explanation": "Жодне з цих полів не позначене як обов'язкове. Форма просить номер телефону з міжнародним кодом.",
+          "expectedFormat": "+420 123 456 789"
+        },
+        {
+          "stepId": "representative",
+          "fieldIds": [
+            "Příjmení_zástupce,_opatrovníka_nebo_poručníka",
+            "Jméno_zástupce,_opatrovníka_nebo_poručníka",
+            "Datum_narození_zástupce,_opatrovníka_nebo_poručníka_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "Чи заповнює цю форму за вас законний представник або опікун? Якщо так, яке його прізвище, ім'я та дата народження?",
+          "explanation": "Залиште ці поля порожніми, якщо заповнюєте форму за себе. Форма каже, що ці дані обов'язкові, коли застраховану особу представляє інша особа. Інструкції додають, що представник підтверджує це документом, наприклад свідоцтвом про народження дитини.",
+          "official": {
+            "text": "V případě zastoupení pojištěnce při registraci jsou tyto údaje o zákonném zástupci, opatrovníkovi nebo poručníkovi povinné.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "newborn",
+          "fieldIds": [
+            "U_novorozence_číslo_pojištěnce_matky/otce_-_rodné_číslo_včetně_lomítka_ve_formátu_123456/7890"
+          ],
+          "question": "Ви реєструєте новонароджену дитину? Тоді вкажіть номер застрахованої особи (родне число) матері.",
+          "explanation": "Лише для новонародженої дитини. У день народження дитина стає застрахованою в страховій компанії матері. Якщо мати не має чеського державного медичного страхування, діє страхова компанія батька, і тоді вказується номер батька.",
+          "expectedFormat": "123456/7890",
+          "official": {
+            "text": "Při přihlášení novorozence se uvede rodné číslo matky – dítě se stává dnem narození pojištěncem zdravotní pojišťovny, u které je pojištěna matka dítěte v den jeho narození.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "previous-insurer",
+          "fieldIds": [
+            "Kód_dosavadní_zdravotní_pojišťovny_ve_formátu_XXX",
+            "Název_dosavadní_zdravotní_pojišťovny"
+          ],
+          "question": "Яку медичну страхову компанію ви залишаєте?",
+          "explanation": "Kód означає тризначний код вашої теперішньої чеської медичної страхової компанії, Název означає її назву. Залиште поля порожніми, якщо ви ніколи не були застраховані в чеській медичній страховій компанії.",
+          "expectedFormat": "3 цифри"
+        },
+        {
+          "stepId": "change-date",
+          "fieldIds": [
+            "Změna_pojišťovny_od_data_-_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "З якої дати ви переходите до VZP?",
+          "explanation": "Зміна можлива лише з 1 січня або з 1 липня. Подавайте заяву з 1 січня по 31 березня для зміни з 1 липня або з 1 липня по 30 вересня для зміни з 1 січня наступного року.",
+          "expectedFormat": "ДД.ММ.РРРР",
+          "official": {
+            "text": "Přihlášku lze tedy podat pouze v období od 1. ledna do 31. března při změně pojišťovny k 1. červenci kalendářního roku a od 1. července do 30. září při změně pojišťovny k 1. lednu následujícího roku.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "filled-on",
+          "fieldIds": [
+            "Vyplněno_dne_-_vyplňte_datum_ve_formátu_DD.MM.RRRR"
+          ],
+          "question": "Якою датою ви заповнюєте форму?",
+          "explanation": "Vyplněno dne означає «заповнено дня». Сьогоднішня дата: день, місяць і рік.",
+          "expectedFormat": "ДД.ММ.РРРР"
+        },
+        {
+          "stepId": "signature",
+          "fieldIds": [
+            "Podpis_pojištěnce,_zákonného_zástupce,_opatrovníka_nebo_poručníka"
+          ],
+          "question": "Форму має підписати ви (або ваш представник).",
+          "explanation": "Підпис обов'язковий, і інструкції говорять про заяву з підписом. Ім'я, надруковане тут, не є власноручним підписом: залиште це поле порожнім, роздрукуйте заповнену форму і підпишіть її від руки.",
+          "official": {
+            "text": "Přihlášku opatřenou podpisem je pojištěnec, jeho zákonný zástupce, opatrovník nebo poručník povinen podat vybrané zdravotní pojišťovně",
+            "lang": "cs"
+          }
+        }
+      ]
+    }
+  },
+  "reviewNotes": [
+    "Written by an AI (Claude) on 2026-11-18 from the form and its Poučení (page 2 of the PDF) and the VZP form page; not checked by a person. Status stays draft.",
+    "Sources read: https://www.vzp.cz/formulare/prihlaska-pojistence.pdf (form and Poučení, both pages) and https://www.vzp.cz/pojistenci/formulare/prihlaska-a-evidencni-list-pojistence (which form to use).",
+    "The Ukrainian text is machine-written and needs a native speaker's check. Uncertain terms: zákonný zástupce, opatrovník, poručník (rendered as законний представник and опікун; Ukrainian law distinguishes опікун and піклувальник, which may not map one to one); číslo pojištěnce (номер застрахованої особи).",
+    "Step signature: the instructions say the application is filed signed (opatřenou podpisem). The advice to leave the box empty and sign the printed form by hand is the author's reading, not VZP's words. Check whether VZP accepts the form otherwise (for example through a data box or with an electronic signature).",
+    "Step permanent-residence: the form does not say whether a temporary protection or long-term residence holder answers ne. The step tells the person to ask VZP; check whether VZP publishes guidance.",
+    "Step previous-insurer: the instructions do not explain the code field; the advice to leave it empty for a first registration in Czechia is the author's inference from the newborn and first-registration cases.",
+    "Field labels as the form reader gives them (match.fields): the last field, the signature box, reads as 'Vyplněno dne: Podpis pojištěnce* (zákonného zástupce, opatrovníka, poručníka)' because the printed date label and the signature label sit on one line; the steps treat it as the signature box.",
+    "VZP also links an interactive online application from the form page; this guide covers the PDF only."
+  ]
+}
