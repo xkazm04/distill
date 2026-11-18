@@ -4,7 +4,7 @@
 // lives in test/corpus.test.ts.
 import { existsSync } from "node:fs";
 import { expect, it } from "vitest";
-import { BASELINE_PATH, compareToBaseline, formatTable, readBaseline, runCorpus, writeBaseline } from "./pdf-forms.js";
+import { BASELINE_PATH, compareToBaseline, formatTable, readBaseline, readerSnapshot, runCorpus, writeBaseline, writeReader } from "./pdf-forms.js";
 import { formatPrintTable, loadPrintCorpus, runPrintCorpus } from "./print-forms.js";
 
 it("PDF form benchmark", async () => {
@@ -15,7 +15,8 @@ it("PDF form benchmark", async () => {
   const lines = [formatTable(r), "", formatPrintTable(p, heldOut), ""];
   if (process.env.BENCH_UPDATE === "1") {
     writeBaseline(r, p);
-    lines.push("Baseline written to test/corpus/baseline.json. Commit it on purpose, with the reason in the message.");
+    writeReader(await readerSnapshot());
+    lines.push("Baseline written to test/corpus/baseline.json (and what this reader reads, to test/corpus/reader.json). Commit it on purpose, with the reason in the message.");
   } else if (!existsSync(BASELINE_PATH)) {
     lines.push("No baseline yet: run npm run bench:forms:update -w @distill/pdf to write one.");
   } else {

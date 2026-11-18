@@ -2,7 +2,7 @@
 // apps own the SDK and pass prompts through `route()` decisions.
 export * from "./types.js";
 export { extractPage, type ExtractOptions } from "./page.js";
-export { extractForm, readErrors, readValues, writeValues } from "./form.js";
+export { extractForm, readErrors, readValues, writeValues, FORM_READER } from "./form.js";
 export { isInvalid, looksLikeError, shownNow } from "./errors.js";
 export { validateAndRepair } from "./repair.js";
 export { parseWizard } from "./wizard.js";

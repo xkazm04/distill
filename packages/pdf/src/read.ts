@@ -16,6 +16,14 @@ import { PDF_URL, type PdfJs, type PdfJsDocument, type PdfProblem, type PdfProbl
 
 const READ_ELSEWHERE = "You can still read it in Distill's other views.";
 
+/**
+ * The version of this reader (readPdf's labels, kinds, field ids and titles), recorded in a guide written from it
+ * (GuideMatch.reader). pdf/1 was the fillable-form reader before print-only PDFs; pdf/2 reads print-only PDFs too.
+ * Raise it with any change that can change what readPdf reads from the same file: test/corpus/reader.json records
+ * what the corpus reads as for this version, and corpus.test.ts fails when that changes while the version does not.
+ */
+export const PDF_READER = "pdf/2";
+
 /** The plain words for each problem. Shown as they are; no AI rewrites them. */
 export const PROBLEMS: Record<PdfProblemKind, { title: string; detail: string }> = {
   flat: {

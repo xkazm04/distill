@@ -165,6 +165,11 @@ export function parseGuide(raw: unknown, opts: { id?: string } = {}): GuideCheck
     if (!Array.isArray(match.titles) || !match.titles.length) bad("a PDF guide lists the document's title in match.titles");
     else match.titles.forEach((t, i) => text(`match.titles[${i}]`, t));
   }
+  if (match.reader !== undefined) {
+    if (typeof match.reader !== "string" || !/^(html|pdf)\/[1-9]\d*$/.test(match.reader)) bad('match.reader must look like "pdf/2" or "html/1"');
+    else if ((format === "html" || format === "pdf") && !match.reader.startsWith(`${format}/`)) bad(`match.reader "${match.reader}" is not a reader of ${String(format)} forms`);
+  }
+  if (match.source !== undefined && (typeof match.source !== "string" || !/^[0-9a-f]{64}$/.test(match.source))) bad("match.source must be a sha-256 hex digest");
   const fieldIds = new Set<string>();
   if (!Array.isArray(match.fields) || !match.fields.length) bad("match.fields must list the form's fields");
   else match.fields.forEach((f, i) => {

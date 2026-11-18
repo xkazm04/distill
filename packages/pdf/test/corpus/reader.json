@@ -1,0 +1,20 @@
+{
+  "note": "Written with the baseline (npm run bench:forms:update -w @distill/pdf). See readerSnapshot in test/bench/pdf-forms.ts.",
+  "reader": "pdf/2",
+  "forms": {
+    "ohlaseni-zivnosti": "2884e56ae3c19fc4c1b12c72d3f17b5a610e3aca1fd298265febebe1161d520a",
+    "potvrzeni-prechodny-pobyt": "9dbafb44531e7b818a1048eee233e62dc557f65604169ae1f8e2426429b33d93",
+    "prihlaska-pojistence-chranena": "c984ac514dec0a3b275d1321e6c02d15c829e5ad406497c2d6ee4601510ce3df",
+    "prihlaska-pojistence": "c984ac514dec0a3b275d1321e6c02d15c829e5ad406497c2d6ee4601510ce3df",
+    "prohlaseni-poplatnika": "31da8dfb721002d09219ebc869d0db73e416a2244e1ebb358d4b687b49ed74e0",
+    "vyzivovane-deti": "47cdfd9438373080b9cd51a3af7fa31623c74a58d82f723ed17f375210c21d9f",
+    "zadost-pobyt-chraneny": "d93d9c37f78121485ddbb3282f2978b277738bd5b13f8010096c2797fae7d784",
+    "zadost-pobyt": "d93d9c37f78121485ddbb3282f2978b277738bd5b13f8010096c2797fae7d784",
+    "zmena-adresy": "ac6090f5581d25004bff78d4ff55271dce3ec9ff1f00274755b101a63404c20c",
+    "tisk-osvc-boxy": "e85ebd9feaad2f3176c3e6237dce81e841ae1c8fd8801de334b1dab2fdbeca34",
+    "tisk-podtrzeni": "a4668a0ee7cdee4847844ec67d46e48202131caf5943433f7745ab997f51c64a",
+    "tisk-potvrzeni-heldout": "698402f5db3c3b86a10ee96c79c7d64ec91a21bd9beb4a835dbba81a575c55e3",
+    "tisk-zmena-pobytu": "d748fc2f0df4749b7eb49fcef1c6a99d94f4132c8a9064ed8ba14c0dc752740e",
+    "tisk-znaky": "4d74d734e1fd985438044ad24ec4bf5745b6c1b5ffdfb3d81ebf8b0743e6a623"
+  }
+}

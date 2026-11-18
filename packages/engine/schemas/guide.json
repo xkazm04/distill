@@ -100,6 +100,12 @@
             "type": "string"
           }
         },
+        "reader": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
         "fields": {
           "type": "array",
           "items": {

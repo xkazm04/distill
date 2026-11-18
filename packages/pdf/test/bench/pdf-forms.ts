@@ -500,3 +500,43 @@ export function compareToBaseline(r: CorpusResult, b: Baseline, p?: { fixtures: 
   for (const x of r.refusals) if (!(x.slug in b.refusals)) out.push(`refusal ${x.slug} is not in the baseline`);
   return out;
 }
+
+// ---------------------------------------------------------------- the reader's version
+
+/**
+ * What the reader reads each corpus PDF as, for one version of it (PDF_READER): per fixture, sha-256 of the title and
+ * the fields' ids, kinds and labels, the things a guide's fingerprint is made of. Written with the baseline. When the
+ * reader reads any fixture differently while PDF_READER stays the same, corpus.test.ts fails: a guide written by the
+ * old reader would look drifted although its form did not change, so the version must say the reader changed
+ * (scripts/guides/drift.mjs tells the two apart, and `npm run guide:new -- --refresh <id>` refreshes a guide's fields).
+ */
+export const READER_PATH = join(CORPUS_DIR, "reader.json");
+export interface ReaderSnapshot { note: string; reader: string; forms: Record<string, string> }
+
+export async function readerSnapshot(): Promise<ReaderSnapshot> {
+  const { createHash } = await import("node:crypto");
+  const { PDF_READER } = await import("../../src/index.js");
+  const { loadPrintCorpus } = await import("./print-forms.js");
+  const layouts: [string, Layout][] = [
+    ...loadCorpus().map((f) => [f.slug, f.expect.layout] as [string, Layout]),
+    ...loadPrintCorpus().map((f) => [f.slug, f.expect.layout] as [string, Layout]),
+  ];
+  const forms: Record<string, string> = {};
+  for (const [slug, layout] of layouts) {
+    const r = await readPdf(await buildPdf(layout), { pdfjs: PDFJS, fileName: `${slug}.pdf` });
+    const read = { title: r.structure?.title ?? "", fields: (r.structure?.fields ?? []).map((f) => [f.fieldId, f.kind, f.label]) };
+    forms[slug] = createHash("sha256").update(JSON.stringify(read)).digest("hex");
+  }
+  return { note: "Written with the baseline (npm run bench:forms:update -w @distill/pdf). See readerSnapshot in test/bench/pdf-forms.ts.", reader: PDF_READER, forms };
+}
+
+export const writeReader = (s: ReaderSnapshot): void => writeFileSync(READER_PATH, `${JSON.stringify(s, null, 2)}\n`);
+
+/** Why the stored snapshot no longer fits the reader, as sentences. Empty when it does. */
+export function compareReader(now: ReaderSnapshot, stored: ReaderSnapshot): string[] {
+  if (stored.reader !== now.reader) return [`reader.json was written for ${stored.reader}, the reader is now ${now.reader}: run npm run bench:forms:update -w @distill/pdf`];
+  const changed = Object.keys(stored.forms).filter((slug) => slug in now.forms && stored.forms[slug] !== now.forms[slug]);
+  return changed.length
+    ? [`the reader now reads ${changed.join(", ")} differently (title, field ids, kinds or labels) while PDF_READER is still ${now.reader}: raise PDF_READER in packages/pdf/src/read.ts, update the baseline, and refresh the PDF guides (npm run guides:drift, then npm run guide:new -- --refresh <id>)`]
+    : [];
+}

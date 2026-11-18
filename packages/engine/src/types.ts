@@ -169,6 +169,13 @@ export interface GuideMatch {
   /** pdf: FormStructure.title as read from the document. Omitted for html. */
   titles?: string[];
   fields: GuideField[];
+  /** The reader that produced `fields`, `titles` and the fingerprints: "html/<n>" (the engine's extractForm, FORM_READER)
+   *  or "pdf/<n>" (@distill/pdf's readPdf, PDF_READER). A reader's version changes whenever its labels can change, so
+   *  drift tells "the reader changed" from "the form changed". Absent in a guide written before readers had versions. */
+  reader?: string;
+  /** sha-256 hex of the form as published when `fields` was read (a PDF's bytes; a web form's controls and their text,
+   *  see scripts/guides/read-form.mjs). The same source read by a newer reader is the same form. */
+  source?: string;
 }
 
 /** The official instruction a step rests on, word for word, in its own language. */

@@ -586,6 +586,13 @@ export function listForms(doc: Document): Element[] {
   return formScopes(doc).map((s) => s.scope);
 }
 
+/**
+ * The version of this reader (extractForm's labels, kinds and field ids), recorded in a guide that was written from it
+ * (GuideMatch.reader). Raise it with any change that can change what extractForm reads from the same page, so guide
+ * drift can tell a reader change from a form change (scripts/guides/drift.mjs).
+ */
+export const FORM_READER = "html/1";
+
 export async function extractForm(doc: Document, url: string, formIndex = 0): Promise<FormStructure> {
   const s = formScopes(doc)[formIndex];
   const fields = s ? s.bindings.map((b) => b.field) : [];

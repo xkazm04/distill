@@ -121,6 +121,15 @@ describe("parseGuide: the door for a guide file", () => {
     expect(parseGuide(await guide({ match: { ...(await guide()).match, urls: ["/demo/form.html"] } })).problems.join()).toMatch(/must be an https address/);
   });
 
+  it("a guide may record the reader that read its fields and the source it read; both are checked", async () => {
+    const g = await guide();
+    const source = "a".repeat(64);
+    expect(parseGuide({ ...g, match: { ...g.match, reader: "html/1", source } }).problems).toEqual([]);
+    expect(parseGuide({ ...g, match: { ...g.match, reader: "pdf/2" } }).problems.join()).toMatch(/is not a reader of html forms/);
+    expect(parseGuide({ ...g, match: { ...g.match, reader: "html" } }).problems.join()).toMatch(/must look like "pdf\/2"/);
+    expect(parseGuide({ ...g, match: { ...g.match, source: "abc" } }).problems.join()).toMatch(/sha-256/);
+  });
+
   it("parseLibrary keeps the guides that pass and names the ones that do not", async () => {
     const good = await guide();
     const bad = { ...clone(good), id: "cz/spatna", officialFormUrl: "ftp://x" };

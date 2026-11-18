@@ -3,7 +3,8 @@
 // the right reason, and no total may fall below test/corpus/baseline.json. The baseline changes only through
 // `npm run bench:forms:update -w @distill/pdf`; see the PDF section of packages/engine/test/corpus/README.md.
 import { beforeAll, describe, expect, it } from "vitest";
-import { checkFixture, compareToBaseline, lintExpectation, loadCorpus, readBaseline, runCorpus, type CorpusResult } from "./bench/pdf-forms.js";
+import { readFileSync } from "node:fs";
+import { checkFixture, compareReader, compareToBaseline, lintExpectation, loadCorpus, readBaseline, readerSnapshot, READER_PATH, runCorpus, type CorpusResult, type ReaderSnapshot } from "./bench/pdf-forms.js";
 import { checkPrintFixture, lintPrint, loadPrintCorpus, runPrintCorpus, type PrintCounts, type PrintResult } from "./bench/print-forms.js";
 
 const corpus = loadCorpus();
@@ -53,4 +54,11 @@ describe("print-only PDF corpus", () => {
   it("makes no false claim: nothing reported written that pdf.js does not find at its place", () => {
     expect(printed.totals.falseClaims).toBe(0);
   });
+});
+
+describe("the PDF reader's version", () => {
+  it("names what the reader reads: a change to the corpus's titles, field ids, kinds or labels comes with a new PDF_READER", async () => {
+    const stored = JSON.parse(readFileSync(READER_PATH, "utf8")) as ReaderSnapshot;
+    expect(compareReader(await readerSnapshot(), stored)).toEqual([]);
+  }, 60_000);
 });

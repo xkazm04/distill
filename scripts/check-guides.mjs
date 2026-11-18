@@ -20,6 +20,11 @@ const engine = async (file) => (await runnerImport(join(REPO_ROOT, "packages/eng
 const { parseGuide } = await engine("guides.ts");
 const { fingerprint } = await engine("fingerprint.ts");
 const { fileSchemas } = await engine("schemas.ts");
+const { FORM_READER } = await engine("form.ts");
+const { PDF_READER } = (await runnerImport(join(REPO_ROOT, "packages/pdf/src/read.ts"), { configFile: false, logLevel: "error" })).module;
+/** Guides whose fields an older reader read (or that do not say which): told, not failed. Only `guides:drift` can
+ *  tell whether today's reader reads their form differently, because that needs the form itself. */
+const stale = [];
 
 /** The schema subset every Distill schema uses: type, properties, required, items, enum. */
 function fits(schema, v, path, out) {
@@ -67,6 +72,8 @@ for (const f of files) {
         if (!expected.has(fp)) problems.push(`match.fingerprints: ${fp.slice(0, 12)}... is not the fingerprint of match.fields at any of the guide's addresses (a label or field was edited by hand? re-read the form with npm run guide:new)`);
       }
       counts[g.demo ? "demo" : g.status]++;
+      const now = g.match.format === "pdf" ? PDF_READER : FORM_READER;
+      if (!g.demo && g.match.reader !== now) stale.push(`${f.id} (${g.match.reader ?? "no reader recorded"}; the reader is ${now})`);
     }
   }
   if (problems.length) {
@@ -77,3 +84,4 @@ for (const f of files) {
 }
 if (bad) { console.error(`check-guides: ${bad} problem(s)`); process.exit(1); }
 console.log(`check-guides: clean (${files.length} guide(s): ${counts.reviewed} reviewed, ${counts.draft} draft, ${counts.demo} demo)`);
+if (stale.length) console.log(`check-guides: note - read by another version of the reader: ${stale.join(", ")}. Run npm run guides:drift; a guide whose form is the same file is refreshed with npm run guide:new -- --refresh <id>.`);

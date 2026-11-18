@@ -99,16 +99,38 @@ sends nothing about the page a person is on.
 
 ## Drift
 
-Authorities change their forms without notice. `npm run guides:drift` re-reads each guide's form (a web guide's
-addresses, a PDF guide's `officialFormUrl`) and reports every guide whose fingerprint no longer matches, with the fields
-that are new, changed or gone. It uses the network, so it is not part of `npm run check`; run it before a release and
-at least monthly.
+Authorities change their forms without notice, and Distill's readers change too. A guide's fingerprint is made of the
+labels the reader produces, so it changes when the form changes **and** when the reader's label rules change. A guide
+therefore records which reader read its fields (`match.reader`: `html/<n>` is the engine's `FORM_READER`, `pdf/<n>`
+is `@distill/pdf`'s `PDF_READER`) and a digest of what it read (`match.source`: a PDF's bytes; a web form's controls and
+their text, without values). `guide:new` writes both. A reader's version goes up with every change that can change
+what it reads from the same form; for the PDF reader `packages/pdf/test/corpus/reader.json` records what the corpus
+reads as, and `npm run check` fails when that changes while `PDF_READER` stays the same. `npm run check-guides` notes
+(without failing) every guide read by another version of its reader.
 
-When a guide has drifted: run `npm run guide:new -- <address> --id cz/<slug>-new` to read the new version, carry the
-new `match` (fingerprints, fields, titles) into the guide, rewrite the affected steps from the current instructions,
-delete the scratch file, and set the guide back to `draft` until it is reviewed again. Keep the old fingerprint in
-`match.fingerprints` only while the old version is still in circulation. Until the guide is updated, the app keeps
-using its unchanged steps and tells the person the form changed.
+`npm run guides:drift` re-reads each guide's form (a web guide's addresses, a PDF guide's `officialFormUrl`) and, for
+every guide whose fingerprint no longer matches, says which of three it is:
+
+- **The reader changed, the form did not** (`~`): the source is the same file. Run
+  `npm run guide:new -- --refresh <id>`. It re-reads the form with today's reader and refreshes only what the reader
+  produces (`match.fields` labels, the fingerprint, the title, `match.reader`, `match.source`); it never touches the
+  steps, notes or quotes, and it keeps the status, because no checked text and nothing about the form changed. It
+  refuses when a field was added, removed or changed kind: the steps no longer fit, and that is the next case.
+- **The form changed** (`!`): the source differs. Run `npm run guide:new -- <address> --id cz/<slug>-new` to read the
+  new version, carry the new `match` into the guide, rewrite the affected steps from the current instructions, delete
+  the scratch file, and set the guide back to `draft` until it is reviewed again. Keep the old fingerprint in
+  `match.fingerprints` only while the old version is still in circulation. Until the guide is updated, the app keeps
+  using its unchanged steps and tells the person the form changed.
+- **Cannot tell** (`!`): the guide recorded no source. `guide:new --refresh` records it; when the reading is not
+  exactly the guide's, it cannot know the form is the same, so it returns a reviewed guide to `draft` with a review
+  note saying why.
+
+Drift uses the network, so it is not part of `npm run check`; run it before a release, at least monthly, and after
+every change to a reader's version.
+
+A print-only PDF (no form field; Distill found the places to write on from the printed page) is a `pdf` guide like
+any other: its field ids name each place by page and position (`p1-x293-y630`), which do not change while the file
+does not. `guide:new` says in the skeleton's review notes when a form is print-only.
 
 ## The demo guide
 

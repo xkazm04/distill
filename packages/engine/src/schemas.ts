@@ -167,6 +167,8 @@ export const fileSchemas: Record<"guide", object> = {
           fingerprints: strList,
           urls: strList,
           titles: strList,
+          reader: str,
+          source: str,
           fields: {
             type: "array",
             items: {
