@@ -148,5 +148,9 @@ row's label), so the general rules added after it (a label inside the box's left
 covers, text that is another field's label is never taken from above, "undefined" names are a tool's, a radio
 question past its options' own labels, a column header on separate lines) bring it to 6 of 6, with its expectations
 unchanged; it is no longer a held-out number. `vyzivovane-deti` went the same way earlier (5 of 12, then 12 of 12).
-The held-out number now is the fixture written after these rules and scored once, untuned (see the table in its
-`models`). The other fixtures were written alongside the rules.
+The held-out number now is `potvrzeni-prechodny-pobyt`, written after those rules (and four more from the real forms)
+were final and scored once, untuned: labels 14 of 17, shape 16 of 17, recall, precision and fill 17 of 17, no false
+claim. Its misses stay in the baseline: a star inside a two-line bilingual label ("Příjmení* Surname", so the field is
+not seen as required), a label whose small English line sits nearer the box than its Czech line ("Given name(s)"
+instead of "Jméno Given name(s)"), and a number kept in a label ("9. Telefon"). The other fixtures were written
+alongside the rules.
