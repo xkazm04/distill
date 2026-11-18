@@ -217,7 +217,7 @@ const PRICING_WORDS = /(per month|\/\s?mo\b|\/\s?month|monthly|annually|\/\s?yea
 /** The form that dominates the page (three fields or more, and a good share of its text), if there is one. */
 function dominantForm(doc: Document, forms: Element[]): Element | undefined {
   const rawBodyLen = collapse(doc.body?.textContent ?? "").length || 1;
-  return forms.find((f) => buildBindings(f, doc).length >= 3 && textOf(f).length >= rawBodyLen * 0.35);
+  return forms.find((f) => buildBindings(f).length >= 3 && textOf(f).length >= rawBodyLen * 0.35);
 }
 
 function classify(doc: Document, url: string, blocks: Block[], formPage: boolean): PageKind {
@@ -259,7 +259,9 @@ export interface ExtractOptions {
 }
 
 export function extractPage(doc: Document, url: string, opts?: ExtractOptions): PageModel {
-  const forms = listForms(doc);
+  // The page view reads the top document's own tree: a form in a frame or a shadow root is reachable to Wayfill, but
+  // its surroundings are not page text here.
+  const forms = listForms(doc).filter((f) => f.getRootNode() === doc);
   const form = dominantForm(doc, forms);
   let root = pickRoot(doc);
   // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.

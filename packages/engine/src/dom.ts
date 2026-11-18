@@ -40,19 +40,38 @@ export function isNoise(el: Element): boolean {
   return tokens.some((tok) => NOISE_TOKENS.has(tok));
 }
 
+/** The element's parent, or the host of the open shadow root it sits at the top of. */
+export function parentOf(el: Element): Element | null {
+  if (el.parentElement) return el.parentElement;
+  const root = el.parentNode as (Node & { host?: Element }) | null;
+  return root && root.nodeType === 11 && root.host ? root.host : null;
+}
+
+/** The element with this id in the same tree as `el` (its document, or its shadow root). */
+export function byId(el: Element, id: string): Element | null {
+  const root = el.getRootNode() as Node & { getElementById?: (id: string) => Element | null };
+  if (typeof root.getElementById === "function") return root.getElementById(id);
+  return null;
+}
+
+/** Lower case without diacritics, for comparing words across spellings ("Měsíc" and "mesic"). */
+export const fold = (s: string): string => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
 const blockedCache = new WeakMap<Element, boolean>();
-/** True when the element or any ancestor is hidden or noise. */
+/** True when the element or any ancestor (across shadow roots, to the host) is hidden or noise. */
 export function blocked(el: Element): boolean {
   const known = blockedCache.get(el);
   if (known !== undefined) return known;
   const tg = tag(el);
-  const result = tg === "html" || tg === "body" ? false : isHidden(el) || isNoise(el) || (el.parentElement ? blocked(el.parentElement) : false);
+  const parent = parentOf(el);
+  const result = tg === "html" || tg === "body" ? false : isHidden(el) || isNoise(el) || (parent ? blocked(parent) : false);
   blockedCache.set(el, result);
   return result;
 }
 
-/** Visible text of a node with scripts, styles and hidden parts left out. Words never fuse across blocks. */
-export function textOf(node: Node, skip?: (el: Element) => boolean): string {
+/** Visible text of a node with scripts, styles and hidden parts left out. Words never fuse across blocks.
+ *  `includeHidden` keeps hidden parts: the accessible-name rules read a hidden element that aria-labelledby names. */
+export function textOf(node: Node, skip?: (el: Element) => boolean, includeHidden = false): string {
   const parts: string[] = [];
   const walk = (n: Node): void => {
     if (n.nodeType === 3) {
@@ -62,7 +81,7 @@ export function textOf(node: Node, skip?: (el: Element) => boolean): string {
     if (n.nodeType !== 1) return;
     const el = n as Element;
     const t = tag(el);
-    if (SKIP_TAGS.has(t) || isHidden(el) || skip?.(el)) return;
+    if (SKIP_TAGS.has(t) || (!includeHidden && isHidden(el)) || skip?.(el)) return;
     if (t === "br") {
       parts.push(" ");
       return;
