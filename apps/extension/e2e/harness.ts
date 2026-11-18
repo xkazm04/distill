@@ -60,10 +60,13 @@ function prepareExtension(grantHosts: boolean, grantHelper: boolean): string {
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript" };
 
 /** Serves apps/web/public/demo on 127.0.0.1, any free port. `/blank.html` is a tiny page for tests that need a tab;
- *  `/framed-form.html` embeds the demo form in a same-origin iframe, as a town site embeds a form service's form. */
+ *  `/framed-form.html` embeds the demo form in a same-origin iframe, as a town site embeds a form service's form.
+ *  `/demo/<page>.html` serves the same pages at the address the web app gives them, where the demo guide of the guide
+ *  library applies (guides/cz/demo-form.json matches the path /demo/form.html only). */
 async function serveDemo(): Promise<{ server: Server; origin: string }> {
   const server = createServer((req, res) => {
-    const path = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
+    const asked = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
+    const path = asked.startsWith("/demo/") ? asked.slice("/demo".length) : asked;
     // No favicon: an empty answer, so the tab's console has no 404 that is not about Distill.
     if (path === "/favicon.ico") { res.writeHead(204).end(); return; }
     if (path === "/blank.html") {
@@ -175,7 +178,8 @@ export class Distill {
     return id;
   }
 
-  /** Opens a demo page (article, form, pricing, blank) in a new tab. The URL carries a counter, so two tabs differ. */
+  /** Opens a demo page (article, form, pricing, blank; "demo/form" for the web app's address of it) in a new tab. The URL
+   *  carries a counter, so two tabs differ. */
   async openTab(name: string, role = "tab"): Promise<Tab> {
     const page = await this.context.newPage();
     this.watch(page, role);

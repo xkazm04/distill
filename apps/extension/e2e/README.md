@@ -31,7 +31,8 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   helper there (`__distillFakeHelper`, dropped from every other build) that the test switches on before it opens the
   panel. Handrail's real `Host` runs in the test process and trades envelopes with it, so no native host is needed and
   none is started, even on a machine where Handrail is installed.
-- A small local server serves `apps/web/public/demo/*.html`.
+- A small local server serves `apps/web/public/demo/*.html`, at `/<page>.html` and also at `/demo/<page>.html` (the
+  address the web app gives them, where the guide library's demo guide applies).
 - The side panel is opened as an ordinary extension page, `sidepanel.html?tabId=<n>`, pinned to the demo tab. The tab id
   comes from the service worker (`chrome.tabs.query`).
 - The tab-switch scenario opens the panel without the pin, so it follows the active tab through
@@ -67,6 +68,10 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   reload keeps the guide's step and puts the passed answers back into the form; the next form on the same site gets a
   same-label answer, marked "Carried over from the previous page"; pointing at a block in Read outlines its source in
   the tab.
+- The guide library (guides/README.md): the demo form at `/demo/form.html` gets the library's example guide, labelled
+  "Example guide" with no AI chip, read exactly as written (no changed-form notice), its steps fill the tab, a step
+  quotes the form's own words in Czech; and no http(s) request leaves the browser apart from the tab's own page (the
+  library is inside the extension). The same form at `/form.html` gets no guide.
 
 Expected failures (`test.fail`, shown with a cross but counted as passing) are bugs the harness found; each carries the
 reason. When the bug is fixed the test reports "expected to fail, but passed": remove the `test.fail` line. There are
@@ -94,7 +99,9 @@ In your own Chrome (138 or newer) with Gemini Nano available (`chrome://on-devic
 2. Open a demo article (the hosted app's `/demo/article.html`), click the Distill icon. The model card at the foot of
    the menu says **Model on this device: ready**.
 3. Read, level **Plain**: the text gets simpler and the chip says **On this device**.
-4. Open the demo form, **Fill a form**: the steps are in English and the chip says where they ran.
+4. Open the demo form, **Fill a form**: it shows the guide library's **Example guide** (no AI ran, so no device chip).
+   To see the steps the model writes, open a form the library has no guide for (any real web form): the steps are in
+   English and the chip says where they ran.
 5. Type an answer, press **Check this answer**: the reply's chip says **On this device** (a value never goes to the
    cloud).
 6. Turn off the network (DevTools, Network, Offline) and press **Check this answer** again: it still answers, on this
