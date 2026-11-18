@@ -1,0 +1,69 @@
+{
+  "title": "Údaje o vyživovaných dětech",
+  "models": "Written as a hard case, after the labelling code, and scored before any change to it: a table whose column headers name the boxes of both rows, yes/no tick boxes labelled on their left ('Ano [ ] Ne [ ]'), the place and date of signing printed under their lines, a label above its box that wraps onto two lines, and a box whose only name is a cryptic tooltip with the label printed under it.",
+  "layout": {
+    "lang": "cs",
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 15, "text": "Údaje o vyživovaných dětech" },
+          { "at": [50, 750], "size": 9, "text": "Jméno a příjmení dítěte" },
+          { "at": [300, 750], "size": 9, "text": "Rodné číslo dítěte" },
+          { "at": [450, 750], "size": 9, "text": "Počet měsíců" },
+          { "at": [50, 676], "text": "Dítě žije ve společné domácnosti:" },
+          { "at": [230, 676], "text": "Ano" },
+          { "at": [290, 676], "text": "Ne" },
+          { "at": [50, 640], "size": 9, "text": "Uplatňuje-li slevu na dítě také druhý z rodičů," },
+          { "at": [50, 629], "size": 9, "text": "uveďte jeho jméno a příjmení" },
+          { "at": [50, 568], "size": 9, "text": "Zaměstnavatel druhého z rodičů" },
+          { "at": [60, 470], "size": 9, "text": "Místo" },
+          { "at": [260, 470], "size": 9, "text": "Dne" }
+        ],
+        "fields": [
+          { "type": "text", "name": "Text20", "rect": [50, 720, 240, 18] },
+          { "type": "text", "name": "Text21", "rect": [300, 720, 140, 18] },
+          { "type": "text", "name": "Text22", "rect": [450, 720, 60, 18] },
+          { "type": "text", "name": "Text23", "rect": [50, 698, 240, 18] },
+          { "type": "text", "name": "Text24", "rect": [300, 698, 140, 18] },
+          { "type": "text", "name": "Text25", "rect": [450, 698, 60, 18] },
+          { "type": "checkbox", "name": "Check Box26", "rect": [252, 674, 12, 12] },
+          { "type": "checkbox", "name": "Check Box27", "rect": [308, 674, 12, 12] },
+          { "type": "text", "name": "Text28", "rect": [50, 600, 300, 18] },
+          { "type": "text", "name": "Text29", "rect": [230, 562, 280, 18], "tooltip": "Text Field 29" },
+          { "type": "text", "name": "Text30", "rect": [50, 482, 180, 18] },
+          { "type": "text", "name": "Text31", "rect": [250, 482, 120, 18] }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "dite1", "names": ["Text20"], "kind": "text", "label": "Jméno a příjmení dítěte", "required": false, "value": "Taras Ševčenko",
+      "probes": [{ "field": "Text20", "value": "Taras Ševčenko", "shows": "Taras Ševčenko" }] },
+    { "key": "rc1", "names": ["Text21"], "kind": "text", "label": "Rodné číslo dítěte", "required": false, "value": "150321/1234",
+      "probes": [{ "field": "Text21", "value": "150321/1234" }] },
+    { "key": "mesice1", "names": ["Text22"], "kind": "text", "label": "Počet měsíců", "required": false, "value": "12",
+      "probes": [{ "field": "Text22", "value": "12" }] },
+    { "key": "dite2", "names": ["Text23"], "kind": "text", "label": "Jméno a příjmení dítěte", "required": false, "value": "Oksana Ševčenko",
+      "probes": [{ "field": "Text23", "value": "Oksana Ševčenko", "shows": "Oksana Ševčenko" }] },
+    { "key": "rc2", "names": ["Text24"], "kind": "text", "label": "Rodné číslo dítěte", "required": false, "value": "185412/5678",
+      "probes": [{ "field": "Text24", "value": "185412/5678" }] },
+    { "key": "mesice2", "names": ["Text25"], "kind": "text", "label": "Počet měsíců", "required": false, "value": "12",
+      "probes": [{ "field": "Text25", "value": "12" }] },
+    { "key": "ano", "names": ["Check Box26"], "kind": "checkbox", "label": "Ano", "required": false, "value": "true",
+      "probes": [{ "field": "Check Box26", "checked": true }] },
+    { "key": "ne", "names": ["Check Box27"], "kind": "checkbox", "label": "Ne", "required": false,
+      "probes": [{ "field": "Check Box27", "checked": false }] },
+    { "key": "druhy", "names": ["Text28"], "kind": "text", "label": "Uplatňuje-li slevu na dítě také druhý z rodičů, uveďte jeho jméno a příjmení", "required": false, "value": "Petro Ševčenko",
+      "probes": [{ "field": "Text28", "value": "Petro Ševčenko", "shows": "Petro Ševčenko" }] },
+    { "key": "zamestnavatel", "names": ["Text29"], "kind": "text", "label": "Zaměstnavatel druhého z rodičů", "required": false, "value": "Žďárské strojírny, a.s.",
+      "probes": [{ "field": "Text29", "value": "Žďárské strojírny, a.s.", "shows": "Žďárské strojírny, a.s." }] },
+    { "key": "misto", "names": ["Text30"], "kind": "text", "label": "Místo", "required": false, "value": "Brno",
+      "probes": [{ "field": "Text30", "value": "Brno", "shows": "Brno" }] },
+    { "key": "dne", "names": ["Text31"], "kind": "text", "label": "Dne", "required": false, "value": "18. 11. 2026",
+      "probes": [{ "field": "Text31", "value": "18. 11. 2026", "shows": "18. 11. 2026" }] }
+  ],
+  "byHand": {
+    "Text20": "Taras Ševčenko", "Text21": "150321/1234", "Text22": "12", "Text23": "Oksana Ševčenko", "Text24": "185412/5678", "Text25": "12",
+    "Check Box26": "true", "Text28": "Petro Ševčenko", "Text29": "Žďárské strojírny, a.s.", "Text30": "Brno", "Text31": "18. 11. 2026"
+  }
+}

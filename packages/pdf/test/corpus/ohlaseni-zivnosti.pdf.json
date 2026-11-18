@@ -1,0 +1,50 @@
+{
+  "title": "Ohlášení živnosti (held out)",
+  "models": "HELD OUT: written after the labelling rules were final and scored once; the rules are not changed to fit it, so its misses stay in the baseline as the honest number for layouts the rules were not built on. A Word form made fillable by a tool's automatic field detection: names taken from nearby text or 'undefined', labels printed in the same line as the underscores the field covers, a label printed inside the left of its own box, a table header centred over its column on two lines, and Ano/Ne radio buttons labelled on their left.",
+  "layout": {
+    "lang": "cs",
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 15, "text": "Ohlášení živnosti" },
+          { "at": [50, 742], "text": "Obchodní firma: ________________________________________" },
+          { "at": [50, 718], "text": "Sídlo: ________________________________________________" },
+          { "at": [56, 689], "text": "Předmět podnikání:" },
+          { "at": [94, 652], "size": 9, "text": "Den zahájení" },
+          { "at": [96, 642], "size": 9, "text": "živnosti" },
+          { "at": [262, 652], "size": 9, "text": "Doba trvání" },
+          { "at": [258, 642], "size": 9, "text": "(na dobu určitou do)" },
+          { "at": [50, 590], "text": "Byl jste v posledních 3 letech provozovatelem živnosti?" },
+          { "at": [350, 590], "text": "Ano" },
+          { "at": [410, 590], "text": "Ne" }
+        ],
+        "fields": [
+          { "type": "text", "name": "Obchodní firma", "rect": [128, 736, 300, 18] },
+          { "type": "text", "name": "undefined", "rect": [84, 712, 344, 18] },
+          { "type": "text", "name": "undefined_2", "rect": [50, 682, 380, 22] },
+          { "type": "text", "name": "undefined_3", "rect": [70, 612, 120, 18] },
+          { "type": "text", "name": "undefined_4", "rect": [240, 612, 120, 18] },
+          { "type": "radio", "name": "Group1", "options": [{ "value": "Choice1", "rect": [374, 588, 10, 10] }, { "value": "Choice2", "rect": [428, 588, 10, 10] }] }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "firma", "names": ["Obchodní firma"], "kind": "text", "label": "Obchodní firma", "required": false, "value": "Ševčenko Olena – Úklidové služby",
+      "probes": [{ "field": "Obchodní firma", "value": "Ševčenko Olena – Úklidové služby", "shows": "Ševčenko Olena – Úklidové služby" }] },
+    { "key": "sidlo", "names": ["undefined"], "kind": "text", "label": "Sídlo", "required": false, "value": "Křižíkova 148/34, Praha 8",
+      "probes": [{ "field": "undefined", "value": "Křižíkova 148/34, Praha 8", "shows": "Křižíkova 148/34, Praha 8" }] },
+    { "key": "predmet", "names": ["undefined_2"], "kind": "text", "label": "Předmět podnikání", "required": false, "value": "Úklidové služby",
+      "probes": [{ "field": "undefined_2", "value": "Úklidové služby", "shows": "Úklidové služby" }] },
+    { "key": "zahajeni", "names": ["undefined_3"], "kind": "text", "label": "Den zahájení živnosti", "required": false, "value": "1. 1. 2027",
+      "probes": [{ "field": "undefined_3", "value": "1. 1. 2027", "shows": "1. 1. 2027" }] },
+    { "key": "doba", "names": ["undefined_4"], "kind": "text", "label": "Doba trvání (na dobu určitou do)", "required": false, "value": "neurčito",
+      "probes": [{ "field": "undefined_4", "value": "neurčito" }] },
+    { "key": "drive", "names": ["Group1"], "kind": "radio", "label": "Byl jste v posledních 3 letech provozovatelem živnosti?", "required": false, "options": 2, "optionLabels": ["Ano", "Ne"], "value": "Choice2",
+      "probes": [{ "field": "Group1", "value": "Choice2" }] }
+  ],
+  "byHand": {
+    "Obchodní firma": "Ševčenko Olena – Úklidové služby", "undefined": "Křižíkova 148/34, Praha 8", "undefined_2": "Úklidové služby",
+    "undefined_3": "1. 1. 2027", "undefined_4": "neurčito", "Group1": "Choice2"
+  }
+}

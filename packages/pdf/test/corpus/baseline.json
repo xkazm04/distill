@@ -1,0 +1,114 @@
+{
+  "note": "Written only by `npm run bench:forms:update -w @distill/pdf`. corpus.test.ts fails when a total falls below these numbers.",
+  "totals": {
+    "expected": 53,
+    "engineFields": 53,
+    "detected": 53,
+    "labels": 49,
+    "shapes": 53,
+    "values": 49,
+    "filled": 49,
+    "claimed": 49,
+    "falseClaims": 0,
+    "prefilled": 4,
+    "kept": 4
+  },
+  "metrics": {
+    "recall": 1,
+    "precision": 1,
+    "labels": 0.9245,
+    "shape": 1,
+    "fill": 1,
+    "kept": 1,
+    "refusals": 1,
+    "falseClaims": 0
+  },
+  "fixtures": {
+    "ohlaseni-zivnosti": {
+      "expected": 6,
+      "engineFields": 6,
+      "detected": 6,
+      "labels": 2,
+      "shapes": 6,
+      "values": 6,
+      "filled": 6,
+      "claimed": 6,
+      "falseClaims": 0,
+      "prefilled": 0,
+      "kept": 0
+    },
+    "prihlaska-pojistence": {
+      "expected": 8,
+      "engineFields": 8,
+      "detected": 8,
+      "labels": 8,
+      "shapes": 8,
+      "values": 8,
+      "filled": 8,
+      "claimed": 8,
+      "falseClaims": 0,
+      "prefilled": 0,
+      "kept": 0
+    },
+    "prohlaseni-poplatnika": {
+      "expected": 10,
+      "engineFields": 10,
+      "detected": 10,
+      "labels": 10,
+      "shapes": 10,
+      "values": 7,
+      "filled": 7,
+      "claimed": 7,
+      "falseClaims": 0,
+      "prefilled": 3,
+      "kept": 3
+    },
+    "vyzivovane-deti": {
+      "expected": 12,
+      "engineFields": 12,
+      "detected": 12,
+      "labels": 12,
+      "shapes": 12,
+      "values": 11,
+      "filled": 11,
+      "claimed": 11,
+      "falseClaims": 0,
+      "prefilled": 1,
+      "kept": 1
+    },
+    "zadost-pobyt": {
+      "expected": 8,
+      "engineFields": 8,
+      "detected": 8,
+      "labels": 8,
+      "shapes": 8,
+      "values": 8,
+      "filled": 8,
+      "claimed": 8,
+      "falseClaims": 0,
+      "prefilled": 0,
+      "kept": 0
+    },
+    "zmena-adresy": {
+      "expected": 9,
+      "engineFields": 9,
+      "detected": 9,
+      "labels": 9,
+      "shapes": 9,
+      "values": 9,
+      "filled": 9,
+      "claimed": 9,
+      "falseClaims": 0,
+      "prefilled": 0,
+      "kept": 0
+    }
+  },
+  "refusals": {
+    "flat-scan": "flat",
+    "xfa-dynamic": "xfa",
+    "xfa-static": "xfa",
+    "encrypted": "encrypted",
+    "password": "password",
+    "signed": "locked"
+  }
+}

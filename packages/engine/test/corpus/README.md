@@ -95,3 +95,48 @@ widgets and the framework stand-in run. Found by trying, in happy-dom 21.0.4:
 The framework fixture is a stand-in for React's controlled inputs written in a few lines of script (instance-level
 value tracking; text follows input/change, select follows change, checkbox and radio follow click). It models that
 behaviour; it is not React.
+
+## PDF forms (`packages/pdf`)
+
+The PDF side of Wayfill (`@distill/pdf`) has its own section of this benchmark, in `packages/pdf/test/`, because the
+engine has no PDF dependency and must not get one. Its totals are reported apart from the web totals above, and the
+web baseline (`baseline.json` here) does not include them.
+
+**The PDFs are synthetic and built in the test run.** Each fixture is a `<slug>.pdf.json` in `packages/pdf/test/corpus`:
+a layout (printed Czech text and form fields at given positions) that `corpus/build.ts` draws with pdf-lib's own form
+API and the embedded Noto Sans, plus what a careful person would list. No real office's PDF was downloaded or
+committed; names of offices are generic and all personal data is made up. The PDFs Distill must refuse (a print-only
+form, a dynamic and a static XFA form, an encrypted file, a password-protected file, a signed file) are built in
+`corpus/refusals.ts` the way such files are made (an XFA stream, pdf-lib's real encryption, a signed signature field).
+
+| Command | What it does |
+| --- | --- |
+| `npm run bench:forms -w @distill/pdf` | Prints the PDF table, the refusals and every miss. |
+| `npm run bench:forms:update -w @distill/pdf` | The same, and rewrites `packages/pdf/test/corpus/baseline.json`. Commit it on purpose, with the reason. |
+| `npm run check` | Includes `packages/pdf/test/corpus.test.ts`: fixtures sound, refusals right, no total below the PDF baseline. |
+
+How a run is judged, where it differs from web forms:
+
+1. **Soundness.** On the untouched file every probe of an answer must fail and every pre-filled value must hold; a
+   fill with pdf-lib's plain API (no Distill code, `byHand`) must satisfy every probe.
+2. **Matching.** An engine field matches a listed field when its binding shares a PDF field name with it. A listed
+   field made of several PDF fields (a date in three boxes, a postcode in five) must come back as one engine field.
+3. **Probes are independent of the filler.** `fillPdf` writes with pdf-lib and confirms with a fresh pdf-lib parse;
+   the probes read the saved bytes with **pdf.js**, a different parser: the field's value, whether a tick box is
+   ticked, and (`shows`) the text the field's appearance stream actually draws, glyph by glyph, with a glyph missing
+   from its font counted as a failure. That is what a viewer shows, so a value stored correctly but drawn as garbage
+   (the standard fonts draw "Žluťoučký kůň" as "Žlu?ou?ký k??") fails.
+4. **Metrics.** recall, precision, labels, shape and fill as above; labels also compare each option's label where the
+   fixture lists `optionLabels`, and shape also checks `maxLength` where listed. `kept` counts fields the file already
+   held (or left alone) that still hold their value after the fill. **False claims** are values `fillPdf` reported
+   written that pdf.js refutes. Refusals count PDFs refused with the right reason.
+
+What the probes do not see: whether drawn text fits inside its box. A line clipped by the box edge still draws the
+right glyphs. The fill code sizes text to its box, and the end-to-end check (Chromium's own PDF viewer) is where
+clipping was found and fixed; the benchmark does not measure it.
+
+**Held-out fixture.** `ohlaseni-zivnosti` was written after the labelling rules were final and scored once; the rules
+are not changed to fit it, so its misses stay in the baseline. `vyzivovane-deti` was written as a hard case before the
+last round of rule changes and scored 5 of 12 labels first; the general rules added after it (the nearer side for a
+tick box, labels that wrap, labels under a signature line, table column headers) bring it to 12 of 12, so it is no
+longer a held-out number. The other four fixtures were written alongside the rules.
