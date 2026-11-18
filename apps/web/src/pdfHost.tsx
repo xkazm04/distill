@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import fontUrl from "@distill/pdf/fonts/NotoSans-Regular.ttf?url";
-import { fillPdf, readPdf, readPdfValues, type Box, type PdfJs, type PdfProblem, type PdfReading } from "@distill/pdf";
+import { fillPdf, PRINT_ONLY_NOTE, readPdf, readPdfValues, type Box, type PdfJs, type PdfProblem, type PdfReading } from "@distill/pdf";
 import type { FormStructure, FormValues, PageModel } from "@distill/engine";
 import { accentColor, focusColor } from "./ui/dom";
 import "./pdf.css";
@@ -56,11 +56,17 @@ export class PdfHost implements PageHost {
   constructor(private readonly original: Uint8Array, private readonly fileName: string) {
     this.working = original;
     this.reading = readPdf(original, { pdfjs: PDFJS, fileName });
-    this.reading.then((r) => { if (r.protected) { this.isProtected = true; this.changed(); } }, () => undefined);
+    this.reading.then((r) => {
+      if (r.protected) this.isProtected = true;
+      if (r.printOnly) this.isPrintOnly = true;
+      if (r.protected || r.printOnly) this.changed();
+    }, () => undefined);
   }
 
   /** True when the file's author protected it and allowed filling it in: the filled copy is protected the same way. */
   isProtected = false;
+  /** True when the PDF has no form fields and Distill found the places to write on from the printed page. */
+  isPrintOnly = false;
 
   /** The file's name, on screen only (the header). It never goes into a structure, a page model or a prompt. */
   label() { return this.fileName; }
@@ -85,21 +91,32 @@ export class PdfHost implements PageHost {
     return r.structure;
   }
 
-  async readValues(): Promise<FormValues> {
-    return readPdfValues(this.working, await this.reading);
+  /** A print-only PDF: Distill found the places to write on itself, and says so above every step. */
+  async formNote(): Promise<{ title: string; detail: string } | null> {
+    const r = await this.reading.catch(() => null);
+    return r?.printOnly ? { ...PRINT_ONLY_NOTE } : null;
   }
 
-  writeValues(_s: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[] }> {
+  /** The answers so far, device-only. A print-only page holds them only as drawn text, so they are kept here. */
+  async readValues(): Promise<FormValues> {
+    const r = await this.reading;
+    if (r.printOnly) return { ...this.answers };
+    return readPdfValues(this.working, r);
+  }
+
+  writeValues(_s: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[]; reasons: Record<string, string> }> {
     // One write at a time: each starts from the original with every answer so far.
     const run = this.queue.then(async () => {
       const r = await this.reading;
       const all = { ...this.answers, ...values };
-      const out = await fillPdf(this.original, r, all, loadFont);
+      // pdf.js reads the copy back to confirm each answer drawn on a print-only page.
+      const out = await fillPdf(this.original, r, all, loadFont, { pdfjs: PDFJS });
       this.working = out.bytes;
       this.answers = Object.fromEntries(Object.entries(all).filter(([id]) => out.written.includes(id)));
       this.changed();
       const asked = new Set(Object.keys(values));
-      return { written: out.written.filter((id) => asked.has(id)), failed: out.failed.filter((id) => asked.has(id)) };
+      const failed = out.failed.filter((id) => asked.has(id));
+      return { written: out.written.filter((id) => asked.has(id)), failed, reasons: Object.fromEntries(failed.filter((id) => out.reasons[id]).map((id) => [id, out.reasons[id] as string])) };
     });
     this.queue = run.catch(() => undefined);
     return run;
@@ -165,8 +182,8 @@ function PdfPane({ host, visible }: { host: PdfHost; visible: boolean }) {
     <div className="original-pane pdf-pane" hidden={!visible} data-testid="original-pane">
       <div className="pdf-pane-bar">
         <p className="muted original-hint">
-          {!filled ? "The PDF as you opened it. Distill never changes it: answers go into a copy."
-            : which === "copy" ? `Your filled copy. Fields that Distill filled have a coloured outline.${host.isProtected ? " The original is protected by its author, and the copy keeps the same protection." : ""}` : "The file as you opened it. Distill never changes it."}
+          {!filled ? `The PDF as you opened it. Distill never changes it: answers go into a copy.${host.isPrintOnly ? " Each step's place on the page is outlined here, so you can see where its answer will be written." : ""}`
+            : which === "copy" ? `Your filled copy. ${host.isPrintOnly ? "Answers Distill wrote onto the page" : "Fields that Distill filled"} have a coloured outline.${host.isProtected ? " The original is protected by its author, and the copy keeps the same protection." : ""}${host.isPrintOnly ? " Check each one on the page before you print or send it." : ""}` : "The file as you opened it. Distill never changes it."}
         </p>
         {filled && <div className="seg" role="radiogroup" aria-label="Which PDF to show">
           {(["copy", "original"] as const).map((w) => (

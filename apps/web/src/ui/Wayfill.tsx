@@ -182,12 +182,18 @@ export interface WriteProblem {
   fieldIds: string[];
   /** The page itself could not be reached (the tab moved on or closed), so nothing was written. */
   unreachable: boolean;
+  /** The host's own reason per field, when it gave one (an answer too long for its place on a print-only PDF). */
+  reasons?: Record<string, string>;
 }
 
 /** The words for a WriteProblem, naming each field by the label the page gives it. */
 export function writeProblemText(p: WriteProblem, labelOf: (id: string) => string): string {
   const one = p.fieldIds.length === 1;
   const names = p.fieldIds.map((id) => `"${labelOf(id)}"`).join(", ");
+  // The host said why: each field with its own reason.
+  if (!p.unreachable && p.reasons && p.fieldIds.every((id) => p.reasons?.[id])) {
+    return p.fieldIds.map((id) => `Could not fill in "${labelOf(id)}": ${p.reasons?.[id]}`).join(" ");
+  }
   return p.unreachable
     ? `The original page could not be reached, so ${names} ${one ? "was" : "were"} not filled in. Please type ${one ? "it" : "them"} in the original form yourself.`
     : `Could not fill in ${names} on the original form: the page did not take ${one ? "the answer" : "these answers"}, or Distill could not confirm it did. Please fill ${one ? "it" : "them"} in there yourself.`;
@@ -266,6 +272,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
   const [noForm, setNoForm] = useState<NoForm>("none");
   const [formProblem, setFormProblem] = useState<FormProblem | null>(null);
+  /** The host's note for this form, shown above every step (a print-only PDF: Distill found the places itself). */
+  const [formNote, setFormNote] = useState<FormProblem | null>(null);
   /** The filled copy is being saved, was saved, or could not be (host.saveCopy: a PDF). */
   const [saving, setSaving] = useState<"idle" | "busy" | "saved" | "failed">("idle");
   const [structure, setStructure] = useState<FormStructure | null>(null);
@@ -308,6 +316,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         setPhase("noform");
         return;
       }
+      const note = host.formNote ? await host.formNote().catch(() => null) : null;
+      if (live) setFormNote(note);
       // A page with no fillable field has nothing to guide: say so before any AI call, never an empty wizard.
       if (s.fields.length === 0) {
         if (!live) return;
@@ -520,7 +530,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     const mine: FormValues = {};
     step.fieldIds.forEach((id) => { mine[id] = values[id] ?? ""; });
     if (remember) setProfile(rememberAnswers(mine));
-    let res: { written: string[]; failed: string[] };
+    let res: { written: string[]; failed: string[]; reasons?: Record<string, string> };
     try {
       res = await host.writeValues(structure, mine);
     } catch (e) {
@@ -533,7 +543,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     if (res.written.length) setSaving("idle"); // a copy saved before this answer is out of date
     await host.highlight(nextFilled, accentColor()).catch(() => undefined);
     await readErrors(structure); // a page that checks an answer as it is typed says so now
-    if (res.failed.length > 0) { setProblem({ fieldIds: res.failed, unreachable: false }); return; }
+    if (res.failed.length > 0) { setProblem({ fieldIds: res.failed, unreachable: false, ...(res.reasons ? { reasons: res.reasons } : {}) }); return; }
     go(idx + 1);
   }
 
@@ -617,6 +627,12 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         {chip}
       </div>
 
+      {formNote && (
+        <div className="notice notice-warn" role="note" data-testid="form-note">
+          <p><strong>{formNote.title}</strong></p>
+          <p>{formNote.detail}</p>
+        </div>
+      )}
       {fromGuide && source && (
         <div className={`notice wf-guide wf-guide-${guideKind(fromGuide.guide)}`} data-testid="guide-source" data-kind={guideKind(fromGuide.guide)}>
           <p>

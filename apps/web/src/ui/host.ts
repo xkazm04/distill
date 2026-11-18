@@ -13,7 +13,12 @@ export interface PageHost {
   getForm(formIndex?: number): Promise<FormStructure>;
   /** Device-only. The result must never be put in a cloud-eligible prompt. */
   readValues(structure: FormStructure): Promise<FormValues>;
-  writeValues(structure: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[] }>;
+  /** `reasons`, when the host knows them: fieldId -> why that answer was not written, in plain words (a PDF answer too
+   *  long for its place on a print-only page). Shown as written; it never repeats the answer itself. */
+  writeValues(structure: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[]; reasons?: Record<string, string> }>;
+  /** A note Wayfill shows above every step of this form, always: for a print-only PDF, that Distill found the places
+   *  to write on itself and the person should check the page. Null when there is nothing to say. */
+  formNote?(): Promise<FormProblem | null>;
   /** The validation errors the page shows now (engine readErrors). Device-only, like readValues: an error can repeat
    *  what the person typed, so it never goes into a cloud-eligible prompt or to the agent. */
   readErrors?(structure: FormStructure): Promise<FormErrors>;
