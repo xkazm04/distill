@@ -1,0 +1,366 @@
+{
+  "guideVersion": 1,
+  "id": "cz/oznameni-zmen",
+  "status": "draft",
+  "authority": {
+    "name": "Ministerstvo vnitra",
+    "nameEn": "the Ministry of the Interior"
+  },
+  "formName": {
+    "cs": "Oznámení změn",
+    "en": "Report of changes",
+    "uk": "Повідомлення про зміни"
+  },
+  "formLang": "cs",
+  "officialFormUrl": "https://ipc.gov.cz/wp-content/uploads/2024/11/Oznameni-zmen.pdf",
+  "instructionsUrl": "https://ipc.gov.cz/en/obligations-for-foreigners/changes-with-third-country-nationals/change-of-address/",
+  "draftedOn": "2026-11-18",
+  "match": {
+    "format": "pdf",
+    "fingerprints": [
+      "24cd1e63d25ab68cd1b7c841424d1c592d300dcc54673559210104510f358455"
+    ],
+    "titles": [
+      "OZNÁMENÍ ZMĚN"
+    ],
+    "fields": [
+      {
+        "fieldId": "p1-x293-y630",
+        "kind": "text",
+        "label": "Jméno a příjmení / Name and surname Ім’я та прізвище"
+      },
+      {
+        "fieldId": "p1-x415-y612",
+        "kind": "date",
+        "label": "Datum narození / Date of birth / Дата народження"
+      },
+      {
+        "fieldId": "p1-x293-y595",
+        "kind": "text",
+        "label": "Státní příslušnost / Nationality / Громадянство"
+      },
+      {
+        "fieldId": "p1-x293-y578",
+        "kind": "text",
+        "label": "Číslo pasu / Passport number / Номер паспорта"
+      },
+      {
+        "fieldId": "p1-x293-y561",
+        "kind": "text",
+        "label": "Telefon / Telephone / Tелефон"
+      },
+      {
+        "fieldId": "p1-x293-y543",
+        "kind": "text",
+        "label": "E-mail / E-mail / Електронна пошта"
+      },
+      {
+        "fieldId": "p1-x293-y526",
+        "kind": "textarea",
+        "label": "Adresa místa hlášeného pobytu Address of registered place of residence Адреса зареєстрованого місця проживання"
+      },
+      {
+        "fieldId": "p1-x41-y450",
+        "kind": "checkbox",
+        "label": "Změna adresy Change of address Зміна адреси"
+      },
+      {
+        "fieldId": "p1-x344-y450",
+        "kind": "checkbox",
+        "label": "Změna příjmení a jména Change of surname and name Зміна прізвища та імені"
+      },
+      {
+        "fieldId": "p1-x41-y409",
+        "kind": "checkbox",
+        "label": "Změna cestovního dokladu Change of a travel document Зміна закордонного паспорта"
+      },
+      {
+        "fieldId": "p1-x344-y409",
+        "kind": "checkbox",
+        "label": "Změna státní příslušnosti Change of citizenship Зміна громадянства"
+      },
+      {
+        "fieldId": "p1-x41-y368",
+        "kind": "checkbox",
+        "label": "Změna rodinného stavu Change of family status Зміна сімейного стану"
+      },
+      {
+        "fieldId": "p1-x344-y368",
+        "kind": "checkbox",
+        "label": "Úmrtí cizince Death of a foreign national Смерть іноземця"
+      },
+      {
+        "fieldId": "p1-x41-y327",
+        "kind": "checkbox",
+        "label": "Změna příjmení a jména Change of surname and name Зміна прізвища та імені"
+      },
+      {
+        "fieldId": "p1-x344-y327",
+        "kind": "checkbox",
+        "label": "Jiná změna Different change Інша зміна"
+      },
+      {
+        "fieldId": "p1-x41-y286",
+        "kind": "checkbox",
+        "label": "Výměna „Povolení k pobytu“ za duplikát Replacement of a “Residence Permit” for duplicate Обмін «Дозволу на перебування» на дублікат"
+      },
+      {
+        "fieldId": "p1-x39-y177",
+        "kind": "text",
+        "label": "Staré informace / Outdated information / Стара інформація"
+      },
+      {
+        "fieldId": "p1-x39-y142",
+        "kind": "text",
+        "label": "Nové informace / New information / Нова інформація"
+      },
+      {
+        "fieldId": "p1-x36-y112",
+        "kind": "text",
+        "label": "Místo a datum podpisu / Place and date of signature Місце та дата підпису"
+      }
+    ],
+    "reader": "pdf/2",
+    "source": "182c42602eea0f9459f05ee13d41420b28b090a1a111c937783ea2479752916b"
+  },
+  "wizards": {
+    "en": {
+      "notes": [
+        "This form is a PDF made for printing. Distill found the places to write on by itself: check every answer on the printed page before you send it.",
+        "The ministry asks for the form to be filled in legibly, in block capitals and in Latin letters, so type your answers in capital letters."
+      ],
+      "steps": [
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "p1-x293-y630"
+          ],
+          "question": "What is your full name?",
+          "explanation": "Your first name and surname. The ministry asks for block capitals and Latin letters.",
+          "example": "OLENA KOVALENKO",
+          "official": {
+            "text": "The form must be filled in legibly, in block capitals and in Latin characters.",
+            "lang": "en"
+          }
+        },
+        {
+          "stepId": "birth",
+          "fieldIds": [
+            "p1-x415-y612"
+          ],
+          "question": "What is your date of birth?",
+          "explanation": "The form has three places for it: day, month and year.",
+          "expectedFormat": "day.month.year",
+          "example": "05.03.1990"
+        },
+        {
+          "stepId": "nationality",
+          "fieldIds": [
+            "p1-x293-y595"
+          ],
+          "question": "What is your nationality?",
+          "explanation": "The country whose citizen you are."
+        },
+        {
+          "stepId": "passport",
+          "fieldIds": [
+            "p1-x293-y578"
+          ],
+          "question": "What is the number of your passport?",
+          "explanation": "The number of the travel document you have now."
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "p1-x293-y561",
+            "p1-x293-y543"
+          ],
+          "question": "How can the ministry contact you?",
+          "explanation": "Your phone number and your e-mail address."
+        },
+        {
+          "stepId": "address",
+          "fieldIds": [
+            "p1-x293-y526"
+          ],
+          "question": "What is the address of your registered place of residence?",
+          "explanation": "The form asks for the address of the place of residence that is registered for you. It has two dotted lines for it."
+        },
+        {
+          "stepId": "type",
+          "fieldIds": [
+            "p1-x41-y450",
+            "p1-x344-y450",
+            "p1-x41-y409",
+            "p1-x344-y409",
+            "p1-x41-y368",
+            "p1-x344-y368",
+            "p1-x41-y327",
+            "p1-x344-y327",
+            "p1-x41-y286"
+          ],
+          "question": "What has changed?",
+          "explanation": "Tick every change you are reporting. For a new address, tick Change of address. The form prints Change of surname and name twice; tick one of them."
+        },
+        {
+          "stepId": "old",
+          "fieldIds": [
+            "p1-x39-y177"
+          ],
+          "question": "What was the information before the change?",
+          "explanation": "For example your previous address, previous surname or the number of your previous passport.",
+          "official": {
+            "text": "Spolu s oznámením předložte doklad, který změnu prokazuje (originál nebo úředně ověřenou kopii).",
+            "lang": "cs",
+            "url": "https://ipc.gov.cz/wp-content/uploads/2024/11/Oznameni-zmen.pdf"
+          }
+        },
+        {
+          "stepId": "new",
+          "fieldIds": [
+            "p1-x39-y142"
+          ],
+          "question": "What is the new information?",
+          "explanation": "For example your new address, new surname or the number of your new passport. Attach a document that proves the change, such as a proof of accommodation for a new address."
+        },
+        {
+          "stepId": "signature",
+          "fieldIds": [
+            "p1-x36-y112"
+          ],
+          "question": "Where and when are you signing the form?",
+          "explanation": "The town where you sign, and the date. Distill leaves the signature line empty: print the filled copy and sign it by hand.",
+          "example": "Praha, 18. 11. 2026",
+          "official": {
+            "text": "You can fill in the form for notification of changes online. Then print out the filled-in form and sign it.",
+            "lang": "en"
+          }
+        }
+      ]
+    },
+    "uk": {
+      "notes": [
+        "Ця форма - PDF для друку. Distill сам знайшов місця для відповідей: перевірте кожну відповідь на роздрукованій сторінці, перш ніж надсилати.",
+        "Міністерство просить заповнювати форму розбірливо, друкованими великими літерами та латиницею, тож пишіть відповіді великими літерами."
+      ],
+      "steps": [
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "p1-x293-y630"
+          ],
+          "question": "Яке ваше повне ім'я?",
+          "explanation": "Ваше ім'я та прізвище. Міністерство просить друкованими великими літерами та латиницею.",
+          "example": "OLENA KOVALENKO",
+          "official": {
+            "text": "The form must be filled in legibly, in block capitals and in Latin characters.",
+            "lang": "en"
+          }
+        },
+        {
+          "stepId": "birth",
+          "fieldIds": [
+            "p1-x415-y612"
+          ],
+          "question": "Яка ваша дата народження?",
+          "explanation": "У формі для неї є три місця: день, місяць і рік.",
+          "expectedFormat": "день.місяць.рік",
+          "example": "05.03.1990"
+        },
+        {
+          "stepId": "nationality",
+          "fieldIds": [
+            "p1-x293-y595"
+          ],
+          "question": "Яке ваше громадянство?",
+          "explanation": "Країна, громадянином якої ви є."
+        },
+        {
+          "stepId": "passport",
+          "fieldIds": [
+            "p1-x293-y578"
+          ],
+          "question": "Який номер вашого паспорта?",
+          "explanation": "Номер проїзного документа, який у вас зараз."
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "p1-x293-y561",
+            "p1-x293-y543"
+          ],
+          "question": "Як міністерство може з вами зв'язатися?",
+          "explanation": "Ваш номер телефону та адреса електронної пошти."
+        },
+        {
+          "stepId": "address",
+          "fieldIds": [
+            "p1-x293-y526"
+          ],
+          "question": "Яка адреса вашого зареєстрованого місця проживання?",
+          "explanation": "Форма просить адресу місця проживання, яке за вами зареєстроване. Для неї є два рядки з крапками."
+        },
+        {
+          "stepId": "type",
+          "fieldIds": [
+            "p1-x41-y450",
+            "p1-x344-y450",
+            "p1-x41-y409",
+            "p1-x344-y409",
+            "p1-x41-y368",
+            "p1-x344-y368",
+            "p1-x41-y327",
+            "p1-x344-y327",
+            "p1-x41-y286"
+          ],
+          "question": "Що змінилося?",
+          "explanation": "Позначте кожну зміну, про яку повідомляєте. Для нової адреси позначте Зміна адреси. Зміна прізвища та імені у формі надрукована двічі; позначте одну з них."
+        },
+        {
+          "stepId": "old",
+          "fieldIds": [
+            "p1-x39-y177"
+          ],
+          "question": "Якою була інформація до зміни?",
+          "explanation": "Наприклад, ваша попередня адреса, попереднє прізвище або номер попереднього паспорта.",
+          "official": {
+            "text": "Spolu s oznámením předložte doklad, který změnu prokazuje (originál nebo úředně ověřenou kopii).",
+            "lang": "cs",
+            "url": "https://ipc.gov.cz/wp-content/uploads/2024/11/Oznameni-zmen.pdf"
+          }
+        },
+        {
+          "stepId": "new",
+          "fieldIds": [
+            "p1-x39-y142"
+          ],
+          "question": "Яка нова інформація?",
+          "explanation": "Наприклад, ваша нова адреса, нове прізвище або номер нового паспорта. Додайте документ, який підтверджує зміну, наприклад підтвердження про житло для нової адреси."
+        },
+        {
+          "stepId": "signature",
+          "fieldIds": [
+            "p1-x36-y112"
+          ],
+          "question": "Де і коли ви підписуєте форму?",
+          "explanation": "Місто, де ви підписуєте, і дата. Distill залишає рядок для підпису порожнім: роздрукуйте заповнену копію і підпишіть її власноруч.",
+          "example": "Praha, 18. 11. 2026",
+          "official": {
+            "text": "You can fill in the form for notification of changes online. Then print out the filled-in form and sign it.",
+            "lang": "en"
+          }
+        }
+      ]
+    }
+  },
+  "reviewNotes": [
+    "Written by an AI (Claude) on 2026-11-18 from the form and the ministry's change of address page; not checked by a person. Status stays draft.",
+    "Sources read: https://ipc.gov.cz/wp-content/uploads/2024/11/Oznameni-zmen.pdf (the form, its printed text in Czech, English and Ukrainian) and https://ipc.gov.cz/en/obligations-for-foreigners/changes-with-third-country-nationals/change-of-address/ (English: change of address for third-country nationals, both the long-term and the permanent residence tabs), and https://ipc.gov.cz/en/forms-and-documents/documents/formal-requirements/ (nothing there about filling in the form). The Czech version of the instructions page was not read; the quotes from the instructions are in English, word for word.",
+    "Print-only form: match.fields were found by Distill from the printed page (reader pdf/2). Checked by eye against the page: the 19 places for the person are all there (7 lines at the top, the address over two dotted lines, 9 tick boxes, old and new information, place and date). The signature line and the office's Převzal zaměstnanec line are left out on purpose.",
+    "The form prints Změna příjmení a jména / Change of surname and name twice (top right and fourth on the left); the step says to tick one. Check whether the ministry means two different changes.",
+    "Step address: neither the form nor the page says whether Adresa místa hlášeného pobytu is the address before or after the change when the change is a new address. The explanation only repeats the form's words; find the ministry's answer before review.",
+    "Steps old and new: the page read is about a change of address only; the other changes the form lists (passport, name, citizenship, family status, death, duplicate permit) have their own pages, which were not read. The examples for them come from the form's own labels.",
+    "Not stated on purpose: time limits (30 days for a long-term visa or residence, 30 working days for permanent residence, 15 days to the police for seasonal employment, three working days for temporary protection on https://ipc.gov.cz/uk/tymchasovyy-zakhyst/), because they depend on the person's residence and none is printed on the form. Whether temporary protection holders use this form was not found in the sources read.",
+    "The Ukrainian text is machine-written and needs a native speaker's check. Uncertain terms: зареєстроване місце проживання (místo hlášeného pobytu), проїзний документ (cestovní doklad)."
+  ]
+}
