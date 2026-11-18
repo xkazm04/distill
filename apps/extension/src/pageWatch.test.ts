@@ -77,6 +77,53 @@ describe("watchPage", () => {
     delete (window as { navigation?: unknown }).navigation;
   });
 
+  it("tells when the next step of a form in steps shows (the hidden attribute goes)", async () => {
+    document.querySelector("form")!.insertAdjacentHTML("beforeend", `<section id="step2" hidden><input id="employer"></section>`);
+    await settle();
+    expect(notify).not.toHaveBeenCalled(); // a hidden step is not a change the person can see
+    document.getElementById("step2")!.hidden = false;
+    await settle();
+    expect(notify).toHaveBeenCalledWith("mutation");
+  });
+
+  it("does not count Distill's own outline on a filled field", async () => {
+    const name = document.getElementById("name")!;
+    name.style.outline = "3px solid #371c46";
+    name.setAttribute("data-distill-mark", "");
+    await settle();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("watches inside an open shadow root", async () => {
+    const host = document.createElement("x-field");
+    document.querySelector("form")!.append(host);
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML = `<input id="inner">`;
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(1);
+    root.innerHTML += `<input id="inner2">`;
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
+
+  it("watches inside a same-origin frame, and passes over one it may not read", async () => {
+    const inner = document.implementation.createHTMLDocument("frame");
+    inner.body.innerHTML = `<form><input id="holder"></form>`;
+    // Elements named iframe that load nothing (happy-dom does not load frames here); each one's document is given.
+    const stub = () => document.createElementNS("urn:test", "iframe");
+    const frame = stub();
+    Object.defineProperty(frame, "contentDocument", { get: () => inner });
+    const foreign = stub();
+    Object.defineProperty(foreign, "contentDocument", { get: () => { throw new Error("SecurityError"); } });
+    document.body.append(frame, foreign);
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(1); // the frame's field came
+    inner.querySelector("form")!.insertAdjacentHTML("beforeend", `<input id="breed">`);
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(2); // a field came inside the frame
+    expect(JSON.stringify(snapshot(document))).toContain("holder");
+  });
+
   it("stops watching", async () => {
     stop();
     document.querySelector("form")!.insertAdjacentHTML("beforeend", `<input id="later">`);
