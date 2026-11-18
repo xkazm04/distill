@@ -164,11 +164,90 @@
     }
   },
   "refusals": {
-    "flat-scan": "flat",
+    "flat": "flat",
+    "scan": "scan",
     "xfa-dynamic": "xfa",
     "xfa-static": "xfa",
     "encrypted": "encrypted",
     "password": "password",
     "signed": "locked"
+  },
+  "printOnly": {
+    "totals": {
+      "expected": 52,
+      "engineFields": 52,
+      "detected": 52,
+      "labels": 52,
+      "confidentlyWrong": 0,
+      "positional": 0,
+      "shapes": 52,
+      "values": 48,
+      "filled": 48,
+      "claimed": 48,
+      "falseClaims": 0
+    },
+    "metrics": {
+      "recall": 1,
+      "precision": 1,
+      "labels": 1,
+      "shape": 1,
+      "fill": 1,
+      "falseClaims": 0,
+      "confidentlyWrong": 0
+    },
+    "fixtures": {
+      "tisk-osvc-boxy": {
+        "expected": 21,
+        "engineFields": 21,
+        "detected": 21,
+        "labels": 21,
+        "confidentlyWrong": 0,
+        "positional": 0,
+        "shapes": 21,
+        "values": 19,
+        "filled": 19,
+        "claimed": 19,
+        "falseClaims": 0
+      },
+      "tisk-podtrzeni": {
+        "expected": 12,
+        "engineFields": 12,
+        "detected": 12,
+        "labels": 12,
+        "confidentlyWrong": 0,
+        "positional": 0,
+        "shapes": 12,
+        "values": 12,
+        "filled": 12,
+        "claimed": 12,
+        "falseClaims": 0
+      },
+      "tisk-zmena-pobytu": {
+        "expected": 11,
+        "engineFields": 11,
+        "detected": 11,
+        "labels": 11,
+        "confidentlyWrong": 0,
+        "positional": 0,
+        "shapes": 11,
+        "values": 11,
+        "filled": 11,
+        "claimed": 11,
+        "falseClaims": 0
+      },
+      "tisk-znaky": {
+        "expected": 8,
+        "engineFields": 8,
+        "detected": 8,
+        "labels": 8,
+        "confidentlyWrong": 0,
+        "positional": 0,
+        "shapes": 8,
+        "values": 6,
+        "filled": 6,
+        "claimed": 6,
+        "falseClaims": 0
+      }
+    }
   }
 }
