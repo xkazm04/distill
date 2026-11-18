@@ -174,23 +174,23 @@
   },
   "printOnly": {
     "totals": {
-      "expected": 52,
-      "engineFields": 52,
-      "detected": 52,
-      "labels": 52,
+      "expected": 66,
+      "engineFields": 67,
+      "detected": 66,
+      "labels": 66,
       "confidentlyWrong": 0,
       "positional": 0,
-      "shapes": 52,
-      "values": 48,
-      "filled": 48,
-      "claimed": 48,
+      "shapes": 65,
+      "values": 61,
+      "filled": 61,
+      "claimed": 61,
       "falseClaims": 0
     },
     "metrics": {
       "recall": 1,
-      "precision": 1,
+      "precision": 0.9851,
       "labels": 1,
-      "shape": 1,
+      "shape": 0.9848,
       "fill": 1,
       "falseClaims": 0,
       "confidentlyWrong": 0
@@ -220,6 +220,19 @@
         "values": 12,
         "filled": 12,
         "claimed": 12,
+        "falseClaims": 0
+      },
+      "tisk-potvrzeni-heldout": {
+        "expected": 14,
+        "engineFields": 15,
+        "detected": 14,
+        "labels": 14,
+        "confidentlyWrong": 0,
+        "positional": 0,
+        "shapes": 13,
+        "values": 13,
+        "filled": 13,
+        "claimed": 13,
         "falseClaims": 0
       },
       "tisk-zmena-pobytu": {
