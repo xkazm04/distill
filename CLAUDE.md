@@ -23,7 +23,10 @@ English step-by-step wizard that fills the original form (Wayfill), a generated 
 - **Only a named person reviews a guide.** A guide (`guides/`) becomes `reviewed` only through a commit that names the
   person who checked it against the official instructions (`reviewer`, `reviewedOn`; see `guides/README.md`). An AI
   never marks a guide reviewed or sets those fields: what it writes is `draft`. Editing a reviewed guide's text (steps,
-  notes, fields) returns it to `draft` until a person checks it again.
+  notes, fields) returns it to `draft` until a person checks it again. One exception: `guide:new --refresh` on the
+  same form (same source digest or fingerprint, same fields in the same order and kinds) renews only what the reader
+  produces (labels, fingerprint, title, `match.reader`, `match.source`) and keeps the review, because no checked text
+  and nothing about the form changed. When it cannot show the form is the same, the guide returns to `draft`.
 - **Secrets.** Firebase config comes from `.env` (see `.env.example`); `.env*`, keys, keystores and
   `google-services.json` are git-ignored. `npm run secret-scan` runs in `npm run check` and before every push.
 

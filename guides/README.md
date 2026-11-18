@@ -79,6 +79,11 @@ Any later change to the steps, the notes or the fields of a reviewed guide sets 
 and `reviewedOn`) until it is checked again. Fixing a typo that changes no meaning still gets a new `reviewedOn` by a
 reviewer.
 
+One exception: a reader-only refresh (`npm run guide:new -- --refresh <id>`, see [Drift](#drift)) keeps the review.
+It applies only when the form is shown to be the same one (the same source digest or fingerprint, the same fields in
+the same order and of the same kinds) and it changes only what the reader produces, never the steps, notes or quotes.
+When the script cannot show the form is the same, it returns the guide to `draft` itself.
+
 ## How a guide is matched
 
 All matching happens on the device: the web app loads the whole library from its own origin
