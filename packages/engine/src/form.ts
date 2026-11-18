@@ -1,7 +1,7 @@
-import type { FieldKind, FieldOption, FieldStructure, FormStructure, FormValues } from "./types.js";
+import type { FieldKind, FieldOption, FieldStructure, FormErrors, FormStructure, FormValues } from "./types.js";
 import { publicUrl } from "./url.js";
 import { attr, blocked, byId, collapse, fold, isHidden, pageLang, SKIP_TAGS, tag, textOf as rawTextOf } from "./dom.js";
-import { errorElements } from "./errors.js";
+import { errorElements, errorsOf } from "./errors.js";
 import { fingerprint } from "./fingerprint.js";
 import { FIELDISH, inputCombobox, itemValue, listboxOf, listOptions, widgetRole } from "./aria.js";
 import { readOne, writeOne } from "./fill.js";
@@ -601,13 +601,20 @@ export async function extractForm(doc: Document, url: string, formIndex = 0): Pr
 
 /** Find the live elements behind a structure: the form whose fields overlap it most. */
 function bindStructure(doc: Document, structure: FormStructure): Map<string, FieldBinding> {
+  return boundForm(doc, structure).map;
+}
+
+/** The form whose fields overlap the structure most, with its bindings by field id. */
+function boundForm(doc: Document, structure: FormStructure): { scope: Element | null; map: Map<string, FieldBinding> } {
   const want = new Set(structure.fields.map((f) => f.fieldId));
   let best: FieldBinding[] = [];
+  let scope: Element | null = null;
   let bestScore = 0;
   for (const s of formScopes(doc)) {
     const score = s.bindings.filter((x) => want.has(x.field.fieldId)).length;
     if (score > bestScore) {
       best = s.bindings;
+      scope = s.scope;
       bestScore = score;
     }
   }
@@ -617,7 +624,7 @@ function bindStructure(doc: Document, structure: FormStructure): Map<string, Fie
     const b = map.get(f.fieldId);
     if (b && !b.field.options && f.options?.length) b.field = { ...b.field, options: f.options };
   }
-  return map;
+  return { scope, map };
 }
 
 /** Reads each field as a string. Radio: the checked option's value. Checkbox group: checked values joined by ",".
@@ -633,6 +640,19 @@ export function readValues(doc: Document, structure: FormStructure): FormValues 
     if (v !== "") out[f.fieldId] = v;
   }
   return out;
+}
+
+/**
+ * The validation errors the page shows now for the structure's form: per field (by ARIA link, beside the field, or the
+ * browser's own check of a native constraint) and for the form as a whole (an error summary). Read through the same
+ * bindings as writing, so ARIA widgets, shadow roots and same-origin frames are reached. VALUES CLASS, device-only like
+ * readValues: an error can repeat what the person typed. See FormErrors and errors.ts.
+ */
+export function readErrors(doc: Document, structure: FormStructure): FormErrors {
+  const { scope, map } = boundForm(doc, structure);
+  if (!scope) return { fields: {}, form: [] };
+  const bindings = structure.fields.map((f) => map.get(f.fieldId)).filter((b): b is FieldBinding => !!b);
+  return errorsOf(scope, bindings);
 }
 
 /** Writes values into the original fields the way a person would reach them (native setter with input + change, a

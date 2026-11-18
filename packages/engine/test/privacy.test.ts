@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractActions, extractForm, extractPage, prompts, readValues, route, writeValues, type FormStructure, type Letter, type ReplyAnswer, type Task } from "../src/index.js";
+import { extractActions, extractForm, extractPage, prompts, readErrors, readValues, route, writeValues, type FormStructure, type Letter, type ReplyAnswer, type Task } from "../src/index.js";
 import { live, parse } from "./helpers.js";
 import czech from "./fixtures/czech-residence-form.html?raw";
 
@@ -184,6 +184,10 @@ describe("payload privacy", () => {
     expect(forms[0]?.fields.map((f) => f.label)).toEqual(["Jméno", "Rodné číslo", "PSČ", "E-mail", "Telefon", "Číslo pasu"]);
     expect(forms[0]?.fields.find((f) => f.fieldId === "rc")?.hint).toBe("Ve tvaru 123456/7890");
     expect(forms[1]?.fields.map((f) => f.label)).toEqual(["Držitel", "Obec"]);
+    // What was left out is exactly what the device-only reading finds.
+    const errors = [readErrors(doc, forms[0]!), readErrors(doc, forms[1]!)];
+    const found = JSON.stringify(errors).match(/[A-Z]+-ZQX-\d/g) ?? [];
+    expect(new Set(found)).toEqual(new Set(["SUMMARY-ZQX-1", "LINK-ZQX-9", "LABEL-ZQX-2", "DESCRIBED-ZQX-3", "ERRMSG-ZQX-4", "ALERT-ZQX-5", "ADJACENT-ZQX-6", "SHADOW-ZQX-8", "FRAME-ZQX-7"]));
     await close();
   });
 

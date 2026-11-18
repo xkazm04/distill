@@ -80,6 +80,28 @@ export interface FormStructure {
 /** fieldId -> the person's value. Device-only. */
 export type FormValues = Record<string, string>;
 
+/** Where the page's error for a field was found: an ARIA link from the field (aria-errormessage, or aria-describedby
+ *  on an aria-invalid field), the browser's own check of a native constraint, or an error element beside the field. */
+export type FieldErrorSource = "aria" | "native" | "nearby";
+
+export interface FieldError {
+  /** As shown: the page's own words, or for `native` the browser's message, in the browser's language. */
+  text: string;
+  source: FieldErrorSource;
+}
+
+/**
+ * The validation errors the page shows right now. VALUES CLASS, device-only like FormValues: a page's message can repeat
+ * what the person typed ("'jan@' není platný e-mail"). It never goes into a cloud-eligible prompt, Firestore, or
+ * anything the person's agent can read; `explainError` (only_on_device) is the one prompt that carries it.
+ */
+export interface FormErrors {
+  /** fieldId -> the error the page shows for that field. A field with no error is omitted. */
+  fields: Record<string, FieldError>;
+  /** Errors for the form as a whole (an error summary), in page order. Empty when there are none. */
+  form: string[];
+}
+
 export interface WizardStep {
   /** Same as the FieldStructure it explains; one step may cover several fields (e.g. an address). */
   stepId: string;
@@ -216,7 +238,7 @@ export type Task =
   | "explainField"      // structure
   | "suggestValue"      // values
   | "checkValue"        // values
-  | "readLetter"        // page (Envelope: OCR text of a letter the person chose to share)
+  | "readLetter"      // page (Envelope: OCR text of a letter the person chose to share)
   | "buildReplyWizard"  // page (Envelope: the same letter text; never the person's answers)
   | "draftReply";       // values (Envelope: carries the person's answers)
 
