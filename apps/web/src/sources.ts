@@ -17,6 +17,21 @@ export async function loadDemo(id: string): Promise<Loaded | null> {
   return { html: await res.text(), url: new URL(`demo/${d.file}`, location.href).href, name: d.title };
 }
 
+/** A PDF the person opened from their own device. The bytes stay in this tab's memory: never uploaded, never stored. */
+export interface OpenedPdf { bytes: Uint8Array; name: string }
+
+/** The largest PDF Distill opens: forms are small, and the whole file is held in memory. */
+export const MAX_PDF_BYTES = 50 * 1024 * 1024;
+
+/** Reads a chosen file as a PDF. Rejects in plain words when it is too large or is not a PDF. Nothing is sent anywhere. */
+export async function readPdfFile(file: File): Promise<OpenedPdf> {
+  if (file.size > MAX_PDF_BYTES) throw new Error("This file is larger than 50 MB. Distill opens PDF forms up to 50 MB.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
+  if (!head.includes("%PDF-")) throw new Error("This file is not a PDF. Choose a PDF form.");
+  return { bytes, name: file.name || "form.pdf" };
+}
+
 export function fromPaste(input: string): Loaded {
   const html = looksLikeHtml(input) ? input : textToHtml(input);
   return { html, url: "https://pasted.local/", name: "Pasted page" };

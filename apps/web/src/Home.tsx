@@ -39,9 +39,18 @@ const buildIt = (
 /** Stagger order for the entrance animation (CSS reads --i). */
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
-export function Home({ onPaste }: { onPaste: (input: string) => void }) {
+export function Home({ onPaste, onPdf }: { onPaste: (input: string) => void; onPdf?: (file: File) => Promise<void> }) {
   const [text, setText] = useState("");
   const [note, setNote] = useState<"empty" | "url" | null>(null);
+  const [pdfNote, setPdfNote] = useState<string | null>(null);
+
+  async function choosePdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // the same file can be chosen again
+    if (!file || !onPdf) return;
+    setPdfNote(null);
+    try { await onPdf(file); } catch (err) { setPdfNote(err instanceof Error ? err.message : "Distill could not open this file."); }
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +94,20 @@ export function Home({ onPaste }: { onPaste: (input: string) => void }) {
             )}
             <button type="submit" className="btn btn-primary drip">Make it clear</button>
           </form>
+
+          {onPdf && (
+            <div className="paste paste-card pdf-open reveal" style={at(3)}>
+              <p><strong>Or fill in a PDF form</strong></p>
+              <p className="muted">
+                The PDF is opened on this device and never uploaded. Distill fills in a copy, which you save as a new file.
+              </p>
+              <label className="btn" data-testid="open-pdf">
+                Open a PDF form
+                <input type="file" accept="application/pdf,.pdf" className="visually-hidden" onChange={(e) => void choosePdf(e)} />
+              </label>
+              {pdfNote && <p className="notice notice-warn" role="alert" data-testid="pdf-note">{pdfNote}</p>}
+            </div>
+          )}
         </div>
       </section>
 

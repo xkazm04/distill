@@ -1,0 +1,12 @@
+/* The PDF pane (pdfHost.tsx). Loaded with the PDF code only, so the first load's CSS does not grow. */
+.pdf-pane-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem .8rem; padding-right: .75rem; }
+.pdf-pane-bar .original-hint { margin-block: .4rem; }
+.ws-body[data-original="beside"] .pdf-pane .original-hint { display: block; margin-left: .6rem; }
+.pdf-pages { display: flex; flex-direction: column; align-items: center; gap: .8rem; overflow: auto; max-height: 75vh; padding: .5rem 0 1rem; }
+.ws-body[data-original="beside"] .pdf-pages { max-height: none; height: 100%; }
+.ws-body[data-original="full"] .pdf-pages { max-height: calc(100vh - var(--ws-head) - 8rem); }
+/* A page renders as a viewer renders it: on the system canvas, in its own light scheme. */
+.pdf-page { position: relative; flex: none; background: Canvas; color-scheme: light; box-shadow: 0 0 0 1px var(--line); }
+.pdf-page canvas { display: block; }
+.pdf-mark { position: absolute; outline: 2px solid; outline-offset: 1px; border-radius: 2px; pointer-events: none; }
+.pdf-located { outline-width: 3px; outline-offset: 2px; }

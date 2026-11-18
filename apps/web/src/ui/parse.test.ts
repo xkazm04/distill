@@ -18,6 +18,7 @@ describe("routes and paste", () => {
   it("parses hash routes", () => {
     expect(parseHash("#/demo/form/wayfill")).toEqual({ kind: "demo", id: "form", tab: "wayfill" });
     expect(parseHash("")).toEqual({ kind: "home" });
+    expect(parseHash("#/pdf/wayfill")).toEqual({ kind: "pdf", tab: "wayfill" });
   });
   it("detects urls and escapes pasted text", () => {
     expect(looksLikeUrl("https://example.com/a")).toBe(true);
