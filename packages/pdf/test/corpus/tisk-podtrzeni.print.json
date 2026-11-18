@@ -1,0 +1,69 @@
+{
+  "title": "Prohlášení (print-only, underscores and ruled lines)",
+  "models": "A print-only declaration like the tax and trade forms: three labels with underscore leaders on one row, a label and its leader printed as one text item with a whole underscored line under it, ruled lines with a label on their left, rounded boxes with a small lettered caption inside ('a) titul'), a box with its label printed inside at its left, a date box with its label on the left, a place-and-date line labelled from below, a signature line (left out) and a footnote rule that is not a place to write.",
+  "layout": {
+    "lang": "cs-CZ",
+    "pages": [{
+      "fields": [],
+      "text": [
+        { "at": [220, 800], "size": 16, "text": "PROHLÁŠENÍ" },
+        { "at": [40, 760], "text": "Příjmení" },
+        { "at": [82, 760], "text": "______________________" },
+        { "at": [190, 760], "text": "Jméno" },
+        { "at": [222, 760], "text": "________________________" },
+        { "at": [345, 760], "text": "Rodné číslo" },
+        { "at": [402, 760], "text": "___________________________" },
+        { "at": [40, 740], "text": "Adresa bydliště: _____________________________________________________________________________________________" },
+        { "at": [40, 722], "text": "_______________________________________________________________________________________________________________" },
+        { "at": [40, 690], "text": "Telefon:" },
+        { "at": [320, 690], "text": "E-mail:" },
+        { "at": [43, 644], "size": 7, "text": "a) titul" },
+        { "at": [163, 644], "size": 7, "text": "b) obec" },
+        { "at": [363, 644], "size": 7, "text": "c) část obce" },
+        { "at": [44, 595], "size": 9, "text": "Ostatní jména / Other names:" },
+        { "at": [40, 560], "size": 9, "text": "Datum narození / Date of birth:" },
+        { "at": [90, 468], "size": 8, "text": "Místo a datum" },
+        { "at": [400, 468], "size": 8, "text": "Podpis" },
+        { "at": [40, 108], "size": 7, "text": "1) Vyplní pouze cizinec, který nemá rodné číslo." }
+      ],
+      "lines": [
+        { "from": [82, 688], "to": [300, 688] },
+        { "from": [360, 688], "to": [545, 688] },
+        { "from": [40, 480], "to": [240, 480] },
+        { "from": [320, 480], "to": [520, 480] },
+        { "from": [40, 120], "to": [160, 120], "width": 0.5 }
+      ],
+      "rects": [
+        { "rect": [40, 630, 120, 22], "radius": 3 }, { "rect": [160, 630, 200, 22], "radius": 3 }, { "rect": [360, 630, 185, 22], "radius": 3 },
+        { "rect": [40, 590, 505, 18] },
+        { "rect": [210, 555, 90, 18] }
+      ]
+    }]
+  },
+  "fields": [
+    { "key": "prijmeni", "kind": "text", "label": "Příjmení", "at": [130, 764], "value": "Kovalenko",
+      "probes": [{ "text": "Kovalenko", "within": [81, 757, 180, 772] }] },
+    { "key": "jmeno", "kind": "text", "label": "Jméno", "at": [270, 764], "value": "Olena",
+      "probes": [{ "text": "Olena", "within": [221, 757, 330, 772] }] },
+    { "key": "rc", "kind": "text", "label": "Rodné číslo", "at": [450, 764], "value": "905305/1234",
+      "probes": [{ "text": "905305/1234", "within": [401, 757, 523, 772] }] },
+    { "key": "adresa", "kind": "textarea", "label": "Adresa bydliště", "at": [300, 744], "value": "Školní 1532/5, 602 00 Brno - Veveří, Česká republika, byt číslo 14 ve třetím patře",
+      "probes": [{ "text": "Školní 1532/5, 602 00 Brno - Veveří, Česká republika, byt číslo 14 ve třetím patře", "within": [39, 719, 546, 752] }] },
+    { "key": "telefon", "kind": "text", "label": "Telefon", "at": [200, 692], "value": "+420 777 123 456",
+      "probes": [{ "text": "+420 777 123 456", "within": [82, 687, 300, 704] }] },
+    { "key": "email", "kind": "text", "label": "E-mail", "at": [450, 692], "value": "olena@example.cz",
+      "probes": [{ "text": "olena@example.cz", "within": [360, 687, 545, 704] }] },
+    { "key": "titul", "kind": "text", "label": "titul", "at": [100, 636], "value": "Mgr.",
+      "probes": [{ "text": "Mgr.", "within": [40, 630, 160, 643] }] },
+    { "key": "obec", "kind": "text", "label": "obec", "at": [260, 636], "value": "Ústí nad Labem",
+      "probes": [{ "text": "Ústí nad Labem", "within": [160, 630, 360, 643] }] },
+    { "key": "cast", "kind": "text", "label": "část obce", "at": [450, 636], "value": "Střekov",
+      "probes": [{ "text": "Střekov", "within": [360, 630, 545, 643] }] },
+    { "key": "ostatni", "kind": "text", "label": "Ostatní jména / Other names", "at": [400, 599], "value": "Anna Marie",
+      "probes": [{ "text": "Anna Marie", "within": [170, 590, 545, 608] }] },
+    { "key": "narozeni", "kind": "date", "label": "Datum narození / Date of birth", "at": [255, 564], "value": "5. 3. 1990",
+      "probes": [{ "text": "05.03.1990", "within": [210, 555, 300, 573] }] },
+    { "key": "misto", "kind": "text", "label": "Místo a datum", "at": [140, 484], "value": "Brno, 12. 11. 2026",
+      "probes": [{ "text": "Brno, 12. 11. 2026", "within": [40, 479, 240, 496] }] }
+  ]
+}

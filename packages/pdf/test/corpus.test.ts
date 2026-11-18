@@ -4,13 +4,17 @@
 // `npm run bench:forms:update -w @distill/pdf`; see the PDF section of packages/engine/test/corpus/README.md.
 import { beforeAll, describe, expect, it } from "vitest";
 import { checkFixture, compareToBaseline, lintExpectation, loadCorpus, readBaseline, runCorpus, type CorpusResult } from "./bench/pdf-forms.js";
+import { checkPrintFixture, lintPrint, loadPrintCorpus, runPrintCorpus, type PrintCounts, type PrintResult } from "./bench/print-forms.js";
 
 const corpus = loadCorpus();
+const printCorpus = loadPrintCorpus();
 let result: CorpusResult;
+let printed: { fixtures: PrintResult[]; totals: PrintCounts };
 
 beforeAll(async () => {
   result = await runCorpus(corpus);
-}, 120_000);
+  printed = await runPrintCorpus(printCorpus);
+}, 240_000);
 
 describe("PDF form corpus", () => {
   it("has the fixtures it promises, each well-formed", () => {
@@ -24,14 +28,29 @@ describe("PDF form corpus", () => {
 
   it("refuses every PDF it cannot fill, with the right reason", () => {
     expect(result.refusals.filter((r) => r.got !== r.want)).toEqual([]);
-    expect(result.refusals.map((r) => r.want).sort()).toEqual(["encrypted", "flat", "locked", "password", "xfa", "xfa"]);
+    expect(result.refusals.map((r) => r.want).sort()).toEqual(["encrypted", "flat", "locked", "password", "scan", "xfa", "xfa"]);
   });
 
   it("makes no false claim: nothing reported written that pdf.js does not see in the saved file", () => {
     expect(result.totals.falseClaims).toBe(0);
   });
 
-  it("no total falls below the stored baseline", () => {
-    expect(compareToBaseline(result, readBaseline())).toEqual([]);
+  it("no total falls below the stored baseline, the print-only section included", () => {
+    expect(compareToBaseline(result, readBaseline(), printed)).toEqual([]);
+  });
+});
+
+describe("print-only PDF corpus", () => {
+  it("has its fixtures, each well-formed", () => {
+    expect(printCorpus.length).toBeGreaterThanOrEqual(4);
+    for (const fx of printCorpus) expect(lintPrint(fx), fx.slug).toEqual([]);
+  });
+
+  it("every fixture is sound: no probe holds on the untouched file, and drawing the answers with pdf-lib alone passes them all", async () => {
+    for (const fx of printCorpus) expect(await checkPrintFixture(fx), fx.slug).toEqual([]);
+  }, 60_000);
+
+  it("makes no false claim: nothing reported written that pdf.js does not find at its place", () => {
+    expect(printed.totals.falseClaims).toBe(0);
   });
 });

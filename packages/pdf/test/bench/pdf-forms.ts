@@ -15,6 +15,7 @@ import type { FieldKind, FieldStructure, FormValues } from "@distill/engine";
 import { fillPdf, PdfOpenError, readPdf, type PdfBinding, type PdfJs, type PdfProblemKind, type PdfReading } from "../../src/index.js";
 import { buildPdf, fontBytes, readLayout, type Layout } from "../corpus/build.js";
 import { REFUSALS } from "../corpus/refusals.js";
+import type { PrintCounts, PrintResult } from "./print-forms.js";
 
 export const CORPUS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../corpus");
 export const BASELINE_PATH = join(CORPUS_DIR, "baseline.json");
@@ -423,15 +424,25 @@ export function formatTable(r: CorpusResult, details = true): string {
   return out.join("\n");
 }
 
+export interface PrintMetrics { recall: number; precision: number; labels: number; shape: number; fill: number; falseClaims: number; confidentlyWrong: number }
 export interface Baseline {
   note: string;
   totals: Counts;
   metrics: Metrics;
   fixtures: Record<string, Omit<FixtureResult, "slug" | "title" | "notes">>;
   refusals: Record<string, PdfProblemKind | "fillable">;
+  /** The print-only section: PDFs with no form field, whose places to write on are found from the printed page. */
+  printOnly?: { totals: PrintCounts; metrics: PrintMetrics; fixtures: Record<string, PrintCounts> };
 }
 
-export function toBaseline(r: CorpusResult): Baseline {
+export function printMetrics(c: PrintCounts): PrintMetrics {
+  return {
+    recall: rate(c.detected, c.expected), precision: rate(c.detected, c.engineFields), labels: rate(c.labels, c.expected), shape: rate(c.shapes, c.expected),
+    fill: rate(c.filled, c.values), falseClaims: c.falseClaims, confidentlyWrong: c.confidentlyWrong,
+  };
+}
+
+export function toBaseline(r: CorpusResult, p?: { fixtures: PrintResult[]; totals: PrintCounts }): Baseline {
   const fixtures: Baseline["fixtures"] = {};
   for (const f of r.fixtures) {
     const { slug, title: _t, notes: _n, ...counts } = f;
@@ -439,21 +450,39 @@ export function toBaseline(r: CorpusResult): Baseline {
   }
   const m = metrics(r.totals, r.refusals);
   const round = (x: number): number => Math.round(x * 10000) / 10000;
-  return {
+  const out: Baseline = {
     note: "Written only by `npm run bench:forms:update -w @distill/pdf`. corpus.test.ts fails when a total falls below these numbers.",
     totals: r.totals,
     metrics: { recall: round(m.recall), precision: round(m.precision), labels: round(m.labels), shape: round(m.shape), fill: round(m.fill), kept: round(m.kept), protection: round(m.protection), refusals: round(m.refusals), falseClaims: m.falseClaims },
     fixtures,
     refusals: Object.fromEntries(r.refusals.map((x) => [x.slug, x.got])),
   };
+  if (p) {
+    const pm = printMetrics(p.totals);
+    out.printOnly = {
+      totals: p.totals,
+      metrics: { recall: round(pm.recall), precision: round(pm.precision), labels: round(pm.labels), shape: round(pm.shape), fill: round(pm.fill), falseClaims: pm.falseClaims, confidentlyWrong: pm.confidentlyWrong },
+      fixtures: Object.fromEntries(p.fixtures.map(({ slug, notes: _n, ...c }) => [slug, c])),
+    };
+  }
+  return out;
 }
 
 export const readBaseline = (): Baseline => JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Baseline;
-export const writeBaseline = (r: CorpusResult): void => writeFileSync(BASELINE_PATH, `${JSON.stringify(toBaseline(r), null, 2)}\n`);
+export const writeBaseline = (r: CorpusResult, p?: { fixtures: PrintResult[]; totals: PrintCounts }): void => writeFileSync(BASELINE_PATH, `${JSON.stringify(toBaseline(r, p), null, 2)}\n`);
 
 /** Why the run is worse than the baseline, as sentences. Empty when every total holds. */
-export function compareToBaseline(r: CorpusResult, b: Baseline): string[] {
+export function compareToBaseline(r: CorpusResult, b: Baseline, p?: { fixtures: PrintResult[]; totals: PrintCounts }): string[] {
   const out: string[] = [];
+  if (p && b.printOnly) {
+    const now = printMetrics(p.totals);
+    const was = b.printOnly.metrics;
+    for (const k of ["recall", "precision", "labels", "shape", "fill"] as const) if (now[k] < was[k] - 1e-4) out.push(`print-only ${k} fell from ${was[k].toFixed(4)} to ${now[k].toFixed(4)}`);
+    if (now.falseClaims > was.falseClaims) out.push(`print-only false claims rose from ${was.falseClaims} to ${now.falseClaims}`);
+    if (now.confidentlyWrong > was.confidentlyWrong) out.push(`print-only confidently wrong labels rose from ${was.confidentlyWrong} to ${now.confidentlyWrong}`);
+    for (const slug of Object.keys(b.printOnly.fixtures)) if (!p.fixtures.some((f) => f.slug === slug)) out.push(`print-only fixture ${slug} is gone`);
+    for (const f of p.fixtures) if (!(f.slug in b.printOnly.fixtures)) out.push(`print-only fixture ${f.slug} is not in the baseline`);
+  } else if (p && p.fixtures.length) out.push("the print-only section is not in the baseline");
   const now = metrics(r.totals, r.refusals);
   const was = b.metrics;
   for (const k of ["recall", "precision", "labels", "shape", "fill", "kept", "protection", "refusals"] as const) {

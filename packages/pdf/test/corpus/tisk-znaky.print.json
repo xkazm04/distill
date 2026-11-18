@@ -1,0 +1,69 @@
+{
+  "title": "Žádost o pobyt (print-only, character boxes)",
+  "models": "A print-only application in character boxes like the residence permit form: each box drawn on its own, labels above the boxes with a number in the margin, an answer over two stacked rows of boxes, a label on the left of a row, a date in eight boxes with thick dividers between day, month and year, and tick squares whose text is on their left while the next one's text sits nearer on the right.",
+  "layout": {
+    "lang": "cs-CZ",
+    "pages": [{
+      "fields": [],
+      "text": [
+        { "at": [200, 800], "size": 12, "text": "ŽÁDOST / APPLICATION" },
+        { "at": [62, 720], "size": 9, "text": "1." },
+        { "at": [80, 720], "size": 9, "text": "PŘÍJMENÍ / SURNAME" },
+        { "at": [62, 685], "size": 9, "text": "2." },
+        { "at": [80, 685], "size": 9, "text": "OSTATNÍ JMÉNA / OTHER NAMES" },
+        { "at": [62, 625], "size": 9, "text": "3. JMÉNO / FIRST NAME" },
+        { "at": [62, 600], "size": 9, "text": "4. DATUM NAROZENÍ (DDMMRRRR)" },
+        { "at": [62, 572], "size": 8, "text": "ŽENATÝ / MARRIED" },
+        { "at": [157, 572], "size": 8, "text": "ROZVEDENÝ / DIVORCED" },
+        { "at": [274, 572], "size": 8, "text": "VDOVEC / WIDOWED" },
+        { "at": [62, 545], "size": 9, "text": "5. MÍSTO NAROZENÍ / PLACE OF BIRTH" }
+      ],
+      "rects": [
+        { "rect": [78, 700, 14, 16] }, { "rect": [92, 700, 14, 16] }, { "rect": [106, 700, 14, 16] }, { "rect": [120, 700, 14, 16] }, { "rect": [134, 700, 14, 16] },
+        { "rect": [148, 700, 14, 16] }, { "rect": [162, 700, 14, 16] }, { "rect": [176, 700, 14, 16] }, { "rect": [190, 700, 14, 16] }, { "rect": [204, 700, 14, 16] },
+        { "rect": [218, 700, 14, 16] }, { "rect": [232, 700, 14, 16] }, { "rect": [246, 700, 14, 16] }, { "rect": [260, 700, 14, 16] }, { "rect": [274, 700, 14, 16] },
+        { "rect": [288, 700, 14, 16] }, { "rect": [302, 700, 14, 16] }, { "rect": [316, 700, 14, 16] }, { "rect": [330, 700, 14, 16] }, { "rect": [344, 700, 14, 16] },
+
+        { "rect": [78, 665, 14, 16] }, { "rect": [92, 665, 14, 16] }, { "rect": [106, 665, 14, 16] }, { "rect": [120, 665, 14, 16] }, { "rect": [134, 665, 14, 16] },
+        { "rect": [148, 665, 14, 16] }, { "rect": [162, 665, 14, 16] }, { "rect": [176, 665, 14, 16] }, { "rect": [190, 665, 14, 16] }, { "rect": [204, 665, 14, 16] },
+        { "rect": [78, 649, 14, 16] }, { "rect": [92, 649, 14, 16] }, { "rect": [106, 649, 14, 16] }, { "rect": [120, 649, 14, 16] }, { "rect": [134, 649, 14, 16] },
+        { "rect": [148, 649, 14, 16] }, { "rect": [162, 649, 14, 16] }, { "rect": [176, 649, 14, 16] }, { "rect": [190, 649, 14, 16] }, { "rect": [204, 649, 14, 16] },
+
+        { "rect": [270, 620, 14, 16] }, { "rect": [284, 620, 14, 16] }, { "rect": [298, 620, 14, 16] }, { "rect": [312, 620, 14, 16] }, { "rect": [326, 620, 14, 16] },
+        { "rect": [340, 620, 14, 16] }, { "rect": [354, 620, 14, 16] }, { "rect": [368, 620, 14, 16] }, { "rect": [382, 620, 14, 16] }, { "rect": [396, 620, 14, 16] },
+        { "rect": [410, 620, 14, 16] }, { "rect": [424, 620, 14, 16] },
+
+        { "rect": [330, 595, 14, 16] }, { "rect": [344, 595, 14, 16] },
+        { "rect": [362, 595, 14, 16] }, { "rect": [376, 595, 14, 16] },
+        { "rect": [394, 595, 14, 16] }, { "rect": [408, 595, 14, 16] }, { "rect": [422, 595, 14, 16] }, { "rect": [436, 595, 14, 16] },
+
+        { "rect": [140, 568, 12, 12] }, { "rect": [257, 568, 12, 12] }, { "rect": [359, 568, 12, 12] },
+
+        { "rect": [270, 540, 14, 16] }, { "rect": [284, 540, 14, 16] }, { "rect": [298, 540, 14, 16] }, { "rect": [312, 540, 14, 16] }, { "rect": [326, 540, 14, 16] },
+        { "rect": [340, 540, 14, 16] }, { "rect": [354, 540, 14, 16] }, { "rect": [368, 540, 14, 16] }, { "rect": [382, 540, 14, 16] }, { "rect": [396, 540, 14, 16] }
+      ],
+      "lines": [
+        { "from": [358, 595], "to": [358, 611], "width": 4, "fill": true },
+        { "from": [390, 595], "to": [390, 611], "width": 4, "fill": true }
+      ]
+    }]
+  },
+  "fields": [
+    { "key": "prijmeni", "kind": "text", "label": "PŘÍJMENÍ / SURNAME", "maxLength": 20, "at": [85, 708], "value": "KOVALENKO",
+      "probes": [{ "text": "KOVALENKO", "within": [78, 700, 358, 716] }] },
+    { "key": "ostatni", "kind": "text", "label": "OSTATNÍ JMÉNA / OTHER NAMES", "maxLength": 20, "at": [85, 673], "value": "ANNA MARIE ŠŤASTNÁ",
+      "probes": [{ "text": "ANNA MARIE ŠŤASTNÁ", "within": [78, 649, 218, 681] }] },
+    { "key": "jmeno", "kind": "text", "label": "JMÉNO / FIRST NAME", "maxLength": 12, "at": [277, 628], "value": "OLENA",
+      "probes": [{ "text": "OLENA", "within": [270, 620, 438, 636] }] },
+    { "key": "datum", "kind": "text", "label": "DATUM NAROZENÍ (DDMMRRRR)", "maxLength": 8, "at": [337, 603], "value": "05031990",
+      "probes": [{ "text": "05031990", "within": [330, 595, 450, 611] }] },
+    { "key": "zenaty", "kind": "checkbox", "label": "ŽENATÝ / MARRIED", "at": [146, 574], "value": "true",
+      "probes": [{ "text": "X", "within": [140, 568, 152, 580] }] },
+    { "key": "rozvedeny", "kind": "checkbox", "label": "ROZVEDENÝ / DIVORCED", "at": [263, 574], "value": "",
+      "probes": [] },
+    { "key": "vdovec", "kind": "checkbox", "label": "VDOVEC / WIDOWED", "at": [365, 574], "value": "",
+      "probes": [] },
+    { "key": "misto", "kind": "text", "label": "MÍSTO NAROZENÍ / PLACE OF BIRTH", "maxLength": 10, "at": [277, 548], "value": "CHARKIV",
+      "probes": [{ "text": "CHARKIV", "within": [270, 540, 410, 556] }] }
+  ]
+}

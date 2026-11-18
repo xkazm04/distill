@@ -3,6 +3,8 @@
 // the fingerprint's input or any cloud-eligible prompt.
 import { fingerprint, prompts, route, type FormStructure, type PageModel, type Task } from "@distill/engine";
 import { describe, expect, it } from "vitest";
+import { PDFDocument, rgb } from "@cantoo/pdf-lib";
+import fontkit from "@cantoo/fontkit";
 import { fillPdf, PDF_URL, readPdf } from "../src/index.js";
 import { PDFJS } from "./bench/pdf-forms.js";
 import { buildPdf, fontBytes, readLayout, type Layout } from "./corpus/build.js";
@@ -73,5 +75,40 @@ describe("payload privacy, PDF", () => {
     const layout: Layout = { title: "Žádost o vydání potvrzení", pages: [{ text: [{ at: [50, 712], text: "Příjmení:" }], fields: [{ type: "text", name: "Text1", rect: [150, 706, 250, 18] }] }] };
     const r = await readPdf(await buildPdf(layout), { pdfjs: PDFJS, fileName: "potvrzeni.pdf" });
     expect(r.structure?.title).toBe("Žádost o vydání potvrzení");
+  });
+});
+
+describe("payload privacy, print-only PDF", () => {
+  const printLayout = async (): Promise<Layout> => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { CORPUS_DIR } = await import("./corpus/build.js");
+    return (JSON.parse(readFileSync(join(CORPUS_DIR, "tisk-zmena-pobytu.print.json"), "utf8")) as { layout: Layout }).layout;
+  };
+
+  it("answers Distill drew onto a copy never reach the structure, the page model or a prompt when it is read again", async () => {
+    const bytes = await buildPdf(await printLayout());
+    const before = await readPdf(bytes, { pdfjs: PDFJS, fileName: "oznameni_Wbrtnovska.pdf" });
+    const s = before.structure as FormStructure;
+    const id = (prefix: string) => s.fields.find((f) => f.label.startsWith(prefix))!.fieldId;
+    const out = await fillPdf(bytes, before, { [id("Jméno")]: SECRETS.name, [id("Telefon")]: "+420 608 431 977", [id("Adresa")]: SECRETS.street }, fontBytes(), { pdfjs: PDFJS });
+    expect(out.failed).toEqual([]);
+    const after = await readPdf(out.bytes, { pdfjs: PDFJS, fileName: "oznameni_Wbrtnovska (filled).pdf" });
+    expect(after.structure).toEqual(before.structure);
+    expect(after.page).toEqual(before.page);
+    expectAbsent([SECRETS.name, SECRETS.street, "Zqxvlenka", "Wbrtnov", "608 431"], JSON.stringify(after.structure), JSON.stringify(after.page),
+      ...cloudPrompts(after.page, after.structure as FormStructure));
+  });
+
+  it("text another program typed onto a line is kept out of the structure, the page model and every prompt", async () => {
+    const doc = await PDFDocument.load(await buildPdf(await printLayout()));
+    doc.registerFontkit(fontkit);
+    const font = await doc.embedFont(fontBytes(), { subset: true });
+    doc.getPage(0).drawText(SECRETS.name, { x: 300, y: 700, size: 10, font, color: rgb(0, 0, 0.5) });
+    doc.getPage(0).drawText("Wbrtnovska 88, Ostrava", { x: 300, y: 628, size: 10, font, color: rgb(0, 0, 0.5) });
+    const r = await readPdf(await doc.save(), { pdfjs: PDFJS });
+    const s = r.structure as FormStructure;
+    expect(s.fields.length).toBeGreaterThan(5);
+    expectAbsent(["Zqxvlenka", "Wbrtnov", "Ostrava"], JSON.stringify(s), JSON.stringify(r.page), ...cloudPrompts(r.page, s));
   });
 });

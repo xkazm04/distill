@@ -154,3 +154,39 @@ claim. Its misses stay in the baseline: a star inside a two-line bilingual label
 not seen as required), a label whose small English line sits nearer the box than its Czech line ("Given name(s)"
 instead of "Jméno Given name(s)"), and a number kept in a label ("9. Telefon"). The other fixtures were written
 alongside the rules.
+
+### Print-only PDFs
+
+Most of the corridor's forms are made for printing: real text and printed lines, but no form field. Distill finds the
+places a person writes on from the printed page (`packages/pdf/src/printed.ts`), draws the answers onto a copy
+(`overlay.ts`) and confirms each one by reading the copy back with pdf.js. The benchmark has a section for them, with
+its own totals in the same `baseline.json` (`printOnly`), so the fillable totals above stay comparable.
+
+Each fixture is a `<slug>.print.json` in `packages/pdf/test/corpus`: a layout with printed text, ruled lines and boxes
+(`lines`, `rects`, square or rounded; no `fields`), built in the run like the others, and what a careful person would
+list. Places for the office and for a signature are not listed: Distill should leave them out.
+
+```jsonc
+{ "key": "jmeno", "kind": "text", "label": "Jméno a příjmení", "at": [400, 702],   // a point inside the place
+  "value": "Olena Kovalenko",
+  "probes": [{ "text": "Olena Kovalenko", "within": [289, 696, 561, 716] }] }       // where the answer must be read
+```
+
+How a run is judged, where it differs from fillable PDFs:
+
+1. **Soundness.** No probe holds on the untouched file, and drawing each probe's text at its place with pdf-lib alone
+   (no Distill code) satisfies every probe.
+2. **Matching.** An engine field is a listed field when one of its places (the binding's boxes) holds the listed `at`
+   point. A second engine field on the same place, or one on no listed place, counts against precision.
+3. **Probes** read the saved bytes with pdf.js and are written in the benchmark, apart from the filler's own check: the
+   text pdf.js finds there that the original did not have, all inside `within`, must read as the answer (whitespace
+   aside), run out of the place nowhere, and cover no printed word.
+4. **Metrics.** recall, precision, labels, shape (kind, required, max length where listed), fill and **false claims** as
+   above, and on its own line **confidently wrong labels**: a field matched to a listed place whose label is wrong
+   although Distill presented it as the printed label. That is the failure that matters most here, so the gate fails
+   when it rises. A field Distill named by its position ("the line under ...") is not a right label and not a
+   confidently wrong one; it is counted apart.
+
+The four fixtures `tisk-*` were written alongside the rules, so their numbers measure the rules against what they were
+written for, not against unseen forms. What they model, and what Distill does with real corridor forms, is in the
+section's details (`npm run bench:forms -w @distill/pdf`) and in the commit that added each rule.
