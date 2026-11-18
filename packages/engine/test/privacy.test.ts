@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractForm, extractPage, prompts, readValues, route, writeValues, type FormStructure, type Letter, type ReplyAnswer, type Task } from "../src/index.js";
-import { parse } from "./helpers.js";
+import { live, parse } from "./helpers.js";
 import czech from "./fixtures/czech-residence-form.html?raw";
 
 // Free-text values, unmistakable, typed into every field that takes text. Choice fields (radio, select, checkbox)
@@ -51,6 +51,51 @@ describe("payload privacy", () => {
       for (const secret of Object.values(SECRETS)) expect(prompt).not.toContain(secret);
       for (const part of ["Zqxvlenka", "Wbrtnovsky", "870619", "private.example", "601 998", "ZQX"]) expect(prompt).not.toContain(part);
     }
+  });
+
+  it("values typed into shadow roots, frames and comboboxes never reach a structure, the page model or a prompt", async () => {
+    const { doc, close } = await live(`<!doctype html><html lang="cs"><head><title>Žádost</title></head><body><main>
+      <h1>Žádost o kartu</h1><p>Vyplňte údaje podle dokladu.</p>
+      <form>
+        <x-field id="jmeno"></x-field>
+        <label for="adr">Adresa</label>
+        <input id="adr" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="adr-list">
+        <ul id="adr-list" role="listbox"></ul>
+        <span id="kl">Kraj</span><div id="kraj" role="combobox" aria-labelledby="kl" aria-controls="kraj-list" aria-expanded="false">Vyberte</div>
+        <ul id="kraj-list" role="listbox" hidden><li role="option" data-value="PHA">Praha</li></ul>
+        <label for="pozn">Poznámka</label><input id="pozn">
+      </form>
+      <iframe id="f" srcdoc="<form><label for='d'>Držitel</label><input id='d'><label for='e'>E-mail</label><input id='e'></form>"></iframe>
+    </main></body></html>`, "https://mv.example/zadost");
+    const root = (doc.getElementById("jmeno") as HTMLElement).attachShadow({ mode: "open" });
+    root.innerHTML = `<label for="jm">Jméno</label><input id="jm">`;
+    const frame = (doc.getElementById("f") as HTMLIFrameElement).contentDocument as Document;
+    const before = [await extractForm(doc, "https://mv.example/zadost", 0), await extractForm(doc, "https://mv.example/zadost", 1)];
+    expect(before[0]?.fields.map((f) => f.fieldId)).toEqual(["jm", "adr", "kraj", "pozn"]);
+    expect(before[1]?.fields.map((f) => f.fieldId)).toEqual(["d", "e"]);
+
+    // The person types; the address box answers with suggestions that repeat what was typed, as address search does.
+    (root.getElementById("jm") as HTMLInputElement).value = "Zqxvlenka";
+    (doc.getElementById("adr") as HTMLInputElement).value = "Wbrtnovska 88";
+    doc.getElementById("adr-list")!.innerHTML = `<li role="option">Wbrtnovska 88, Praha</li><li role="option">Wbrtnovska 88a, Brno</li>`;
+    (doc.getElementById("pozn") as HTMLInputElement).value = "ZQX-secret-note-8842";
+    (frame.getElementById("d") as HTMLInputElement).value = "Zqxvlenka Wbrtnovsky";
+    (frame.getElementById("e") as HTMLInputElement).value = "zqx.wbrt@private.example";
+    const typed = { ...readValues(doc, before[0]!), ...readValues(doc, before[1]!) };
+    expect(Object.values(typed)).toEqual(expect.arrayContaining(["Zqxvlenka", "Wbrtnovska 88", "zqx.wbrt@private.example"]));
+
+    const after = [await extractForm(doc, "https://mv.example/zadost", 0), await extractForm(doc, "https://mv.example/zadost", 1)];
+    const page = extractPage(doc, "https://mv.example/zadost");
+    expect(JSON.stringify(page)).toContain("Vyplňte údaje podle dokladu.");
+    const built = [
+      JSON.stringify(after), JSON.stringify(page),
+      prompts.classifyPage(page), prompts.simplifyBlocks(page, "plain", "en"), prompts.recast(page, ["summary"]),
+      ...after.flatMap((s) => [prompts.buildWizard(s, "en"), ...s.fields.map((f) => prompts.explainField(s, f.fieldId, "en"))]),
+    ];
+    for (const text of built) {
+      for (const part of ["Zqxvlenka", "Wbrtnovsk", "ZQX", "private.example"]) expect(text).not.toContain(part);
+    }
+    await close();
   });
 
   it("a structure smuggling values still never prints them, and is rejected by type", async () => {

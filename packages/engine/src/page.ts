@@ -59,8 +59,14 @@ function absUrl(src: string, base: string): string | undefined {
 // Form controls and anything else that can hold what a person typed. Their text is never read into a block.
 const CONTROL_TAGS = new Set(["input", "select", "textarea", "button", "option", "optgroup", "datalist", "output"]);
 const HINT_CLASS = /(^|[\s_-])(hint|help|helper|description|form-text|note)([\s_-]|$)/i;
-const isControl = (el: Element): boolean => CONTROL_TAGS.has(tag(el)) || el.hasAttribute("contenteditable");
-const holdsInput = (el: Element): boolean => isControl(el) || !!el.querySelector("input, select, textarea, [contenteditable]");
+// ARIA widgets that show a value: a custom combobox shows the chosen option, a suggestion list repeats what was typed,
+// a role=textbox or spinbutton holds what was entered. (A role=radio or checkbox shows its own label; its state is an
+// attribute, so it stays readable as page text.)
+const VALUE_ROLES = new Set(["combobox", "listbox", "option", "textbox", "searchbox", "spinbutton"]);
+const isControl = (el: Element): boolean =>
+  CONTROL_TAGS.has(tag(el)) || el.hasAttribute("contenteditable") || VALUE_ROLES.has(attr(el, "role").trim().toLowerCase());
+const holdsInput = (el: Element): boolean =>
+  isControl(el) || !!el.querySelector("input, select, textarea, [contenteditable], [role=combobox], [role=listbox], [role=textbox], [role=searchbox], [role=spinbutton]");
 /** Visible text with every control (and so every value) left out. */
 const humanText = (el: Element): string => textOf(el, isControl);
 const isHint = (el: Element): boolean => tag(el) === "small" || HINT_CLASS.test(`${attr(el, "class")} ${attr(el, "id")}`);

@@ -28,4 +28,21 @@ describe("typed text outside a form", () => {
     expect(JSON.stringify(page)).toContain("Write a reply to the housing office below.");
     expect(JSON.stringify(page)).toContain("Messages are kept for 30 days.");
   });
+
+  it("nor does an ARIA widget that shows a value: a suggestion list repeating the search, a role=textbox, a combobox's choice", () => {
+    const doc = parse(`<!doctype html><html lang="en"><head><title>Find an office</title></head><body><main>
+      <h1>Find your office</h1>
+      <p>Type your street to see the office that serves it.</p>
+      <input role="combobox" aria-controls="sug" aria-expanded="true">
+      <ul id="sug" role="listbox"><li role="option">SUGGEST-SECRET-3310 Street, Prague</li><li role="option">SUGGEST-SECRET-3310a Street, Brno</li></ul>
+      <div role="textbox">ROLE-TEXTBOX-SECRET-2290</div>
+      <div role="spinbutton" aria-valuenow="4">SPIN-SECRET-77</div>
+      <div role="combobox" aria-expanded="false">CHOSEN-SECRET-5150</div>
+      <p>Offices are open on Monday and Wednesday.</p>
+    </main></body></html>`);
+    const page = extractPage(doc, "https://office.example/find");
+    const all = [JSON.stringify(page), prompts.classifyPage(page), prompts.simplifyBlocks(page, "plain", "en"), prompts.recast(page, ["summary"])];
+    for (const s of all) for (const secret of ["SUGGEST-SECRET", "ROLE-TEXTBOX-SECRET", "SPIN-SECRET", "CHOSEN-SECRET"]) expect(s).not.toContain(secret);
+    expect(JSON.stringify(page)).toContain("Offices are open on Monday and Wednesday.");
+  });
 });
