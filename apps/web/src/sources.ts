@@ -3,6 +3,7 @@ import type { Tab } from "./ui";
 
 export const DEMOS: { id: string; title: string; blurb: string; tab: Tab; file: string }[] = [
   { id: "form", title: "A form in Czech", blurb: "Fill it in step by step, in English.", tab: "wayfill", file: "form.html" },
+  { id: "guide", title: "A form with a ready guide", blurb: "Steps from the guide library, written in advance: no AI runs.", tab: "wayfill", file: "guided-form.html" },
   { id: "article", title: "A cluttered article", blurb: "Read only the part that matters.", tab: "focus", file: "article.html" },
   { id: "pricing", title: "A pricing page", blurb: "Compare the plans in a clearer layout.", tab: "recast", file: "pricing.html" },
 ];

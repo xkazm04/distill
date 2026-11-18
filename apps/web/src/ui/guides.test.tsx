@@ -185,8 +185,8 @@ describe("a draft is never shown as checked", () => {
 
   it("the demo guide is an example, never checked", async () => {
     const g = asDraft(await guide({ demo: true }));
-    g.match = { ...g.match, urls: ["/demo/form.html"], fingerprints: ["0".repeat(64)] };
-    await render(view(await form(FIELDS, "https://distill-hybrid-ai.web.app/demo/form.html"), lib([g])));
+    g.match = { ...g.match, urls: ["/demo/guided-form.html"], fingerprints: ["0".repeat(64)] };
+    await render(view(await form(FIELDS, "https://distill-hybrid-ai.web.app/demo/guided-form.html"), lib([g])));
     expect(q("guide-chip")?.textContent).toBe("Example guide");
     expect(q("guide-source")?.textContent).toContain("An example guide for Distill's made-up demo form. No office issues this form, so no official instructions were checked.");
     expect(q("guide-source")?.textContent).not.toMatch(/Checked against/);

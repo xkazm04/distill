@@ -1,0 +1,219 @@
+{
+  "guideVersion": 1,
+  "id": "cz/demo-guided-form",
+  "status": "draft",
+  "demo": true,
+  "authority": {
+    "name": "Distill (ukázkový formulář)",
+    "nameEn": "Distill's demo"
+  },
+  "formName": {
+    "cs": "Žádost o rezidentní parkovací kartu",
+    "en": "Application for a residents' parking card (a made-up example form)",
+    "uk": "Заява на паркувальну картку для мешканців (вигаданий приклад форми)"
+  },
+  "formLang": "cs",
+  "officialFormUrl": "https://distill-hybrid-ai.web.app/demo/guided-form.html",
+  "instructionsUrl": "https://distill-hybrid-ai.web.app/demo/guided-form.html",
+  "draftedOn": "2026-11-18",
+  "match": {
+    "format": "html",
+    "fingerprints": [
+      "e2c884b2ef8404bdadba6fb7b3323968bb88d0cc80e1b4ea35d1ecae6ecf79c4"
+    ],
+    "urls": [
+      "/demo/guided-form.html"
+    ],
+    "fields": [
+      {
+        "fieldId": "jmeno",
+        "kind": "text",
+        "label": "Jméno a příjmení"
+      },
+      {
+        "fieldId": "adresa",
+        "kind": "text",
+        "label": "Adresa trvalého pobytu * ulice, číslo domu, obec"
+      },
+      {
+        "fieldId": "email",
+        "kind": "email",
+        "label": "E-mail"
+      },
+      {
+        "fieldId": "spz",
+        "kind": "text",
+        "label": "Registrační značka vozidla * jak je na tabulce, například 1AB 2345"
+      },
+      {
+        "fieldId": "druh",
+        "kind": "select",
+        "label": "Druh karty"
+      },
+      {
+        "fieldId": "od",
+        "kind": "text",
+        "label": "Platnost od * ve tvaru DD.MM.RRRR"
+      },
+      {
+        "fieldId": "prohlaseni",
+        "kind": "checkbox",
+        "label": "Prohlašuji, že uvedené údaje jsou pravdivé"
+      }
+    ]
+  },
+  "wizards": {
+    "en": {
+      "notes": [
+        "This is Distill's made-up example form for the guide library. It shows how a guide from the library looks; no office issues it.",
+        "The form asks for every field marked with a star (*). The card is for one vehicle."
+      ],
+      "steps": [
+        {
+          "stepId": "applicant",
+          "fieldIds": [
+            "jmeno",
+            "adresa"
+          ],
+          "question": "What are your full name and permanent address?",
+          "explanation": "Jméno a příjmení is your first name and surname together. The address is where you live permanently: the street, the house number and the town, as the form's hint says.",
+          "example": "Olena Kovalenko / Vinohradská 12, Praha",
+          "official": {
+            "text": "ulice, číslo domu, obec",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "email",
+          "fieldIds": [
+            "email"
+          ],
+          "question": "What e-mail address can the office use?",
+          "explanation": "Optional on this form: it has no star.",
+          "example": "olena@example.com"
+        },
+        {
+          "stepId": "vehicle",
+          "fieldIds": [
+            "spz"
+          ],
+          "question": "What is your car's registration number?",
+          "explanation": "Write it as it is on the number plate, with the same letters and digits.",
+          "example": "1AB 2345",
+          "official": {
+            "text": "jak je na tabulce, například 1AB 2345",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "card",
+          "fieldIds": [
+            "druh"
+          ],
+          "question": "Which kind of card do you need?",
+          "explanation": "Rezidentní if you live in the zone, Abonentní if you work there. The form's own options say so in brackets."
+        },
+        {
+          "stepId": "from",
+          "fieldIds": [
+            "od"
+          ],
+          "question": "From which day should the card be valid?",
+          "explanation": "Day, month and year, separated by dots.",
+          "example": "01.12.2026",
+          "expectedFormat": "DD.MM.YYYY",
+          "official": {
+            "text": "ve tvaru DD.MM.RRRR",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "declaration",
+          "fieldIds": [
+            "prohlaseni"
+          ],
+          "question": "Do you declare that what you wrote is true?",
+          "explanation": "The form marks this declaration with a star, so it asks for it before it takes the application."
+        }
+      ]
+    },
+    "uk": {
+      "notes": [
+        "Це вигадана демонстраційна форма Distill для бібліотеки посібників. Вона показує, як виглядає посібник з бібліотеки; жодна установа її не видає.",
+        "Форма вимагає заповнити кожне поле, позначене зірочкою (*). Картка діє для одного автомобіля."
+      ],
+      "steps": [
+        {
+          "stepId": "applicant",
+          "fieldIds": [
+            "jmeno",
+            "adresa"
+          ],
+          "question": "Яке ваше повне ім'я та адреса постійного проживання?",
+          "explanation": "Jméno a příjmení означає ім'я та прізвище разом. Адреса це місце, де ви постійно проживаєте: вулиця, номер будинку і населений пункт, як підказує форма.",
+          "example": "Olena Kovalenko / Vinohradská 12, Praha",
+          "official": {
+            "text": "ulice, číslo domu, obec",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "email",
+          "fieldIds": [
+            "email"
+          ],
+          "question": "Яку електронну адресу може використовувати установа?",
+          "explanation": "У цій формі необов'язково: поле не має зірочки.",
+          "example": "olena@example.com"
+        },
+        {
+          "stepId": "vehicle",
+          "fieldIds": [
+            "spz"
+          ],
+          "question": "Який реєстраційний номер вашого автомобіля?",
+          "explanation": "Пишіть так, як на номерному знаку, тими самими літерами й цифрами.",
+          "example": "1AB 2345",
+          "official": {
+            "text": "jak je na tabulce, například 1AB 2345",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "card",
+          "fieldIds": [
+            "druh"
+          ],
+          "question": "Який вид картки вам потрібен?",
+          "explanation": "Rezidentní, якщо ви живете в зоні, Abonentní, якщо ви там працюєте. Так кажуть варіанти самої форми в дужках."
+        },
+        {
+          "stepId": "from",
+          "fieldIds": [
+            "od"
+          ],
+          "question": "З якого дня картка має діяти?",
+          "explanation": "День, місяць і рік, розділені крапками.",
+          "example": "01.12.2026",
+          "expectedFormat": "ДД.ММ.РРРР",
+          "official": {
+            "text": "ve tvaru DD.MM.RRRR",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "declaration",
+          "fieldIds": [
+            "prohlaseni"
+          ],
+          "question": "Чи заявляєте ви, що написане вами правдиве?",
+          "explanation": "Форма позначає цю заяву зірочкою, тож вимагає її, перш ніж прийняти заяву."
+        }
+      ]
+    }
+  },
+  "reviewNotes": [
+    "DEMO: this guide is for Distill's own made-up example form for the guide library (apps/web/public/demo/guided-form.html). No office issues the form, so there are no official instructions behind it; the quotes are the form's own hints. It stays a draft and is shown only as an example.",
+    "The Ukrainian text was written by an AI and has not been read by a Ukrainian speaker."
+  ]
+}

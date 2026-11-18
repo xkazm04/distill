@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import library from "virtual:distill-guides";
 import { extractForm, matchGuide } from "@distill/engine";
 import { guideLibrary } from "@distill/web/ui";
-import demoHtml from "../../../web/public/demo/form.html?raw";
+import guidedHtml from "../../../web/public/demo/guided-form.html?raw";
+import formHtml from "../../../web/public/demo/form.html?raw";
 import { libraryJson } from "../../../../scripts/guides/library.mjs";
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -17,11 +18,11 @@ describe("the bundled guide library", () => {
   it("is the repository's library without its drafts: reviewed guides and the demo guide only", () => {
     expect(library).toEqual(libraryJson(false));
     const guides = library.guides as { id: string; status: string; demo?: boolean }[];
-    expect(guides.map((g) => g.id)).toContain("cz/demo-form");
+    expect(guides.map((g) => g.id)).toContain("cz/demo-guided-form");
     for (const g of guides) expect(g.status === "reviewed" || g.demo === true, g.id).toBe(true);
   });
 
-  it("finds the demo form's guide on this device: no fetch, no XMLHttpRequest, no beacon", async () => {
+  it("finds the guided demo form's example guide on this device: no fetch, no XMLHttpRequest, no beacon", async () => {
     const fetchSpy = vi.fn(() => { throw new Error("network used"); });
     const xhr = vi.fn(() => { throw new Error("network used"); });
     const beacon = vi.fn(() => { throw new Error("network used"); });
@@ -30,14 +31,22 @@ describe("the bundled guide library", () => {
     vi.stubGlobal("navigator", { ...navigator, sendBeacon: beacon });
 
     const guides = guideLibrary(async () => library);
-    const doc = new DOMParser().parseFromString(demoHtml, "text/html");
-    const s = await extractForm(doc, "http://127.0.0.1:4321/demo/form.html");
+    const doc = new DOMParser().parseFromString(guidedHtml, "text/html");
+    const s = await extractForm(doc, "http://127.0.0.1:4321/demo/guided-form.html");
     const m = matchGuide(s, await guides.load(), { drafts: guides.drafts });
-    expect(m?.guide.id).toBe("cz/demo-form");
+    expect(m?.guide.id).toBe("cz/demo-guided-form");
     expect(m?.exact).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(xhr).not.toHaveBeenCalled();
     expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it("gives the original demo form no guide: it stays the model's, where on-device and cloud inference are shown", async () => {
+    const guides = guideLibrary(async () => library);
+    for (const url of ["http://127.0.0.1:4321/demo/form.html", "https://distill-hybrid-ai.web.app/demo/form.html"]) {
+      const s = await extractForm(new DOMParser().parseFromString(formHtml, "text/html"), url);
+      expect(matchGuide(s, await guides.load(), { drafts: true }), url).toBeNull();
+    }
   });
 });
 

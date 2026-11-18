@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Žádost o rezidentní parkovací kartu</title>
+<style>body{font:16px/1.5 Arial,sans-serif;max-width:640px;margin:1rem auto;padding:0 1rem}label{display:block;margin-top:.8rem;font-weight:bold}input,select{width:100%;padding:.4rem;font-size:1rem}fieldset{margin-top:1rem}.hint{font-weight:normal;color:#555;font-size:.9rem}.made-up{border:2px dashed #a33;padding:.5rem .8rem;background:#fff6f0}</style>
+</head>
+<body>
+<p class="made-up"><strong>Ukázkový formulář Distill.</strong> Je vymyšlený: žádný úřad ho nevydává a nic se z něj neodesílá. (Distill's made-up example form: no office issues it, and nothing is sent.)</p>
+<header><h1>Žádost o rezidentní parkovací kartu</h1><p>Pole označená hvězdičkou jsou povinná. Karta platí pro jedno vozidlo.</p></header>
+<form action="#" method="post" onsubmit="return false">
+  <fieldset><legend>Žadatel</legend>
+    <label for="jmeno">Jméno a příjmení *</label><input id="jmeno" name="jmeno" type="text" required>
+    <label for="adresa">Adresa trvalého pobytu * <span class="hint">ulice, číslo domu, obec</span></label><input id="adresa" name="adresa" type="text" required>
+    <label for="email">E-mail</label><input id="email" name="email" type="email">
+  </fieldset>
+  <fieldset><legend>Vozidlo a karta</legend>
+    <label for="spz">Registrační značka vozidla * <span class="hint">jak je na tabulce, například 1AB 2345</span></label><input id="spz" name="spz" type="text" placeholder="1AB 2345" required>
+    <label for="druh">Druh karty *</label>
+    <select id="druh" name="druh" required><option value="">Vyberte</option><option value="R">Rezidentní (bydlím v zóně)</option><option value="A">Abonentní (pracuji v zóně)</option></select>
+    <label for="od">Platnost od * <span class="hint">ve tvaru DD.MM.RRRR</span></label><input id="od" name="od" type="text" placeholder="DD.MM.RRRR" required>
+  </fieldset>
+  <label><input id="prohlaseni" name="prohlaseni" type="checkbox" value="ano" style="width:auto"> Prohlašuji, že uvedené údaje jsou pravdivé *</label>
+  <p><button type="submit">Odeslat žádost</button></p>
+</form>
+</body>
+</html>

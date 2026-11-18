@@ -16,7 +16,7 @@ Guides are JSON files in this folder, `guides/<country>/<slug>.json`, in the for
 | --- | --- | --- | --- |
 | `draft` | Whoever writes the guide, person or AI | No. Only in a developer's build with `VITE_GUIDE_DRAFTS=1` (the web app's dev server, or the extension's own build), and the builds people use do not even contain drafts | "Draft guide, not checked" and "This guide is a draft. No person has checked it against the official instructions yet, so do not rely on it." |
 | `reviewed` | A person, by the commit that adds `reviewer` and `reviewedOn` | Yes | "Checked guide" and "Checked against the Ministry of the Interior's instructions on 2026-11-20." with a link to those instructions, and "Checked by <reviewer>." |
-| `draft` with `"demo": true` | Only for Distill's own made-up demo form | Only on the demo form (`/demo/form.html`) | "Example guide" and "An example guide for Distill's made-up demo form. No office issues this form, so no official instructions were checked." |
+| `draft` with `"demo": true` | Only for Distill's own made-up demo form | Only on the guided demo form (`/demo/guided-form.html`) | "Example guide" and "An example guide for Distill's made-up demo form. No office issues this form, so no official instructions were checked." |
 
 A guide is never labelled as an AI result: it shows no "On this device" or "In the cloud" chip, because no model ran.
 If the form changed since the guide was written, the steps for the new or changed fields come from the normal path
@@ -112,6 +112,8 @@ using its unchanged steps and tells the person the form changed.
 
 ## The demo guide
 
-`cz/demo-form.json` is for Distill's own demo form (`apps/web/public/demo/form.html`), which is made up. It exists so
-the library can be seen and tested end to end without the network. It is `"demo": true`, always `draft`, matches only
-the path `/demo/form.html`, and is labelled as an example.
+`cz/demo-guided-form.json` is for Distill's own guided demo form (`apps/web/public/demo/guided-form.html`, the example
+"A form with a ready guide"), which is made up and says so on the page. It exists so the library can be seen and
+tested end to end without the network. It is `"demo": true`, always `draft`, matches only the path
+`/demo/guided-form.html`, and is labelled as an example. The first demo form (`/demo/form.html`) deliberately has no
+guide: it is where the model's wizard, on the device or in the cloud, is shown.
