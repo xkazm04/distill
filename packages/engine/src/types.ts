@@ -227,7 +227,8 @@ export type InferenceSource = "on_device" | "in_cloud" | "agent";
 /** The local model is a state machine, not a boolean (Chrome Prompt API availability strings). */
 export type LocalModelState = "unavailable" | "downloadable" | "downloading" | "available";
 
-/** `values` = the prompt carries a person's form values, profile or reply answers: device only, no fallback. */
+/** `values` = the prompt carries a person's form values, profile, reply answers or the page's validation errors
+ *  (FormErrors): device only, no fallback. */
 export type PromptClass = "page" | "structure" | "values";
 
 export type Task =
@@ -238,6 +239,7 @@ export type Task =
   | "explainField"      // structure
   | "suggestValue"      // values
   | "checkValue"        // values
+  | "explainError"      // values (the page's error text can repeat what the person typed)
   | "readLetter"      // page (Envelope: OCR text of a letter the person chose to share)
   | "buildReplyWizard"  // page (Envelope: the same letter text; never the person's answers)
   | "draftReply";       // values (Envelope: carries the person's answers)

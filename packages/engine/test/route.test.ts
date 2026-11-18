@@ -3,7 +3,7 @@ import { route, type Task } from "../src/index.js";
 
 describe("route", () => {
   it("never lets a values task leave the device, whatever is configured", () => {
-    for (const task of ["suggestValue", "checkValue", "draftReply"] as Task[]) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply"] as Task[]) {
       for (const cfg of ["prefer_in_cloud", "only_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
         const d = route(task, cfg);
         expect(d.mode).toBe("only_on_device");

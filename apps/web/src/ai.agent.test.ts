@@ -104,9 +104,9 @@ describe("the agent's answer is bound to the page", () => {
 });
 
 describe("values law: a values task is never queued", () => {
-  it("run() keeps suggestValue, checkValue and draftReply on the device even with My agent chosen", async () => {
+  it("run() keeps suggestValue, checkValue, explainError and draftReply on the device even with My agent chosen", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    for (const task of ["suggestValue", "checkValue", "draftReply"] as const) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply"] as const) {
       const err = await run(task, "MY OWN VALUES", null).then(() => null, (e: unknown) => e);
       expect((err as InstanceType<typeof AiError>).kind, task).toBe("device-only"); // no LanguageModel in the test
     }
@@ -115,7 +115,7 @@ describe("values law: a values task is never queued", () => {
   });
 
   it("the queue itself refuses a values task (and any task without a door)", async () => {
-    for (const task of ["suggestValue", "checkValue", "draftReply", "classifyPage"] as const) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply", "classifyPage"] as const) {
       await expect(agentQueue.post(task, "MY OWN VALUES", null, {}), task).rejects.toThrow(/never given to an agent/);
     }
     expect(agentQueue.open()).toEqual([]);

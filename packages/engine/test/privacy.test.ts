@@ -198,4 +198,14 @@ describe("payload privacy", () => {
     expect(route("suggestValue", "only_in_cloud").mode).toBe("only_on_device");
     expect(route("checkValue", "prefer_in_cloud").mode).toBe("only_on_device");
   });
+
+  it("the page's error text goes only into explainError, which routes on device only whatever is configured", async () => {
+    const structure = await extractForm(parse(czech), "https://mv.example/zadost");
+    const error = "Rodné číslo '870619/43ZQX' není ve správném tvaru";
+    expect(prompts.explainError(structure, "rc", error, "uk")).toContain("870619/43ZQX");
+    expect(prompts.explainError(structure, undefined, error, "en")).toContain("870619/43ZQX");
+    for (const cfg of ["only_in_cloud", "prefer_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
+      expect(route("explainError", cfg)).toMatchObject({ promptClass: "values", mode: "only_on_device" });
+    }
+  });
 });

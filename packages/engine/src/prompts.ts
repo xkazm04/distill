@@ -3,6 +3,8 @@ import { NODE_KINDS } from "./repair.js";
 
 const PAGE_BUDGET = 12000;
 const BLOCK_CAP = 600;
+/** An error message longer than this is cut (readErrors already cuts at 500). */
+const ERROR_CAP = 1000;
 
 const langName = (code: string): string => {
   try {
@@ -131,7 +133,7 @@ export const prompts = {
       "</field>",
     ].join("\n"),
 
-  // The two prompts below carry a person's values. They are device-only (route() says so) and never go to the cloud.
+  // The three prompts below carry a person's values. They are device-only (route() says so) and never go to the cloud.
   suggestValue: (structure: FormStructure, fieldId: string, profile: FormValues): string =>
     [
       "Suggest the value for this form field using only the saved details below. If the details do not answer it, reply with exactly: NONE.",
@@ -158,6 +160,19 @@ export const prompts = {
       "<value>",
       value,
       "</value>",
+    ].join("\n"),
+
+  // The page's validation message can repeat what the person typed (FormErrors is values class): device-only.
+  // `fieldId` is left out for an error of the form as a whole (an error summary).
+  explainError: (structure: FormStructure, fieldId: string | undefined, errorText: string, readerLang = "en"): string =>
+    [
+      `The form below did not accept an answer and showed the error message below. Explain it in ${langName(readerLang)} in one or two short, calm sentences: what is wrong, and how to fix it. Plain text only.`,
+      GUARD,
+      formHeader(structure),
+      ...(fieldId ? ["<field>", describeField(findField(structure, fieldId)), "</field>"] : []),
+      "<error>",
+      oneLine(errorText).slice(0, ERROR_CAP),
+      "</error>",
     ].join("\n"),
 
   readLetter: (ocrText: string, readerLang = "en"): string =>

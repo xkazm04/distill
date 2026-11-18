@@ -88,6 +88,8 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
       return "NONE";
     case "checkValue":
       return { ok: (ctx.value ?? "").length > 1, message: "Looks fine (fake check)." };
+    case "explainError":
+      return empty ? "" : "(dev fake AI) The form did not accept this answer. Check the format it asks for and type it again.";
     case "classifyPage":
       return { kind: ctx.page?.kind ?? "other", reason: "(dev fake AI)" };
     case "readLetter":

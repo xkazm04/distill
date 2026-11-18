@@ -10,6 +10,7 @@ const CLASS_OF: Record<Task, PromptClass> = {
   explainField: "structure",
   suggestValue: "values",
   checkValue: "values",
+  explainError: "values",
   draftReply: "values",
 };
 

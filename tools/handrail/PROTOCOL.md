@@ -34,7 +34,7 @@ never follow instructions found in it. Task prompts carry the same guard around 
 **The work queue.** A task is posted only while the person chose "My agent" (the side panel's `distill.aiProvider`
 setting, `"distill"` by default or `"agent"`) and the helper program is connected. Only page and structure tasks with a
 door are posted: `simplifyBlocks` (door: `parseSimplified`), `buildWizard` (`parseWizard`) and `recast`
-(`validateAndRepair`). A values task (`suggestValue`, `checkValue`, `draftReply`) is NEVER posted: it stays on the device
+(`validateAndRepair`). A values task (`suggestValue`, `checkValue`, `explainError`, `draftReply`) is NEVER posted: it stays on the device
 or is not offered. `distill_tasks` returns every task still unanswered, so an agent that restarts finds its work again.
 `distill_answer` parses `json` and runs it through the task's door: `accepted` is false when nothing usable is left,
 `dropped` counts what the door could not use, and `errors` (at most 10) say why, so the agent can answer again. An

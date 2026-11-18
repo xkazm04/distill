@@ -115,6 +115,6 @@ describe("dev fake AI", () => {
     for (const s of wizard.steps) expect(s.question && s.explanation).toBeTruthy();
     expect((fakeRun("draftReply", {}) as { reply: string }).reply).toMatch(/\S/);
     expect((fakeRun("readLetter", {}) as { summary: string; actions: unknown[] }).actions.length).toBeGreaterThan(0);
-    for (const t of ["classifyPage", "explainField", "suggestValue", "checkValue"] as Task[]) expect(fakeRun(t, {})).toBeDefined();
+    for (const t of ["classifyPage", "explainField", "suggestValue", "checkValue", "explainError"] as Task[]) expect(fakeRun(t, {})).toBeDefined();
   });
 });

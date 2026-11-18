@@ -15,7 +15,10 @@ const FORM: FormStructure = {
     { fieldId: "email", kind: "email", label: "E-mail", required: false },
   ],
 };
-const ALL_TASKS: Task[] = ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField", "suggestValue", "checkValue", "readLetter", "buildReplyWizard", "draftReply"];
+const ALL_TASKS: readonly Task[] = ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "readLetter", "buildReplyWizard", "draftReply"];
+// Compile-time proof the list is complete: a Task missing from ALL_TASKS makes this line fail to typecheck.
+const _complete: Exclude<Task, (typeof ALL_TASKS)[number]> extends never ? true : never = true;
+void _complete;
 
 describe("pageToken", () => {
   it("is sha-256 hex of the url and the blocks' id:text lines", async () => {
@@ -80,7 +83,8 @@ describe("agentDoor: the agent's answer passes the same door as a model's", () =
   });
   it("refuses a script link anywhere, and any task without a door", () => {
     expect(agentDoor("recast", { nodes: [{ kind: "summary", text: "javascript:alert(1)", sourceBlockIds: [] }] }, {}).accepted).toBe(false);
-    for (const t of ["suggestValue", "checkValue", "draftReply", "classifyPage"] as const) expect(agentDoor(t, {}, { page: PAGE }).accepted, t).toBe(false);
+    for (const t of ["suggestValue", "checkValue", "explainError", "draftReply", "classifyPage"] as const) expect(agentDoor(t, {}, { page: PAGE }).accepted, t).toBe(false);
+    expect(agentCanDo("explainError")).toBe(false); // the page's error text is values class: never the agent's
   });
 });
 

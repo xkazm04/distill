@@ -22,7 +22,7 @@ describe("values tasks with no on-device model", () => {
   it("refuse as device-only and never build a model, so nothing can reach the cloud", async () => {
     expect(typeof (globalThis as { LanguageModel?: unknown }).LanguageModel).toBe("undefined");
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    for (const task of ["suggestValue", "checkValue", "draftReply"] as const) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply"] as const) {
       const err = await run(task, "my values", null).then(() => null, (e: unknown) => e);
       expect(err, task).toBeInstanceOf(AiError);
       expect((err as InstanceType<typeof AiError>).kind).toBe("device-only");
