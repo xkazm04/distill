@@ -62,7 +62,8 @@ const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".c
 /** Serves apps/web/public/demo on 127.0.0.1, any free port. `/blank.html` is a tiny page for tests that need a tab;
  *  `/framed-form.html` embeds the demo form in a same-origin iframe, as a town site embeds a form service's form.
  *  `/demo/<page>.html` serves the same pages at the address the web app gives them, where the demo guide of the guide
- *  library applies (guides/cz/demo-form.json matches the path /demo/form.html only). */
+ *  library applies (guides/cz/demo-guided-form.json matches the path /demo/guided-form.html only; the original demo
+ *  form has no guide, so it shows the model path). */
 async function serveDemo(): Promise<{ server: Server; origin: string }> {
   const server = createServer((req, res) => {
     const asked = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
@@ -178,8 +179,8 @@ export class Distill {
     return id;
   }
 
-  /** Opens a demo page (article, form, pricing, blank; "demo/form" for the web app's address of it) in a new tab. The URL
-   *  carries a counter, so two tabs differ. */
+  /** Opens a demo page (article, form, guided-form, pricing, blank; "demo/<page>" for the web app's address of it) in a
+   *  new tab. The URL carries a counter, so two tabs differ. */
   async openTab(name: string, role = "tab"): Promise<Tab> {
     const page = await this.context.newPage();
     this.watch(page, role);

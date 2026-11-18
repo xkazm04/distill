@@ -294,10 +294,10 @@ test("page errors: an answer the page rejects shows its error on its step, and n
 
 // ---- The guide library (guides/README.md): bundled into the extension, matched in the panel, no network.
 
-test("library guide: the demo form at its demo address gets the example guide, with no AI and no network", async ({ distill }) => {
+test("library guide: the guided demo form at its demo address gets the example guide, with no AI and no network", async ({ distill }) => {
   const requests: string[] = [];
   distill.context.on("request", (r) => requests.push(r.url()));
-  const tab = await distill.openTab("demo/form");
+  const tab = await distill.openTab("demo/guided-form");
   const panel = await distill.openPanel(tab.id);
   await pick(panel, /^Fill a form/);
 
@@ -305,27 +305,26 @@ test("library guide: the demo form at its demo address gets the example guide, w
   await expect(panel.getByTestId("guide-chip")).toHaveText("Example guide");
   await expect(panel.getByTestId("guide-source")).toContainText("An example guide for Distill's made-up demo form. No office issues this form, so no official instructions were checked.");
   await expect(panel.getByTestId("guide-source")).not.toContainText("Checked against");
-  await expect(panel.getByTestId("guide-notes")).toContainText("made-up demo form");
+  await expect(panel.getByTestId("guide-notes")).toContainText("made-up example form");
   await expect(panel.getByTestId("source-chip")).toHaveCount(0);
   await expect(panel.getByTestId("origin-chip")).toHaveCount(0);
   // The real page reads exactly as the guide was written for it (in Chromium as in the authoring tool): no drift notice.
   await expect(panel.getByTestId("guide-changed")).toHaveCount(0);
-  await expect(panel.getByTestId("wf-answered")).toHaveText("0 of 7 answered");
+  await expect(panel.getByTestId("wf-answered")).toHaveText("0 of 6 answered");
 
-  // Step 1 is the guide's: first name and surname together, still under the form's own Czech labels.
-  await expect(step(panel).locator("h3")).toHaveText("What are your first name and surname?");
-  await expect(step(panel).locator("label").nth(0)).toContainText("Jméno");
-  await expect(step(panel).locator("label").nth(1)).toContainText("Příjmení");
-  await step(panel).locator("input").nth(0).fill("Olena");
-  await step(panel).locator("input").nth(1).fill("Kovalenko");
-  await step(panel).getByRole("button", { name: "Next" }).click();
-  await expect(tab.page.locator("#jmeno")).toHaveValue("Olena");
-  await expect(tab.page.locator("#prijmeni")).toHaveValue("Kovalenko");
-
-  // Step 2 rests on the form's own words, quoted in Czech.
-  await expect(step(panel).locator("h3")).toHaveText("When were you born?");
-  await expect(step(panel).getByTestId("guide-quote").locator("blockquote")).toHaveText("ve tvaru DD.MM.RRRR");
+  // Step 1 is the guide's: name and address together, still under the form's own Czech labels, and it rests on the
+  // form's own words, quoted in Czech.
+  await expect(step(panel).locator("h3")).toHaveText("What are your full name and permanent address?");
+  await expect(step(panel).locator("label").nth(0)).toContainText("Jméno a příjmení");
+  await expect(step(panel).locator("label").nth(1)).toContainText("Adresa trvalého pobytu");
+  await expect(step(panel).getByTestId("guide-quote").locator("blockquote")).toHaveText("ulice, číslo domu, obec");
   await expect(step(panel).getByTestId("guide-quote").locator("blockquote")).toHaveAttribute("lang", "cs");
+  await step(panel).locator("input").nth(0).fill("Olena Kovalenko");
+  await step(panel).locator("input").nth(1).fill("Vinohradská 12, Praha");
+  await step(panel).getByRole("button", { name: "Next" }).click();
+  await expect(tab.page.locator("#jmeno")).toHaveValue("Olena Kovalenko");
+  await expect(tab.page.locator("#adresa")).toHaveValue("Vinohradská 12, Praha");
+  await expect(step(panel).locator("h3")).toHaveText("What e-mail address can the office use?");
 
   // No network: the only http(s) requests in the whole browser were the tab's own page (and its favicon). Nothing
   // went out to look the guide up, and nothing about the form was sent anywhere.
@@ -334,8 +333,19 @@ test("library guide: the demo form at its demo address gets the example guide, w
   expect(requests.some((u) => u.includes("library.json"))).toBe(false);
 });
 
-test("library guide: the same form at another address is not matched", async ({ distill }) => {
-  const tab = await distill.openTab("form");
+test("library guide: the original demo form at its demo address gets no guide - it stays the model's", async ({ distill }) => {
+  // The web app's first demo is where on-device and cloud inference are shown, so the library has no guide for it. With
+  // no model in this browser, the model path says plainly that no AI was used.
+  const tab = await distill.openTab("demo/form");
+  const panel = await distill.openPanel(tab.id);
+  await pick(panel, /^Fill a form/);
+  await expect(panel.getByTestId("origin-chip")).toHaveText("No AI used");
+  await expect(panel.getByTestId("guide-chip")).toHaveCount(0);
+  await expect(panel.getByTestId("guide-source")).toHaveCount(0);
+});
+
+test("library guide: the guided form at another address is not matched", async ({ distill }) => {
+  const tab = await distill.openTab("guided-form");
   const panel = await distill.openPanel(tab.id);
   await pick(panel, /^Fill a form/);
   await expect(panel.getByTestId("origin-chip")).toHaveText("No AI used");
