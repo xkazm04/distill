@@ -8,8 +8,10 @@ import { PDFDocument } from "@cantoo/pdf-lib";
 import { fingerprint, type FormStructure } from "@distill/engine";
 import { lockReason, readFields } from "./fields.js";
 import { fillAllowed, protectionOf } from "./protect.js";
+import { readDrawing } from "./drawing.js";
 import { buildFields } from "./labels.js";
-import { buildPage, buildRuns, documentLang, documentTitle, readItems } from "./text.js";
+import { readPrinted } from "./printed.js";
+import { buildPage, buildRuns, documentLang, documentTitle, readItems, type Run } from "./text.js";
 import { PDF_URL, type PdfJs, type PdfJsDocument, type PdfProblem, type PdfProblemKind, type PdfReading } from "./types.js";
 
 const READ_ELSEWHERE = "You can still read it in Distill's other views.";
@@ -18,7 +20,11 @@ const READ_ELSEWHERE = "You can still read it in Distill's other views.";
 export const PROBLEMS: Record<PdfProblemKind, { title: string; detail: string }> = {
   flat: {
     title: "This PDF has no fields to fill in",
-    detail: `It is a scan or a form made for printing: there are no boxes in the file that can hold an answer. Print it and fill it in by hand, or ask the office for a fillable version. ${READ_ELSEWHERE}`,
+    detail: `There are no boxes in the file that can hold an answer, and Distill found no lines or boxes printed on it to write on. Print it and fill it in by hand, or ask the office for a fillable version. ${READ_ELSEWHERE}`,
+  },
+  scan: {
+    title: "This PDF is a scan, so Distill cannot fill it in yet",
+    detail: `Its pages are pictures, with no text Distill can read, so Distill cannot tell where the answers go. Print it and fill it in by hand, or ask the office for a version made on a computer. ${READ_ELSEWHERE}`,
   },
   xfa: {
     title: "This PDF is an XFA form, which Distill cannot fill",
@@ -41,6 +47,15 @@ export const PROBLEMS: Record<PdfProblemKind, { title: string; detail: string }>
     detail: "The file may be damaged, or it may not be a PDF. Try opening it in a PDF reader.",
   },
 };
+
+/**
+ * Said above every step of a print-only PDF (one with no form fields, whose places to write on Distill found from the
+ * printed page), always. Plain words, shown as they are.
+ */
+export const PRINT_ONLY_NOTE = {
+  title: "Distill found the places to write on this form by itself",
+  detail: "This PDF has no fields to fill in, so Distill looked at the printed page for the lines and boxes where answers go. It may have missed some, or misread one. Before you print or send the form, check every answer on the page itself.",
+} as const;
 
 const problem = (kind: PdfProblemKind, extra?: string): PdfProblem => ({
   kind, title: PROBLEMS[kind].title, detail: extra ? `${extra} ${PROBLEMS[kind].detail}` : PROBLEMS[kind].detail,
@@ -121,12 +136,29 @@ export async function readPdf(bytes: Uint8Array, opts: { pdfjs: PdfJs; fileName?
     }
 
     const boxes = fields.flatMap((f) => f.widgets.map((w) => w.box));
-    const runs = buildRuns(items, boxes);
-    const title = documentTitle(runs, typeof info.Title === "string" ? info.Title : "", opts.fileName);
+    let runs = buildRuns(items, boxes);
+    // A box printed as a character (☐) is not part of the document's title.
+    const titled = items.map((it) => ({ ...it, text: it.text.replace(/[☐□▢❏❐❑❒⬜]\s*/gu, "") })).filter((it) => it.text.trim());
+    const title = documentTitle(titled.length === items.length && titled.every((t, i) => t.text === items[i]?.text) ? runs : buildRuns(titled, boxes), typeof info.Title === "string" ? info.Title : "", opts.fileName);
     const lang = documentLang(typeof info.Language === "string" ? info.Language : "", runs.map((r) => r.text).join(" "));
-    const built = found ? { fields: [], bindings: [] } : buildFields(fields, runs, title);
+    let built: { fields: FormStructure["fields"]; bindings: PdfReading["bindings"] } = found ? { fields: [], bindings: [] } : buildFields(fields, runs, title);
+    let printOnly = false;
+    if (found?.kind === "flat") {
+      // No form field: look for the places a person writes on the printed page.
+      const printed = readPrinted(items, await readDrawing(pdf, opts.pdfjs.OPS), pages, title);
+      if (printed.scan) found = problem("scan");
+      else if (printed.fields.length) {
+        found = undefined;
+        printOnly = true;
+        built = { fields: printed.fields, bindings: printed.bindings };
+        // Text that sits where an answer goes is someone's answer: it stays out of the page model too.
+        const answer = (it: Run) => printed.answers.some((a) => a.page === it.page && Math.abs(a.y - it.y) <= 0.35 * it.size && it.x0 >= a.x0 - 1 && it.x1 <= a.x1 + 1);
+        if (printed.answers.length) runs = buildRuns(items.filter((it) => !answer(it)));
+      }
+    }
     const { page, blockBoxes } = buildPage(runs, { title, lang, formCount: built.fields.length ? 1 : 0 });
     const reading: PdfReading = { page, bindings: built.bindings, blockBoxes, pages: pages.map((p) => ({ width: p.width, height: p.height })) };
+    if (printOnly) reading.printOnly = true;
     if (found) reading.problem = found;
     else {
       const structure: FormStructure = {

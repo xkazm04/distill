@@ -8,12 +8,20 @@ import { REFUSALS } from "./corpus/refusals.js";
 const refusal = (slug: string) => REFUSALS.find((r) => r.slug === slug)!.build();
 
 describe("PDFs Distill cannot fill", () => {
-  it("a print-only form: says it has no fields, and the Read view still has its text", async () => {
-    const r = await readPdf(await refusal("flat-scan"), { pdfjs: PDFJS });
+  it("a PDF with no field and nothing to write on (a letter): says it has no fields, and the Read view still has its text", async () => {
+    const r = await readPdf(await refusal("flat"), { pdfjs: PDFJS });
     expect(r.structure).toBeUndefined();
+    expect(r.printOnly).toBeUndefined();
     expect(r.problem).toEqual({ kind: "flat", ...PROBLEMS.flat });
-    expect(r.page.blocks.map((b) => b.text).join(" ")).toContain("Zadost o vydani potvrzeni");
+    expect(r.page.blocks.map((b) => b.text).join(" ")).toContain("Vyrozumeni o zahajeni rizeni");
     expect(r.page.formCount).toBeUndefined();
+  });
+
+  it("a scanned PDF (pages that are pictures, no text): refused in plain words, as a scan", async () => {
+    const r = await readPdf(await refusal("scan"), { pdfjs: PDFJS });
+    expect(r.structure).toBeUndefined();
+    expect(r.problem).toEqual({ kind: "scan", ...PROBLEMS.scan });
+    expect(r.problem?.title).toBe("This PDF is a scan, so Distill cannot fill it in yet");
   });
 
   it("an XFA form, dynamic or static: says so, even when ordinary fields are also there", async () => {

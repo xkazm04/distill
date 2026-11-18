@@ -37,15 +37,20 @@ export interface Refusal { slug: string; models: string; want: PdfProblemKind; b
 
 export const REFUSALS: Refusal[] = [
   {
-    slug: "flat-scan", want: "flat", models: "A form made for printing: printed text and lines to write on, no fields.",
+    slug: "flat", want: "flat", models: "A letter: printed text only, no field, and no line or box to write on. (A form made for printing, with lines to write on, is read as a print-only form: test/corpus/*.print.json.)",
     build: async () => {
       const doc = await PDFDocument.create();
       const page = doc.addPage([595, 842]);
       const f = await doc.embedFont(StandardFonts.Helvetica);
-      page.drawText("Zadost o vydani potvrzeni", { x: 50, y: 790, size: 16, font: f });
-      page.drawText("Prijmeni: ..............................................", { x: 50, y: 712, size: 10, font: f });
+      page.drawText("Vyrozumeni o zahajeni rizeni", { x: 50, y: 790, size: 16, font: f });
+      page.drawText("Spravni organ vam oznamuje, ze bylo zahajeno rizeni ve veci vasi zadosti.", { x: 50, y: 740, size: 10, font: f });
+      page.drawText("Do spisu muzete nahlednout v uredni dobe.", { x: 50, y: 726, size: 10, font: f });
       return doc.save();
     },
+  },
+  {
+    slug: "scan", want: "scan", models: "A scanned form: each page is one picture, with no text Distill can read and nothing drawn as lines.",
+    build: async () => buildPdf({ pages: [{ image: true, text: [], fields: [] }, { image: true, text: [], fields: [] }] }),
   },
   {
     slug: "xfa-dynamic", want: "xfa", models: "A dynamic XFA form: the AcroForm holds an XFA stream and no fields; the page is a placeholder.",

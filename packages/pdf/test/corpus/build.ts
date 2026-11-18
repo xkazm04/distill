@@ -22,7 +22,12 @@ export type FieldSpec =
   | { type: "radio"; name: string; tooltip?: string; required?: boolean; options: { value: string; rect: Rect }[] }
   | { type: "dropdown"; name: string; rect: Rect; tooltip?: string; required?: boolean; options: (string | [string, string])[] }
   | { type: "signature"; name: string; rect: Rect };
-export interface PageSpec { size?: [number, number]; text: TextSpec[]; fields: FieldSpec[] }
+/** A ruled line, drawn as a stroke (or, `fill`, as a thin filled box, as some tools draw lines). */
+export interface LineSpec { from: [number, number]; to: [number, number]; width?: number; fill?: boolean }
+/** A box drawn on the page (not a form field): square or rounded corners, `thick` borders drawn as filled bars. */
+export interface RectSpec { rect: Rect; width?: number; radius?: number; dashed?: boolean }
+/** A print-only page draws its lines and boxes; `image` paints a grey picture over the whole page (a scan). */
+export interface PageSpec { size?: [number, number]; text: TextSpec[]; fields: FieldSpec[]; lines?: LineSpec[]; rects?: RectSpec[]; image?: boolean }
 /**
  * Protection as an author's PDF tool sets it, applied with pdf-lib's own `encrypt` (no Distill code): an owner password,
  * an optional password to open the file, the permissions, and the cipher. The forms of the Czech corridor that are
@@ -35,6 +40,9 @@ export interface Protect {
   permissions: { printing?: false | "lowResolution" | "highResolution"; modifying?: boolean; copying?: boolean; annotating?: boolean; fillingForms?: boolean; contentAccessibility?: boolean; documentAssembly?: boolean };
 }
 export interface Layout { title?: string; lang?: string; protect?: Protect; pages: PageSpec[] }
+
+/** A 2 x 2 grey PNG: what a scanned page is, as far as reading it goes (a picture, no text). */
+const GREY_PNG = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAAAAABX3VL4AAAADklEQVR4nGM4sY9hyyUACSADDViXdnkAAAAASUVORK5CYII=", "base64"));
 
 const tooltip = (form: PDFForm, name: string, t?: string): void => {
   if (t) form.getField(name).acroField.dict.set(PDFName.of("TU"), PDFHexString.fromText(t));
@@ -51,7 +59,29 @@ export async function buildPdf(layout: Layout): Promise<Uint8Array> {
   const prefilled: string[] = [];
   for (const spec of layout.pages) {
     const page: PDFPage = doc.addPage(spec.size ?? [595, 842]);
+    if (spec.image) {
+      const png = await doc.embedPng(GREY_PNG);
+      page.drawImage(png, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
+    }
     for (const t of spec.text) page.drawText(t.text, { x: t.at[0], y: t.at[1], size: t.size ?? 10, font, color: rgb(0, 0, 0) });
+    for (const l of spec.lines ?? []) {
+      const w = l.width ?? 0.6;
+      if (l.fill) {
+        const [x1, y1] = l.from, [x2, y2] = l.to;
+        page.drawRectangle({ x: Math.min(x1, x2), y: Math.min(y1, y2) - (y1 === y2 ? w / 2 : 0), width: Math.max(Math.abs(x2 - x1), w), height: Math.max(Math.abs(y2 - y1), w), color: rgb(0, 0, 0) });
+      } else page.drawLine({ start: { x: l.from[0], y: l.from[1] }, end: { x: l.to[0], y: l.to[1] }, thickness: w, color: rgb(0, 0, 0) });
+    }
+    for (const r of spec.rects ?? []) {
+      const [x, y, w, h] = r.rect;
+      const bw = r.width ?? 0.8;
+      const dash = r.dashed ? { borderDashArray: [3, 2] } : {};
+      if (r.radius) {
+        const k = r.radius;
+        // An SVG path, y down from the box's top-left corner.
+        const d = `M ${k} 0 H ${w - k} Q ${w} 0 ${w} ${k} V ${h - k} Q ${w} ${h} ${w - k} ${h} H ${k} Q 0 ${h} 0 ${h - k} V ${k} Q 0 0 ${k} 0 Z`;
+        page.drawSvgPath(d, { x, y: y + h, borderWidth: bw, borderColor: rgb(0, 0, 0), ...dash });
+      } else page.drawRectangle({ x, y, width: w, height: h, borderWidth: bw, borderColor: rgb(0, 0, 0), ...dash });
+    }
     for (const f of spec.fields) {
       const box = (r: Rect) => ({ x: r[0], y: r[1], width: r[2], height: r[3], borderWidth: 1, borderColor: rgb(0.3, 0.3, 0.3), backgroundColor: rgb(1, 1, 1) });
       if (f.type === "text") {
@@ -92,7 +122,7 @@ export async function buildPdf(layout: Layout): Promise<Uint8Array> {
       if (f.type !== "signature") tooltip(form, f.name, f.tooltip);
     }
   }
-  form.updateFieldAppearances(font);
+  if (layout.pages.some((p) => p.fields.length)) form.updateFieldAppearances(font);
   if (layout.protect) {
     const p = layout.protect;
     doc.encrypt({ ownerPassword: "author-only-4d1e", userPassword: p.userPassword ?? "", permissions: p.permissions, algorithm: p.algorithm ?? "AES-256" });

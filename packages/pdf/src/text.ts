@@ -23,16 +23,29 @@ export const collapse = (s: string): string => s.replace(/\s+/g, " ").trim();
 const isTextItem = (x: unknown): x is PdfJsTextItem =>
   typeof x === "object" && x !== null && typeof (x as PdfJsTextItem).str === "string" && Array.isArray((x as PdfJsTextItem).transform);
 
-/** The text items of every page, horizontal ones only (rotated text is left out), with their size. */
-export async function readItems(pdf: PdfJsDocument): Promise<{ items: Run[]; pages: { width: number; height: number; x0: number; y0: number }[] }> {
+/**
+ * The marked-content tag around every answer Distill draws onto a print-only page (overlay.ts). Text inside it is a
+ * person's answer, not the form's: it is never read as printed text, so a filled copy read again gives the same
+ * structure and page model as the blank form, with no value in either.
+ */
+export const ANSWER_TAG = "DistillAnswer";
+
+/** The text items of every page, horizontal ones only (rotated text is left out), with their size. Text Distill drew
+ *  as an answer (ANSWER_TAG) is left out. */
+export async function readItems(pdf: PdfJsDocument): Promise<{ items: Run[]; pages: { width: number; height: number; x0: number; y0: number; rotate: number }[] }> {
   const items: Run[] = [];
-  const pages: { width: number; height: number; x0: number; y0: number }[] = [];
+  const pages: { width: number; height: number; x0: number; y0: number; rotate: number }[] = [];
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
     const [vx0 = 0, vy0 = 0, vx1 = 612, vy1 = 792] = page.view;
-    pages.push({ width: vx1 - vx0, height: vy1 - vy0, x0: vx0, y0: vy0 });
-    const content = await page.getTextContent();
+    pages.push({ width: vx1 - vx0, height: vy1 - vy0, x0: vx0, y0: vy0, rotate: ((page.rotate ?? 0) % 360 + 360) % 360 });
+    const content = await page.getTextContent({ includeMarkedContent: true });
+    const tags: (string | null)[] = [];
     for (const it of content.items) {
+      const mark = it as { type?: string; tag?: string | null };
+      if (mark.type === "beginMarkedContent" || mark.type === "beginMarkedContentProps") { tags.push(mark.tag ?? null); continue; }
+      if (mark.type === "endMarkedContent") { tags.pop(); continue; }
+      if (tags.includes(ANSWER_TAG)) continue;
       if (!isTextItem(it) || !it.str.trim()) continue;
       const [a = 1, b = 0, c = 0, d = 1, e = 0, f = 0] = it.transform;
       if (Math.abs(b) > 0.01 * Math.abs(a) || a <= 0) continue; // vertical or mirrored text: not a label
