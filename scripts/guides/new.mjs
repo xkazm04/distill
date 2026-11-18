@@ -144,9 +144,8 @@ async function refreshGuide(guideId, given) {
   const sameForm = (typeof g.match.source === "string" && g.match.source === r.source) || g.match.fingerprints.includes(s.fingerprint);
   const keepTitles = sameForm ? (g.match.titles ?? []) : [];
   const match = matchOf(r, { urls: g.match.urls, titles: keepTitles });
-  // Fingerprints of the same form read by an older reader are kept while it is the same form: the app may meet a
-  // reading that is the guide's either way.
-  if (sameForm) match.fingerprints = [...new Set([s.fingerprint, ...g.match.fingerprints])];
+  // Only today's fingerprint: check-guides requires each one to be the fingerprint of match.fields, and the old one was
+  // made of the old reader's labels.
   const out = { ...g, match };
   const notes = [];
   if (!sameForm) {
