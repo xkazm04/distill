@@ -4,6 +4,8 @@
 // handed to an agent. Page actions are listed by label only: a typed value never leaves the page this way.
 import type { Block, FormStructure, PageModel, Task } from "./types.js";
 import { attr, collapse, isHidden, tag } from "./dom.js";
+import { errorElements } from "./errors.js";
+import { listForms } from "./form.js";
 import { validateAndRepair } from "./repair.js";
 import { route } from "./route.js";
 import { cleanText, hasScriptUrl, isObj } from "./sanitize.js";
@@ -142,8 +144,10 @@ export interface PageAction {
 export const MAX_ACTIONS = 60;
 const ACTION_SELECTOR = "a[href], button, input[type=submit], input[type=button], input[type=image], [role=button], [role=link]";
 
-function hiddenOrDisabled(el: Element): boolean {
-  for (let e: Element | null = el; e && tag(e) !== "body"; e = e.parentElement) if (isHidden(e)) return true;
+function hiddenOrDisabled(el: Element, isError: (el: Element) => boolean): boolean {
+  // A link in an error message (an error summary links each message to its field) is labelled with the message, which
+  // can repeat what the person typed: it is never offered.
+  for (let e: Element | null = el; e && tag(e) !== "body"; e = e.parentElement) if (isHidden(e) || isError(e)) return true;
   return el.hasAttribute("disabled") || attr(el, "aria-disabled").toLowerCase() === "true";
 }
 
@@ -173,13 +177,15 @@ function kindOf(el: Element): PageActionKind | null {
 
 /**
  * The page's clickable controls, by label. `onElement` lets the content script keep each element (never sent).
- * Hidden, disabled and reset controls, controls with no words and script links are left out.
+ * Hidden, disabled and reset controls, controls with no words, script links and controls inside the page's error
+ * messages are left out.
  */
 export function extractActions(doc: Document, url: string, onElement?: (actionId: string, el: Element) => void): PageAction[] {
   const out: PageAction[] = [];
+  const isError = errorElements(listForms(doc).length > 0);
   for (const el of Array.from(doc.querySelectorAll(ACTION_SELECTOR))) {
     if (out.length >= MAX_ACTIONS) break;
-    if (hiddenOrDisabled(el)) continue;
+    if (hiddenOrDisabled(el, isError)) continue;
     const kind = kindOf(el);
     const label = labelOf(el);
     if (!kind || !label) continue;

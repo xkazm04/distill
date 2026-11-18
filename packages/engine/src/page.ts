@@ -2,6 +2,7 @@ import type { Block, PageKind, PageModel } from "./types.js";
 import { publicUrl } from "./url.js";
 import { BLOCKISH, SKIP_TAGS, attr, blocked, collapse, isHidden, isNoise, pageLang, tag, textOf } from "./dom.js";
 import { buildBindings, listForms } from "./form.js";
+import { errorElements } from "./errors.js";
 
 const SEMANTIC_ROOT = "main, article, [role=main]";
 
@@ -67,15 +68,15 @@ const isControl = (el: Element): boolean =>
   CONTROL_TAGS.has(tag(el)) || el.hasAttribute("contenteditable") || VALUE_ROLES.has(attr(el, "role").trim().toLowerCase());
 const holdsInput = (el: Element): boolean =>
   isControl(el) || !!el.querySelector("input, select, textarea, [contenteditable], [role=combobox], [role=listbox], [role=textbox], [role=searchbox], [role=spinbutton]");
-/** Visible text with every control (and so every value) left out. */
-const humanText = (el: Element): string => textOf(el, isControl);
 const isHint = (el: Element): boolean => tag(el) === "small" || HINT_CLASS.test(`${attr(el, "class")} ${attr(el, "id")}`);
 
 /**
  * The human text of a form, never its values: headings, instructions, legends (as headings), and the field labels with
  * their help text as a list. Controls are skipped whole, so neither a typed value nor a chosen option is ever read.
  */
-function collectForm(form: Element, push: Push, skipped: (el: Element) => boolean): void {
+function collectForm(form: Element, push: Push, skipped: (el: Element) => boolean, isError: (el: Element) => boolean): void {
+  /** Visible text with every control (and so every value) and every error message left out. */
+  const humanText = (el: Element): string => textOf(el, (e) => isControl(e) || isError(e));
   let items: string[] = [];
   /** Where each list item was read from; the list's source is the smallest element that holds them all. */
   let from: Element[] = [];
@@ -122,8 +123,8 @@ function collectForm(form: Element, push: Push, skipped: (el: Element) => boolea
         walk(c, depth + 1);
         flush();
       } else if (t === "label") {
-        item(textOf(c, (e) => isControl(e) || isHint(e)), c);
-        Array.from(c.querySelectorAll("*")).filter((e) => isHint(e) && !isHidden(e)).forEach((e) => hint(humanText(e), e));
+        item(textOf(c, (e) => isControl(e) || isHint(e) || isError(e)), c);
+        Array.from(c.querySelectorAll("*")).filter((e) => isHint(e) && !isHidden(e) && !isError(e)).forEach((e) => hint(humanText(e), e));
       } else if (isHint(c)) {
         hint(humanText(c), c);
       } else if (t === "p" && !holdsInput(c)) {
@@ -143,8 +144,11 @@ function collectForm(form: Element, push: Push, skipped: (el: Element) => boolea
 /** Adds a block, read from `el`. */
 type Push = (b: Omit<Block, "id">, el: Element) => void;
 
-/** The blocks of `root`, each with the element it was read from (same order, same length). */
-function collectBlocks(root: Element, url: string, formPage: boolean): { blocks: Block[]; sources: Element[] } {
+/** The blocks of `root`, each with the element it was read from (same order, same length). `isError` names the page's
+ *  validation messages: their text can repeat what a person typed (values class), so no block reads it. */
+function collectBlocks(root: Element, url: string, formPage: boolean, isError: (el: Element) => boolean): { blocks: Block[]; sources: Element[] } {
+  /** Visible text with the error messages left out. */
+  const shown = (n: Node): string => textOf(n, isError);
   const blocks: Block[] = [];
   const sources: Element[] = [];
   const push: Push = (b, el) => {
@@ -160,31 +164,31 @@ function collectBlocks(root: Element, url: string, formPage: boolean): { blocks:
   // skipped everywhere, not only inside a <form>: an email draft in a contenteditable region is a value, and page
   // models feed cloud-eligible prompts (CLAUDE.md law: values never leave the device).
   const skipped = (el: Element): boolean =>
-    SKIP_TAGS.has(tag(el)) || isControl(el) || isHidden(el) || (isNoise(el) && !pageHeader(el));
+    SKIP_TAGS.has(tag(el)) || isControl(el) || isHidden(el) || isError(el) || (isNoise(el) && !pageHeader(el));
 
   const visit = (el: Element, isRoot: boolean): void => {
     const t = tag(el);
     if (isRoot ? SKIP_TAGS.has(t) || isHidden(el) : skipped(el)) return;
     if (t === "form") {
-      if (formPage) collectForm(el, push, skipped);
+      if (formPage) collectForm(el, push, skipped, isError);
       return;
     }
     if (/^h[1-6]$/.test(t)) {
-      const text = textOf(el);
+      const text = shown(el);
       if (text) push({ kind: "heading", text, level: Number(t[1]) }, el);
     } else if (t === "p") {
-      const text = textOf(el);
+      const text = shown(el);
       if (text) push({ kind: "paragraph", text }, el);
     } else if (t === "ul" || t === "ol") {
-      const items = Array.from(el.children).filter((c) => tag(c) === "li" && !isHidden(c)).map((li) => textOf(li)).filter(Boolean);
+      const items = Array.from(el.children).filter((c) => tag(c) === "li" && !isHidden(c)).map((li) => shown(li)).filter(Boolean);
       if (items.length) push({ kind: "list", text: items.join("\n") }, el);
     } else if (t === "table") {
       const rows = Array.from(el.querySelectorAll("tr"))
-        .map((tr) => Array.from(tr.children).filter((c) => ["td", "th"].includes(tag(c))).map((c) => textOf(c)))
+        .map((tr) => Array.from(tr.children).filter((c) => ["td", "th"].includes(tag(c))).map((c) => shown(c)))
         .filter((r) => r.some(Boolean));
       if (rows.length) push({ kind: "table", text: rows.map((r) => r.join(" | ")).join("\n"), rows }, el);
     } else if (t === "blockquote") {
-      const text = textOf(el);
+      const text = shown(el);
       if (text) push({ kind: "quote", text }, el);
     } else if (t === "pre") {
       const text = (el.textContent ?? "").replace(/\s+$/, "").replace(/^\n+/, "");
@@ -196,7 +200,7 @@ function collectBlocks(root: Element, url: string, formPage: boolean): { blocks:
     } else {
       let run: Node[] = [];
       const flush = (): void => {
-        const text = collapse(run.map((n) => (n.nodeType === 3 ? n.nodeValue ?? "" : textOf(n))).join(" "));
+        const text = collapse(run.map((n) => (n.nodeType === 3 ? n.nodeValue ?? "" : shown(n))).join(" "));
         if (text) push({ kind: "paragraph", text }, el);
         run = [];
       };
@@ -274,7 +278,8 @@ export function extractPage(doc: Document, url: string, opts?: ExtractOptions): 
   // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.
   if (form && (root === form || form.contains(root))) root = form.parentElement ?? form;
   else if (form && !root.contains(form)) root = commonAncestor(root, form);
-  const { blocks, sources } = collectBlocks(root, url, !!form);
+  // On a page with a form, an element that looks like an error message is one; elsewhere only an ARIA-linked one is.
+  const { blocks, sources } = collectBlocks(root, url, !!form, errorElements(reachable.length > 0));
 
   let host = "";
   try {

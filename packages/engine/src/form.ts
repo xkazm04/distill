@@ -1,6 +1,7 @@
 import type { FieldKind, FieldOption, FieldStructure, FormStructure, FormValues } from "./types.js";
 import { publicUrl } from "./url.js";
-import { attr, blocked, byId, collapse, fold, isHidden, pageLang, SKIP_TAGS, tag, textOf } from "./dom.js";
+import { attr, blocked, byId, collapse, fold, isHidden, pageLang, SKIP_TAGS, tag, textOf as rawTextOf } from "./dom.js";
+import { errorElements } from "./errors.js";
 import { fingerprint } from "./fingerprint.js";
 import { FIELDISH, inputCombobox, itemValue, listboxOf, listOptions, widgetRole } from "./aria.js";
 import { readOne, writeOne } from "./fill.js";
@@ -31,6 +32,15 @@ export interface FieldBinding {
   /** For `via: "date"`: the part each element of `els` holds. */
   parts?: DatePart[];
 }
+
+/** "Is this an error message?" for the form being read (see errors.ts). Set by buildBindings for the length of one
+ *  synchronous reading, so every label, hint and nearby text below leaves the page's error messages out: their text
+ *  can repeat what the person typed, and a FormStructure feeds cloud-eligible prompts. */
+let isError: (el: Element) => boolean = () => false;
+
+/** Visible text, with the page's error messages left out. */
+const textOf = (node: Node, skip?: (el: Element) => boolean, includeHidden = false): string =>
+  rawTextOf(node, (e) => isError(e) || !!skip?.(e), includeHidden);
 
 const cleanLabel = (s: string): string => collapse(s).replace(/\s*[*:]+\s*$/, "").replace(/^\*\s*/, "").trim();
 
@@ -116,7 +126,7 @@ function nearbyText(el: Element): string {
         if (t) return t.length <= 80 ? cleanLabel(t) : "";
       } else if (sib.nodeType === 1) {
         const s = sib as Element;
-        if (isHidden(s) || SKIP_TAGS.has(tag(s))) {
+        if (isHidden(s) || SKIP_TAGS.has(tag(s)) || isError(s)) {
           sib = sib.previousSibling;
           continue;
         }
@@ -149,6 +159,7 @@ function labelFor(el: Element, ctx: Ctx): Element | undefined {
   if (!map) {
     map = new Map();
     for (const l of Array.from(root.querySelectorAll?.("label[for]") ?? [])) {
+      if (isError(l)) continue; // a validation library's message can be a label[for] too
       const f = attr(l, "for");
       if (f && !map.has(f)) map.set(f, l);
     }
@@ -164,7 +175,7 @@ function textOfIds(el: Element, ids: string): string {
     .split(/\s+/)
     .filter(Boolean)
     .map((id) => byId(el, id))
-    .filter((e): e is Element => !!e)
+    .filter((e): e is Element => !!e && !isError(e))
     .map((e) => textOf(e, undefined, isHidden(e)))
     .join(" ");
 }
@@ -220,7 +231,7 @@ function hintOf(el: Element): string {
   }
   const anchor = el.closest("label") ?? el;
   const next = anchor.nextElementSibling;
-  if (next && !isHidden(next) && tag(next) !== "label" && !next.matches(CONTROL_SELECTOR) && !next.querySelector(CONTROL_SELECTOR)) {
+  if (next && !isHidden(next) && !isError(next) && tag(next) !== "label" && !next.matches(CONTROL_SELECTOR) && !next.querySelector(CONTROL_SELECTOR)) {
     const cls = `${attr(next, "class")} ${attr(next, "id")}`;
     if (tag(next) === "small" || HINT_RE.test(cls)) return textOf(next);
   }
@@ -341,6 +352,16 @@ function dateLabel(els: Element[], controls: Control[], ctx: Ctx): { label: stri
 
 /** Find the fields of one form (or form-like region). */
 export function buildBindings(scope: Element): FieldBinding[] {
+  const outer = isError;
+  isError = errorElements();
+  try {
+    return bindingsOf(scope);
+  } finally {
+    isError = outer;
+  }
+}
+
+function bindingsOf(scope: Element): FieldBinding[] {
   const ctx: Ctx = { labels: new WeakMap() };
   const all = gather(scope).filter((c) => isControlKept(c.el));
   // A listbox a combobox opens is that combobox's list, not a field of its own.

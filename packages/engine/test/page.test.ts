@@ -107,4 +107,17 @@ describe("extractPage", () => {
     expect(page.lang).toBe("und");
     expect(page.title).toBe("x.example");
   });
+
+  it("leaves a form page's validation messages out, and keeps a page with no form whole", () => {
+    // A message can repeat what the person typed (values class); a docs page's "Errors" chapter is page text.
+    const form = extractPage(parse(`<html lang="cs"><body><main><h1>Žádost</h1><p>Vyplňte formulář pečlivě a pravdivě.</p>
+      <form><label for="a">Jméno</label><input id="a"><span class="error">Jméno nesmí obsahovat číslice</span>
+      <label for="b">Obec</label><input id="b"><small>Jak ji píše úřad</small><label for="c">Ulice</label><input id="c"></form></main></body></html>`), "https://x.example/f");
+    const text = JSON.stringify(form.blocks);
+    expect(text).toContain("Jak ji píše úřad");
+    expect(text).not.toContain("číslice");
+    const docs = extractPage(parse(`<html lang="en"><body><main><h1>API</h1><section id="errors"><h2>Error codes</h2>
+      <p class="error">A 404 means the record does not exist, and a 409 means it changed meanwhile.</p></section></main></body></html>`), "https://x.example/docs");
+    expect(JSON.stringify(docs.blocks)).toContain("A 404 means the record does not exist");
+  });
 });
