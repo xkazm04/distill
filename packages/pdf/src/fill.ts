@@ -16,8 +16,9 @@ import {
 } from "@cantoo/pdf-lib";
 import type { FormValues } from "@distill/engine";
 import { readField } from "./fields.js";
+import { confirmPrint, drawPrint, planPrint, printedText, PrintError, REASONS, type Draw } from "./overlay.js";
 import { fillAllowed, protectionOf, ProtectionError, saveProtected, type Protection } from "./protect.js";
-import type { DatePart, PdfBinding, PdfReading } from "./types.js";
+import type { DatePart, PdfBinding, PdfJs, PdfReading } from "./types.js";
 
 /** Opens bytes for reading or writing: decrypted when the file is protected, as it is otherwise. */
 const open = (bytes: Uint8Array): Promise<PDFDocument> => PDFDocument.load(bytes, { password: "", updateMetadata: false, throwOnInvalidObject: false });
@@ -92,9 +93,12 @@ export function readBinding(doc: PDFDocument, b: PdfBinding): string {
  * readValues: never put into a cloud-eligible prompt, Firestore or anything the agent reads.
  */
 export async function readPdfValues(bytes: Uint8Array, reading: PdfReading): Promise<FormValues> {
-  const doc = await open(bytes);
   const out: FormValues = {};
+  // A print-only page has no field to read a value from: what Distill drew is known to the caller, which keeps it.
+  if (reading.bindings.every((b) => b.via === "print")) return out;
+  const doc = await open(bytes);
   for (const b of reading.bindings) {
+    if (b.via === "print") continue;
     const v = readBinding(doc, b);
     if (v !== "") out[b.fieldId] = v;
   }
@@ -108,6 +112,8 @@ interface Ctx {
   fontBytes: () => Promise<Uint8Array>;
   font?: PDFFont;
   glyphs?: GlyphFont;
+  /** Answers to draw onto print-only pages. */
+  draws: Draw[];
 }
 
 async function fontFor(ctx: Ctx, text: string): Promise<PDFFont> {
@@ -250,6 +256,15 @@ async function writeSelect(ctx: Ctx, name: string, value: string): Promise<void>
 
 async function writeBinding(ctx: Ctx, b: PdfBinding, value: string): Promise<void> {
   switch (b.via) {
+    case "print": {
+      // Planned now (it fails here when it does not fit), drawn once every answer is planned.
+      if (!ctx.font) await fontFor(ctx, "");
+      const font = ctx.font as PDFFont;
+      const glyphs = ctx.glyphs as GlyphFont;
+      const draws = planPrint(b, value, { font, has: (t) => [...t].every((ch) => /\s/u.test(ch) || glyphs.hasGlyphForCodePoint(ch.codePointAt(0) as number)) });
+      ctx.draws.push(...draws);
+      return;
+    }
     case "text": return writeText(ctx, b.names[0] as string, value);
     case "chars": {
       const chars = [...fitChars(value, b.names.length)];
@@ -298,21 +313,25 @@ function shows(doc: PDFDocument, b: PdfBinding): boolean {
 
 async function produce(original: Uint8Array, reading: PdfReading, values: FormValues, fontBytes: () => Promise<Uint8Array>, protection: Protection | null) {
   const doc = await open(original);
-  const ctx: Ctx = { doc, fontBytes };
+  const ctx: Ctx = { doc, fontBytes, draws: [] };
   const byId = new Map(reading.bindings.map((b) => [b.fieldId, b]));
   const attempted: string[] = [];
   const refused: string[] = [];
+  const reasons: Record<string, string> = {};
   for (const [id, raw] of Object.entries(values)) {
     const b = byId.get(id);
     if (!b) { refused.push(id); continue; }
     try {
       await writeBinding(ctx, b, String(raw).normalize("NFC"));
       attempted.push(id);
-    } catch {
+    } catch (e) {
       refused.push(id);
+      if (e instanceof PrintError) reasons[id] = e.message;
+      else if (b.via === "print") reasons[id] = REASONS.glyph;
     }
   }
-  if (ctx.font) {
+  if (ctx.draws.length && ctx.font) drawPrint(doc, ctx.draws, ctx.font);
+  if (ctx.font && doc.catalog.has(PDFName.of("AcroForm"))) {
     // A viewer that redraws a field uses the font its /DA names: put the embedded font in the form's resources.
     const acro = doc.getForm().acroForm.dict;
     const dr = acro.lookupMaybe(PDFName.of("DR"), PDFDict) ?? doc.context.obj({});
@@ -322,7 +341,7 @@ async function produce(original: Uint8Array, reading: PdfReading, values: FormVa
     fonts.set(PDFName.of(ctx.font.name), ctx.font.ref);
   }
   const bytes = protection ? await saveProtected(doc, protection) : await doc.save({ updateFieldAppearances: false });
-  return { bytes, attempted, refused };
+  return { bytes, attempted, refused, reasons };
 }
 
 /**
@@ -333,7 +352,7 @@ async function produce(original: Uint8Array, reading: PdfReading, values: FormVa
  * A protected original gives a copy protected the same way (protect.ts). When that cannot be done and confirmed, this
  * rejects with a ProtectionError and gives no bytes at all, rather than an unprotected copy.
  */
-export async function fillPdf(original: Uint8Array, reading: PdfReading, values: FormValues, font: FontSource): Promise<{ bytes: Uint8Array; written: string[]; failed: string[] }> {
+export async function fillPdf(original: Uint8Array, reading: PdfReading, values: FormValues, font: FontSource, opts: { pdfjs?: PdfJs } = {}): Promise<{ bytes: Uint8Array; written: string[]; failed: string[]; reasons: Record<string, string> }> {
   let cached: Promise<Uint8Array> | null = null;
   const fontBytes = () => (cached ??= typeof font === "function" ? font() : Promise.resolve(font));
   const byId = new Map(reading.bindings.map((b) => [b.fieldId, b]));
@@ -341,13 +360,27 @@ export async function fillPdf(original: Uint8Array, reading: PdfReading, values:
   if (protection && (protection.filter !== "Standard" || !fillAllowed(protection))) throw new ProtectionError("its permissions do not allow filling in forms");
   let todo: FormValues = { ...values };
   const failed = new Set<string>();
+  const reasons: Record<string, string> = {};
   for (let pass = 0; pass < 2; pass++) {
-    const { bytes, attempted, refused } = await produce(original, reading, todo, fontBytes, protection);
+    const { bytes, attempted, refused, reasons: why } = await produce(original, reading, todo, fontBytes, protection);
     refused.forEach((id) => failed.add(id));
+    Object.assign(reasons, why);
     const check = await open(bytes);
     const unconfirmed: string[] = [];
+    // Answers drawn on a print-only page: read back with pdf.js, at their place, over nothing printed.
+    const drawn = attempted.map((id) => ({ id, b: byId.get(id) as PdfBinding })).filter((x) => x.b.via === "print")
+      .map((x) => ({ fieldId: x.id, binding: x.b, text: printedText(x.b, String(values[x.id]).normalize("NFC")) }))
+      .filter((d) => d.text !== "");
+    if (drawn.length) {
+      const verdicts = opts.pdfjs ? await confirmPrint(opts.pdfjs, original, bytes, drawn) : new Map(drawn.map((d) => [d.fieldId, REASONS.noReader]));
+      for (const d of drawn) {
+        const v = verdicts.get(d.fieldId);
+        if (v !== null) { unconfirmed.push(d.fieldId); reasons[d.fieldId] = v ?? REASONS.unconfirmed; }
+      }
+    }
     for (const id of attempted) {
       const b = byId.get(id) as PdfBinding;
+      if (b.via === "print") continue;
       const max = b.via === "text" ? readMax(check, b) : undefined;
       const want = expected(b, String(values[id]).normalize("NFC"), max);
       const got = readBinding(check, b).normalize("NFC");
@@ -357,7 +390,8 @@ export async function fillPdf(original: Uint8Array, reading: PdfReading, values:
     if (!unconfirmed.length || pass === 1) {
       unconfirmed.forEach((id) => failed.add(id));
       const written = Object.keys(values).filter((id) => !failed.has(id));
-      return { bytes, written, failed: Object.keys(values).filter((id) => failed.has(id)) };
+      const out = Object.keys(values).filter((id) => failed.has(id));
+      return { bytes, written, failed: out, reasons: Object.fromEntries(out.filter((id) => reasons[id]).map((id) => [id, reasons[id] as string])) };
     }
     // Something was changed but not confirmed: write again without it, so the copy never holds half an answer.
     unconfirmed.forEach((id) => failed.add(id));
