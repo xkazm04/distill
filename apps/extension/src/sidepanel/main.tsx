@@ -1,6 +1,8 @@
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Workspace } from "@distill/web/ui";
+import { guideLibrary, Workspace } from "@distill/web/ui";
+// The guide library, inside this bundle: looking a guide up needs no network at all (guides/README.md).
+import library from "virtual:distill-guides";
 // The Distill style ships the brand fonts, self-hosted (an extension page cannot load remote fonts).
 import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
 import "@fontsource-variable/fredoka/wght.css";
@@ -16,6 +18,9 @@ import { LookSetting, useLook } from "./look";
 import { pinnedTabId, tabUpdatedListener } from "./tabEvents";
 
 interface ShownTab { id: number; title: string; url?: string }
+
+/** Matched on this device. Drafts only in a developer's own build with VITE_GUIDE_DRAFTS=1, never the public one. */
+const guides = guideLibrary(async () => library, { drafts: import.meta.env.VITE_GUIDE_DRAFTS === "1" });
 
 function Panel() {
   const pinned = useMemo(() => pinnedTabId(location.search), []);
@@ -104,7 +109,7 @@ function Panel() {
   }
   return (
     <>
-      <Workspace host={host} handrail={port} refreshKey={readKey} changeKey={changes} guideStore={guideStore}
+      <Workspace host={host} handrail={port} refreshKey={readKey} changeKey={changes} guideStore={guideStore} guides={guides}
         onConnectHelper={helperOk === false ? connectHelper : undefined} />
       {lookSetting}
     </>

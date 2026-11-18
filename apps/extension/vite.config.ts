@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { guideLibrary } from "../../scripts/guides/library.mjs";
 
 // Two builds of the extension (VITE_EXT_VARIANT, or `--mode public`):
 // - "own" (default) -> dist: the build-it-yourself extension with your own Firebase project and App Check debug token.
@@ -50,13 +51,16 @@ function publicStubs(): Plugin {
 // (vite.content.config.ts) because a content script must be a single classic script with no imports.
 export default defineConfig(({ mode }) => {
   const variant = variantOf(mode);
+  // The guide library is bundled (virtual:distill-guides): a lookup needs no network. Drafts only in a developer's own
+  // build with VITE_GUIDE_DRAFTS=1; never in the public build, the e2e build or the tests.
+  const drafts = variant === "own" && mode !== "e2e" && mode !== "test" && loadEnv(mode, "../..", "VITE_").VITE_GUIDE_DRAFTS === "1";
   return {
-    plugins: [react(), ...(variant === "public" ? [publicStubs()] : [])],
+    plugins: [react(), guideLibrary({ as: "module", drafts }), ...(variant === "public" ? [publicStubs()] : [])],
     // Tests are hermetic: in test mode no .env is read (this package has none), so the main checkout with a real .env
     // runs the same tests as a worktree without one (the web app does the same).
     envDir: mode === "test" || mode === "e2e" ? "." : "../..",
     base: "./",
-    define: defineOf(variant),
+    define: { ...defineOf(variant), "import.meta.env.VITE_GUIDE_DRAFTS": JSON.stringify(drafts ? "1" : "") },
     build: {
       target: "es2022",
       outDir: mode === "e2e" ? "dist-e2e" : outDirOf(variant), // a test build never lands where a person loads the extension from
