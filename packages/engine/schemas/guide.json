@@ -1,0 +1,310 @@
+{
+  "type": "object",
+  "properties": {
+    "guideVersion": {
+      "type": "integer",
+      "enum": [
+        1
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "reviewed"
+      ]
+    },
+    "demo": {
+      "type": "boolean"
+    },
+    "authority": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "nameEn": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "nameEn"
+      ]
+    },
+    "formName": {
+      "type": "object",
+      "properties": {
+        "cs": {
+          "type": "string"
+        },
+        "en": {
+          "type": "string"
+        },
+        "uk": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cs",
+        "en",
+        "uk"
+      ]
+    },
+    "formLang": {
+      "type": "string"
+    },
+    "officialFormUrl": {
+      "type": "string"
+    },
+    "instructionsUrl": {
+      "type": "string"
+    },
+    "draftedOn": {
+      "type": "string"
+    },
+    "reviewer": {
+      "type": "string"
+    },
+    "reviewedOn": {
+      "type": "string"
+    },
+    "match": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "html",
+            "pdf"
+          ]
+        },
+        "fingerprints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "fieldId": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "textarea",
+                  "email",
+                  "tel",
+                  "number",
+                  "date",
+                  "select",
+                  "radio",
+                  "checkbox",
+                  "file",
+                  "other"
+                ]
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "fieldId",
+              "kind",
+              "label"
+            ]
+          }
+        }
+      },
+      "required": [
+        "format",
+        "fingerprints",
+        "fields"
+      ]
+    },
+    "wizards": {
+      "type": "object",
+      "properties": {
+        "en": {
+          "type": "object",
+          "properties": {
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "stepId": {
+                    "type": "string"
+                  },
+                  "fieldIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "question": {
+                    "type": "string"
+                  },
+                  "explanation": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "string"
+                  },
+                  "expectedFormat": {
+                    "type": "string"
+                  },
+                  "official": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "lang": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "lang"
+                    ]
+                  }
+                },
+                "required": [
+                  "stepId",
+                  "fieldIds",
+                  "question",
+                  "explanation"
+                ]
+              }
+            }
+          },
+          "required": [
+            "notes",
+            "steps"
+          ]
+        },
+        "uk": {
+          "type": "object",
+          "properties": {
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "stepId": {
+                    "type": "string"
+                  },
+                  "fieldIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "question": {
+                    "type": "string"
+                  },
+                  "explanation": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "string"
+                  },
+                  "expectedFormat": {
+                    "type": "string"
+                  },
+                  "official": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "lang": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "lang"
+                    ]
+                  }
+                },
+                "required": [
+                  "stepId",
+                  "fieldIds",
+                  "question",
+                  "explanation"
+                ]
+              }
+            }
+          },
+          "required": [
+            "notes",
+            "steps"
+          ]
+        }
+      },
+      "required": [
+        "en",
+        "uk"
+      ]
+    },
+    "reviewNotes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "guideVersion",
+    "id",
+    "status",
+    "authority",
+    "formName",
+    "formLang",
+    "officialFormUrl",
+    "instructionsUrl",
+    "draftedOn",
+    "match",
+    "wizards"
+  ]
+}

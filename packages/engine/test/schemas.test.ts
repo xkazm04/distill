@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prompts, schemas, validateAndRepair, type PageModel } from "../src/index.js";
+import { fileSchemas } from "../src/schemas.js";
+import guideJson from "../schemas/guide.json";
 import classifyJson from "../schemas/classify.json";
 import letterJson from "../schemas/letter.json";
 import recastJson from "../schemas/recast.json";
@@ -18,6 +20,8 @@ const EXPORTED: Record<string, unknown> = {
   simplify: simplifyJson,
   wizard: wizardJson,
 };
+// The file formats (not model output), exported the same way.
+const EXPORTED_FILES: Record<string, unknown> = { guide: guideJson };
 
 const FORBIDDEN = ["$ref", "oneOf", "anyOf", "allOf", "$defs", "definitions", "additionalProperties", "patternProperties"];
 const ALLOWED = new Set(["type", "properties", "required", "items", "enum"]);
@@ -48,6 +52,12 @@ describe("schemas", () => {
   it("the exported schemas/*.json are up to date (npm run export-schemas -w @distill/engine)", () => {
     expect(Object.keys(EXPORTED).sort()).toEqual(Object.keys(schemas).sort());
     for (const [name, s] of Object.entries(schemas)) expect(EXPORTED[name], name).toEqual(s);
+    expect(Object.keys(EXPORTED_FILES).sort()).toEqual(Object.keys(fileSchemas).sort());
+    for (const [name, s] of Object.entries(fileSchemas)) expect(EXPORTED_FILES[name], name).toEqual(s);
+  });
+
+  it("the file schemas (the guide library) stay in the same common subset", () => {
+    for (const [name, s] of Object.entries(fileSchemas)) walk(s, name);
   });
 
   it("recast schema agrees with the validator's vocabulary", () => {

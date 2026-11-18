@@ -114,3 +114,73 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
     required: ["reply"],
   },
 };
+
+const FIELD_KINDS = ["text", "textarea", "email", "tel", "number", "date", "select", "radio", "checkbox", "file", "other"];
+const guideWizard = {
+  type: "object",
+  properties: {
+    notes: strList,
+    steps: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          stepId: str,
+          fieldIds: strList,
+          question: str,
+          explanation: str,
+          example: str,
+          expectedFormat: str,
+          official: { type: "object", properties: { text: str, lang: str, url: str }, required: ["text", "lang"] },
+        },
+        required: ["stepId", "fieldIds", "question", "explanation"],
+      },
+    },
+  },
+  required: ["notes", "steps"],
+};
+
+// JSON Schemas of the shared FILE formats (not model output): what a file in the guide library must look like. Same
+// common subset, so every consumer (Android included) reads them with the same small walker. What the subset cannot
+// say (https addresses, YYYY-MM-DD dates, a reviewed guide naming its reviewer) is checked by parseGuide and
+// `npm run check-guides`.
+export const fileSchemas: Record<"guide", object> = {
+  guide: {
+    type: "object",
+    properties: {
+      guideVersion: { type: "integer", enum: [1] },
+      id: str,
+      status: { type: "string", enum: ["draft", "reviewed"] },
+      demo: { type: "boolean" },
+      authority: { type: "object", properties: { name: str, nameEn: str }, required: ["name", "nameEn"] },
+      formName: { type: "object", properties: { cs: str, en: str, uk: str }, required: ["cs", "en", "uk"] },
+      formLang: str,
+      officialFormUrl: str,
+      instructionsUrl: str,
+      draftedOn: str,
+      reviewer: str,
+      reviewedOn: str,
+      match: {
+        type: "object",
+        properties: {
+          format: { type: "string", enum: ["html", "pdf"] },
+          fingerprints: strList,
+          urls: strList,
+          titles: strList,
+          fields: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { fieldId: str, kind: { type: "string", enum: FIELD_KINDS }, label: str },
+              required: ["fieldId", "kind", "label"],
+            },
+          },
+        },
+        required: ["format", "fingerprints", "fields"],
+      },
+      wizards: { type: "object", properties: { en: guideWizard, uk: guideWizard }, required: ["en", "uk"] },
+      reviewNotes: strList,
+    },
+    required: ["guideVersion", "id", "status", "authority", "formName", "formLang", "officialFormUrl", "instructionsUrl", "draftedOn", "match", "wizards"],
+  },
+};

@@ -121,6 +121,107 @@ export interface Wizard {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Form guides (the library). A guide is a wizard for one official form written by a person (or drafted, then checked
+// by a person) against the authority's own instructions, kept as JSON in the repository (guides/<country>/<slug>.json,
+// schemas/guide.json). It is used instead of a model's wizard when the form on screen matches it. It is NOT an AI
+// result: it never carries an InferenceSource. It is still untrusted input: every guide passes parseGuide and the
+// wizard door (parseWizard) when it is loaded. It carries structure and explanations only, never a person's value.
+// ---------------------------------------------------------------------------------------------------------------
+
+/** `draft`: written (by a person or an AI) but not checked; never shown to a person as checked, and not used on real
+ *  pages unless a developer turns drafts on. `reviewed`: a named person compared it with the official instructions on
+ *  `reviewedOn`, recorded through a commit. */
+export type GuideStatus = "draft" | "reviewed";
+
+/** `html`: a web form, known by its addresses. `pdf`: a fillable PDF (FormStructure.url is "pdf://local/"), known by
+ *  the title read from the document. */
+export type GuideFormat = "html" | "pdf";
+
+export interface GuideAuthority {
+  /** As the authority names itself, in the form's language: "Ministerstvo vnitra". */
+  name: string;
+  /** In English, as it reads in the middle of a sentence: "the Ministry of the Interior". */
+  nameEn: string;
+}
+
+export interface GuideFormName {
+  /** The form's own name, in its language: "Oznámení změn". */
+  cs: string;
+  en: string;
+  uk: string;
+}
+
+/** One field of the form as the guide was written for it: the three things the fingerprint is made of. */
+export interface GuideField {
+  fieldId: string;
+  kind: FieldKind;
+  label: string;
+}
+
+/** What the guide matches. See packages/engine/src/guides.ts for how a form on screen is compared with it. */
+export interface GuideMatch {
+  format: GuideFormat;
+  /** FormStructure.fingerprint of the form as the guide was written for it (fingerprint.ts), one per address. */
+  fingerprints: string[];
+  /** html: the form's addresses, origin + path (both the old and the new host when an office moved). A demo guide
+   *  gives a path only ("/demo/form.html"), matched on any origin. Omitted for pdf. */
+  urls?: string[];
+  /** pdf: FormStructure.title as read from the document. Omitted for html. */
+  titles?: string[];
+  fields: GuideField[];
+}
+
+/** The official instruction a step rests on, word for word, in its own language. */
+export interface GuideQuote {
+  text: string;
+  /** BCP-47 primary tag of the quote's language, e.g. "cs". */
+  lang: string;
+  /** Where the quote is written, when that is not the guide's `instructionsUrl`. */
+  url?: string;
+}
+
+/** A wizard step of a guide: a WizardStep, and the official words it rests on. */
+export interface GuideStep extends WizardStep {
+  official?: GuideQuote;
+}
+
+/** A guide's text for one reader language. */
+export interface GuideWizard {
+  /** What a newcomer must know about the whole form, before step 1 ("Fill this form in Czech."). May be empty. */
+  notes: string[];
+  steps: GuideStep[];
+}
+
+export interface FormGuide {
+  guideVersion: 1;
+  /** The file's path in guides/ without ".json": "cz/oznameni-zmen". */
+  id: string;
+  status: GuideStatus;
+  /** True only for the guide to Distill's own made-up demo form: shown as an example, never as checked. */
+  demo?: boolean;
+  authority: GuideAuthority;
+  formName: GuideFormName;
+  /** BCP-47 primary tag of the form's language, e.g. "cs". */
+  formLang: string;
+  /** https: where the official form itself is published. */
+  officialFormUrl: string;
+  /** https: the official instructions the guide was written from and is checked against. */
+  instructionsUrl: string;
+  /** YYYY-MM-DD: when the guide was written from the instructions. */
+  draftedOn: string;
+  /** reviewed only: the person who checked it, as recorded in the commit that marked it reviewed. */
+  reviewer?: string;
+  /** reviewed only: YYYY-MM-DD. */
+  reviewedOn?: string;
+  match: GuideMatch;
+  /** One wizard per reader language. Both are required. */
+  wizards: { en: GuideWizard; uk: GuideWizard };
+  /** For the reviewer only, never shown to a person: what the author was unsure of (a machine-written translation, an
+   *  instruction not found). A reviewed guide has none left. */
+  reviewNotes?: string[];
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Letters and replies (Envelope). A letter is text the person chose to share (page class). Their answers to the reply
 // wizard are their own details (values class): they exist only in `ReplyAnswer`, which never crosses the cloud boundary.
 // ---------------------------------------------------------------------------------------------------------------
