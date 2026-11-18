@@ -20,6 +20,8 @@
     "build": "npm run build --workspaces --if-present",
     "check": "npm run typecheck && npm test && npm run secret-scan && npm run check-tokens && npm run check-csp",
     "secret-scan": "node scripts/secret-scan.mjs",
+    "bench:forms": "npm run bench:forms -w @distill/engine",
+    "bench:forms:update": "npm run bench:forms:update -w @distill/engine",
     "check-tokens": "node scripts/check-tokens.mjs",
     "check-csp": "node scripts/check-csp.mjs",
     "agent:setup": "node tools/handrail/agent.mjs setup",

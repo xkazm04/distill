@@ -11,6 +11,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "bench:forms": "vitest run --config vitest.bench.config.ts",
+    "bench:forms:update": "vitest run --config vitest.bench.config.ts --mode update-baseline",
     "export-schemas": "node scripts/export-schemas.mjs"
   },
   "devDependencies": {
