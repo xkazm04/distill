@@ -1,0 +1,6 @@
+{
+  "title": "Žádost o prodloužení dlouhodobého pobytu (protected, AES-128)",
+  "models": "The zadost-pobyt form protected as the ipc.gov.cz fill-in forms are: AES-128 (V4, R4), an owner password only, permissions to print in high quality, fill in form fields and extract for accessibility, nothing else (P -1084). It must be read and filled like the unprotected form, and its copy must carry the same protection.",
+  "source": "zadost-pobyt",
+  "protect": { "algorithm": "AES-128", "permissions": { "printing": "highResolution", "fillingForms": true, "contentAccessibility": true } }
+}

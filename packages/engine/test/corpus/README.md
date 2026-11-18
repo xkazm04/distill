@@ -106,8 +106,15 @@ web baseline (`baseline.json` here) does not include them.
 a layout (printed Czech text and form fields at given positions) that `corpus/build.ts` draws with pdf-lib's own form
 API and the embedded Noto Sans, plus what a careful person would list. No real office's PDF was downloaded or
 committed; names of offices are generic and all personal data is made up. The PDFs Distill must refuse (a print-only
-form, a dynamic and a static XFA form, an encrypted file, a password-protected file, a signed file) are built in
-`corpus/refusals.ts` the way such files are made (an XFA stream, pdf-lib's real encryption, a signed signature field).
+form, a dynamic and a static XFA form, an encrypted file whose permissions forbid filling in forms, a file that needs a
+password to open, a signed file) are built in `corpus/refusals.ts` the way such files are made (an XFA stream, pdf-lib's
+real encryption, a signed signature field).
+
+**Protected forms.** Most fillable forms of the corridor are encrypted by their author with only an owner password and
+permissions that allow filling in forms (ipc.gov.cz: AES-128, P -1084; VZP: AES-256, P -1052). Two fixtures model
+them: `zadost-pobyt-chraneny` and `prihlaska-pojistence-chranena` take another fixture's form (`"source"`) and add
+`"protect"`, which `build.ts` applies with pdf-lib's own `encrypt`. They are read and filled like any other, and the
+**protection** column counts protected originals whose saved copy pdf.js finds encrypted with the same permissions.
 
 | Command | What it does |
 | --- | --- |

@@ -1,0 +1,6 @@
+{
+  "title": "Přihláška pojištěnce (protected, AES-256)",
+  "models": "The prihlaska-pojistence form protected as VZP's fill-in forms are: AES-256 (V5, R6), an owner password only, permissions to print in high quality, add annotations, fill in form fields and extract for accessibility (P -1052). It must be read and filled like the unprotected form, and its copy must carry the same protection.",
+  "source": "prihlaska-pojistence",
+  "protect": { "algorithm": "AES-256", "permissions": { "printing": "highResolution", "annotating": true, "fillingForms": true, "contentAccessibility": true } }
+}
