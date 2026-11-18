@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: extending a long-term visa, with dates split into day, month and year boxes. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Žádost o prodloužení doby platnosti dlouhodobého víza</title></head>
+<body>
+<main>
+  <h1>Žádost o prodloužení doby platnosti víza k pobytu nad 90 dnů</h1>
+  <form id="vizum" action="/zadost" method="post">
+    <p><label for="prijmeni">Příjmení *</label> <input id="prijmeni" name="prijmeni" required></p>
+    <p><label for="jmeno">Jméno *</label> <input id="jmeno" name="jmeno" required></p>
+    <div class="date-row">
+      <label for="narozeni-den">Datum narození *</label>
+      <input id="narozeni-den" name="narozeni_den" inputmode="numeric" maxlength="2" size="2" placeholder="DD" aria-label="Den" required> .
+      <input id="narozeni-mesic" name="narozeni_mesic" inputmode="numeric" maxlength="2" size="2" placeholder="MM" aria-label="Měsíc" required> .
+      <input id="narozeni-rok" name="narozeni_rok" inputmode="numeric" maxlength="4" size="4" placeholder="RRRR" aria-label="Rok" required>
+    </div>
+    <p><label for="pas">Číslo cestovního dokladu *</label> <input id="pas" name="pas" required></p>
+    <fieldset class="date-row">
+      <legend>Platnost cestovního dokladu do *</legend>
+      <label for="pas-den" class="sr-only">Den</label>
+      <input id="pas-den" name="pas_den" inputmode="numeric" maxlength="2" size="2" required>
+      <label for="pas-mesic" class="sr-only">Měsíc</label>
+      <select id="pas-mesic" name="pas_mesic" required>
+        <option value="">měsíc</option>
+        <option value="01">leden</option><option value="02">únor</option><option value="03">březen</option>
+        <option value="04">duben</option><option value="05">květen</option><option value="06">červen</option>
+        <option value="07">červenec</option><option value="08">srpen</option><option value="09">září</option>
+        <option value="10">říjen</option><option value="11">listopad</option><option value="12">prosinec</option>
+      </select>
+      <label for="pas-rok" class="sr-only">Rok</label>
+      <input id="pas-rok" name="pas_rok" inputmode="numeric" maxlength="4" size="4" required>
+    </fieldset>
+    <button type="submit">Pokračovat</button>
+  </form>
+</main>
+</body>
+</html>

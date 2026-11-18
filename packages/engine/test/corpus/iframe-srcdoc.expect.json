@@ -1,0 +1,24 @@
+{
+  "title": "Přiznání k místnímu poplatku ze psů",
+  "models": "A form inside a same-origin iframe (srcdoc), as town sites embed forms from a form service; the top document has no fields of its own.",
+  "requires": ["iframe-srcdoc"],
+  "fields": [
+    { "key": "drzitel", "locator": "#formular >>> #drzitel", "kind": "text", "label": "Jméno a příjmení držitele", "required": true, "value": "Olena Kovalenko",
+      "probes": [{ "at": "#formular >>> #drzitel", "prop": "value", "equals": "Olena Kovalenko" }] },
+    { "key": "adresa", "locator": "#formular >>> #adresa", "kind": "text", "label": "Adresa trvalého pobytu", "required": true, "value": "Vinohradská 1234/5, Praha",
+      "probes": [{ "at": "#formular >>> #adresa", "prop": "value", "equals": "Vinohradská 1234/5, Praha" }] },
+    { "key": "pocet", "locator": "#formular >>> #pocet", "kind": "number", "label": "Počet psů", "required": true, "value": "1",
+      "probes": [{ "at": "#formular >>> #pocet", "prop": "value", "equals": "1" }] },
+    { "key": "plemeno", "locator": "#formular >>> #plemeno", "kind": "text", "label": "Plemeno psa", "required": false, "value": "Kříženec",
+      "probes": [{ "at": "#formular >>> #plemeno", "prop": "value", "equals": "Kříženec" }] },
+    { "key": "duchodce", "locator": "#formular >>> #duchodce", "kind": "checkbox", "label": "Jsem poživatel starobního nebo invalidního důchodu", "required": false, "value": "true",
+      "probes": [{ "at": "#formular >>> #duchodce", "prop": "checked", "equals": true }] }
+  ],
+  "byHand": [
+    { "type": "#formular >>> #drzitel", "text": "Olena Kovalenko" },
+    { "type": "#formular >>> #adresa", "text": "Vinohradská 1234/5, Praha" },
+    { "type": "#formular >>> #pocet", "text": "1" },
+    { "type": "#formular >>> #plemeno", "text": "Kříženec" },
+    { "click": "#formular >>> #duchodce" }
+  ]
+}

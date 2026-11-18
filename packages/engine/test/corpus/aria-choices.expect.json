@@ -1,0 +1,37 @@
+{
+  "title": "Ohlášení živnosti",
+  "models": "Choices that are not inputs: role=radio items in a role=radiogroup, role=checkbox items in a role=group, and a role=switch, each named by aria-labelledby and toggled by click, with their state in aria-checked.",
+  "requires": ["javascript"],
+  "fields": [
+    { "key": "podnikatel", "locator": "#podnikatel", "kind": "text", "label": "Jméno a příjmení podnikatele", "required": true, "value": "Olena Kovalenko",
+      "probes": [{ "at": "#podnikatel", "prop": "value", "equals": "Olena Kovalenko" }] },
+    { "key": "druh", "locator": ["#druh", "#druh [role=radio]"], "kind": "radio", "label": "Druh živnosti", "required": true, "options": 3, "value": "Volná",
+      "probes": [
+        { "at": "#druh-volna", "attr": "aria-checked", "equals": "true" },
+        { "at": "#druh-remeslna", "attr": "aria-checked", "equals": "false" }
+      ] },
+    { "key": "obory", "locator": ["#obory", "#obory [role=checkbox]"], "kind": "checkbox", "label": "Obory činnosti", "required": false, "options": 4,
+      "value": "Poskytování software a poradenství v oblasti IT, Překladatelská a tlumočnická činnost",
+      "probes": [
+        { "at": "#obor-56", "attr": "aria-checked", "equals": "true" },
+        { "at": "#obor-63", "attr": "aria-checked", "equals": "true" },
+        { "at": "#obor-72", "attr": "aria-checked", "equals": "false" }
+      ] },
+    { "key": "zahajeni", "locator": "#zahajeni", "kind": "date", "label": "Datum zahájení provozování živnosti", "required": true, "value": "01.12.2026",
+      "probes": [{ "at": "#zahajeni", "prop": "value", "equals": "2026-12-01" }] },
+    { "key": "upozorneni", "locator": "#upozorneni", "kind": "checkbox", "label": "Zasílat upozornění do datové schránky", "required": false, "value": "true",
+      "probes": [{ "at": "#upozorneni", "attr": "aria-checked", "equals": "true" }],
+      "note": "A switch is a yes/no choice; listed as a checkbox, the closest kind in the wire contract." },
+    { "key": "email", "locator": "#email", "kind": "email", "label": "E-mail", "required": false, "value": "olena@example.com",
+      "probes": [{ "at": "#email", "prop": "value", "equals": "olena@example.com" }] }
+  ],
+  "byHand": [
+    { "type": "#podnikatel", "text": "Olena Kovalenko" },
+    { "click": "#druh-volna" },
+    { "click": "#obor-56" },
+    { "click": "#obor-63" },
+    { "pick": "#zahajeni", "value": "2026-12-01" },
+    { "click": "#upozorneni" },
+    { "type": "#email", "text": "olena@example.com" }
+  ]
+}

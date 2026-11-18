@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a foreigner's notice of change of address, laid out with tables as older portals are. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Oznámení změny místa pobytu cizince</title></head>
+<body>
+<main>
+  <h1>Oznámení změny místa pobytu</h1>
+  <p>Změnu místa pobytu je cizinec povinen oznámit do 30 dnů ode dne změny.</p>
+  <form id="zmena" action="/oznameni" method="post">
+    <table class="formular">
+      <tr>
+        <td class="popis">Příjmení *</td>
+        <td><input type="text" id="prijmeni" name="prijmeni" required></td>
+      </tr>
+      <tr>
+        <td class="popis">Jméno *</td>
+        <td><input type="text" id="jmeno" name="jmeno" required></td>
+      </tr>
+      <tr>
+        <td class="popis">Číslo dokladu o pobytu *</td>
+        <td><input type="text" id="doklad" name="cislo_dokladu" required></td>
+      </tr>
+      <tr>
+        <td class="popis">Telefon</td>
+        <td><div class="ui-inputgroup"><span class="ui-input-wrapper"><span class="ui-input-inner"><input type="text" id="telefon" name="telefon"></span></span></div></td>
+      </tr>
+      <tr>
+        <td class="popis"><label for="datum-zmeny">Datum změny pobytu</label></td>
+        <td><input type="text" id="datum-zmeny" name="datum_zmeny" placeholder="DD.MM.RRRR"></td>
+      </tr>
+    </table>
+    <h2>Nová adresa pobytu</h2>
+    <table class="adresa">
+      <thead>
+        <tr><th id="h-ulice">Ulice</th><th id="h-cp">Číslo popisné</th><th id="h-obec">Obec</th><th id="h-psc">PSČ</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input id="ulice" name="ulice" aria-labelledby="h-ulice"></td>
+          <td><input id="cp" name="cislo_popisne" aria-labelledby="h-cp" required></td>
+          <td><input id="obec" name="obec" aria-labelledby="h-obec" required></td>
+          <td><input id="psc" name="psc" aria-labelledby="h-psc" required></td>
+        </tr>
+      </tbody>
+    </table>
+    <p><span id="l-byt" hidden>Číslo bytu</span><input id="byt" name="cislo_bytu" aria-labelledby="l-byt" placeholder="např. 12"></p>
+    <button type="submit">Odeslat oznámení</button>
+  </form>
+</main>
+</body>
+</html>

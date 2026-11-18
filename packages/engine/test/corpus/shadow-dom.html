@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a data box application built from web components whose fields live in open shadow roots. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Žádost o zřízení datové schránky fyzické osoby</title></head>
+<body>
+<main>
+  <h1>Žádost o zřízení datové schránky</h1>
+  <p>Datovou schránku fyzické osoby lze zřídit na žádost. Vyplňte údaje shodně s dokladem totožnosti.</p>
+  <form id="ds" action="/zadost" method="post">
+    <cz-text-field id="jmeno" name="jmeno" label="Jméno" required></cz-text-field>
+    <cz-text-field id="prijmeni" name="prijmeni" label="Příjmení" required></cz-text-field>
+    <cz-text-field id="narozeni" name="narozeni" label="Datum narození" type="date" required></cz-text-field>
+    <cz-text-field id="adresa" name="adresa" label="Adresa místa pobytu" required></cz-text-field>
+    <cz-text-field id="email" name="email" label="E-mail pro notifikace" type="email"></cz-text-field>
+    <cz-select id="doklad" name="doklad" label="Typ dokladu totožnosti" required>
+      <option value="">Vyberte</option>
+      <option value="P">Cestovní pas</option>
+      <option value="IR">Průkaz o povolení k pobytu</option>
+      <option value="OP">Občanský průkaz</option>
+    </cz-select>
+    <p><label for="telefon">Telefon</label> <input type="tel" id="telefon" name="telefon"></p>
+    <p><input type="checkbox" id="souhlas" name="souhlas" required> <label for="souhlas">Potvrzuji správnost údajů</label></p>
+    <button type="submit">Odeslat žádost</button>
+  </form>
+</main>
+<script>
+(function () {
+  function shell(host, control) {
+    var root = host.attachShadow({ mode: "open" });
+    var id = host.id + "-control";
+    root.innerHTML = '<div class="field"><label for="' + id + '"></label>' + control(id) + "</div>";
+    var label = root.querySelector("label");
+    label.textContent = host.getAttribute("label") + (host.hasAttribute("required") ? " *" : "");
+    var el = root.getElementById(id);
+    el.name = host.getAttribute("name") || "";
+    if (host.hasAttribute("required")) el.required = true;
+    return el;
+  }
+  customElements.define("cz-text-field", class extends HTMLElement {
+    connectedCallback() {
+      if (this.shadowRoot) return;
+      var type = this.getAttribute("type") || "text";
+      shell(this, function (id) { return '<input id="' + id + '" type="' + type + '">'; });
+    }
+    get value() { return this.shadowRoot.querySelector("input").value; }
+  });
+  customElements.define("cz-select", class extends HTMLElement {
+    connectedCallback() {
+      if (this.shadowRoot) return;
+      var options = Array.from(this.querySelectorAll("option")).map(function (o) { return o.outerHTML; }).join("");
+      shell(this, function (id) { return '<select id="' + id + '">' + options + "</select>"; });
+    }
+    get value() { return this.shadowRoot.querySelector("select").value; }
+  });
+})();
+</script>
+</body>
+</html>

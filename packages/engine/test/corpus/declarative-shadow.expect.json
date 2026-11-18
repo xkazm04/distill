@@ -1,0 +1,18 @@
+{
+  "title": "Žádost o výpis z evidence",
+  "models": "Fields in declarative shadow roots (<template shadowrootmode=\"open\">), as server-rendered web components ship them. Not measurable in happy-dom 21, which does not attach declarative shadow roots; it is here so the gap is visible and so the fixture counts the day the environment can run it.",
+  "requires": ["declarative-shadow-dom"],
+  "fields": [
+    { "key": "jmeno", "locator": ["#jmeno", "#jmeno >>> input"], "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno >>> input", "prop": "value", "equals": "Olena" }] },
+    { "key": "prijmeni", "locator": ["#prijmeni", "#prijmeni >>> input"], "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni >>> input", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "email", "locator": ["#email", "#email >>> input"], "kind": "email", "label": "E-mail", "required": false, "value": "olena@example.com",
+      "probes": [{ "at": "#email >>> input", "prop": "value", "equals": "olena@example.com" }] }
+  ],
+  "byHand": [
+    { "type": "#jmeno >>> input", "text": "Olena" },
+    { "type": "#prijmeni >>> input", "text": "Kovalenko" },
+    { "type": "#email >>> input", "text": "olena@example.com" }
+  ]
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: an employee card application split into steps; step 2 is in the page but hidden until "Pokračovat". -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Žádost o zaměstnaneckou kartu</title></head>
+<body>
+<main>
+  <h1>Žádost o zaměstnaneckou kartu</h1>
+  <ol class="steps"><li aria-current="step">Žadatel</li><li>Zaměstnání</li></ol>
+  <form id="karta" action="/zadost" method="post">
+    <section id="krok-1">
+      <h2>Krok 1: Žadatel</h2>
+      <p><label for="prijmeni">Příjmení</label> <input id="prijmeni" name="prijmeni" required></p>
+      <p><label for="jmeno">Jméno</label> <input id="jmeno" name="jmeno" required></p>
+      <p>
+        <label for="obcanstvi">Státní občanství</label>
+        <select id="obcanstvi" name="obcanstvi" required>
+          <option value="">Vyberte</option>
+          <option value="UA">Ukrajina</option>
+          <option value="VN">Vietnam</option>
+          <option value="IN">Indie</option>
+          <option value="PH">Filipíny</option>
+        </select>
+      </p>
+      <p><label for="pas">Číslo cestovního dokladu</label> <input id="pas" name="pas" required></p>
+      <button type="button" id="dalsi">Pokračovat</button>
+    </section>
+    <section id="krok-2" hidden>
+      <h2>Krok 2: Zaměstnání</h2>
+      <p><label for="zamestnavatel">Název zaměstnavatele</label> <input id="zamestnavatel" name="zamestnavatel" required></p>
+      <p><label for="ico">IČO zaměstnavatele</label> <input id="ico" name="ico" inputmode="numeric" maxlength="8" required></p>
+      <p><label for="misto">Číslo volného pracovního místa</label> <input id="misto" name="cislo_mista" required></p>
+      <p><label for="pracoviste">Adresa místa výkonu práce</label> <input id="pracoviste" name="pracoviste" required></p>
+      <p><label for="mzda">Hrubá měsíční mzda (Kč)</label> <input id="mzda" name="mzda" type="number" min="0" required></p>
+      <button type="submit">Odeslat žádost</button>
+    </section>
+  </form>
+</main>
+<script>
+document.getElementById("dalsi").addEventListener("click", function () {
+  document.getElementById("krok-1").hidden = true;
+  document.getElementById("krok-2").hidden = false;
+});
+</script>
+</body>
+</html>

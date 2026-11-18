@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a public health insurer's registration form with plain native fields. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Přihláška k veřejnému zdravotnímu pojištění - zdravotní pojišťovna</title></head>
+<body>
+<header role="banner"><a href="/">Zdravotní pojišťovna</a> <a href="/pobocky">Pobočky</a></header>
+<main>
+  <h1>Přihláška pojištěnce</h1>
+  <p>Přihlášku podáváte při vzniku pojištění, například po zahájení zaměstnání v České republice, nebo při změně zdravotní pojišťovny.</p>
+  <form id="prihlaska" action="/prihlaska" method="post">
+    <input type="hidden" name="__RequestVerificationToken" value="x9f2">
+    <h2>Pojištěnec</h2>
+    <p><label for="prijmeni">Příjmení:</label> <input id="prijmeni" name="prijmeni" required></p>
+    <p><label for="jmeno">Jméno:</label> <input id="jmeno" name="jmeno" required></p>
+    <p>
+      <label for="cislo-pojistence">Číslo pojištěnce</label>
+      <input id="cislo-pojistence" name="cislo_pojistence" inputmode="numeric" maxlength="10">
+      <small class="form-text">Cizinci bez rodného čísla vyplní číslo přidělené pojišťovnou.</small>
+    </p>
+    <p><label for="narozeni">Datum narození</label> <input type="date" id="narozeni" name="narozeni" required></p>
+    <fieldset>
+      <legend>Pohlaví</legend>
+      <input type="radio" id="pohlavi-z" name="pohlavi" value="Z" required> <label for="pohlavi-z">žena</label>
+      <input type="radio" id="pohlavi-m" name="pohlavi" value="M"> <label for="pohlavi-m">muž</label>
+    </fieldset>
+    <h2>Pojištění</h2>
+    <p>
+      <label for="duvod">Důvod přihlášky</label>
+      <select id="duvod" name="duvod" required>
+        <option value="">Vyberte</option>
+        <option value="1">Zahájení zaměstnání</option>
+        <option value="2">Změna zdravotní pojišťovny</option>
+        <option value="3">Narození dítěte</option>
+        <option value="4">Zahájení samostatné výdělečné činnosti</option>
+      </select>
+    </p>
+    <p><label for="od">Pojištěn od</label> <input type="date" id="od" name="pojisten_od" required></p>
+    <p><label for="zamestnavatel">Zaměstnavatel (název a IČO)</label> <input id="zamestnavatel" name="zamestnavatel"></p>
+    <h2>Kontakt</h2>
+    <p><label for="email">E-mail</label> <input type="email" id="email" name="email"></p>
+    <p><label for="telefon">Telefon</label> <input type="tel" id="telefon" name="telefon"></p>
+    <p><label><input type="checkbox" id="prohlaseni" name="prohlaseni" required> Prohlašuji, že uvedené údaje jsou pravdivé</label></p>
+    <button type="submit">Odeslat přihlášku</button>
+  </form>
+</main>
+<footer><p>Kontaktní centrum, pondělí až pátek.</p></footer>
+</body>
+</html>

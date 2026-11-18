@@ -1,0 +1,35 @@
+{
+  "title": "Žádost o prodloužení doby platnosti dlouhodobého víza",
+  "models": "Dates split into parts under one label: three text boxes (day, month, year) after one label[for], and a day box, a month select and a year box under a fieldset legend. A person lists each date as one field and gives one date.",
+  "fields": [
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "narozeni", "locator": ["#narozeni-den", "#narozeni-mesic", "#narozeni-rok"], "kind": "date", "label": "Datum narození", "required": true, "value": "05.03.1990",
+      "probes": [
+        { "at": "#narozeni-den", "prop": "value", "equals": "05" },
+        { "at": "#narozeni-mesic", "prop": "value", "equals": "03" },
+        { "at": "#narozeni-rok", "prop": "value", "equals": "1990" }
+      ] },
+    { "key": "pas", "locator": "#pas", "kind": "text", "label": "Číslo cestovního dokladu", "required": true, "value": "FA123456",
+      "probes": [{ "at": "#pas", "prop": "value", "equals": "FA123456" }] },
+    { "key": "platnost", "locator": ["#pas-den", "#pas-mesic", "#pas-rok"], "kind": "date", "label": "Platnost cestovního dokladu do", "required": true, "value": "31.12.2030",
+      "probes": [
+        { "at": "#pas-den", "prop": "value", "equals": "31" },
+        { "at": "#pas-mesic", "prop": "value", "equals": "12" },
+        { "at": "#pas-rok", "prop": "value", "equals": "2030" }
+      ] }
+  ],
+  "byHand": [
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#narozeni-den", "text": "05" },
+    { "type": "#narozeni-mesic", "text": "03" },
+    { "type": "#narozeni-rok", "text": "1990" },
+    { "type": "#pas", "text": "FA123456" },
+    { "type": "#pas-den", "text": "31" },
+    { "choose": "#pas-mesic", "option": "prosinec" },
+    { "type": "#pas-rok", "text": "2030" }
+  ]
+}

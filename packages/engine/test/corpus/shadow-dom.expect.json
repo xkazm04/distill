@@ -1,0 +1,33 @@
+{
+  "title": "Žádost o zřízení datové schránky",
+  "models": "Fields inside open shadow roots: custom elements (defined by script, as design-system components are) render their label and input or select in a shadow root; the form in the light DOM holds only the hosts, plus two ordinary fields.",
+  "requires": ["javascript", "shadow-dom"],
+  "fields": [
+    { "key": "jmeno", "locator": ["#jmeno", "#jmeno >>> input"], "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno >>> input", "prop": "value", "equals": "Olena" }] },
+    { "key": "prijmeni", "locator": ["#prijmeni", "#prijmeni >>> input"], "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni >>> input", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "narozeni", "locator": ["#narozeni", "#narozeni >>> input"], "kind": "date", "label": "Datum narození", "required": true, "value": "05.03.1990",
+      "probes": [{ "at": "#narozeni >>> input", "prop": "value", "equals": "1990-03-05" }] },
+    { "key": "adresa", "locator": ["#adresa", "#adresa >>> input"], "kind": "text", "label": "Adresa místa pobytu", "required": true, "value": "Vinohradská 1234/5, 120 00 Praha",
+      "probes": [{ "at": "#adresa >>> input", "prop": "value", "equals": "Vinohradská 1234/5, 120 00 Praha" }] },
+    { "key": "email", "locator": ["#email", "#email >>> input"], "kind": "email", "label": "E-mail pro notifikace", "required": false, "value": "olena@example.com",
+      "probes": [{ "at": "#email >>> input", "prop": "value", "equals": "olena@example.com" }] },
+    { "key": "doklad", "locator": ["#doklad", "#doklad >>> select"], "kind": "select", "label": "Typ dokladu totožnosti", "required": true, "options": 3, "value": "Průkaz o povolení k pobytu",
+      "probes": [{ "at": "#doklad >>> select", "prop": "value", "equals": "IR" }] },
+    { "key": "telefon", "locator": "#telefon", "kind": "tel", "label": "Telefon", "required": false, "value": "777123456",
+      "probes": [{ "at": "#telefon", "prop": "value", "equals": "777123456" }] },
+    { "key": "souhlas", "locator": "#souhlas", "kind": "checkbox", "label": "Potvrzuji správnost údajů", "required": true, "value": "true",
+      "probes": [{ "at": "#souhlas", "prop": "checked", "equals": true }] }
+  ],
+  "byHand": [
+    { "type": "#jmeno >>> input", "text": "Olena" },
+    { "type": "#prijmeni >>> input", "text": "Kovalenko" },
+    { "pick": "#narozeni >>> input", "value": "1990-03-05" },
+    { "type": "#adresa >>> input", "text": "Vinohradská 1234/5, 120 00 Praha" },
+    { "type": "#email >>> input", "text": "olena@example.com" },
+    { "choose": "#doklad >>> select", "option": "Průkaz o povolení k pobytu" },
+    { "type": "#telefon", "text": "777123456" },
+    { "click": "#souhlas" }
+  ]
+}

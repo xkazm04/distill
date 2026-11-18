@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a self-employment registration with input masks on the birth number, phone, postcode and date. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Oznámení o zahájení samostatné výdělečné činnosti</title></head>
+<body>
+<main>
+  <h1>Oznámení o zahájení samostatné výdělečné činnosti</h1>
+  <form id="osvc" action="/oznameni" method="post">
+    <p><label for="prijmeni">Příjmení</label> <input id="prijmeni" name="prijmeni" required></p>
+    <p><label for="jmeno">Jméno</label> <input id="jmeno" name="jmeno" required></p>
+    <p><label for="rc">Rodné číslo</label> <input id="rc" name="rodne_cislo" inputmode="numeric" placeholder="RRMMDD/XXXX" required></p>
+    <p><label for="telefon">Telefon</label> <input id="telefon" name="telefon" type="tel" value="+420 "></p>
+    <p><label for="psc">PSČ</label> <input id="psc" name="psc" inputmode="numeric" placeholder="123 45" required></p>
+    <p><label for="zahajeni">Datum zahájení činnosti</label> <input id="zahajeni" name="zahajeni" inputmode="numeric" placeholder="DD.MM.RRRR" required></p>
+    <button type="submit">Odeslat</button>
+  </form>
+</main>
+<script>
+(function () {
+  // Reformatting masks: on every input event, keep the digits and lay them out again.
+  function mask(el, max, layout) {
+    el.addEventListener("input", function () {
+      var d = el.value.replace(/\D/g, "").slice(0, max);
+      el.value = layout(d);
+    });
+  }
+  mask(document.getElementById("rc"), 10, function (d) { return d.length > 6 ? d.slice(0, 6) + "/" + d.slice(6) : d; });
+  mask(document.getElementById("psc"), 5, function (d) { return d.length > 3 ? d.slice(0, 3) + " " + d.slice(3) : d; });
+  mask(document.getElementById("zahajeni"), 8, function (d) {
+    return d.length > 4 ? d.slice(0, 2) + "." + d.slice(2, 4) + "." + d.slice(4) : d.length > 2 ? d.slice(0, 2) + "." + d.slice(2) : d;
+  });
+
+  // Keystroke-only mask with a fixed +420 prefix: it builds the number from digit keys and lays out its own buffer
+  // again on any other change (paste, autofill, a script), so nothing but typed digits gets in.
+  var tel = document.getElementById("telefon");
+  var digits = "";
+  function render() {
+    var out = "+420 ";
+    for (var i = 0; i < digits.length; i++) out += (i === 3 || i === 6 ? " " : "") + digits[i];
+    tel.value = out;
+  }
+  tel.addEventListener("keydown", function (e) {
+    if (/^[0-9]$/.test(e.key)) {
+      if (digits.length < 9) digits += e.key;
+      e.preventDefault();
+      render();
+    } else if (e.key === "Backspace") {
+      digits = digits.slice(0, -1);
+      e.preventDefault();
+      render();
+    } else if (e.key.length === 1) {
+      e.preventDefault();
+    }
+  });
+  tel.addEventListener("input", render);
+  render();
+})();
+</script>
+</body>
+</html>

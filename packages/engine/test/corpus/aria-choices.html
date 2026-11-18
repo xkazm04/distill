@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: notifying a trade licence, with choices built from ARIA roles instead of inputs. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Ohlášení živnosti - jednotný registrační formulář</title></head>
+<body>
+<main>
+  <h1>Ohlášení živnosti</h1>
+  <form id="ohlaseni" action="/ohlaseni" method="post">
+    <p><label for="podnikatel">Jméno a příjmení podnikatele</label> <input id="podnikatel" name="podnikatel" required></p>
+
+    <p id="druh-l">Druh živnosti</p>
+    <div role="radiogroup" id="druh" aria-labelledby="druh-l" aria-required="true">
+      <div role="radio" id="druh-volna" data-value="volna" aria-checked="false" tabindex="0">Volná</div>
+      <div role="radio" id="druh-remeslna" data-value="remeslna" aria-checked="false" tabindex="-1">Řemeslná</div>
+      <div role="radio" id="druh-vazana" data-value="vazana" aria-checked="false" tabindex="-1">Vázaná</div>
+    </div>
+
+    <p id="obory-l">Obory činnosti</p>
+    <div role="group" id="obory" aria-labelledby="obory-l">
+      <div role="checkbox" id="obor-56" aria-checked="false" tabindex="0">Poskytování software a poradenství v oblasti IT</div>
+      <div role="checkbox" id="obor-63" aria-checked="false" tabindex="0">Překladatelská a tlumočnická činnost</div>
+      <div role="checkbox" id="obor-72" aria-checked="false" tabindex="0">Mimoškolní výchova a vzdělávání</div>
+      <div role="checkbox" id="obor-48" aria-checked="false" tabindex="0">Velkoobchod a maloobchod</div>
+    </div>
+
+    <p><label for="zahajeni">Datum zahájení provozování živnosti</label> <input type="date" id="zahajeni" name="zahajeni" required></p>
+
+    <div class="switch-row">
+      <span id="upozorneni-l">Zasílat upozornění do datové schránky</span>
+      <div role="switch" id="upozorneni" aria-checked="false" aria-labelledby="upozorneni-l" tabindex="0"><span class="knob"></span></div>
+    </div>
+
+    <p><label for="email">E-mail</label> <input type="email" id="email" name="email"></p>
+    <button type="submit">Pokračovat</button>
+  </form>
+</main>
+<script>
+(function () {
+  document.querySelectorAll("[role=radio]").forEach(function (r) {
+    r.addEventListener("click", function () {
+      r.parentElement.querySelectorAll("[role=radio]").forEach(function (o) {
+        o.setAttribute("aria-checked", String(o === r));
+        o.tabIndex = o === r ? 0 : -1;
+      });
+    });
+  });
+  document.querySelectorAll("[role=checkbox], [role=switch]").forEach(function (c) {
+    c.addEventListener("click", function () {
+      c.setAttribute("aria-checked", String(c.getAttribute("aria-checked") !== "true"));
+    });
+  });
+})();
+</script>
+</body>
+</html>

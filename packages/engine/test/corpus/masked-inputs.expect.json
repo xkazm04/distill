@@ -1,0 +1,28 @@
+{
+  "title": "Oznámení o zahájení samostatné výdělečné činnosti",
+  "models": "Masked inputs. Three masks reformat on the input event (birth number YYMMDD/XXXX, postcode 123 45, date DD.MM.RRRR), as most mask libraries do. One phone mask with a fixed +420 prefix accepts only digit keystrokes and lays out its own buffer again on any other change, as hand-written masks that block paste do.",
+  "requires": ["javascript"],
+  "fields": [
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "rc", "locator": "#rc", "kind": "text", "label": "Rodné číslo", "required": true, "value": "900101/1234",
+      "probes": [{ "at": "#rc", "prop": "value", "equals": "900101/1234" }] },
+    { "key": "telefon", "locator": "#telefon", "kind": "tel", "label": "Telefon", "required": false, "value": "777 123 456",
+      "probes": [{ "at": "#telefon", "prop": "value", "equals": "+420 777 123 456" }] },
+    { "key": "psc", "locator": "#psc", "kind": "text", "label": "PSČ", "required": true, "value": "12000",
+      "probes": [{ "at": "#psc", "prop": "value", "equals": "120 00" }] },
+    { "key": "zahajeni", "locator": "#zahajeni", "kind": "text", "label": "Datum zahájení činnosti", "required": true, "value": "01.12.2026",
+      "probes": [{ "at": "#zahajeni", "prop": "value", "equals": "01.12.2026" }],
+      "note": "A text box with a date mask; listed as text because that is what the page offers." }
+  ],
+  "byHand": [
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#rc", "text": "9001011234" },
+    { "type": "#telefon", "text": "777123456" },
+    { "type": "#psc", "text": "12000" },
+    { "type": "#zahajeni", "text": "01122026" }
+  ]
+}

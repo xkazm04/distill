@@ -1,0 +1,16 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: server-rendered components whose fields arrive in declarative shadow roots, no script needed. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Žádost o výpis z evidence</title></head>
+<body>
+<main>
+  <h1>Žádost o výpis</h1>
+  <form id="vypis" action="/vypis" method="post">
+    <div id="jmeno"><template shadowrootmode="open"><label for="jmeno-control">Jméno</label><input id="jmeno-control" name="jmeno" required></template></div>
+    <div id="prijmeni"><template shadowrootmode="open"><label for="prijmeni-control">Příjmení</label><input id="prijmeni-control" name="prijmeni" required></template></div>
+    <div id="email"><template shadowrootmode="open"><label for="email-control">E-mail</label><input id="email-control" name="email" type="email"></template></div>
+    <button type="submit">Odeslat</button>
+  </form>
+</main>
+</body>
+</html>

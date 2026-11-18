@@ -1,0 +1,30 @@
+{
+  "title": "Přiznání k dani z příjmů fyzických osob",
+  "models": "Easy case: a tax return in fieldsets, with number inputs, a native radio group inside role=radiogroup named by aria-labelledby, a hint by aria-describedby, a disabled computed row a person does not fill, and a textarea left empty.",
+  "fields": [
+    { "key": "fu", "locator": "#fu", "kind": "select", "label": "Finančnímu úřadu pro", "required": true, "options": 3, "value": "Hlavní město Prahu",
+      "probes": [{ "at": "#fu", "prop": "value", "equals": "451" }] },
+    { "key": "rok", "locator": "#rok", "kind": "number", "label": "Zdaňovací období (rok)", "required": true, "value": "2025",
+      "probes": [{ "at": "#rok", "prop": "value", "equals": "2025" }] },
+    { "key": "typ", "locator": "input[name=typ]", "kind": "radio", "label": "Typ přiznání", "required": true, "options": 3, "value": "řádné",
+      "probes": [{ "at": "input[name=typ][value=R]", "prop": "checked", "equals": true }] },
+    { "key": "r31", "locator": "#r31", "kind": "number", "label": "ř. 31 Úhrn příjmů od všech zaměstnavatelů", "required": false, "value": "480000",
+      "probes": [{ "at": "#r31", "prop": "value", "equals": "480000" }] },
+    { "key": "sleva-manzel", "locator": "#sleva-manzel", "kind": "checkbox", "label": "Uplatňuji slevu na manželku nebo manžela", "required": false, "value": "true",
+      "probes": [{ "at": "#sleva-manzel", "prop": "checked", "equals": true }] },
+    { "key": "mesice", "locator": "#mesice", "kind": "number", "label": "Počet měsíců", "required": false, "value": "12",
+      "probes": [{ "at": "#mesice", "prop": "value", "equals": "12" }] },
+    { "key": "ucet", "locator": "#ucet", "kind": "text", "label": "Číslo účtu", "required": false, "value": "123456789/0800",
+      "probes": [{ "at": "#ucet", "prop": "value", "equals": "123456789/0800" }] },
+    { "key": "dalsi", "locator": "#dalsi", "kind": "textarea", "label": "Další údaje", "required": false }
+  ],
+  "byHand": [
+    { "choose": "#fu", "option": "Hlavní město Prahu" },
+    { "type": "#rok", "text": "2025" },
+    { "click": "input[name=typ][value=R]" },
+    { "type": "#r31", "text": "480000" },
+    { "click": "#sleva-manzel" },
+    { "type": "#mesice", "text": "12" },
+    { "type": "#ucet", "text": "123456789/0800" }
+  ]
+}

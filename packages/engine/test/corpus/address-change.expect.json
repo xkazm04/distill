@@ -1,0 +1,40 @@
+{
+  "title": "Oznámení změny místa pobytu cizince",
+  "models": "Labels given by table layout (the label text in the previous td, once with an input wrapped three levels deep as component libraries do) and by aria-labelledby (column headers, and once a hidden span: hidden label sources still name the field under the accessible-name rules).",
+  "fields": [
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "doklad", "locator": "#doklad", "kind": "text", "label": "Číslo dokladu o pobytu", "required": true, "value": "ZP0123456",
+      "probes": [{ "at": "#doklad", "prop": "value", "equals": "ZP0123456" }] },
+    { "key": "telefon", "locator": "#telefon", "kind": "text", "label": "Telefon", "required": false, "value": "777123456",
+      "probes": [{ "at": "#telefon", "prop": "value", "equals": "777123456" }],
+      "note": "The input sits three wrappers deep inside its td." },
+    { "key": "datum-zmeny", "locator": "#datum-zmeny", "kind": "text", "label": "Datum změny pobytu", "required": false, "value": "01.11.2026",
+      "probes": [{ "at": "#datum-zmeny", "prop": "value", "equals": "01.11.2026" }] },
+    { "key": "ulice", "locator": "#ulice", "kind": "text", "label": "Ulice", "required": false, "value": "Vinohradská",
+      "probes": [{ "at": "#ulice", "prop": "value", "equals": "Vinohradská" }] },
+    { "key": "cp", "locator": "#cp", "kind": "text", "label": "Číslo popisné", "required": true, "value": "1234",
+      "probes": [{ "at": "#cp", "prop": "value", "equals": "1234" }] },
+    { "key": "obec", "locator": "#obec", "kind": "text", "label": "Obec", "required": true, "value": "Praha",
+      "probes": [{ "at": "#obec", "prop": "value", "equals": "Praha" }] },
+    { "key": "psc", "locator": "#psc", "kind": "text", "label": "PSČ", "required": true, "value": "120 00",
+      "probes": [{ "at": "#psc", "prop": "value", "equals": "120 00" }] },
+    { "key": "byt", "locator": "#byt", "kind": "text", "label": "Číslo bytu", "required": false, "value": "5",
+      "probes": [{ "at": "#byt", "prop": "value", "equals": "5" }],
+      "note": "Named by aria-labelledby pointing at a hidden span." }
+  ],
+  "byHand": [
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#doklad", "text": "ZP0123456" },
+    { "type": "#telefon", "text": "777123456" },
+    { "type": "#datum-zmeny", "text": "01.11.2026" },
+    { "type": "#ulice", "text": "Vinohradská" },
+    { "type": "#cp", "text": "1234" },
+    { "type": "#obec", "text": "Praha" },
+    { "type": "#psc", "text": "120 00" },
+    { "type": "#byt", "text": "5" }
+  ]
+}

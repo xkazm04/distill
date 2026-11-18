@@ -1,0 +1,30 @@
+{
+  "title": "Žádost o humanitární dávku",
+  "models": "Framework-controlled inputs: an inline stand-in for React's controlled inputs. A value written through the element's own property is ignored as a change; the app state (what is submitted) follows only the events the framework listens to: input or change for text, change for select, click for checkbox and radio. Probes read the app state, not only the DOM.",
+  "requires": ["javascript"],
+  "fields": [
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#davka", "attr": "data-state-jmeno", "equals": "Olena" }, { "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#davka", "attr": "data-state-prijmeni", "equals": "Kovalenko" }, { "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "clenove", "locator": "#clenove", "kind": "number", "label": "Počet členů domácnosti", "required": true, "value": "3",
+      "probes": [{ "at": "#davka", "attr": "data-state-clenove", "equals": "3" }] },
+    { "key": "kraj", "locator": "#kraj", "kind": "select", "label": "Kraj pobytu", "required": true, "options": 4, "value": "Jihomoravský kraj",
+      "probes": [{ "at": "#davka", "attr": "data-state-kraj", "equals": "JHM" }] },
+    { "key": "vyplata", "locator": "input[name=vyplata]", "kind": "radio", "label": "Způsob výplaty", "required": true, "options": 2, "value": "Na bankovní účet",
+      "probes": [{ "at": "#davka", "attr": "data-state-vyplata", "equals": "ucet" }] },
+    { "key": "ucet", "locator": "#ucet", "kind": "text", "label": "Číslo bankovního účtu", "required": false, "value": "123456789/0800",
+      "probes": [{ "at": "#davka", "attr": "data-state-ucet", "equals": "123456789/0800" }] },
+    { "key": "prohlaseni", "locator": "#prohlaseni", "kind": "checkbox", "label": "Prohlašuji, že všechny údaje jsou pravdivé", "required": true, "value": "true",
+      "probes": [{ "at": "#davka", "attr": "data-state-prohlaseni", "equals": "true" }] }
+  ],
+  "byHand": [
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#clenove", "text": "3" },
+    { "choose": "#kraj", "option": "Jihomoravský kraj" },
+    { "click": "input[name=vyplata][value=ucet]" },
+    { "type": "#ucet", "text": "123456789/0800" },
+    { "click": "#prohlaseni" }
+  ]
+}

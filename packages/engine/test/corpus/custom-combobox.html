@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: booking a visit at an immigration office, with two custom ARIA comboboxes. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Rezervace termínu návštěvy pracoviště</title></head>
+<body>
+<main>
+  <h1>Rezervace termínu návštěvy</h1>
+  <form id="rezervace" action="/rezervace" method="post">
+    <p><label for="jmeno">Jméno a příjmení</label> <input id="jmeno" name="jmeno" required></p>
+    <p><label for="pas">Číslo cestovního dokladu</label> <input id="pas" name="pas" required></p>
+
+    <div class="field">
+      <span id="pracoviste-label">Pracoviště</span>
+      <div id="pracoviste" role="combobox" tabindex="0" aria-haspopup="listbox" aria-expanded="false"
+           aria-controls="pracoviste-list" aria-labelledby="pracoviste-label" aria-required="true">Vyberte pracoviště</div>
+      <ul id="pracoviste-list" role="listbox" aria-labelledby="pracoviste-label" hidden>
+        <li role="option" id="pr-1" data-value="PHA1" aria-selected="false">Praha – Koněvova</li>
+        <li role="option" id="pr-2" data-value="PHA2" aria-selected="false">Praha – Cigánkova</li>
+        <li role="option" id="pr-3" data-value="BRN" aria-selected="false">Brno – Cejl</li>
+        <li role="option" id="pr-4" data-value="OVA" aria-selected="false">Ostrava – Jahnova</li>
+      </ul>
+      <input type="hidden" name="pracoviste" value="">
+    </div>
+
+    <div class="field">
+      <label for="obcanstvi-hledat">Státní občanství</label>
+      <input id="obcanstvi-hledat" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false"
+             aria-controls="obcanstvi-list" aria-required="true" autocomplete="off">
+      <ul id="obcanstvi-list" role="listbox" hidden>
+        <li role="option" data-value="UA">Ukrajina</li>
+        <li role="option" data-value="VN">Vietnam</li>
+        <li role="option" data-value="MN">Mongolsko</li>
+        <li role="option" data-value="IN">Indie</li>
+        <li role="option" data-value="PH">Filipíny</li>
+        <li role="option" data-value="KZ">Kazachstán</li>
+      </ul>
+      <input type="hidden" name="obcanstvi" value="">
+    </div>
+
+    <p>
+      <label for="ucel">Účel návštěvy</label>
+      <select id="ucel" name="ucel" required>
+        <option value="">Vyberte</option>
+        <option value="PODANI">Podání žádosti o prodloužení pobytu</option>
+        <option value="BIOMETRIKA">Pořízení biometrických údajů</option>
+        <option value="PREVZETI">Převzetí průkazu o povolení k pobytu</option>
+      </select>
+    </p>
+    <p><input type="checkbox" id="souhlas" name="souhlas" required> <label for="souhlas">Souhlasím s podmínkami rezervace</label></p>
+    <button type="submit">Rezervovat</button>
+  </form>
+</main>
+<script>
+(function () {
+  // Select-only combobox: a div that opens a listbox; choosing an option fills the hidden input the form submits.
+  var cb = document.getElementById("pracoviste");
+  var list = document.getElementById("pracoviste-list");
+  var cbValue = document.querySelector("input[name=pracoviste]");
+  cb.addEventListener("click", function () {
+    var opening = list.hidden;
+    list.hidden = !opening;
+    cb.setAttribute("aria-expanded", String(opening));
+  });
+  list.addEventListener("click", function (e) {
+    var opt = e.target.closest("[role=option]");
+    if (!opt) return;
+    list.querySelectorAll("[role=option]").forEach(function (o) { o.setAttribute("aria-selected", String(o === opt)); });
+    cbValue.value = opt.getAttribute("data-value");
+    cb.textContent = opt.textContent;
+    list.hidden = true;
+    cb.setAttribute("aria-expanded", "false");
+  });
+
+  // Autocomplete combobox: typing filters the list; only choosing an option sets the value the form submits.
+  var ac = document.getElementById("obcanstvi-hledat");
+  var acList = document.getElementById("obcanstvi-list");
+  var acValue = document.querySelector("input[name=obcanstvi]");
+  ac.addEventListener("input", function () {
+    acValue.value = "";
+    var q = ac.value.toLowerCase();
+    acList.hidden = false;
+    ac.setAttribute("aria-expanded", "true");
+    acList.querySelectorAll("[role=option]").forEach(function (o) { o.hidden = o.textContent.toLowerCase().indexOf(q) !== 0; });
+  });
+  acList.addEventListener("click", function (e) {
+    var opt = e.target.closest("[role=option]");
+    if (!opt) return;
+    ac.value = opt.textContent;
+    acValue.value = opt.getAttribute("data-value");
+    acList.hidden = true;
+    ac.setAttribute("aria-expanded", "false");
+  });
+})();
+</script>
+</body>
+</html>

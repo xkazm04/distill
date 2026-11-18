@@ -1,0 +1,47 @@
+{
+  "title": "Žádost o povolení k přechodnému pobytu",
+  "models": "Easy case: native inputs with label[for], a fieldset radio group, a checkbox group under a span, a select, a textarea and a hidden csrf token. Reuses test/fixtures/czech-residence-form.html.",
+  "source": "../fixtures/czech-residence-form.html",
+  "fields": [
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "datum", "locator": "#datum", "kind": "date", "label": "Datum narození", "required": true, "value": "05.03.1990",
+      "probes": [{ "at": "#datum", "prop": "value", "equals": "1990-03-05" }] },
+    { "key": "rc", "locator": "#rc", "kind": "text", "label": "Rodné číslo", "required": true, "value": "900101/1234",
+      "probes": [{ "at": "#rc", "prop": "value", "equals": "900101/1234" }] },
+    { "key": "stav", "locator": "input[name=stav]", "kind": "radio", "label": "Rodinný stav", "required": false, "options": 3, "value": "Ženatý / vdaná",
+      "probes": [{ "at": "input[name=stav][value=zenaty]", "prop": "checked", "equals": true }] },
+    { "key": "email", "locator": "#email", "kind": "email", "label": "E-mail", "required": false, "value": "olena@example.com",
+      "probes": [{ "at": "#email", "prop": "value", "equals": "olena@example.com" }] },
+    { "key": "tel", "locator": "#tel", "kind": "tel", "label": "Telefon", "required": false, "value": "+420 777 123 456",
+      "probes": [{ "at": "#tel", "prop": "value", "equals": "+420 777 123 456" }] },
+    { "key": "stat", "locator": "#stat", "kind": "select", "label": "Státní příslušnost", "required": true, "options": 3, "value": "Ukrajina",
+      "probes": [{ "at": "#stat", "prop": "value", "equals": "UA" }] },
+    { "key": "duvod", "locator": "input[name=duvod]", "kind": "checkbox", "label": "Důvod pobytu", "required": false, "options": 3, "value": "Zaměstnání, Rodina",
+      "probes": [
+        { "at": "input[name=duvod][value=prace]", "prop": "checked", "equals": true },
+        { "at": "input[name=duvod][value=rodina]", "prop": "checked", "equals": true },
+        { "at": "input[name=duvod][value=studium]", "prop": "checked", "equals": false }
+      ] },
+    { "key": "poznamka", "locator": "#poznamka", "kind": "textarea", "label": "Poznámka", "required": false, "value": "Dobrý den",
+      "probes": [{ "at": "#poznamka", "prop": "value", "equals": "Dobrý den" }] },
+    { "key": "souhlas", "locator": "#souhlas", "kind": "checkbox", "label": "Souhlasím se zpracováním osobních údajů", "required": true, "value": "true",
+      "probes": [{ "at": "#souhlas", "prop": "checked", "equals": true }] }
+  ],
+  "byHand": [
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "pick": "#datum", "value": "1990-03-05" },
+    { "type": "#rc", "text": "900101/1234" },
+    { "click": "input[name=stav][value=zenaty]" },
+    { "type": "#email", "text": "olena@example.com" },
+    { "type": "#tel", "text": "+420 777 123 456" },
+    { "choose": "#stat", "option": "Ukrajina" },
+    { "click": "input[name=duvod][value=prace]" },
+    { "click": "input[name=duvod][value=rodina]" },
+    { "type": "#poznamka", "text": "Dobrý den" },
+    { "click": "#souhlas" }
+  ]
+}

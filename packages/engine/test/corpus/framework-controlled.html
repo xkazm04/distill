@@ -1,0 +1,90 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a benefit application rendered by a React-style framework with controlled inputs. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Žádost o humanitární dávku</title></head>
+<body>
+<main>
+  <h1>Žádost o humanitární dávku</h1>
+  <form id="davka" action="/zadost" method="post">
+    <p><label for="jmeno">Jméno</label> <input id="jmeno" name="jmeno" required></p>
+    <p><label for="prijmeni">Příjmení</label> <input id="prijmeni" name="prijmeni" required></p>
+    <p><label for="clenove">Počet členů domácnosti</label> <input id="clenove" name="clenove" type="number" min="1" required></p>
+    <p>
+      <label for="kraj">Kraj pobytu</label>
+      <select id="kraj" name="kraj" required>
+        <option value="">Vyberte</option>
+        <option value="PHA">Hlavní město Praha</option>
+        <option value="STC">Středočeský kraj</option>
+        <option value="JHM">Jihomoravský kraj</option>
+        <option value="MSK">Moravskoslezský kraj</option>
+      </select>
+    </p>
+    <fieldset>
+      <legend>Způsob výplaty</legend>
+      <label><input type="radio" name="vyplata" value="ucet" required> Na bankovní účet</label>
+      <label><input type="radio" name="vyplata" value="posta"> Poštovní poukázkou</label>
+    </fieldset>
+    <p><label for="ucet">Číslo bankovního účtu</label> <input id="ucet" name="ucet"></p>
+    <p><label><input type="checkbox" id="prohlaseni" name="prohlaseni" required> Prohlašuji, že všechny údaje jsou pravdivé</label></p>
+    <button type="submit">Odeslat žádost</button>
+  </form>
+</main>
+<script>
+// A small stand-in for a React-style framework. The app state is what the form submits; the DOM is re-rendered from it.
+// Like React's input value tracking, each control's value (or checked) property is wrapped on the instance, so a write
+// through that wrapper is remembered and does not count as a change. A change counts only when the event the framework
+// listens to arrives and the DOM value differs from the remembered one: input/change for text, change for select,
+// click for checkbox and radio. State is mirrored onto the form as data-state-<name> so it can be observed.
+(function () {
+  var form = document.getElementById("davka");
+  var controls = Array.from(form.querySelectorAll("input, select"));
+  var state = { jmeno: "", prijmeni: "", clenove: "", kraj: "", vyplata: "", ucet: "", prohlaseni: "false" };
+  var tracked = new Map();
+  function isCheck(el) { return el.type === "checkbox" || el.type === "radio"; }
+  controls.forEach(function (el) {
+    var prop = isCheck(el) ? "checked" : "value";
+    var proto = Object.getPrototypeOf(el), d;
+    while (proto && !(d = Object.getOwnPropertyDescriptor(proto, prop))) proto = Object.getPrototypeOf(proto);
+    tracked.set(el, String(d.get.call(el)));
+    Object.defineProperty(el, prop, {
+      configurable: true,
+      get: function () { return d.get.call(this); },
+      set: function (v) { tracked.set(this, String(v)); d.set.call(this, v); },
+    });
+  });
+  function valueChanged(el) {
+    var now = String(isCheck(el) ? el.checked : el.value);
+    if (now === tracked.get(el)) return false;
+    tracked.set(el, now);
+    return true;
+  }
+  function render() {
+    controls.forEach(function (el) {
+      if (el.type === "checkbox") { if (el.checked !== (state[el.name] === "true")) el.checked = state[el.name] === "true"; }
+      else if (el.type === "radio") { if (el.checked !== (state[el.name] === el.value)) el.checked = state[el.name] === el.value; }
+      else if (el.value !== state[el.name]) el.value = state[el.name];
+    });
+    Object.keys(state).forEach(function (k) { form.setAttribute("data-state-" + k, state[k]); });
+  }
+  function onChange(el) {
+    state[el.name] = el.type === "checkbox" ? String(el.checked) : el.value;
+    render();
+  }
+  form.addEventListener("input", function (e) {
+    var el = e.target;
+    if (el.tagName === "INPUT" && !isCheck(el) && valueChanged(el)) onChange(el);
+  });
+  form.addEventListener("change", function (e) {
+    var el = e.target;
+    if (el.tagName === "SELECT") onChange(el);
+    else if (el.tagName === "INPUT" && !isCheck(el) && valueChanged(el)) onChange(el);
+  });
+  form.addEventListener("click", function (e) {
+    var el = e.target;
+    if (el.tagName === "INPUT" && isCheck(el) && valueChanged(el)) onChange(el);
+  });
+  render();
+})();
+</script>
+</body>
+</html>

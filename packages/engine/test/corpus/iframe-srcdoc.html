@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: a town's page that embeds its fee return form from a form service in a same-origin iframe. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Poplatek ze psů - přiznání k poplatku</title></head>
+<body>
+<main>
+  <h1>Místní poplatek ze psů</h1>
+  <p>Držitel psa staršího tří měsíců je povinen podat přiznání k poplatku do 15 dnů ode dne vzniku poplatkové povinnosti.</p>
+  <iframe id="formular" title="Přiznání k poplatku ze psů" srcdoc="<!doctype html>
+<html lang='cs'><head><meta charset='utf-8'><title>Přiznání</title></head><body>
+<form id='poplatek' action='/poplatek' method='post'>
+  <p><label for='drzitel'>Jméno a příjmení držitele</label> <input id='drzitel' name='drzitel' required></p>
+  <p><label for='adresa'>Adresa trvalého pobytu</label> <input id='adresa' name='adresa' required></p>
+  <p><label for='pocet'>Počet psů</label> <input id='pocet' name='pocet' type='number' min='1' required></p>
+  <p><label for='plemeno'>Plemeno psa</label> <input id='plemeno' name='plemeno'></p>
+  <p><input type='checkbox' id='duchodce' name='duchodce'> <label for='duchodce'>Jsem poživatel starobního nebo invalidního důchodu</label></p>
+  <button type='submit'>Odeslat přiznání</button>
+</form>
+</body></html>"></iframe>
+</main>
+</body>
+</html>

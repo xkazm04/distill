@@ -1,0 +1,41 @@
+{
+  "title": "Přihláška pojištěnce (veřejné zdravotní pojištění)",
+  "models": "Easy case: a health insurer's registration form with native fields, labels with trailing colons, a hint in small.form-text, a fieldset radio group with label[for] options, a wrapping-label checkbox and a hidden anti-forgery token.",
+  "fields": [
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "cislo-pojistence", "locator": "#cislo-pojistence", "kind": "text", "label": "Číslo pojištěnce", "required": false, "value": "1234567890",
+      "probes": [{ "at": "#cislo-pojistence", "prop": "value", "equals": "1234567890" }] },
+    { "key": "narozeni", "locator": "#narozeni", "kind": "date", "label": "Datum narození", "required": true, "value": "05.03.1990",
+      "probes": [{ "at": "#narozeni", "prop": "value", "equals": "1990-03-05" }] },
+    { "key": "pohlavi", "locator": "input[name=pohlavi]", "kind": "radio", "label": "Pohlaví", "required": true, "options": 2, "value": "žena",
+      "probes": [{ "at": "#pohlavi-z", "prop": "checked", "equals": true }] },
+    { "key": "duvod", "locator": "#duvod", "kind": "select", "label": "Důvod přihlášky", "required": true, "options": 4, "value": "Zahájení zaměstnání",
+      "probes": [{ "at": "#duvod", "prop": "value", "equals": "1" }] },
+    { "key": "od", "locator": "#od", "kind": "date", "label": "Pojištěn od", "required": true, "value": "01.12.2026",
+      "probes": [{ "at": "#od", "prop": "value", "equals": "2026-12-01" }] },
+    { "key": "zamestnavatel", "locator": "#zamestnavatel", "kind": "text", "label": "Zaměstnavatel (název a IČO)", "required": false, "value": "Příklad s.r.o., 12345678",
+      "probes": [{ "at": "#zamestnavatel", "prop": "value", "equals": "Příklad s.r.o., 12345678" }] },
+    { "key": "email", "locator": "#email", "kind": "email", "label": "E-mail", "required": false, "value": "olena@example.com",
+      "probes": [{ "at": "#email", "prop": "value", "equals": "olena@example.com" }] },
+    { "key": "telefon", "locator": "#telefon", "kind": "tel", "label": "Telefon", "required": false, "value": "777123456",
+      "probes": [{ "at": "#telefon", "prop": "value", "equals": "777123456" }] },
+    { "key": "prohlaseni", "locator": "#prohlaseni", "kind": "checkbox", "label": "Prohlašuji, že uvedené údaje jsou pravdivé", "required": true, "value": "true",
+      "probes": [{ "at": "#prohlaseni", "prop": "checked", "equals": true }] }
+  ],
+  "byHand": [
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#jmeno", "text": "Olena" },
+    { "type": "#cislo-pojistence", "text": "1234567890" },
+    { "pick": "#narozeni", "value": "1990-03-05" },
+    { "click": "#pohlavi-z" },
+    { "choose": "#duvod", "option": "Zahájení zaměstnání" },
+    { "pick": "#od", "value": "2026-12-01" },
+    { "type": "#zamestnavatel", "text": "Příklad s.r.o., 12345678" },
+    { "type": "#email", "text": "olena@example.com" },
+    { "type": "#telefon", "text": "777123456" },
+    { "click": "#prohlaseni" }
+  ]
+}

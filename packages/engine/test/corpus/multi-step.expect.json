@@ -1,0 +1,37 @@
+{
+  "title": "Žádost o zaměstnaneckou kartu",
+  "models": "A multi-step form: step 2 is already in the page but carries the hidden attribute until the person presses Pokračovat. A person lists the fields of both steps; the benchmark runs the engine once on the page as it loads.",
+  "requires": ["javascript"],
+  "fields": [
+    { "key": "prijmeni", "locator": "#prijmeni", "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenko",
+      "probes": [{ "at": "#prijmeni", "prop": "value", "equals": "Kovalenko" }] },
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena" }] },
+    { "key": "obcanstvi", "locator": "#obcanstvi", "kind": "select", "label": "Státní občanství", "required": true, "options": 4, "value": "Ukrajina",
+      "probes": [{ "at": "#obcanstvi", "prop": "value", "equals": "UA" }] },
+    { "key": "pas", "locator": "#pas", "kind": "text", "label": "Číslo cestovního dokladu", "required": true, "value": "FA123456",
+      "probes": [{ "at": "#pas", "prop": "value", "equals": "FA123456" }] },
+    { "key": "zamestnavatel", "locator": "#zamestnavatel", "kind": "text", "label": "Název zaměstnavatele", "required": true, "value": "Příklad s.r.o.",
+      "probes": [{ "at": "#zamestnavatel", "prop": "value", "equals": "Příklad s.r.o." }] },
+    { "key": "ico", "locator": "#ico", "kind": "text", "label": "IČO zaměstnavatele", "required": true, "value": "12345678",
+      "probes": [{ "at": "#ico", "prop": "value", "equals": "12345678" }] },
+    { "key": "misto", "locator": "#misto", "kind": "text", "label": "Číslo volného pracovního místa", "required": true, "value": "2026-0042",
+      "probes": [{ "at": "#misto", "prop": "value", "equals": "2026-0042" }] },
+    { "key": "pracoviste", "locator": "#pracoviste", "kind": "text", "label": "Adresa místa výkonu práce", "required": true, "value": "Průmyslová 1, Brno",
+      "probes": [{ "at": "#pracoviste", "prop": "value", "equals": "Průmyslová 1, Brno" }] },
+    { "key": "mzda", "locator": "#mzda", "kind": "number", "label": "Hrubá měsíční mzda (Kč)", "required": true, "value": "42000",
+      "probes": [{ "at": "#mzda", "prop": "value", "equals": "42000" }] }
+  ],
+  "byHand": [
+    { "type": "#prijmeni", "text": "Kovalenko" },
+    { "type": "#jmeno", "text": "Olena" },
+    { "choose": "#obcanstvi", "option": "Ukrajina" },
+    { "type": "#pas", "text": "FA123456" },
+    { "click": "#dalsi" },
+    { "type": "#zamestnavatel", "text": "Příklad s.r.o." },
+    { "type": "#ico", "text": "12345678" },
+    { "type": "#misto", "text": "2026-0042" },
+    { "type": "#pracoviste", "text": "Průmyslová 1, Brno" },
+    { "type": "#mzda", "text": "42000" }
+  ]
+}

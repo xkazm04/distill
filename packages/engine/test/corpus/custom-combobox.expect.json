@@ -1,0 +1,35 @@
+{
+  "title": "Rezervace termínu návštěvy pracoviště",
+  "models": "Custom dropdowns: a select-only combobox built from a div with role=combobox and a ul role=listbox, and an autocomplete input with role=combobox where only choosing an option sets the hidden value the form submits (typed text alone is not a choice). Both submit through hidden inputs.",
+  "requires": ["javascript"],
+  "fields": [
+    { "key": "jmeno", "locator": "#jmeno", "kind": "text", "label": "Jméno a příjmení", "required": true, "value": "Olena Kovalenko",
+      "probes": [{ "at": "#jmeno", "prop": "value", "equals": "Olena Kovalenko" }] },
+    { "key": "pas", "locator": "#pas", "kind": "text", "label": "Číslo cestovního dokladu", "required": true, "value": "FA123456",
+      "probes": [{ "at": "#pas", "prop": "value", "equals": "FA123456" }] },
+    { "key": "pracoviste", "locator": ["#pracoviste", "input[name=pracoviste]"], "kind": "select", "label": "Pracoviště", "required": true, "options": 4, "value": "Brno – Cejl",
+      "probes": [
+        { "at": "input[name=pracoviste]", "prop": "value", "equals": "BRN" },
+        { "at": "#pracoviste", "prop": "textContent", "equals": "Brno – Cejl" }
+      ] },
+    { "key": "obcanstvi", "locator": ["#obcanstvi-hledat", "input[name=obcanstvi]"], "kind": "select", "label": "Státní občanství", "required": true, "options": 6, "value": "Ukrajina",
+      "probes": [
+        { "at": "input[name=obcanstvi]", "prop": "value", "equals": "UA" },
+        { "at": "#obcanstvi-hledat", "prop": "value", "equals": "Ukrajina" }
+      ] },
+    { "key": "ucel", "locator": "#ucel", "kind": "select", "label": "Účel návštěvy", "required": true, "options": 3, "value": "Podání žádosti o prodloužení pobytu",
+      "probes": [{ "at": "#ucel", "prop": "value", "equals": "PODANI" }] },
+    { "key": "souhlas", "locator": "#souhlas", "kind": "checkbox", "label": "Souhlasím s podmínkami rezervace", "required": true, "value": "true",
+      "probes": [{ "at": "#souhlas", "prop": "checked", "equals": true }] }
+  ],
+  "byHand": [
+    { "type": "#jmeno", "text": "Olena Kovalenko" },
+    { "type": "#pas", "text": "FA123456" },
+    { "click": "#pracoviste" },
+    { "click": "#pr-3" },
+    { "type": "#obcanstvi-hledat", "text": "Ukr" },
+    { "click": "#obcanstvi-list [data-value=UA]" },
+    { "choose": "#ucel", "option": "Podání žádosti o prodloužení pobytu" },
+    { "click": "#souhlas" }
+  ]
+}

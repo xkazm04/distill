@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Synthetic model, not a capture: an online personal income tax return, simplified to its first sections. -->
+<html lang="cs">
+<head><meta charset="utf-8"><title>Přiznání k dani z příjmů fyzických osob - elektronické podání</title></head>
+<body>
+<nav class="breadcrumbs"><a href="/">Úvod</a> / <a href="/formulare">Formuláře</a></nav>
+<main>
+  <h1>Přiznání k dani z příjmů fyzických osob</h1>
+  <form id="dap" action="/podani/dap" method="post">
+    <input type="hidden" name="csrf" value="91ac">
+    <fieldset>
+      <legend>Základní údaje</legend>
+      <div class="row">
+        <label for="fu">Finančnímu úřadu pro</label>
+        <select id="fu" name="financni_urad" required>
+          <option value="">--</option>
+          <option value="451">Hlavní město Prahu</option>
+          <option value="452">Středočeský kraj</option>
+          <option value="453">Jihomoravský kraj</option>
+        </select>
+      </div>
+      <div class="row"><label for="rok">Zdaňovací období (rok)</label><input id="rok" name="rok" type="number" min="2020" max="2026" required></div>
+      <span id="typ-l">Typ přiznání</span>
+      <div role="radiogroup" aria-labelledby="typ-l">
+        <label><input type="radio" name="typ" value="R" required> řádné</label>
+        <label><input type="radio" name="typ" value="O"> opravné</label>
+        <label><input type="radio" name="typ" value="D"> dodatečné</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Příjmy ze závislé činnosti (§ 6)</legend>
+      <div class="row">
+        <label for="r31">ř. 31 Úhrn příjmů od všech zaměstnavatelů</label>
+        <input id="r31" name="r31" type="number" min="0" aria-describedby="r31-napoveda">
+        <p id="r31-napoveda" class="help">Částku najdete na potvrzení o zdanitelných příjmech.</p>
+      </div>
+      <div class="row"><label for="r34">ř. 34 Dílčí základ daně</label><input id="r34" name="r34" type="number" disabled></div>
+    </fieldset>
+    <fieldset>
+      <legend>Slevy na dani</legend>
+      <div class="row"><input type="checkbox" id="sleva-manzel" name="sleva_manzel" value="1"> <label for="sleva-manzel">Uplatňuji slevu na manželku nebo manžela</label></div>
+      <div class="row"><label for="mesice">Počet měsíců</label><input id="mesice" name="pocet_mesicu" type="number" min="1" max="12"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Vrácení přeplatku</legend>
+      <div class="row"><label for="ucet">Číslo účtu</label><input id="ucet" name="ucet" pattern="[0-9-]+/[0-9]{4}" placeholder="123456789/0800"></div>
+      <div class="row"><label for="dalsi">Další údaje</label><textarea id="dalsi" name="dalsi_udaje"></textarea></div>
+    </fieldset>
+    <button type="submit">Pokračovat ke kontrole</button>
+  </form>
+</main>
+</body>
+</html>
