@@ -1,0 +1,995 @@
+{
+  "guideVersion": 1,
+  "id": "cz/vzp-prihlaska-a-evidencni-list",
+  "status": "draft",
+  "authority": {
+    "name": "Všeobecná zdravotní pojišťovna České republiky",
+    "nameEn": "the General Health Insurance Company of the Czech Republic (VZP)"
+  },
+  "formName": {
+    "cs": "Přihláška a evidenční list",
+    "en": "Registration and record sheet of an insured person (VZP)",
+    "uk": "Заява та обліковий лист застрахованої особи (VZP)"
+  },
+  "formLang": "cs",
+  "officialFormUrl": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf",
+  "instructionsUrl": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence-pouceni.pdf",
+  "draftedOn": "2026-11-18",
+  "match": {
+    "format": "pdf",
+    "fingerprints": [
+      "c89ebeca913ad10e51dbc15ddca00d316598ca228c7351b31b02bc90eebc8fd6"
+    ],
+    "titles": [
+      "Přihláška a evidenční list"
+    ],
+    "fields": [
+      {
+        "fieldId": "Přihláška",
+        "kind": "checkbox",
+        "label": "Přihláška"
+      },
+      {
+        "fieldId": "Změna",
+        "kind": "checkbox",
+        "label": "Změna"
+      },
+      {
+        "fieldId": "Příjmení",
+        "kind": "text",
+        "label": "Příjmení"
+      },
+      {
+        "fieldId": "Jméno",
+        "kind": "text",
+        "label": "Jméno"
+      },
+      {
+        "fieldId": "Titul",
+        "kind": "text",
+        "label": "Titul"
+      },
+      {
+        "fieldId": "Rodné_příjmení",
+        "kind": "text",
+        "label": "Rodné příjmení"
+      },
+      {
+        "fieldId": "Datum_narození_-_den",
+        "kind": "date",
+        "label": "Datum narození"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce_-rodné_číslo",
+        "kind": "text",
+        "label": "Číslo pojištěnce (rodné číslo)"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce_-rodné_číslo_část_2",
+        "kind": "text",
+        "label": "Číslo pojištěnce -rodné číslo část 2"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_ulice",
+        "kind": "text",
+        "label": "ADRESA TRVALÉHO POBYTU: Ulice"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_číslo_popisné",
+        "kind": "text",
+        "label": "Číslo popisné"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_číslo_orientační",
+        "kind": "text",
+        "label": "Číslo orientační"
+      },
+      {
+        "fieldId": "Pohlaví_-_muž",
+        "kind": "checkbox",
+        "label": "muž"
+      },
+      {
+        "fieldId": "Pohlaví_-_žena",
+        "kind": "checkbox",
+        "label": "žena"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_PSČ",
+        "kind": "text",
+        "label": "PSČ"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_PSČ_část_2",
+        "kind": "text",
+        "label": "Adresa trvalého pobytu - PSČ část 2"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_obec",
+        "kind": "text",
+        "label": "Obec"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce_-_rodné_číslo_matky",
+        "kind": "text",
+        "label": "U novorozenců uvést číslo pojištěnce matky (RČ)"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce_-_rodné_číslo_matky_část_2",
+        "kind": "text",
+        "label": "Číslo pojištěnce - rodné číslo matky část 2"
+      },
+      {
+        "fieldId": "Adresa_trvalého_pobytu_-_stát",
+        "kind": "text",
+        "label": "Stát"
+      },
+      {
+        "fieldId": "Státní_příslušnost",
+        "kind": "text",
+        "label": "Státní příslušnost"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-_ulice",
+        "kind": "text",
+        "label": "ADRESA PRO DORUČOVÁNÍ: Ulice"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-číslo_popisné",
+        "kind": "text",
+        "label": "Číslo popisné"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-číslo_orientační",
+        "kind": "text",
+        "label": "Číslo orientační"
+      },
+      {
+        "fieldId": "Telefon",
+        "kind": "text",
+        "label": "Telefon"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-PSČ",
+        "kind": "text",
+        "label": "PSČ"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-PSČ_část_2",
+        "kind": "text",
+        "label": "Adresa pro doručování - PSČ část 2"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-obec",
+        "kind": "text",
+        "label": "Obec"
+      },
+      {
+        "fieldId": "Adresa_pro_doručování_-stát",
+        "kind": "text",
+        "label": "Stát"
+      },
+      {
+        "fieldId": "E-mail",
+        "kind": "text",
+        "label": "E-mail"
+      },
+      {
+        "fieldId": "poštovní_poukázkou",
+        "kind": "checkbox",
+        "label": "poštovní poukázkou"
+      },
+      {
+        "fieldId": "převodem_z_účtu",
+        "kind": "checkbox",
+        "label": "převodem z účtu"
+      },
+      {
+        "fieldId": "Plátcem_pojistného_je_STÁT",
+        "kind": "checkbox",
+        "label": "Plátcem pojistného je STÁT"
+      },
+      {
+        "fieldId": "Státní_kategorie",
+        "kind": "text",
+        "label": "Státní kategorie"
+      },
+      {
+        "fieldId": "Plátcem_pojistného_je_ZAMĚSTNAVATEL",
+        "kind": "checkbox",
+        "label": "Plátcem pojistného je ZAMĚSTNAVATEL"
+      },
+      {
+        "fieldId": "Předčíslí_účtu",
+        "kind": "text",
+        "label": "Bankovní spojení: (předčíslí účtu - číslo účtu / kód banky)"
+      },
+      {
+        "fieldId": "Číslo_účtu",
+        "kind": "text",
+        "label": "Číslo účtu"
+      },
+      {
+        "fieldId": "Kód_banky",
+        "kind": "text",
+        "label": "Kód banky"
+      },
+      {
+        "fieldId": "Plátcem_pojistného_je_pojištěnec_-_OSVČ",
+        "kind": "checkbox",
+        "label": "Plátcem pojistného je pojištěnec - OSVČ"
+      },
+      {
+        "fieldId": "IBAN_1",
+        "kind": "text",
+        "label": "C Z"
+      },
+      {
+        "fieldId": "IBAN_2",
+        "kind": "text",
+        "label": "IBAN 2"
+      },
+      {
+        "fieldId": "IBAN_3",
+        "kind": "text",
+        "label": "IBAN 3"
+      },
+      {
+        "fieldId": "IBAN_4",
+        "kind": "text",
+        "label": "IBAN 4"
+      },
+      {
+        "fieldId": "IBAN_5",
+        "kind": "text",
+        "label": "IBAN 5"
+      },
+      {
+        "fieldId": "IBAN_6",
+        "kind": "text",
+        "label": "IBAN 6"
+      },
+      {
+        "fieldId": "Plátcem_pojistného_je_pojištěnec_-_OBZP",
+        "kind": "checkbox",
+        "label": "Plátcem pojistného je pojištěnec - OBZP"
+      },
+      {
+        "fieldId": "Název_zaměstnavatele_/_školy",
+        "kind": "text",
+        "label": "Název zaměstnavatele / školy"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_ulice",
+        "kind": "text",
+        "label": "ADRESA ZAMĚSTNAVATELE / ŠKOLY: Ulice"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_Číslo_popisné",
+        "kind": "text",
+        "label": "Číslo popisné"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_Číslo_orientační",
+        "kind": "text",
+        "label": "Číslo orientační"
+      },
+      {
+        "fieldId": "Identifikační_číslo_IČ",
+        "kind": "text",
+        "label": "Identifikační číslo (IČ)"
+      },
+      {
+        "fieldId": "Identifikační_číslo_IČ_-_část_2",
+        "kind": "text",
+        "label": "Identifikační číslo IČ - část 2"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_PSČ",
+        "kind": "text",
+        "label": "PSČ"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_PSČ_část_2",
+        "kind": "text",
+        "label": "Adresa zaměstnavatele/školy - PSČ část 2"
+      },
+      {
+        "fieldId": "Adresa_zaměstnavatele/školy_-_obec",
+        "kind": "text",
+        "label": "Obec"
+      },
+      {
+        "fieldId": "Zaměstnavatel/škola_-_telefon",
+        "kind": "text",
+        "label": "Telefon"
+      },
+      {
+        "fieldId": "Obchodní_jméno",
+        "kind": "text",
+        "label": "Obchodní jméno"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_ulice",
+        "kind": "text",
+        "label": "ADRESA MÍSTA PODNIKÁNÍ: Ulice"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_číslo_popisné",
+        "kind": "text",
+        "label": "Číslo popisné"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_číslo_orientační",
+        "kind": "text",
+        "label": "Číslo orientační"
+      },
+      {
+        "fieldId": "OSVČ_-_Identifikační_číslo_IČ",
+        "kind": "text",
+        "label": "Identifikační číslo (IČ)"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_PSČ",
+        "kind": "text",
+        "label": "PSČ"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_PSČ_část_2",
+        "kind": "text",
+        "label": "Adresa místa podnikání - PSČ část 2"
+      },
+      {
+        "fieldId": "Adresa_místa_podnikání_-_obec",
+        "kind": "text",
+        "label": "Obec"
+      },
+      {
+        "fieldId": "OSVČ_-_Telefon",
+        "kind": "text",
+        "label": "Telefon"
+      },
+      {
+        "fieldId": "Kód_pojišťovny",
+        "kind": "text",
+        "label": "Kód"
+      },
+      {
+        "fieldId": "Název_zdravotní_pojišťovny",
+        "kind": "text",
+        "label": "Název zdravotní pojišťovny"
+      },
+      {
+        "fieldId": "Číslo_pojištěnce",
+        "kind": "text",
+        "label": "Číslo pojištěnce"
+      },
+      {
+        "fieldId": "Změna_pojišťovny_/_údajů_platná_OD_-_den",
+        "kind": "date",
+        "label": "Změna pojišťovny / údajů platná OD"
+      },
+      {
+        "fieldId": "Počet_listů_příloh",
+        "kind": "text",
+        "label": "Počet listů příloh"
+      },
+      {
+        "fieldId": "Vyplněno_dne_-_den",
+        "kind": "date",
+        "label": "Vyplněno dne"
+      }
+    ]
+  },
+  "wizards": {
+    "en": {
+      "notes": [
+        "VZP's form page says this is the form for reporting changes of your details. To change your insurer to VZP or to register a newborn, VZP points to its other form, Přihláška pojištěnce.",
+        "VZP's instructions (Poučení) say the form is used to register with the insurer and to report personal details, addresses, how insurance is paid, who pays it, and changes of these.",
+        "Fill in only the sections that apply to you: section 5 is for self-employed people (OSVČ) and people without taxable income (OBZP), section 6 for employees and students, section 7 for the self-employed.",
+        "The form has no box for the signature: print it and sign it by hand. VZP's form page also asks you to hand in the documents that prove a change (for example proof of study or of a pension)."
+      ],
+      "steps": [
+        {
+          "stepId": "purpose",
+          "fieldIds": [
+            "Přihláška",
+            "Změna"
+          ],
+          "question": "Are you registering with VZP (přihláška) or reporting a change (změna)?",
+          "explanation": "Tick one box at the top of the form: přihláška for a registration, změna for a change of details you already gave VZP.",
+          "official": {
+            "text": "Formulář se použije při přihlášení ke zdravotní pojišťovně, k oznámení osobních údajů, adres, způsobu placení pojistného, identifikaci plátce pojistného a k oznámení případných změn těchto údajů.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "Příjmení",
+            "Jméno",
+            "Titul"
+          ],
+          "question": "What are your surname, first name and academic title?",
+          "explanation": "Příjmení is your surname, Jméno your first name, Titul an academic title (leave it empty if you have none)."
+        },
+        {
+          "stepId": "birth",
+          "fieldIds": [
+            "Rodné_příjmení",
+            "Datum_narození_-_den"
+          ],
+          "question": "What is your surname at birth, and your date of birth?",
+          "explanation": "Rodné příjmení is your surname at birth. The date of birth goes into three boxes: day, month, year.",
+          "example": "05.03.1990",
+          "expectedFormat": "DD.MM.YYYY"
+        },
+        {
+          "stepId": "insured-number",
+          "fieldIds": [
+            "Číslo_pojištěnce_-rodné_číslo",
+            "Číslo_pojištěnce_-rodné_číslo_část_2"
+          ],
+          "question": "What is your insured person's number (birth number)?",
+          "explanation": "The form prints a slash between two boxes: the part before the slash goes into the first box, the part after it into the second. If you do not have a number yet, see the Přihláška pojištěnce form's instructions, which explain what a foreigner writes.",
+          "expectedFormat": "123456 / 7890"
+        },
+        {
+          "stepId": "permanent-address",
+          "fieldIds": [
+            "Adresa_trvalého_pobytu_-_ulice",
+            "Adresa_trvalého_pobytu_-_číslo_popisné",
+            "Adresa_trvalého_pobytu_-_číslo_orientační",
+            "Adresa_trvalého_pobytu_-_PSČ",
+            "Adresa_trvalého_pobytu_-_PSČ_část_2",
+            "Adresa_trvalého_pobytu_-_obec",
+            "Adresa_trvalého_pobytu_-_stát"
+          ],
+          "question": "What is your permanent residence address (adresa trvalého pobytu)?",
+          "explanation": "Ulice is the street, Číslo popisné and Číslo orientační the two house numbers Czech addresses use, PSČ the postcode (in two boxes, as printed), Obec the town and Stát the country. The form and its instructions do not say what to write if you have no permanent residence in Czechia.",
+          "example": "Křižíkova / 148 / 34 / 186 / 00 / Praha 8 / Česká republika"
+        },
+        {
+          "stepId": "sex",
+          "fieldIds": [
+            "Pohlaví_-_muž",
+            "Pohlaví_-_žena"
+          ],
+          "question": "What is your sex, as the form asks it?",
+          "explanation": "Pohlaví means sex. Tick muž (male) or žena (female). The form asks you to mark boxes with a cross.",
+          "official": {
+            "text": "Zaškrtávací pole označte křížkem.",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "newborn",
+          "fieldIds": [
+            "Číslo_pojištěnce_-_rodné_číslo_matky",
+            "Číslo_pojištěnce_-_rodné_číslo_matky_část_2"
+          ],
+          "question": "For a newborn only: what is the mother's insured person's number?",
+          "explanation": "Leave this empty unless the form is for a newborn. As with your own number, the part before the slash goes into the first box and the rest into the second.",
+          "expectedFormat": "123456 / 7890",
+          "official": {
+            "text": "U novorozenců uvést číslo pojištěnce matky (RČ)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "citizenship",
+          "fieldIds": [
+            "Státní_příslušnost"
+          ],
+          "question": "What is your citizenship?",
+          "explanation": "Státní příslušnost means citizenship: the country whose citizen you are.",
+          "example": "Ukrajina"
+        },
+        {
+          "stepId": "delivery-address",
+          "fieldIds": [
+            "Adresa_pro_doručování_-_ulice",
+            "Adresa_pro_doručování_-číslo_popisné",
+            "Adresa_pro_doručování_-číslo_orientační",
+            "Adresa_pro_doručování_-PSČ",
+            "Adresa_pro_doručování_-PSČ_část_2",
+            "Adresa_pro_doručování_-obec",
+            "Adresa_pro_doručování_-stát"
+          ],
+          "question": "Where should VZP send your letters (adresa pro doručování)?",
+          "explanation": "Section 3 is the address for letters, if VZP should write to another address than your permanent one. It has the same parts: street, the two house numbers, postcode in two boxes, town and country."
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "Telefon",
+            "E-mail"
+          ],
+          "question": "What phone number and e-mail can VZP use?",
+          "explanation": "Telefon is your phone number, E-mail your e-mail address.",
+          "example": "+420 777 123 456"
+        },
+        {
+          "stepId": "payment-method",
+          "fieldIds": [
+            "poštovní_poukázkou",
+            "převodem_z_účtu"
+          ],
+          "question": "Self-employed (OSVČ) or without taxable income (OBZP) only: how do you pay?",
+          "explanation": "Section 5 is filled in only by OSVČ or OBZP. Tick poštovní poukázkou (by postal order) or převodem z účtu (by bank transfer).",
+          "official": {
+            "text": "5. Bankovní spojení pojištěnce (vyplní pouze OSVČ nebo OBZP)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "payer",
+          "fieldIds": [
+            "Plátcem_pojistného_je_STÁT",
+            "Plátcem_pojistného_je_ZAMĚSTNAVATEL",
+            "Plátcem_pojistného_je_pojištěnec_-_OSVČ",
+            "Plátcem_pojistného_je_pojištěnec_-_OBZP"
+          ],
+          "question": "Who pays your health insurance?",
+          "explanation": "Section 4: tick one. STÁT: the state pays for you (then give your state category in the next step). ZAMĚSTNAVATEL: you are an employee and your employer pays. OSVČ: you are self-employed and pay yourself. OBZP: you have no taxable income and pay yourself. The instructions give 8 days to report a change when the state pays, and for OSVČ and OBZP.",
+          "official": {
+            "text": "Skutečnosti rozhodné pro vznik nebo zánik povinnosti státu platit pojistné je pojištěnec povinen oznámit do 8 dnů.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "state-category",
+          "fieldIds": [
+            "Státní_kategorie"
+          ],
+          "question": "If the state pays for you: which state category (a letter) are you in?",
+          "explanation": "The instructions list the categories by letter (A for a child until the end of compulsory school, G for a job seeker registered at the labour office, and so on). V includes a foreigner granted temporary protection. Leave it empty if the state does not pay for you.",
+          "expectedFormat": "one letter",
+          "official": {
+            "text": "(V) ‐ cizinec, kterému bylo uděleno oprávnění k pobytu na území ČR za účelem poskytnutí dočasné ochrany",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "bank-account",
+          "fieldIds": [
+            "Předčíslí_účtu",
+            "Číslo_účtu",
+            "Kód_banky"
+          ],
+          "question": "Section 5: what is your Czech bank account number?",
+          "explanation": "Three boxes: the prefix (předčíslí, often none), the account number, and after the slash the bank code. Only if section 5 applies to you.",
+          "example": "000000 - 1234567890 / 0800",
+          "expectedFormat": "prefix - number / bank code"
+        },
+        {
+          "stepId": "iban",
+          "fieldIds": [
+            "IBAN_1",
+            "IBAN_2",
+            "IBAN_3",
+            "IBAN_4",
+            "IBAN_5",
+            "IBAN_6"
+          ],
+          "question": "Section 5: or give your account as an IBAN.",
+          "explanation": "The form prints CZ before the first box; write the rest of the IBAN across the six boxes in order. Only if section 5 applies to you."
+        },
+        {
+          "stepId": "employer",
+          "fieldIds": [
+            "Název_zaměstnavatele_/_školy",
+            "Identifikační_číslo_IČ",
+            "Identifikační_číslo_IČ_-_část_2"
+          ],
+          "question": "Employees and students only: what is the name and company number (IČ) of your employer or school?",
+          "explanation": "Section 6 is filled in only by employees or students. IČ is the identification number of the employer or school, in two boxes with a slash between them as printed.",
+          "official": {
+            "text": "6. Identifikace zaměstnavatele / školy (vyplní pouze zaměstnanci nebo studenti)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "employer-address",
+          "fieldIds": [
+            "Adresa_zaměstnavatele/školy_-_ulice",
+            "Adresa_zaměstnavatele/školy_-_Číslo_popisné",
+            "Adresa_zaměstnavatele/školy_-_Číslo_orientační",
+            "Adresa_zaměstnavatele/školy_-_PSČ",
+            "Adresa_zaměstnavatele/školy_-_PSČ_část_2",
+            "Adresa_zaměstnavatele/školy_-_obec",
+            "Zaměstnavatel/škola_-_telefon"
+          ],
+          "question": "Section 6: what is the address and phone number of your employer or school?",
+          "explanation": "Street, the two house numbers, postcode in two boxes, town, and the employer's or school's phone number."
+        },
+        {
+          "stepId": "self-employed",
+          "fieldIds": [
+            "Obchodní_jméno",
+            "Adresa_místa_podnikání_-_ulice",
+            "Adresa_místa_podnikání_-_číslo_popisné",
+            "Adresa_místa_podnikání_-_číslo_orientační",
+            "OSVČ_-_Identifikační_číslo_IČ",
+            "Adresa_místa_podnikání_-_PSČ",
+            "Adresa_místa_podnikání_-_PSČ_část_2",
+            "Adresa_místa_podnikání_-_obec",
+            "OSVČ_-_Telefon"
+          ],
+          "question": "Self-employed (OSVČ) only: what are your business name, place of business, IČ and phone?",
+          "explanation": "Section 7 is filled in only by OSVČ. Obchodní jméno is your business name, then the address of your place of business, your identification number (IČ) and phone.",
+          "official": {
+            "text": "7. Identifikace OSVČ (vyplní pouze OSVČ)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "previous-insurer",
+          "fieldIds": [
+            "Kód_pojišťovny",
+            "Název_zdravotní_pojišťovny",
+            "Číslo_pojištěnce"
+          ],
+          "question": "Which Czech health insurer were you with before, and under which number?",
+          "explanation": "Section 8: Kód is the insurer's three-digit code, Název its name, Číslo pojištěnce the number it had you under. If you change your insurer, the instructions say this is possible once in 12 months and only from the first day of a half-year.",
+          "expectedFormat": "3 digits",
+          "official": {
+            "text": "Podle ustanovení § 11a zákona č. 48/1997 Sb., o veřejném zdravotním pojištění lze změnit zdravotní pojišťovnu jednou za 12 měsíců, a to vždy jen k 1. dni kalendářního pololetí.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "valid-from",
+          "fieldIds": [
+            "Změna_pojišťovny_/_údajů_platná_OD_-_den"
+          ],
+          "question": "From which date do these details apply?",
+          "explanation": "The date you register with VZP from, or the date the change you report happened. Three boxes: day, month, year.",
+          "expectedFormat": "DD.MM.YYYY",
+          "official": {
+            "text": "Uvede se datum, od kterého se osoba přihlašuje k VZP ČR nebo datum, od kterého oznamované skutečnosti nastaly.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "attachments",
+          "fieldIds": [
+            "Počet_listů_příloh"
+          ],
+          "question": "How many sheets of documents do you attach?",
+          "explanation": "Počet listů příloh is the number of attached sheets. VZP's form page asks you to hand in the documents that prove what you report.",
+          "expectedFormat": "a number",
+          "official": {
+            "text": "Nezapomeňte rovněž předložit potřebné doklady (např. doklad o studiu, doklad o přiznání důchodu apod.).",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/pojistenci/formulare/prihlaska-a-evidencni-list-pojistence"
+          }
+        },
+        {
+          "stepId": "filled-on",
+          "fieldIds": [
+            "Vyplněno_dne_-_den"
+          ],
+          "question": "On what date are you filling in the form?",
+          "explanation": "Vyplněno dne means filled in on: today's date in three boxes. Then print the form and sign it by hand on the line Podpis pojištěnce.",
+          "expectedFormat": "DD.MM.YYYY"
+        }
+      ]
+    },
+    "uk": {
+      "notes": [
+        "На сторінці форми VZP сказано, що ця форма призначена для повідомлення про зміну ваших даних. Щоб перейти до VZP або зареєструвати новонароджену дитину, VZP відсилає до іншої форми, Přihláška pojištěnce.",
+        "Інструкції VZP (Poučení) кажуть, що форма служить для реєстрації у страховій компанії та для повідомлення особистих даних, адрес, способу сплати страхування, того, хто його платить, і змін цих даних.",
+        "Заповнюйте лише ті розділи, які вас стосуються: розділ 5 для самозайнятих осіб (OSVČ) та осіб без оподатковуваного доходу (OBZP), розділ 6 для працівників і студентів, розділ 7 для самозайнятих.",
+        "На формі немає поля для підпису: роздрукуйте її і підпишіть від руки. На сторінці форми VZP також просить подати документи, що підтверджують зміну (наприклад, довідку про навчання або про пенсію)."
+      ],
+      "steps": [
+        {
+          "stepId": "purpose",
+          "fieldIds": [
+            "Přihláška",
+            "Změna"
+          ],
+          "question": "Ви реєструєтеся у VZP (přihláška) чи повідомляєте про зміну (změna)?",
+          "explanation": "Позначте одне поле вгорі форми: přihláška для реєстрації, změna для зміни даних, які ви вже повідомили VZP.",
+          "official": {
+            "text": "Formulář se použije při přihlášení ke zdravotní pojišťovně, k oznámení osobních údajů, adres, způsobu placení pojistného, identifikaci plátce pojistného a k oznámení případných změn těchto údajů.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "name",
+          "fieldIds": [
+            "Příjmení",
+            "Jméno",
+            "Titul"
+          ],
+          "question": "Яке ваше прізвище, ім'я та науковий ступінь?",
+          "explanation": "Příjmení означає прізвище, Jméno означає ім'я, Titul означає науковий ступінь або звання (залиште порожнім, якщо його немає)."
+        },
+        {
+          "stepId": "birth",
+          "fieldIds": [
+            "Rodné_příjmení",
+            "Datum_narození_-_den"
+          ],
+          "question": "Яке ваше прізвище при народженні та дата народження?",
+          "explanation": "Rodné příjmení означає прізвище при народженні. Дата народження записується у три поля: день, місяць, рік.",
+          "example": "05.03.1990",
+          "expectedFormat": "ДД.ММ.РРРР"
+        },
+        {
+          "stepId": "insured-number",
+          "fieldIds": [
+            "Číslo_pojištěnce_-rodné_číslo",
+            "Číslo_pojištěnce_-rodné_číslo_část_2"
+          ],
+          "question": "Який ваш номер застрахованої особи (родне число)?",
+          "explanation": "Форма друкує скісну риску між двома полями: частина до риски йде в перше поле, частина після неї в друге. Якщо номера у вас ще немає, дивіться інструкції до форми Přihláška pojištěnce, де пояснено, що пише іноземець.",
+          "expectedFormat": "123456 / 7890"
+        },
+        {
+          "stepId": "permanent-address",
+          "fieldIds": [
+            "Adresa_trvalého_pobytu_-_ulice",
+            "Adresa_trvalého_pobytu_-_číslo_popisné",
+            "Adresa_trvalého_pobytu_-_číslo_orientační",
+            "Adresa_trvalého_pobytu_-_PSČ",
+            "Adresa_trvalého_pobytu_-_PSČ_část_2",
+            "Adresa_trvalého_pobytu_-_obec",
+            "Adresa_trvalého_pobytu_-_stát"
+          ],
+          "question": "Яка ваша адреса постійного проживання (adresa trvalého pobytu)?",
+          "explanation": "Ulice означає вулицю, Číslo popisné і Číslo orientační два номери будинку, які мають чеські адреси, PSČ поштовий індекс (у двох полях, як надруковано), Obec населений пункт, Stát країну. Ні форма, ні інструкції не кажуть, що писати, якщо у вас немає постійного проживання в Чехії.",
+          "example": "Křižíkova / 148 / 34 / 186 / 00 / Praha 8 / Česká republika"
+        },
+        {
+          "stepId": "sex",
+          "fieldIds": [
+            "Pohlaví_-_muž",
+            "Pohlaví_-_žena"
+          ],
+          "question": "Яка ваша стать, як питає форма?",
+          "explanation": "Pohlaví означає стать. Позначте muž (чоловіча) або žena (жіноча). Форма просить позначати поля хрестиком.",
+          "official": {
+            "text": "Zaškrtávací pole označte křížkem.",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "newborn",
+          "fieldIds": [
+            "Číslo_pojištěnce_-_rodné_číslo_matky",
+            "Číslo_pojištěnce_-_rodné_číslo_matky_část_2"
+          ],
+          "question": "Лише для новонародженої дитини: який номер застрахованої особи матері?",
+          "explanation": "Залиште порожнім, якщо форма не для новонародженої дитини. Як і з вашим номером, частина до скісної риски йде в перше поле, решта в друге.",
+          "expectedFormat": "123456 / 7890",
+          "official": {
+            "text": "U novorozenců uvést číslo pojištěnce matky (RČ)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "citizenship",
+          "fieldIds": [
+            "Státní_příslušnost"
+          ],
+          "question": "Яке ваше громадянство?",
+          "explanation": "Státní příslušnost означає громадянство: країна, громадянином якої ви є.",
+          "example": "Ukrajina"
+        },
+        {
+          "stepId": "delivery-address",
+          "fieldIds": [
+            "Adresa_pro_doručování_-_ulice",
+            "Adresa_pro_doručování_-číslo_popisné",
+            "Adresa_pro_doručování_-číslo_orientační",
+            "Adresa_pro_doručování_-PSČ",
+            "Adresa_pro_doručování_-PSČ_část_2",
+            "Adresa_pro_doručování_-obec",
+            "Adresa_pro_doručování_-stát"
+          ],
+          "question": "Куди VZP має надсилати вам листи (adresa pro doručování)?",
+          "explanation": "Розділ 3 це адреса для листування, якщо VZP має писати на іншу адресу, ніж адреса постійного проживання. Вона має ті самі частини: вулиця, два номери будинку, індекс у двох полях, населений пункт і країна."
+        },
+        {
+          "stepId": "contact",
+          "fieldIds": [
+            "Telefon",
+            "E-mail"
+          ],
+          "question": "Який номер телефону та електронну пошту може використовувати VZP?",
+          "explanation": "Telefon означає ваш номер телефону, E-mail вашу електронну адресу.",
+          "example": "+420 777 123 456"
+        },
+        {
+          "stepId": "payment-method",
+          "fieldIds": [
+            "poštovní_poukázkou",
+            "převodem_z_účtu"
+          ],
+          "question": "Лише для самозайнятих (OSVČ) або осіб без оподатковуваного доходу (OBZP): як ви платите?",
+          "explanation": "Розділ 5 заповнюють лише OSVČ або OBZP. Позначте poštovní poukázkou (поштовим переказом) або převodem z účtu (банківським переказом).",
+          "official": {
+            "text": "5. Bankovní spojení pojištěnce (vyplní pouze OSVČ nebo OBZP)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "payer",
+          "fieldIds": [
+            "Plátcem_pojistného_je_STÁT",
+            "Plátcem_pojistného_je_ZAMĚSTNAVATEL",
+            "Plátcem_pojistného_je_pojištěnec_-_OSVČ",
+            "Plátcem_pojistného_je_pojištěnec_-_OBZP"
+          ],
+          "question": "Хто платить ваше медичне страхування?",
+          "explanation": "Розділ 4: позначте одне. STÁT: за вас платить держава (тоді в наступному кроці вкажіть державну категорію). ZAMĚSTNAVATEL: ви працівник, і платить роботодавець. OSVČ: ви самозайнята особа і платите самі. OBZP: у вас немає оподатковуваного доходу, і ви платите самі. Інструкції дають 8 днів на повідомлення про зміну, коли платить держава, а також для OSVČ і OBZP.",
+          "official": {
+            "text": "Skutečnosti rozhodné pro vznik nebo zánik povinnosti státu platit pojistné je pojištěnec povinen oznámit do 8 dnů.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "state-category",
+          "fieldIds": [
+            "Státní_kategorie"
+          ],
+          "question": "Якщо за вас платить держава: до якої державної категорії (літера) ви належите?",
+          "explanation": "Інструкції перелічують категорії за літерами (A для дитини до закінчення обов'язкового шкільного навчання, G для шукача роботи, зареєстрованого в бюро праці, і так далі). V включає іноземця, якому надано тимчасовий захист. Залиште порожнім, якщо держава за вас не платить.",
+          "expectedFormat": "одна літера",
+          "official": {
+            "text": "(V) ‐ cizinec, kterému bylo uděleno oprávnění k pobytu na území ČR za účelem poskytnutí dočasné ochrany",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "bank-account",
+          "fieldIds": [
+            "Předčíslí_účtu",
+            "Číslo_účtu",
+            "Kód_banky"
+          ],
+          "question": "Розділ 5: який номер вашого чеського банківського рахунку?",
+          "explanation": "Три поля: префікс (předčíslí, часто його немає), номер рахунку і після скісної риски код банку. Лише якщо вас стосується розділ 5.",
+          "example": "000000 - 1234567890 / 0800",
+          "expectedFormat": "префікс - номер / код банку"
+        },
+        {
+          "stepId": "iban",
+          "fieldIds": [
+            "IBAN_1",
+            "IBAN_2",
+            "IBAN_3",
+            "IBAN_4",
+            "IBAN_5",
+            "IBAN_6"
+          ],
+          "question": "Розділ 5: або вкажіть рахунок як IBAN.",
+          "explanation": "Форма друкує CZ перед першим полем; решту IBAN напишіть по черзі в шість полів. Лише якщо вас стосується розділ 5."
+        },
+        {
+          "stepId": "employer",
+          "fieldIds": [
+            "Název_zaměstnavatele_/_školy",
+            "Identifikační_číslo_IČ",
+            "Identifikační_číslo_IČ_-_část_2"
+          ],
+          "question": "Лише для працівників і студентів: яка назва та ідентифікаційний номер (IČ) вашого роботодавця або школи?",
+          "explanation": "Розділ 6 заповнюють лише працівники або студенти. IČ означає ідентифікаційний номер роботодавця або школи, у двох полях зі скісною рискою між ними, як надруковано.",
+          "official": {
+            "text": "6. Identifikace zaměstnavatele / školy (vyplní pouze zaměstnanci nebo studenti)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "employer-address",
+          "fieldIds": [
+            "Adresa_zaměstnavatele/školy_-_ulice",
+            "Adresa_zaměstnavatele/školy_-_Číslo_popisné",
+            "Adresa_zaměstnavatele/školy_-_Číslo_orientační",
+            "Adresa_zaměstnavatele/školy_-_PSČ",
+            "Adresa_zaměstnavatele/školy_-_PSČ_část_2",
+            "Adresa_zaměstnavatele/školy_-_obec",
+            "Zaměstnavatel/škola_-_telefon"
+          ],
+          "question": "Розділ 6: яка адреса та номер телефону вашого роботодавця або школи?",
+          "explanation": "Вулиця, два номери будинку, індекс у двох полях, населений пункт і номер телефону роботодавця або школи."
+        },
+        {
+          "stepId": "self-employed",
+          "fieldIds": [
+            "Obchodní_jméno",
+            "Adresa_místa_podnikání_-_ulice",
+            "Adresa_místa_podnikání_-_číslo_popisné",
+            "Adresa_místa_podnikání_-_číslo_orientační",
+            "OSVČ_-_Identifikační_číslo_IČ",
+            "Adresa_místa_podnikání_-_PSČ",
+            "Adresa_místa_podnikání_-_PSČ_část_2",
+            "Adresa_místa_podnikání_-_obec",
+            "OSVČ_-_Telefon"
+          ],
+          "question": "Лише для самозайнятих (OSVČ): яка ваша торгова назва, місце діяльності, IČ і телефон?",
+          "explanation": "Розділ 7 заповнюють лише OSVČ. Obchodní jméno означає вашу торгову назву, далі адреса місця діяльності, ваш ідентифікаційний номер (IČ) і телефон.",
+          "official": {
+            "text": "7. Identifikace OSVČ (vyplní pouze OSVČ)",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf"
+          }
+        },
+        {
+          "stepId": "previous-insurer",
+          "fieldIds": [
+            "Kód_pojišťovny",
+            "Název_zdravotní_pojišťovny",
+            "Číslo_pojištěnce"
+          ],
+          "question": "У якій чеській медичній страховій компанії ви були раніше і під яким номером?",
+          "explanation": "Розділ 8: Kód означає тризначний код страхової компанії, Název її назву, Číslo pojištěnce номер, під яким вона вас вела. Якщо ви змінюєте страхову компанію, інструкції кажуть, що це можливо раз на 12 місяців і лише з першого дня півріччя.",
+          "expectedFormat": "3 цифри",
+          "official": {
+            "text": "Podle ustanovení § 11a zákona č. 48/1997 Sb., o veřejném zdravotním pojištění lze změnit zdravotní pojišťovnu jednou za 12 měsíců, a to vždy jen k 1. dni kalendářního pololetí.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "valid-from",
+          "fieldIds": [
+            "Změna_pojišťovny_/_údajů_platná_OD_-_den"
+          ],
+          "question": "З якої дати діють ці дані?",
+          "explanation": "Дата, з якої ви реєструєтеся у VZP, або дата, коли сталася зміна, про яку ви повідомляєте. Три поля: день, місяць, рік.",
+          "expectedFormat": "ДД.ММ.РРРР",
+          "official": {
+            "text": "Uvede se datum, od kterého se osoba přihlašuje k VZP ČR nebo datum, od kterého oznamované skutečnosti nastaly.",
+            "lang": "cs"
+          }
+        },
+        {
+          "stepId": "attachments",
+          "fieldIds": [
+            "Počet_listů_příloh"
+          ],
+          "question": "Скільки аркушів документів ви додаєте?",
+          "explanation": "Počet listů příloh означає кількість доданих аркушів. На сторінці форми VZP просить подати документи, які підтверджують те, про що ви повідомляєте.",
+          "expectedFormat": "число",
+          "official": {
+            "text": "Nezapomeňte rovněž předložit potřebné doklady (např. doklad o studiu, doklad o přiznání důchodu apod.).",
+            "lang": "cs",
+            "url": "https://www.vzp.cz/pojistenci/formulare/prihlaska-a-evidencni-list-pojistence"
+          }
+        },
+        {
+          "stepId": "filled-on",
+          "fieldIds": [
+            "Vyplněno_dne_-_den"
+          ],
+          "question": "Якою датою ви заповнюєте форму?",
+          "explanation": "Vyplněno dne означає «заповнено дня»: сьогоднішня дата у трьох полях. Потім роздрукуйте форму і підпишіть її від руки на рядку Podpis pojištěnce.",
+          "expectedFormat": "ДД.ММ.РРРР"
+        }
+      ]
+    }
+  },
+  "reviewNotes": [
+    "Written by an AI (Claude) on 2026-11-18 from the form, its separate Poučení and the VZP form page; not checked by a person. Status stays draft.",
+    "Sources read: https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence.pdf (the form, its printed text), https://www.vzp.cz/formulare/prihlaska-a-evidencni-list-pojistence-pouceni.pdf (Poučení k formuláři Přihláška a evidenční list pojištěnce zdravotní pojišťovny) and https://www.vzp.cz/pojistenci/formulare/prihlaska-a-evidencni-list-pojistence.",
+    "The Ukrainian text is machine-written and needs a native speaker's check. Uncertain terms: OSVČ (самозайнята особа), OBZP (особа без оподатковуваного доходу), číslo popisné / číslo orientační (left untranslated, explained as two house numbers), přihláška / změna.",
+    "Field labels the form reader gets wrong or leaves as names (match.fields records them as read): IBAN_1 reads as 'C Z' (the printed CZ before it); Kód_banky, IBAN_2 to IBAN_6 and the second boxes of the birth numbers, postcodes and IČ ('... část 2') are labelled by their field names; the birth number, postcodes and IČ are each split over two boxes that the reader does not join into one answer. The steps group them and explain the two boxes.",
+    "Step insured-number: this form's Poučení does not explain číslo pojištěnce for foreigners; the step points to the other form's Poučení instead of repeating it. Check whether that is the right advice for this form.",
+    "Step permanent-address: neither the form nor the Poučení says what a foreigner without permanent residence in Czechia writes here. Find VZP's answer before review.",
+    "Step state-category: only category V is quoted, because it names temporary protection; the letters A and G in the explanation paraphrase the Poučení's list. Check the explanation against the full list.",
+    "Step iban: the split of the IBAN over the six boxes is the author's reading of the printed form (CZ printed before the first box), not an instruction.",
+    "Notes: 'The form has no box for the signature' is from the form as read (no signature field; the line Podpis pojištěnce (zákonného zástupce) is printed)."
+  ]
+}
