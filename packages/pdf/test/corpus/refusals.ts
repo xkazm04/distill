@@ -62,7 +62,7 @@ export const REFUSALS: Refusal[] = [
     build: async () => withXfa(await buildPdf(form()), false),
   },
   {
-    slug: "encrypted", want: "encrypted", models: "Encrypted with an owner password only: it opens and shows, but is protected against changes.",
+    slug: "encrypted", want: "encrypted", models: "Encrypted with an owner password only, permissions that forbid filling in forms (and annotating, which would also allow it): it opens and shows, but its author did not allow filling it. Protected files that do allow filling are fillable fixtures (*-chraneny, *-chranena).",
     build: async () => {
       const doc = await PDFDocument.load(await buildPdf(form()));
       doc.encrypt({ userPassword: "", ownerPassword: "owner-only-9f3", permissions: { printing: "highResolution", modifying: false, annotating: false, fillingForms: false } });
@@ -70,10 +70,10 @@ export const REFUSALS: Refusal[] = [
     },
   },
   {
-    slug: "password", want: "password", models: "Encrypted with a password to open it.",
+    slug: "password", want: "password", models: "Encrypted with a password to open it, and permissions that would allow filling: a file that needs a password is not opened, whatever it permits.",
     build: async () => {
       const doc = await PDFDocument.load(await buildPdf(form()));
-      doc.encrypt({ userPassword: "open-me-7c1", ownerPassword: "owner-7c1" });
+      doc.encrypt({ userPassword: "open-me-7c1", ownerPassword: "owner-7c1", permissions: { printing: "highResolution", fillingForms: true, contentAccessibility: true } });
       return doc.save();
     },
   },

@@ -24,7 +24,8 @@ export interface Box {
  * for everything but `password` and `broken`).
  * - `flat`: no field that can hold an answer (a scan, or a form made for printing).
  * - `xfa`: an XFA form; its boxes are not ordinary PDF form fields.
- * - `encrypted`: the file is encrypted; Distill does not remove an office's protection.
+ * - `encrypted`: the file is encrypted and its permissions do not allow filling in forms (or it uses a kind of
+ *   encryption other than the standard password one); Distill does not remove an office's protection.
  * - `locked`: signed, or locked against changes; changing it would break the signature.
  * - `password`: the file needs a password to open at all.
  * - `broken`: not a PDF that can be read (or changed).
@@ -65,6 +66,9 @@ export interface PdfReading {
   bindings: PdfBinding[];
   /** Why the PDF cannot be filled. Absent when `structure` is present. */
   problem?: PdfProblem;
+  /** True when the file is protected by its author (encrypted, opens without a password, permissions allow filling
+   *  in forms). Its filled copy is encrypted again with the same permissions. */
+  protected?: true;
   /** Where each block of `page` sits, for pointing at it in the original. */
   blockBoxes: Record<string, Box>;
   /** Page sizes in PDF units, in page order. */

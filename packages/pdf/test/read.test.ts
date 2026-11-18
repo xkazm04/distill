@@ -25,7 +25,7 @@ describe("PDFs Distill cannot fill", () => {
     }
   });
 
-  it("an encrypted PDF that opens without a password: shown and read, never changed", async () => {
+  it("an encrypted PDF that opens without a password but forbids filling in forms: shown and read, never changed", async () => {
     const r = await readPdf(await refusal("encrypted"), { pdfjs: PDFJS });
     expect(r.problem?.kind).toBe("encrypted");
     expect(r.structure).toBeUndefined();

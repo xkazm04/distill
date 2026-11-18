@@ -1,10 +1,13 @@
 // Reading a PDF the person opened: what it says (the page model) and, when it can be filled, its form (a
 // FormStructure). Three kinds of PDF cannot be filled, and each is said in plain words rather than half-handled: a
-// PDF with no fields (a scan or a print-only form), an XFA form, and a file that is encrypted, signed or locked.
+// PDF with no fields (a scan or a print-only form), an XFA form, and a file that is signed or locked, or encrypted in a
+// way that does not allow filling it in. A file encrypted with only an owner password whose permissions allow filling
+// in forms is read and filled; its filled copy is protected again with the same permissions (protect.ts).
 // pdf.js reads the text and the document facts; pdf-lib reads the form, as it is also what writes it.
 import { PDFDocument } from "@cantoo/pdf-lib";
 import { fingerprint, type FormStructure } from "@distill/engine";
 import { lockReason, readFields } from "./fields.js";
+import { fillAllowed, protectionOf } from "./protect.js";
 import { buildFields } from "./labels.js";
 import { buildPage, buildRuns, documentLang, documentTitle, readItems } from "./text.js";
 import { PDF_URL, type PdfJs, type PdfJsDocument, type PdfProblem, type PdfProblemKind, type PdfReading } from "./types.js";
@@ -88,14 +91,23 @@ export async function readPdf(bytes: Uint8Array, opts: { pdfjs: PdfJs; fileName?
 
     let found: PdfProblem | undefined;
     let fields: ReturnType<typeof readFields> = [];
-    if (typeof info.EncryptFilterName === "string" && info.EncryptFilterName) found = problem("encrypted");
-    else if (info.IsXFAPresent === true) found = problem("xfa");
+    let isProtected = false;
+    if (info.IsXFAPresent === true) found = problem("xfa");
     else {
       let doc: PDFDocument | null = null;
       try {
-        doc = await PDFDocument.load(bytes, { preserveXFA: true, updateMetadata: false, throwOnInvalidObject: false });
+        // An encrypted file gets this far only when it opens without a password (pdf.js opened it above). It is
+        // filled only when its own permissions allow filling in forms, and its copy is protected again (protect.ts).
+        const raw = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false });
+        const prot = protectionOf(raw);
+        if (prot && (prot.filter !== "Standard" || !fillAllowed(prot))) found = problem("encrypted");
+        else {
+          doc = await PDFDocument.load(bytes, { password: "", preserveXFA: true, updateMetadata: false, throwOnInvalidObject: false });
+          isProtected = prot !== null;
+        }
       } catch (e) {
-        found = /encrypt/i.test(String((e as Error)?.message)) ? problem("encrypted") : problem("broken", "Distill can show this PDF but not change it.");
+        const encrypted = (typeof info.EncryptFilterName === "string" && info.EncryptFilterName !== "") || /encrypt|password/i.test(String((e as Error)?.message));
+        found = encrypted ? problem("encrypted") : problem("broken", "Distill can show this PDF but not change it.");
       }
       if (doc) {
         if (doc.isEncrypted) found = problem("encrypted");
@@ -125,6 +137,7 @@ export async function readPdf(bytes: Uint8Array, opts: { pdfjs: PdfJs; fileName?
         fields: built.fields,
       };
       reading.structure = structure;
+      if (isProtected) reading.protected = true;
     }
     return reading;
   } finally {

@@ -13,7 +13,7 @@ import { defaultDropdownAppearanceProvider, PDFDocument, PDFHexString, PDFName }
 import fontkit from "@cantoo/fontkit";
 import type { FieldKind, FieldStructure, FormValues } from "@distill/engine";
 import { fillPdf, PdfOpenError, readPdf, type PdfBinding, type PdfJs, type PdfProblemKind, type PdfReading } from "../../src/index.js";
-import { buildPdf, fontBytes, type Layout } from "../corpus/build.js";
+import { buildPdf, fontBytes, readLayout, type Layout } from "../corpus/build.js";
 import { REFUSALS } from "../corpus/refusals.js";
 
 export const CORPUS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../corpus");
@@ -66,6 +66,10 @@ export interface FixtureResult {
   /** Pre-filled fields, and how many still hold their value after the fill. */
   prefilled: number;
   kept: number;
+  /** 1 when the file is protected by its author (encrypted, opens without a password); then 1 in `protectionKept`
+   *  when pdf.js finds the saved copy encrypted with the same permissions. */
+  protected: number;
+  protectionKept: number;
   notes: string[];
 }
 export interface RefusalResult { slug: string; want: PdfProblemKind; got: PdfProblemKind | "fillable" }
@@ -77,11 +81,12 @@ export interface CorpusResult {
 
 // ---------------------------------------------------------------- loading
 
+/** The fixtures, each with its layout (a fixture with `"source"` takes another one's form; see readLayout). */
 export function loadCorpus(dir = CORPUS_DIR): Fixture[] {
-  return readdirSync(dir).filter((f) => f.endsWith(".pdf.json")).sort().map((f) => ({
-    slug: f.slice(0, -".pdf.json".length),
-    expect: JSON.parse(readFileSync(join(dir, f), "utf8")) as Expectation,
-  }));
+  return readdirSync(dir).filter((f) => f.endsWith(".pdf.json")).sort().map((f) => {
+    const slug = f.slice(0, -".pdf.json".length);
+    return { slug, expect: (dir === CORPUS_DIR ? readLayout(slug) : JSON.parse(readFileSync(join(dir, f), "utf8"))) as Expectation };
+  });
 }
 
 /** Shape problems in an expectation, as plain sentences. Empty when it is well-formed. */
@@ -116,6 +121,20 @@ export function lintExpectation(fx: Fixture): string[] {
 }
 
 // ---------------------------------------------------------------- the independent reader (pdf.js)
+
+/** How pdf.js sees a file's protection: its security handler and permission flags, or null when it is not encrypted. */
+export async function protectionSeenByPdfJs(bytes: Uint8Array): Promise<{ filter: string; permissions: number[] } | null> {
+  const task = pdfjs.getDocument({ data: bytes.slice(), useWasm: false, verbosity: 0 });
+  try {
+    const doc = await task.promise;
+    const filter = ((await doc.getMetadata()).info as { EncryptFilterName?: string }).EncryptFilterName;
+    if (!filter) return null;
+    const perms = (await doc.getPermissions()) as Iterable<number> | null;
+    return { filter, permissions: [...(perms ?? [])].sort((a, b) => a - b) };
+  } finally {
+    await task.destroy();
+  }
+}
 
 interface Seen { value: unknown; exportValue?: string; shown: string; missingGlyph: boolean }
 
@@ -187,7 +206,7 @@ export function failingProbes(seen: Map<string, Seen>, f: ExpectedField): string
 
 /** Fills the fixture with pdf-lib's own API and no Distill code, as any PDF tool would. */
 async function byHand(bytes: Uint8Array, values: Record<string, string>): Promise<Uint8Array> {
-  const doc = await PDFDocument.load(bytes);
+  const doc = await PDFDocument.load(bytes, { password: "" }); // a protected file opens with no password, as in any reader
   doc.registerFontkit(fontkit);
   const font = await doc.embedFont(fontBytes(), { subset: true });
   const form = doc.getForm();
@@ -220,6 +239,9 @@ async function byHand(bytes: Uint8Array, values: Record<string, string>): Promis
 export async function checkFixture(fx: Fixture): Promise<string[]> {
   const out: string[] = [];
   const blank = await buildPdf(fx.expect.layout);
+  // A protected fixture must really be encrypted, and pdf.js must open it with no password and read its fields (the
+  // probes below look them up by name).
+  if (fx.expect.layout.protect && !(await protectionSeenByPdfJs(blank))) out.push("protect: the built file is not encrypted");
   const before = await seenByPdfJs(blank);
   for (const f of fx.expect.fields) {
     const fails = failingProbes(before, f);
@@ -241,9 +263,11 @@ export async function runFixture(fx: Fixture): Promise<FixtureResult> {
   const res: FixtureResult = {
     slug: fx.slug, title: fx.expect.title, expected: fx.expect.fields.length, engineFields: 0, detected: 0, labels: 0, shapes: 0,
     values: fx.expect.fields.filter((f) => f.value !== undefined).length, filled: 0, claimed: 0, falseClaims: 0,
-    prefilled: fx.expect.fields.filter((f) => f.value === undefined).length, kept: 0, notes: [],
+    prefilled: fx.expect.fields.filter((f) => f.value === undefined).length, kept: 0, protected: 0, protectionKept: 0, notes: [],
   };
   const original = await buildPdf(fx.expect.layout);
+  const before = await protectionSeenByPdfJs(original);
+  if (before) res.protected = 1;
   let reading: PdfReading;
   try {
     reading = await readPdf(original, { pdfjs: PDFJS, fileName: `${fx.slug}.pdf` });
@@ -291,9 +315,21 @@ export async function runFixture(fx: Fixture): Promise<FixtureResult> {
     if (f.value !== undefined) values[ef.fieldId] = f.value;
   });
 
-  const out = await fillPdf(original, reading, values, fontBytes());
+  let out: Awaited<ReturnType<typeof fillPdf>>;
+  try {
+    out = await fillPdf(original, reading, values, fontBytes());
+  } catch (e) {
+    res.notes.push(`no copy saved: ${(e as Error).message}`);
+    return res;
+  }
   res.claimed = out.written.length;
   const seen = await seenByPdfJs(out.bytes);
+  if (before) {
+    // The copy of a protected file must be protected the same way, as pdf.js reads it.
+    const after = await protectionSeenByPdfJs(out.bytes);
+    if (after && after.filter === before.filter && JSON.stringify(after.permissions) === JSON.stringify(before.permissions)) res.protectionKept = 1;
+    else res.notes.push(`PROTECTION LOST: the original is ${before.filter} with permissions [${before.permissions}], the copy is ${after ? `${after.filter} with [${after.permissions}]` : "not encrypted"}`);
+  }
   fields.forEach((f, i) => {
     const ef = matched[i];
     const why = failingProbes(seen, f);
@@ -336,6 +372,7 @@ export async function runCorpus(corpus = loadCorpus()): Promise<CorpusResult> {
     totals: {
       expected: sum("expected"), engineFields: sum("engineFields"), detected: sum("detected"), labels: sum("labels"), shapes: sum("shapes"),
       values: sum("values"), filled: sum("filled"), claimed: sum("claimed"), falseClaims: sum("falseClaims"), prefilled: sum("prefilled"), kept: sum("kept"),
+      protected: sum("protected"), protectionKept: sum("protectionKept"),
     },
     refusals: await runRefusals(),
   };
@@ -344,23 +381,23 @@ export async function runCorpus(corpus = loadCorpus()): Promise<CorpusResult> {
 // ---------------------------------------------------------------- metrics, table, baseline
 
 type Counts = CorpusResult["totals"];
-export interface Metrics { recall: number; precision: number; labels: number; shape: number; fill: number; kept: number; refusals: number; falseClaims: number }
+export interface Metrics { recall: number; precision: number; labels: number; shape: number; fill: number; kept: number; protection: number; refusals: number; falseClaims: number }
 const rate = (n: number, d: number): number => (d ? n / d : 1);
 export function metrics(c: Counts, refusals: RefusalResult[]): Metrics {
   return {
     recall: rate(c.detected, c.expected), precision: rate(c.detected, c.engineFields), labels: rate(c.labels, c.expected),
-    shape: rate(c.shapes, c.expected), fill: rate(c.filled, c.values), kept: rate(c.kept, c.prefilled),
+    shape: rate(c.shapes, c.expected), fill: rate(c.filled, c.values), kept: rate(c.kept, c.prefilled), protection: rate(c.protectionKept, c.protected),
     refusals: rate(refusals.filter((r) => r.got === r.want).length, refusals.length), falseClaims: c.falseClaims,
   };
 }
 
 const frac = (n: number, d: number): string => (d ? `${n}/${d} ${Math.round((100 * n) / d)}%` : "-");
 function row(name: string, c: Counts): string[] {
-  return [name, frac(c.detected, c.expected), frac(c.detected, c.engineFields), frac(c.labels, c.expected), frac(c.shapes, c.expected), frac(c.filled, c.values), frac(c.kept, c.prefilled), `${c.falseClaims} of ${c.claimed}`];
+  return [name, frac(c.detected, c.expected), frac(c.detected, c.engineFields), frac(c.labels, c.expected), frac(c.shapes, c.expected), frac(c.filled, c.values), frac(c.kept, c.prefilled), frac(c.protectionKept, c.protected), `${c.falseClaims} of ${c.claimed}`];
 }
 
 export function formatTable(r: CorpusResult, details = true): string {
-  const head = ["PDF fixture", "recall", "precision", "labels", "shape", "fill", "kept", "FALSE CLAIMS"];
+  const head = ["PDF fixture", "recall", "precision", "labels", "shape", "fill", "kept", "protection", "FALSE CLAIMS"];
   const rows = [head, ...r.fixtures.map((f) => row(f.slug, f)), row("TOTAL", r.totals)];
   const widths = head.map((_, i) => Math.max(...rows.map((x) => (x[i] as string).length)));
   const line = (x: string[]): string => x.map((c, i) => (i === 0 ? c.padEnd(widths[i] as number) : c.padStart(widths[i] as number))).join("  ");
@@ -368,7 +405,8 @@ export function formatTable(r: CorpusResult, details = true): string {
   const out = [
     `PDF form benchmark: ${r.fixtures.length} synthetic Czech PDF forms, built in the run, read back with pdf.js (a different parser from the writer)`,
     "recall, precision, labels (with option labels where listed), shape (kind, required, options, max length where listed) as for web forms;",
-    "fill = values pdf.js confirms, the drawn appearance included; kept = pre-filled values still there; FALSE CLAIMS = reported written, refuted by pdf.js.",
+    "fill = values pdf.js confirms, the drawn appearance included; kept = pre-filled values still there;",
+    "protection = protected originals whose copy pdf.js finds encrypted with the same permissions; FALSE CLAIMS = reported written, refuted by pdf.js.",
     "",
     line(head),
     ...rows.slice(1, -1).map(line),
@@ -404,7 +442,7 @@ export function toBaseline(r: CorpusResult): Baseline {
   return {
     note: "Written only by `npm run bench:forms:update -w @distill/pdf`. corpus.test.ts fails when a total falls below these numbers.",
     totals: r.totals,
-    metrics: { recall: round(m.recall), precision: round(m.precision), labels: round(m.labels), shape: round(m.shape), fill: round(m.fill), kept: round(m.kept), refusals: round(m.refusals), falseClaims: m.falseClaims },
+    metrics: { recall: round(m.recall), precision: round(m.precision), labels: round(m.labels), shape: round(m.shape), fill: round(m.fill), kept: round(m.kept), protection: round(m.protection), refusals: round(m.refusals), falseClaims: m.falseClaims },
     fixtures,
     refusals: Object.fromEntries(r.refusals.map((x) => [x.slug, x.got])),
   };
@@ -418,7 +456,8 @@ export function compareToBaseline(r: CorpusResult, b: Baseline): string[] {
   const out: string[] = [];
   const now = metrics(r.totals, r.refusals);
   const was = b.metrics;
-  for (const k of ["recall", "precision", "labels", "shape", "fill", "kept", "refusals"] as const) {
+  for (const k of ["recall", "precision", "labels", "shape", "fill", "kept", "protection", "refusals"] as const) {
+    if (typeof was[k] !== "number") continue; // a metric newer than the stored baseline
     if (now[k] < was[k] - 1e-4) out.push(`${k} fell from ${was[k].toFixed(4)} to ${now[k].toFixed(4)}`);
   }
   if (now.falseClaims > was.falseClaims) out.push(`false claims rose from ${was.falseClaims} to ${now.falseClaims}`);

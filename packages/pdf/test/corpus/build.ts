@@ -23,7 +23,18 @@ export type FieldSpec =
   | { type: "dropdown"; name: string; rect: Rect; tooltip?: string; required?: boolean; options: (string | [string, string])[] }
   | { type: "signature"; name: string; rect: Rect };
 export interface PageSpec { size?: [number, number]; text: TextSpec[]; fields: FieldSpec[] }
-export interface Layout { title?: string; lang?: string; pages: PageSpec[] }
+/**
+ * Protection as an author's PDF tool sets it, applied with pdf-lib's own `encrypt` (no Distill code): an owner password,
+ * an optional password to open the file, the permissions, and the cipher. The forms of the Czech corridor that are
+ * protected use AES-128 (ipc.gov.cz: printing, filling in forms, accessibility) or AES-256 (VZP: the same, plus
+ * annotations), each with only an owner password.
+ */
+export interface Protect {
+  algorithm?: "AES-128" | "AES-256";
+  userPassword?: string;
+  permissions: { printing?: false | "lowResolution" | "highResolution"; modifying?: boolean; copying?: boolean; annotating?: boolean; fillingForms?: boolean; contentAccessibility?: boolean; documentAssembly?: boolean };
+}
+export interface Layout { title?: string; lang?: string; protect?: Protect; pages: PageSpec[] }
 
 const tooltip = (form: PDFForm, name: string, t?: string): void => {
   if (t) form.getField(name).acroField.dict.set(PDFName.of("TU"), PDFHexString.fromText(t));
@@ -82,7 +93,19 @@ export async function buildPdf(layout: Layout): Promise<Uint8Array> {
     }
   }
   form.updateFieldAppearances(font);
+  if (layout.protect) {
+    const p = layout.protect;
+    doc.encrypt({ ownerPassword: "author-only-4d1e", userPassword: p.userPassword ?? "", permissions: p.permissions, algorithm: p.algorithm ?? "AES-256" });
+  }
   return doc.save();
 }
 
-export const readLayout = (slug: string): unknown => JSON.parse(readFileSync(join(CORPUS_DIR, `${slug}.pdf.json`), "utf8"));
+/** A fixture file as written. One with `"source": "<slug>"` takes that fixture's layout, fields and byHand, and adds its
+ *  own `title`, `models` and `protect` (the same form, protected by its author). */
+export function readLayout(slug: string): unknown {
+  const own = JSON.parse(readFileSync(join(CORPUS_DIR, `${slug}.pdf.json`), "utf8")) as { source?: string; protect?: Protect; layout?: Layout };
+  if (!own.source) return own;
+  const base = readLayout(own.source) as { layout: Layout };
+  const { source: _s, protect, ...rest } = own;
+  return { ...base, ...rest, layout: { ...base.layout, ...(protect ? { protect } : {}) } };
+}

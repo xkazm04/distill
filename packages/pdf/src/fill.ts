@@ -5,6 +5,10 @@
 // Text is drawn with an embedded subset of Noto Sans (SIL OFL 1.1, fonts/OFL.txt): the 14 standard PDF fonts cannot
 // encode several Czech letters (ě, ř, ů, ť, ď, ň) or Cyrillic, and would draw garbage. A character the embedded font
 // does not have fails its field instead of being drawn wrong.
+//
+// A file its author protected (encrypted, opens without a password, permissions allow filling in forms) is opened
+// decrypted, filled, and saved encrypted again with the same permissions (protect.ts). Every parse here opens it with
+// the empty user password, which is all such a file asks for.
 import fontkit from "@cantoo/fontkit";
 import {
   PDFAcroChoice, PDFArray, PDFCheckBox, PDFDict, PDFDocument, PDFDropdown, PDFHexString, PDFName, PDFOptionList,
@@ -12,7 +16,11 @@ import {
 } from "@cantoo/pdf-lib";
 import type { FormValues } from "@distill/engine";
 import { readField } from "./fields.js";
+import { fillAllowed, protectionOf, ProtectionError, saveProtected, type Protection } from "./protect.js";
 import type { DatePart, PdfBinding, PdfReading } from "./types.js";
+
+/** Opens bytes for reading or writing: decrypted when the file is protected, as it is otherwise. */
+const open = (bytes: Uint8Array): Promise<PDFDocument> => PDFDocument.load(bytes, { password: "", updateMetadata: false, throwOnInvalidObject: false });
 
 /** The font bytes, or a way to get them when the first text is written (the web app fetches them only then). */
 export type FontSource = Uint8Array | (() => Promise<Uint8Array>);
@@ -84,7 +92,7 @@ export function readBinding(doc: PDFDocument, b: PdfBinding): string {
  * readValues: never put into a cloud-eligible prompt, Firestore or anything the agent reads.
  */
 export async function readPdfValues(bytes: Uint8Array, reading: PdfReading): Promise<FormValues> {
-  const doc = await PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: false });
+  const doc = await open(bytes);
   const out: FormValues = {};
   for (const b of reading.bindings) {
     const v = readBinding(doc, b);
@@ -288,8 +296,8 @@ function shows(doc: PDFDocument, b: PdfBinding): boolean {
   return true;
 }
 
-async function produce(original: Uint8Array, reading: PdfReading, values: FormValues, fontBytes: () => Promise<Uint8Array>) {
-  const doc = await PDFDocument.load(original, { updateMetadata: false, throwOnInvalidObject: false });
+async function produce(original: Uint8Array, reading: PdfReading, values: FormValues, fontBytes: () => Promise<Uint8Array>, protection: Protection | null) {
+  const doc = await open(original);
   const ctx: Ctx = { doc, fontBytes };
   const byId = new Map(reading.bindings.map((b) => [b.fieldId, b]));
   const attempted: string[] = [];
@@ -313,7 +321,7 @@ async function produce(original: Uint8Array, reading: PdfReading, values: FormVa
     if (!dr.has(PDFName.of("Font"))) dr.set(PDFName.of("Font"), fonts);
     fonts.set(PDFName.of(ctx.font.name), ctx.font.ref);
   }
-  const bytes = await doc.save({ updateFieldAppearances: false });
+  const bytes = protection ? await saveProtected(doc, protection) : await doc.save({ updateFieldAppearances: false });
   return { bytes, attempted, refused };
 }
 
@@ -321,17 +329,22 @@ async function produce(original: Uint8Array, reading: PdfReading, values: FormVa
  * Writes `values` into a copy of `original` and confirms each one by parsing the new bytes afresh. Returns the new
  * bytes (the original is untouched), `written` for fields the new file holds with a visible appearance, `failed` for
  * everything else. A field that failed is left as the original had it.
+ *
+ * A protected original gives a copy protected the same way (protect.ts). When that cannot be done and confirmed, this
+ * rejects with a ProtectionError and gives no bytes at all, rather than an unprotected copy.
  */
 export async function fillPdf(original: Uint8Array, reading: PdfReading, values: FormValues, font: FontSource): Promise<{ bytes: Uint8Array; written: string[]; failed: string[] }> {
   let cached: Promise<Uint8Array> | null = null;
   const fontBytes = () => (cached ??= typeof font === "function" ? font() : Promise.resolve(font));
   const byId = new Map(reading.bindings.map((b) => [b.fieldId, b]));
+  const protection = protectionOf(await PDFDocument.load(original, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false }));
+  if (protection && (protection.filter !== "Standard" || !fillAllowed(protection))) throw new ProtectionError("its permissions do not allow filling in forms");
   let todo: FormValues = { ...values };
   const failed = new Set<string>();
   for (let pass = 0; pass < 2; pass++) {
-    const { bytes, attempted, refused } = await produce(original, reading, todo, fontBytes);
+    const { bytes, attempted, refused } = await produce(original, reading, todo, fontBytes, protection);
     refused.forEach((id) => failed.add(id));
-    const check = await PDFDocument.load(bytes, { updateMetadata: false, throwOnInvalidObject: false });
+    const check = await open(bytes);
     const unconfirmed: string[] = [];
     for (const id of attempted) {
       const b = byId.get(id) as PdfBinding;

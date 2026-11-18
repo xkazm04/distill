@@ -4,4 +4,5 @@
 export { PDF_URL, type Box, type DatePart, type PdfBinding, type PdfJs, type PdfJsDocument, type PdfProblem, type PdfProblemKind, type PdfReading } from "./types.js";
 export { readPdf, openWithPdfJs, PdfOpenError, PROBLEMS } from "./read.js";
 export { fillPdf, readPdfValues, parseDate, type FontSource } from "./fill.js";
+export { ProtectionError } from "./protect.js";
 export { cleanLabel, isCryptic, shortName } from "./labels.js";
