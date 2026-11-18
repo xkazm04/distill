@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Distill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Only what matters on the page: a clear reading view and an English step-by-step guide for forms. Your answers stay on your device.",
   "minimum_chrome_version": "138",
   "action": {
