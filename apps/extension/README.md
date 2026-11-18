@@ -26,7 +26,9 @@ for exactly what each version keeps and where.
    **Download the model**. Chrome decides whether a computer can run it (Chrome 138 or newer, a desktop computer with
    enough memory and free disk space; see [Chrome's built-in AI](https://developer.chrome.com/docs/ai/get-started)).
 
-This build never calls the cloud, so it needs no App Check and holds no credential: it is safe to share. If the model
+This build never calls the cloud, so it needs no App Check and holds no credential: it is safe to share. The guide library
+(checked guides for official forms, [guides/README.md](../../guides/README.md)) is inside the build, so finding the guide
+for a form needs no network either. If the model
 is not ready, every AI feature says so plainly and Distill shows what it can without AI.
 
 ### Making the zip (maintainers)

@@ -21,7 +21,7 @@ cognitive load.
 | Feature | What you get | Where the AI runs |
 | --- | --- | --- |
 | **Distill** | the page reduced to its content, at your reading level, one switch back to the original | on device; long documents in the cloud |
-| **Wayfill** | a form in any language becomes an English wizard, one question at a time, and your answers are written back into the original fields in the format they expect | the wizard is built from the form's structure (device or cloud); your values stay on the device, always |
+| **Wayfill** | a form in any language becomes an English wizard, one question at a time, and your answers are written back into the original fields in the format they expect | for a form in the [guide library](guides/README.md), steps a person checked against the official instructions (no AI); otherwise the wizard is built from the form's structure (device or cloud); your values stay on the device, always |
 | **Recast** | the page redrawn as the layout its content wants (comparison, checklist, steps, timeline, key facts) from a closed set of safe components | on device; large pages in the cloud |
 | **Handrail** | your own agent (Claude Code, Antigravity CLI) can read the page and propose answers; nothing is written until you accept | the agent's own; Distill shares only what the page shows |
 | **Envelope** (Android) | photograph or share a letter or paper form: what it says, the deadline, what to do, a reply wizard | on device first, cloud fallback |
