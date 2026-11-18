@@ -66,7 +66,10 @@ export function printedText(b: PdfBinding, value: string): string {
     if (!value.trim()) return "";
     const d = parseDay(value);
     if (!d) throw new PrintError(REASONS.date);
-    return p.kind === "date" ? `${pad2(d.day)}${pad2(d.month)}${d.year}` : `${pad2(d.day)}.${pad2(d.month)}.${d.year}`;
+    if (p.kind === "date") return `${pad2(d.day)}${pad2(d.month)}${d.year}`;
+    // A date the person wrote as day, month and year is drawn as they wrote it; one from a date picker (YYYY-MM-DD)
+    // is drawn the way the form's country writes dates.
+    return /^\s*\d{4}-/.test(value) ? `${pad2(d.day)}.${pad2(d.month)}.${d.year}` : collapse(value);
   }
   if (p.kind === "cells") return cellChars(value, p.areas.length).join("");
   return collapse(value);

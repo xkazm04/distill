@@ -187,6 +187,15 @@ How a run is judged, where it differs from fillable PDFs:
    when it rises. A field Distill named by its position ("the line under ...") is not a right label and not a
    confidently wrong one; it is counted apart.
 
-The four fixtures `tisk-*` were written alongside the rules, so their numbers measure the rules against what they were
-written for, not against unseen forms. What they model, and what Distill does with real corridor forms, is in the
-section's details (`npm run bench:forms -w @distill/pdf`) and in the commit that added each rule.
+The four fixtures `tisk-osvc-boxy`, `tisk-podtrzeni`, `tisk-zmena-pobytu` and `tisk-znaky` were written alongside the
+rules, so their numbers measure the rules against what they were written for, not against unseen forms.
+
+**Held out.** `tisk-potvrzeni-heldout` was written after the print-only rules were final and scored once, untuned:
+recall 14/14, precision 14/18, labels 14/14, shape 11/14, fill 11/13, **2 false claims of 13**, 0 confidently wrong
+labels. Three general fixes followed, with its expectations unchanged: a line under a labelled line is joined to it
+only once labels above are known (the split second and third lines of an address and a purpose); a leader whose ends
+are estimated (pdf.js gave it in one text item with words) is written well inside them (an answer began 2pt before
+its dots); and a date the person wrote as day, month and year is drawn as they wrote it (a date from a date picker is
+still drawn as DD.MM.YYYY; `tisk-podtrzeni`, written alongside the rules, expected the other convention and was
+changed to this one). After them: precision 14/15 (the office's "Číslo jednací" box is still offered), shape 13/14
+("Datum narození" on a dotted line is read as a date), fill 13/13, no false claim. It is no longer a held-out number.

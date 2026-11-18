@@ -50,6 +50,8 @@ function positions(it: Run): (i: number) => number {
 export interface Piece {
   kind: "words" | "leader" | "glyph";
   run: Run;
+  /** True when the piece is the whole text item, so its position is pdf.js's own, not an estimate. */
+  exact?: boolean;
 }
 
 /**
@@ -81,7 +83,8 @@ export function cutItem(it: Run): Piece[] {
   for (const m of marks) {
     if (m.s < from) continue;
     words(from, m.s);
-    out.push({ kind: m.kind, run: { ...it, text: chars.slice(m.s, m.e).join(""), x0: at(m.s), x1: at(m.e) } });
+    const whole = m.s === 0 && m.e === chars.length;
+    out.push({ kind: m.kind, run: { ...it, text: chars.slice(m.s, m.e).join(""), x0: at(m.s), x1: at(m.e) }, ...(whole ? { exact: true } : {}) });
     from = m.e;
   }
   words(from, chars.length);
@@ -309,6 +312,8 @@ export function readPrinted(items: Run[], drawing: PageDrawing[], pages: { width
   const pieces = items.flatMap(cutItem);
   const words = pieces.filter((p) => p.kind === "words").map((p) => p.run);
   const leaders = pieces.filter((p) => p.kind === "leader").map((p) => p.run);
+  /** Leaders whose ends are estimated (pdf.js gave them in one item with words): written a little inside them. */
+  const estimated = new Set(pieces.filter((p) => p.kind === "leader" && !p.exact).map((p) => p.run));
   const glyphs = pieces.filter((p) => p.kind === "glyph").map((p) => p.run);
   // Boxes from the ruled lines, read first: a printed line of labels over a row of boxes is cut where a box starts, so
   // "ID Datové schránky  E-mail" over two boxes are two labels.
@@ -390,17 +395,20 @@ export function readPrinted(items: Run[], drawing: PageDrawing[], pages: { width
   // Leaders printed as text: underscores and dots. Neighbours on one line with only spaces between are one leader.
   const lead = [...leaders].filter((l) => upright(l.page)).sort((a, b) => a.page - b.page || a.x0 - b.x0);
   const joined: Run[] = [];
+  const fuzzy = new Set<Run>();
   for (const l of lead) {
     const prev = joined.find((j) => j.page === l.page && Math.abs(j.y - l.y) <= 0.35 * l.size && l.x0 - j.x1 >= -1 && l.x0 - j.x1 <= 0.8 * l.size &&
       !runs.some((r) => r.page === l.page && Math.abs(r.y - l.y) <= 0.35 * l.size && r.x0 >= j.x1 - 0.5 && r.x1 <= l.x0 + 0.5));
-    if (prev) prev.x1 = Math.max(prev.x1, l.x1);
-    else joined.push({ ...l });
+    if (prev) { prev.x1 = Math.max(prev.x1, l.x1); if (estimated.has(l)) fuzzy.add(prev); }
+    else { const j = { ...l }; joined.push(j); if (estimated.has(l)) fuzzy.add(j); }
   }
   joined.sort((a, b) => a.page - b.page || b.y - a.y || a.x0 - b.x0);
   const allH = drawing.flatMap((d) => d.h);
   const leaderSpots: Spot[] = [];
   for (const l of joined) {
-    const x1 = l.x0 + 0.5, x2 = l.x1 - 0.5;
+    // A leader printed in one text item with its label has estimated ends: keep the answer well inside them.
+    const inset = fuzzy.has(l) ? Math.max(1, 0.5 * l.size) : 0.5;
+    const x1 = l.x0 + inset, x2 = l.x1 - inset;
     if (x2 - x1 < 12) continue;
     const base = l.y + 0.12 * l.size;
     // Printed ink, other lines, and the leader above (its dots sit on its own baseline) bound the room for writing.
@@ -567,21 +575,6 @@ export function readPrinted(items: Run[], drawing: PageDrawing[], pages: { width
     claim(sp, [...up, ...onLine, ...down]);
   }
 
-  // 4. A line with no label of its own right under a labelled line, starting at or left of it and ending where it
-  //    ends: the answer continues there ("Adresa ______" and a whole line under it).
-  for (const sp of live()) {
-    if (sp.label || sp.kind !== "line" || sp.from === "box") continue;
-    const upper = live().filter((o) => o !== sp && o.label && o.kind === "line" && o.from !== "box" && o.page === sp.page &&
-      Math.abs(o.frame.x2 - sp.frame.x2) <= 20 && sp.frame.x1 <= o.frame.x1 + 4 && (o.areas[o.areas.length - 1] as Rect).y1 - sp.frame.y1 > 0 &&
-      (o.areas[o.areas.length - 1] as Rect).y1 - sp.frame.y1 <= 2.6 * (o.size ?? 10) + 4)
-      .sort((a, b) => a.frame.y1 - b.frame.y1)[0];
-    if (upper && !runs.some((r) => free(r) && onRow(r, sp.frame, 1) && r.x1 <= sp.frame.x1 + 2 && sp.frame.x1 - r.x1 <= 200)) {
-      upper.areas.push(...sp.areas);
-      upper.baselines = [...(upper.baselines ?? []), ...(sp.baselines ?? [])];
-      sp.drop = "continues the line above";
-    }
-  }
-
   // 5. Boxes in a table column: an empty box under a header box of the same width takes the header's text.
   for (const sp of live()) {
     if (sp.label || sp.from !== "box") continue;
@@ -639,6 +632,21 @@ export function readPrinted(items: Run[], drawing: PageDrawing[], pages: { width
       cur = next;
     }
     claim(sp, lines.sort((a, b) => b.y - a.y || a.x0 - b.x0));
+  }
+
+  // 4. (Once the labels above and below are known.) A line with no label of its own right under a labelled line, starting at or left of it and ending where it
+  //    ends: the answer continues there ("Adresa ______" and a whole line under it).
+  for (const sp of live()) {
+    if (sp.label || sp.kind !== "line" || sp.from === "box") continue;
+    const upper = live().filter((o) => o !== sp && o.label && o.kind === "line" && o.from !== "box" && o.page === sp.page &&
+      Math.abs(o.frame.x2 - sp.frame.x2) <= 20 && sp.frame.x1 <= o.frame.x1 + 4 && (o.areas[o.areas.length - 1] as Rect).y1 - sp.frame.y1 > 0 &&
+      (o.areas[o.areas.length - 1] as Rect).y1 - sp.frame.y1 <= 2.6 * (o.size ?? 10) + 4)
+      .sort((a, b) => a.frame.y1 - b.frame.y1)[0];
+    if (upper && !runs.some((r) => free(r) && onRow(r, sp.frame, 1) && r.x1 <= sp.frame.x1 + 2 && sp.frame.x1 - r.x1 <= 200)) {
+      upper.areas.push(...sp.areas);
+      upper.baselines = [...(upper.baselines ?? []), ...(sp.baselines ?? [])];
+      sp.drop = "continues the line above";
+    }
   }
 
   // Text inside a box whose label is printed outside it is someone's answer.

@@ -62,7 +62,7 @@
     { "key": "ostatni", "kind": "text", "label": "Ostatní jména / Other names", "at": [400, 599], "value": "Anna Marie",
       "probes": [{ "text": "Anna Marie", "within": [170, 590, 545, 608] }] },
     { "key": "narozeni", "kind": "date", "label": "Datum narození / Date of birth", "at": [255, 564], "value": "5. 3. 1990",
-      "probes": [{ "text": "05.03.1990", "within": [210, 555, 300, 573] }] },
+      "probes": [{ "text": "5. 3. 1990", "within": [210, 555, 300, 573] }] },
     { "key": "misto", "kind": "text", "label": "Místo a datum", "at": [140, 484], "value": "Brno, 12. 11. 2026",
       "probes": [{ "text": "Brno, 12. 11. 2026", "within": [40, 479, 240, 496] }] }
   ]
