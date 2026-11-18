@@ -142,8 +142,11 @@ What the probes do not see: whether drawn text fits inside its box. A line clipp
 right glyphs. The fill code sizes text to its box, and the end-to-end check (Chromium's own PDF viewer) is where
 clipping was found and fixed; the benchmark does not measure it.
 
-**Held-out fixture.** `ohlaseni-zivnosti` was written after the labelling rules were final and scored once; the rules
-are not changed to fit it, so its misses stay in the baseline. `vyzivovane-deti` was written as a hard case before the
-last round of rule changes and scored 5 of 12 labels first; the general rules added after it (the nearer side for a
-tick box, labels that wrap, labels under a signature line, table column headers) bring it to 12 of 12, so it is no
-longer a held-out number. The other four fixtures were written alongside the rules.
+**Held-out fixtures.** `ohlaseni-zivnosti` was written after the labelling rules were final and scored 2 of 6 labels
+once. Its worst miss was a confident wrong label (a label printed inside the left of its own box got the previous
+row's label), so the general rules added after it (a label inside the box's left, a label before the underscores a box
+covers, text that is another field's label is never taken from above, "undefined" names are a tool's, a radio
+question past its options' own labels, a column header on separate lines) bring it to 6 of 6, with its expectations
+unchanged; it is no longer a held-out number. `vyzivovane-deti` went the same way earlier (5 of 12, then 12 of 12).
+The held-out number now is the fixture written after these rules and scored once, untuned (see the table in its
+`models`). The other fixtures were written alongside the rules.
