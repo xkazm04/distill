@@ -241,3 +241,53 @@ test("locate: pointing at a block outlines its source in the tab", async ({ dist
   await expect(tab.page.locator("[data-distill-locate]")).toHaveCount(1);
   await expect(tab.page.locator("[data-distill-locate]")).toContainText("The city council voted 9 to 4");
 });
+
+test("page errors: an answer the page rejects shows its error on its step, and never in the page view", async ({ distill }) => {
+  const tab = await distill.openTab("form");
+  // The page checks its own answers on submit, as a portal's script does: it marks the field and shows a short message.
+  await tab.page.evaluate(() => {
+    const form = document.querySelector("form") as HTMLFormElement;
+    form.noValidate = true;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const jmeno = document.getElementById("jmeno") as HTMLInputElement;
+      document.getElementById("jmeno-err")?.remove();
+      if (!/\d/.test(jmeno.value)) return;
+      jmeno.setAttribute("aria-invalid", "true");
+      jmeno.setAttribute("aria-describedby", "jmeno-err");
+      jmeno.insertAdjacentHTML("afterend", `<span id="jmeno-err" class="error">Jméno „${jmeno.value}“ nesmí obsahovat číslice</span>`);
+    });
+  });
+  const panel = await distill.openPanel(tab.id);
+  await pick(panel, /^Fill a form/);
+  await step(panel).locator("input").first().fill("Jana2");
+  await step(panel).getByRole("button", { name: "Next" }).click();
+  await expect(tab.page.locator("#jmeno")).toHaveValue("Jana2");
+  await expect(step(panel).locator("label").first()).toContainText("Příjmení");
+
+  // The person sends the form in the tab; the page rejects the name.
+  await tab.page.getByRole("button", { name: "Odeslat žádost" }).click();
+  await expect(tab.page.locator("#jmeno-err")).toBeVisible();
+
+  // The guide noticed: the name's step shows the form's own words, and, with no model on this device, says why there
+  // is no explanation instead of sending it anywhere.
+  await step(panel).getByRole("button", { name: "Back" }).click();
+  const err = panel.getByTestId("field-error");
+  await expect(err).toHaveAttribute("data-field", "jmeno");
+  await expect(err.getByTestId("error-original")).toHaveText("Jméno „Jana2“ nesmí obsahovat číslice");
+  await expect(err.getByTestId("error-original")).toHaveAttribute("lang", "cs");
+  await expect(err.getByTestId("error-note")).toContainText("model on this device");
+  await expect(panel.getByTestId("source-chip")).toHaveCount(0);
+
+  // The message repeats what was typed, so the page view (cloud-eligible) never carries it.
+  await pick(panel, /^Read/);
+  await expect(panel.locator("article.reading")).toContainText("Jméno");
+  await expect(panel.locator("article.reading")).not.toContainText("nesmí obsahovat číslice");
+
+  // Fixed on the page: the next reading clears it.
+  await pick(panel, /^Fill a form/);
+  await tab.page.locator("#jmeno").fill("Jana");
+  await tab.page.getByRole("button", { name: "Odeslat žádost" }).click();
+  await expect(tab.page.locator("#jmeno-err")).toHaveCount(0);
+  await expect(panel.getByTestId("field-error")).toHaveCount(0);
+});
