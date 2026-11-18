@@ -60,8 +60,11 @@ class FakePort implements HandrailPort {
 
 let root: Root | null = null;
 let el: HTMLElement;
-afterEach(() => {
-  act(() => root?.unmount());
+// The work queue is one shared object, so a panel left mounted by an earlier test would answer for this one: its late
+// unmount said "disconnected" mid-test and ended this test's task as "gone" (flaky about 1 run in 3). Unmount with an
+// async act (every cleanup has run before the next test starts), and never leave a second panel behind.
+afterEach(async () => {
+  await act(async () => root?.unmount());
   root = null;
   el?.remove();
   agentQueue.failAll("cancelled");
@@ -79,6 +82,7 @@ async function settle(until: () => boolean, ms = 4000) {
 async function mount(initialTab: Tab, { agent = false, host = new FakeHost() } = {}) {
   const port = new FakePort();
   if (agent) agentQueue.setProvider("agent");
+  if (root) { await act(async () => root?.unmount()); el?.remove(); }
   el = document.createElement("div");
   document.body.append(el);
   root = createRoot(el);
