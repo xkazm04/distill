@@ -125,6 +125,33 @@
       ]
     },
     {
+      "name": "form-guides",
+      "group": "Distill Engine",
+      "category": "lib",
+      "description": "The guide library: wizards for official forms checked by a person against the official instructions, as JSON in guides/ (reviewed only through a commit). parseGuide is the door at load time and in check-guides; matchGuide matches on the device (web forms by address, PDFs by title; exact, or drift field by field from 0.5 overlap); the web app fetches guides/library.json from its own origin, the extension bundles it. guide:new writes a skeleton from a real form, guides:drift re-reads the official forms.",
+      "file_paths": [
+        "guides/README.md",
+        "guides/cz/demo-form.json",
+        "packages/engine/src/guides.ts",
+        "packages/engine/schemas/guide.json",
+        "packages/engine/test/guides.test.ts",
+        "scripts/check-guides.mjs",
+        "scripts/guides/library.mjs",
+        "scripts/guides/library.d.mts",
+        "scripts/guides/read-form.mjs",
+        "scripts/guides/new.mjs",
+        "scripts/guides/drift.mjs",
+        "apps/web/src/ui/guides.ts",
+        "apps/web/src/ui/guides.test.tsx",
+        "apps/extension/src/sidepanel/guides.test.ts",
+        "apps/extension/src/sidepanel/virtual-guides.d.ts"
+      ],
+      "entry_points": [
+        "packages/engine/src/guides.ts",
+        "scripts/guides/library.mjs"
+      ]
+    },
+    {
       "name": "workspace-ui",
       "group": "Web App",
       "category": "ui",
