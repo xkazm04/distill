@@ -122,3 +122,43 @@ describe("labels on forms a tool made fillable", () => {
     expect(got).toEqual({ undefined_4: "Doba trvání (na dobu určitou do)" });
   });
 });
+
+describe("labels on the corridor's real forms (their patterns, rebuilt)", () => {
+  const labels = async (text: Layout["pages"][number]["text"], fields: Layout["pages"][number]["fields"]) => {
+    const r = await readPdf(await buildPdf({ pages: [{ text, fields }] }), { pdfjs: PDFJS });
+    return Object.fromEntries(r.bindings.map((b) => [b.names[0], r.structure!.fields.find((f) => f.fieldId === b.fieldId)!.label]));
+  };
+
+  it("a tooltip the tool cut short ('Jméno (First name') gives way to the printed label it starts", async () => {
+    const got = await labels([{ at: [31, 391], size: 9, text: "Jméno (First name)" }],
+      [{ type: "text", name: "Jméno (First name)", tooltip: "Jméno (First name", rect: [30, 367, 263, 20] }]);
+    expect(got).toEqual({ "Jméno (First name)": "Jméno (First name)" });
+  });
+
+  it("a printed prefix left of a box ('+ 420') is not its label; the label before it is", async () => {
+    const got = await labels([{ at: [320, 92], size: 11, text: "TELEFON (TEL.)" }, { at: [425, 92], size: 12, text: "+ 420" }],
+      [{ type: "text", name: "Text9", tooltip: "420", rect: [461, 87, 110, 19] }]);
+    expect(got).toEqual({ Text9: "TELEFON (TEL.)" });
+  });
+
+  it("a radio group under two labels, one of them another box's, takes the free one nearer to it", async () => {
+    const r = await readPdf(await buildPdf({ pages: [{
+      text: [{ at: [31, 311], size: 9, text: "Státní občanství (Citizenship)" }, { at: [306, 311], size: 9, text: "Pohlaví (Sex)" },
+        { at: [315, 291], size: 9, text: "MUŽ / MALE" }, { at: [419, 291], size: 9, text: "ŽENA / FEMALE" }],
+      fields: [{ type: "text", name: "Text1", rect: [30, 287, 224, 20] },
+        { type: "radio", name: "Group1", options: [{ value: "Choice1", rect: [379, 286, 18, 18] }, { value: "Choice2", rect: [503, 285, 18, 18] }] }],
+    }] }), { pdfjs: PDFJS });
+    expect(r.structure?.fields.map((f) => f.label)).toEqual(["Státní občanství (Citizenship)", "Pohlaví (Sex)"]);
+  });
+
+  it("the wrapped text of another group's option is never a group's label: it keeps its own name", async () => {
+    const r = await readPdf(await buildPdf({ pages: [{
+      text: [{ at: [60, 300], text: "Měním zaměstnavatele" }, { at: [60, 270], text: "Přecházím na duální kartu, protože nemám volný přístup" },
+        { at: [60, 258], text: "na trh práce ani nemohu získat povolení k zaměstnání)" },
+        { at: [80, 230], text: "Měním zaměstnavatele" }, { at: [80, 210], text: "Zůstávám u současného zaměstnavatele" }],
+      fields: [{ type: "radio", name: "Group1", options: [{ value: "Choice1", rect: [40, 298, 12, 12] }, { value: "Choice2", rect: [40, 268, 12, 12] }] },
+        { type: "radio", name: "Group2", options: [{ value: "Choice1", rect: [60, 228, 12, 12] }, { value: "Choice2", rect: [60, 208, 12, 12] }] }],
+    }] }), { pdfjs: PDFJS });
+    expect(r.structure?.fields.find((f) => f.fieldId === "Group2")?.label).toBe("Group2");
+  });
+});

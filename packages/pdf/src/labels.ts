@@ -70,7 +70,9 @@ const sameLine = (r: Run, b: Box): boolean => {
 interface Geo {
   runs: Run[];
   /** Every visible widget of every fillable field, with the field it belongs to. */
-  widgets: { box: Box; name: string }[];
+  widgets: { box: Box; name: string; tick: boolean }[];
+  /** Lazily: the printed text of each tick box and radio option (with the lines it wraps onto), and whose it is. */
+  tickText?: Map<Run, Set<string>>;
 }
 
 /** True when some other widget sits between x0 and x1 on the line of `b`. */
@@ -88,14 +90,14 @@ function widgetBetweenY(g: Geo, b: Box, y0: number, y1: number, self: string): b
 const FILLER = /[_.…]{3,}/gu;
 const hasWords = (s: string): boolean => /[\p{L}\p{N}]/u.test(s.replace(FILLER, ""));
 
-/** The runs printed left of the box, on its line, with no other field between, nearest first. Runs that are only
- *  underscores or dots are not labels. */
+/** The runs printed left of the box, on its line, with no other field between, nearest first. Runs with no letter
+ *  (underscores, dots, a printed prefix such as "+ 420") are not labels. */
 function leftRuns(g: Geo, b: Box, self: string, maxGap = 320): { run: Run; gap: number }[] {
   const out: { run: Run; gap: number }[] = [];
   for (const r of g.runs) {
     if (r.page !== b.page || r.x1 > b.x1 + 2 || !sameLine(r, b)) continue;
     const gap = b.x1 - r.x1;
-    if (gap > maxGap || ENUMERATOR.test(r.text) || !hasWords(r.text)) continue;
+    if (gap > maxGap || ENUMERATOR.test(r.text) || !/\p{L}/u.test(r.text.replace(FILLER, ""))) continue; // "+ 420", "____": not a label
     if (widgetBetweenX(g, b, r.x1, b.x1, self)) continue;
     out.push({ run: r, gap });
   }
@@ -145,12 +147,48 @@ function insideLeftOf(g: Geo, b: Box): Run | null {
 }
 
 /**
- * True when the run is already the label of another field on its own line: printed just left of that field's box,
- * or running into it. Such a run is not the label of a box below it; taking it would ask the other field's question.
+ * The text printed right of each tick box and radio option, with the lines it wraps onto (runs below it that start
+ * where it starts, closely spaced, until a line that has a box of its own), mapped to the fields it belongs to.
+ */
+function tickTexts(g: Geo): Map<Run, Set<string>> {
+  if (g.tickText) return g.tickText;
+  const out = new Map<Run, Set<string>>();
+  const add = (r: Run, name: string) => (out.get(r) ?? out.set(r, new Set()).get(r) as Set<string>).add(name);
+  const startsOwnLine = (r: Run): boolean => g.widgets.some((w) => w.tick && w.box.page === r.page && sameLine(r, w.box) && w.box.x2 <= r.x0 + 2 && r.x0 - w.box.x2 <= 60);
+  for (const w of g.widgets) {
+    if (!w.tick) continue;
+    const first = rightOf(g, w.box, w.name);
+    if (!first) continue;
+    add(first, w.name);
+    let cur = first;
+    for (let k = 0; k < 6; k++) {
+      const next = g.runs.find((r) => r !== cur && r.page === cur.page && Math.abs(r.x0 - first.x0) <= 3 && cur.y - r.y > 0.5 * cur.size &&
+        cur.y - r.y <= 1.5 * cur.size && !startsOwnLine(r));
+      if (!next) break;
+      add(next, w.name);
+      cur = next;
+    }
+  }
+  g.tickText = out;
+  return out;
+}
+
+/**
+ * True when the run is already the label of another field: the text of another tick box or radio option, or
+ * printed on that field's line just left of its box or
+ * running into it, or printed tightly above its box and aligned with its left edge (a box-style form). Such a run is
+ * not the label of another box near it; taking it would ask the other field's question.
  */
 function ownedByOther(g: Geo, r: Run, self: string): boolean {
-  return g.widgets.some((w) => w.name !== self && w.box.page === r.page && sameLine(r, w.box) && r.x0 < w.box.x1 + 2 &&
-    (r.x1 > w.box.x1 - 2 || w.box.x1 - r.x1 <= 24) && !widgetBetweenX(g, w.box, r.x1, w.box.x1, w.name));
+  const ticks = tickTexts(g).get(r);
+  if (ticks && [...ticks].some((n) => n !== self)) return true;
+  return g.widgets.some((w) => {
+    if (w.name === self || w.box.page !== r.page) return false;
+    const b = w.box;
+    if (sameLine(r, b) && r.x0 < b.x1 + 2 && (r.x1 > b.x1 - 2 || b.x1 - r.x1 <= 24) && !widgetBetweenX(g, b, r.x1, b.x1, w.name)) return true;
+    const gap = bottom(r) - b.y2;
+    return Math.abs(r.x0 - b.x1) <= 10 && r.x0 < b.x2 && gap >= -0.6 * r.size && gap <= 0.8 * r.size + 3;
+  });
 }
 
 /** The run printed just right of the box, close to it, with no other field between. */
@@ -274,11 +312,28 @@ function finish(raw: string, f: RawField, from: Source, extraRequired = false): 
 /** The field's own name as a last resort: a readable name as it is, a cryptic one only because nothing else names it. */
 const byName = (f: RawField): Labelled => finish(isCryptic(f.name) ? f.name : shortName(f.name).replace(/[_]+/g, " "), f, "name");
 
+/** A tooltip the form tool cut short: a "(" that is never closed ("Jméno (First name"). */
+const cutShort = (t: string): boolean => (t.match(/\(/g)?.length ?? 0) > (t.match(/\)/g)?.length ?? 0);
+
 /** The label of a text or choice field (one box). */
 function boxLabel(g: Geo, f: RawField, b: Box): Labelled {
   const tip = usableTooltip(f);
-  if (tip && tip.length <= 80) return finish(tip, f, "tooltip");
+  if (tip && tip.length <= 80) {
+    // A tooltip cut short gives way to the printed label it is the start of.
+    if (cutShort(tip)) {
+      const printed = printedLabel(g, f, b);
+      if (printed.from !== "name" && cleanLabel(printed.raw).startsWith(cleanLabel(tip))) return finish(printed.raw, f, printed.from);
+    }
+    return finish(tip, f, "tooltip");
+  }
   const hint = tip ? { hint: tip } : {};
+  const { raw, from } = printedLabel(g, f, b);
+  if (cleanLabel(raw)) return { ...finish(raw, f, from), ...hint };
+  return { ...byName(f), ...hint };
+}
+
+/** The label printed around a box, and where it was found ("name" and "" when none). */
+function printedLabel(g: Geo, f: RawField, b: Box): { raw: string; from: Source } {
   const left = leftOf(g, b, f.name);
   const above = aboveOf(g, b, f.name);
   const caption = captionIn(g, b);
@@ -303,8 +358,7 @@ function boxLabel(g: Geo, f: RawField, b: Box): Labelled {
     const below = belowOf(g, b, f.name);
     if (below) { raw = below.text; from = "below"; }
   }
-  if (cleanLabel(raw)) return { ...finish(raw, f, from), ...hint };
-  return { ...byName(f), ...hint };
+  return cleanLabel(raw) ? { raw, from } : { raw: "", from: "name" };
 }
 
 /** The label of a tick box: tooltip, then the text on its right (how tick boxes are printed), then left, then above. */
@@ -355,7 +409,7 @@ function groupLabel(g: Geo, f: RawField, options: FieldOption[]): Labelled {
   const topW = Math.max(...f.widgets.map((w) => w.box.y2));
   const over = g.runs.filter((r) => r.page === b.page && bottom(r) >= topW - 1 && bottom(r) - topW <= 2 * r.size && r.x0 <= b.x1 + 4 &&
     !optionTexts.has(cleanLabel(r.text)) && !ownedByOther(g, r, f.name))
-    .sort((p, q) => bottom(p) - bottom(q))[0];
+    .sort((p, q) => bottom(p) - bottom(q) || q.x0 - p.x0)[0]; // the lowest; of two on one line, the nearer one
   if (over) return finish(over.text, f, "above");
   return byName(f);
 }
@@ -475,7 +529,7 @@ function byReading(a: Box, b: Box): number {
  * tooltips and printed text, options from the form's own lists; a value the file holds is never read here.
  */
 export function buildFields(fields: RawField[], runs: Run[], title: string): { fields: FieldStructure[]; bindings: PdfBinding[] } {
-  const g: Geo = { runs, widgets: fields.flatMap((f) => f.widgets.map((w) => ({ box: w.box, name: f.name }))) };
+  const g: Geo = { runs, widgets: fields.flatMap((f) => f.widgets.map((w) => ({ box: w.box, name: f.name, tick: f.type === "checkbox" || f.type === "radio" }))) };
   const body = bodySize(runs);
   const grouped = groups(g, fields);
   const groupOf = new Map<RawField, Group>();
