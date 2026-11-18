@@ -130,7 +130,7 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
   const names = p.fieldIds.map((id) => `"${labelOf(id)}"`).join(", ");
   return p.unreachable
     ? `The original page could not be reached, so ${names} ${one ? "was" : "were"} not filled in. Please type ${one ? "it" : "them"} in the original form yourself.`
-    : `Could not fill in ${names} on the original form. Please type ${one ? "it" : "them"} there yourself.`;
+    : `Could not fill in ${names} on the original form: the page did not take ${one ? "the answer" : "these answers"}, or Distill could not confirm it did. Please fill ${one ? "it" : "them"} in there yourself.`;
 }
 
 /** Why there is no guide: the page has no fillable field, or the page could not be read at all. */
@@ -582,6 +582,9 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
   const fmt = format ? <span id={`${id}-fmt`} className="visually-hidden">Format {format}</span> : null;
   switch (f.kind) {
     case "select":
+      // A custom dropdown whose list the page has not shown yet has no options to offer: the answer is typed, and
+      // Distill chooses the matching option in the page (or says it could not).
+      if (!f.options?.length) break;
       return (
         <>
           <select {...common} value={value} onChange={(e) => onChange(e.target.value)}>

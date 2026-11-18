@@ -100,7 +100,9 @@ describe("Wayfill", () => {
     await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={onShowOriginal} />);
     expect(q("wf-step")?.textContent).toContain("What is Jméno?");
     await click(button("Next"));
-    expect(q("write-problem")?.textContent).toContain('Could not fill in "Jméno" on the original form.');
+    expect(q("write-problem")?.textContent).toContain(
+      'Could not fill in "Jméno" on the original form: the page did not take the answer, or Distill could not confirm it did. Please fill it in there yourself.',
+    );
     expect(q("wf-step")?.textContent).toContain("What is Jméno?"); // did not advance
     await click(button("Show original form"));
     expect(onShowOriginal).toHaveBeenCalled();
@@ -141,8 +143,18 @@ describe("Wayfill", () => {
 
   it("writeProblemText names several fields", () => {
     expect(writeProblemText({ fieldIds: ["a", "b"], unreachable: false }, (id) => id.toUpperCase())).toBe(
-      'Could not fill in "A", "B" on the original form. Please type them there yourself.',
+      'Could not fill in "A", "B" on the original form: the page did not take these answers, or Distill could not confirm it did. Please fill them in there yourself.',
     );
+  });
+
+  it("a choice field whose options the page has not shown yet is answered by typing, not an empty dropdown", async () => {
+    const s = form([{ fieldId: "kraj", kind: "select", label: "Kraj", required: false }]);
+    runMock.mockResolvedValue(wizardFor(s));
+    const host = fakeHost(s, async (v) => ({ written: Object.keys(v), failed: [] }));
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    const input = el.querySelector("#wf-kraj");
+    expect(input?.tagName).toBe("INPUT");
+    expect(input?.getAttribute("type")).toBe("text");
   });
 });
 

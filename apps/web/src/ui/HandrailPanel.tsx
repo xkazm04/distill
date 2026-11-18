@@ -244,7 +244,7 @@ export function useHandrail(port: HandrailPort | null | undefined, host: PageHos
         const s = await readForm();
         if (s.fingerprint !== p.fingerprint) { setMessage(STALE_FOR_PERSON); return; } // written nothing; stays pending
         const r = await host.writeValues(s, { [p.fieldId]: p.value });
-        if (r.failed.length) throw new Error("The field could not be filled. Please type it in the original form.");
+        if (r.failed.length) throw new Error("The page did not take this answer, or Distill could not confirm it did. Please fill it in the original form yourself.");
         await host.highlight([p.fieldId], accentColor());
       } catch (e) {
         setMessage(e instanceof Error ? e.message : "Could not fill the field.");

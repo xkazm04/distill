@@ -26,7 +26,13 @@ class FakeHost implements PageHost {
   async getPage() { return PAGE; }
   async getForm() { return this.structure; }
   async readValues() { return {}; }
-  async writeValues(_s: FormStructure, v: FormValues) { this.writes.push(v); return { written: Object.keys(v), failed: [] }; }
+  /** Fields the page will not take (or Distill cannot confirm it did). */
+  refuses = new Set<string>();
+  async writeValues(_s: FormStructure, v: FormValues) {
+    this.writes.push(v);
+    const ids = Object.keys(v);
+    return { written: ids.filter((id) => !this.refuses.has(id)), failed: ids.filter((id) => this.refuses.has(id)) };
+  }
   async highlight() { /* nothing to outline */ }
   async showOriginal() { /* the original is elsewhere */ }
 }
@@ -158,5 +164,19 @@ describe("a proposal is bound to the form the agent read", () => {
     await settle(() => port.posts.some((p) => p.type === "proposal.verdict"));
     expect(host.writes).toEqual([{ name: "Jana" }]);
     expect(port.posts.find((p) => p.type === "proposal.verdict")?.payload).toEqual({ proposalId: "p1", verdict: "accepted" });
+  });
+
+  it("when the page does not take the answer, says so in plain words and keeps the proposal open", async () => {
+    const { host, port } = await mount("handrail");
+    host.refuses.add("name");
+    act(() => port.emit({ id: "c1", type: "proposal.create", payload: proposal() }));
+    await settle(() => !!q("proposal"));
+    await click([...el.querySelectorAll("button")].find((b) => b.textContent === "Accept"));
+    await settle(() => !!q("handrail-message"));
+    expect(q("handrail-message")?.textContent).toBe(
+      "The page did not take this answer, or Distill could not confirm it did. Please fill it in the original form yourself.",
+    );
+    expect(port.posts.some((p) => p.type === "proposal.verdict")).toBe(false);
+    expect(q("proposal")).not.toBeNull();
   });
 });
