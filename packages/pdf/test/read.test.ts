@@ -161,4 +161,12 @@ describe("labels on the corridor's real forms (their patterns, rebuilt)", () => 
     }] }), { pdfjs: PDFJS });
     expect(r.structure?.fields.find((f) => f.fieldId === "Group2")?.label).toBe("Group2");
   });
+
+  it("a date in three boxes takes the label tightly above it over a far-off text on its line (a form's catalogue number)", async () => {
+    const r = await readPdf(await buildPdf({ pages: [{
+      text: [{ at: [218, 74], size: 6, text: "Změna pojišťovny / údajů platná OD" }, { at: [71, 53], size: 8, text: "VZP 70.01/2018" }, { at: [244, 57], text: "." }, { at: [276, 57], text: "." }],
+      fields: [{ type: "text", name: "Text1", rect: [218, 53, 25, 19], maxLen: 2 }, { type: "text", name: "Text2", rect: [250, 53, 25, 19], maxLen: 2 }, { type: "text", name: "Text3", rect: [282, 53, 45, 19], maxLen: 4 }],
+    }] }), { pdfjs: PDFJS });
+    expect(r.structure?.fields).toMatchObject([{ kind: "date", label: "Změna pojišťovny / údajů platná OD" }]);
+  });
 });

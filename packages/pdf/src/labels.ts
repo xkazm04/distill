@@ -551,7 +551,11 @@ export function buildFields(fields: RawField[], runs: Run[], title: string): { f
         const left = leftOf(g, first, lead.name);
         const above = aboveOf(g, first, lead.name);
         const tipRest = collapse(lead.tooltip.replace(/[-–:,()]/g, " ").split(/\s+/).filter((w) => !onlyPartWords(w)).join(" "));
-        const raw = left && !onlyPartWords(left.run.text) ? left.run.text : above && !onlyPartWords(above.run.text) ? above.run.text : tipRest;
+        // As for one box: a label close on the left, else one tightly above and aligned, else further left, else above.
+        const l = left && !onlyPartWords(left.run.text) ? left : null;
+        const a = above && !onlyPartWords(above.run.text) ? above : null;
+        const tight = a && a.aligned && a.gap <= 0.8 * a.run.size + 3;
+        const raw = l && l.gap <= 24 ? l.run.text : tight ? a.run.text : l ? l.run.text : a ? a.run.text : tipRest;
         lab = raw ? finish(raw, lead, "left", gr.members.some((m) => m.required)) : byName(lead);
       } else {
         lab = boxLabel(g, { ...lead, tooltip: lead.tooltip }, first);
