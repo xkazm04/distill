@@ -4,7 +4,7 @@ import { meaningfulChange, snapshot, watchPage, WATCH_DELAY_MS } from "./pageWat
 const text = (n: number) => "word ".repeat(n / 5);
 
 describe("meaningfulChange", () => {
-  const base = { controls: "INPUT:text:name", textLength: 2000 };
+  const base = { controls: "INPUT:text:name", textLength: 2000, errors: "#0:0" };
   it("counts a form control that came or went", () => {
     expect(meaningfulChange(base, { ...base, controls: "INPUT:text:name|SELECT::city" })).toBe(true);
     expect(meaningfulChange(base, { ...base, controls: "" })).toBe(true);
@@ -13,6 +13,10 @@ describe("meaningfulChange", () => {
     expect(meaningfulChange(base, { ...base, textLength: 2050 })).toBe(false); // a clock or a counter ticking
     expect(meaningfulChange(base, { ...base, textLength: 2120 })).toBe(true);
     expect(meaningfulChange({ ...base, textLength: 100 }, { ...base, textLength: 150 })).toBe(false); // < 80 characters
+  });
+  it("counts any change in the form's errors, however short the message", () => {
+    expect(meaningfulChange(base, { ...base, errors: "INPUT:rc#1:34" })).toBe(true);
+    expect(meaningfulChange(base, { ...base, errors: "#1:12" })).toBe(true);
   });
   it("never reads a typed value", () => {
     document.body.innerHTML = `<main><p>Hello</p><input id="a" value="secret-typed"></main>`;
@@ -122,6 +126,40 @@ describe("watchPage", () => {
     await settle();
     expect(notify).toHaveBeenCalledTimes(2); // a field came inside the frame
     expect(JSON.stringify(snapshot(document))).toContain("holder");
+  });
+
+  it("tells when a failed submit marks a field invalid and shows a short message", async () => {
+    const form = document.querySelector("form")!;
+    form.insertAdjacentHTML("beforeend", `<span id="name-err" class="error" hidden></span>`);
+    await settle();
+    expect(notify).not.toHaveBeenCalled(); // an empty, hidden message slot is no error
+    const err = document.getElementById("name-err")!;
+    err.textContent = "Jméno je povinné"; // far below the text threshold
+    err.hidden = false;
+    document.getElementById("name")!.setAttribute("aria-invalid", "true");
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith("mutation");
+    expect(JSON.stringify(snapshot(document))).not.toContain("povinné"); // counts only, never the message
+  });
+
+  it("tells when only aria-invalid changes, or a class shows a message kept in the markup", async () => {
+    document.head.innerHTML = `<style>.msg { display: none } .msg.shown { display: block }</style>`;
+    document.querySelector("form")!.insertAdjacentHTML("beforeend", `<p class="msg invalid-feedback">Neplatné</p>`);
+    await settle();
+    notify.mockClear();
+    document.getElementById("name")!.setAttribute("aria-invalid", "true");
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(1);
+    document.querySelector(".msg")!.classList.add("shown");
+    await settle();
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells when the browser's own check rejects a field on submit, which changes no markup", async () => {
+    document.getElementById("name")!.dispatchEvent(new Event("invalid", { cancelable: true }));
+    await settle();
+    expect(notify).toHaveBeenCalledWith("mutation");
   });
 
   it("stops watching", async () => {
