@@ -20,6 +20,10 @@ English step-by-step wizard that fills the original form (Wayfill), a generated 
   `parseWizard`): closed vocabulary, no HTML, unknown kinds dropped AND counted on screen; nothing valid -> fall back to
   the focus view. Agent (Handrail) writes are proposals; nothing changes a field until the person accepts.
 - **The original page is never lost.** Distill overlays; one control always returns to the untouched original.
+- **Only a named person reviews a guide.** A guide (`guides/`) becomes `reviewed` only through a commit that names the
+  person who checked it against the official instructions (`reviewer`, `reviewedOn`; see `guides/README.md`). An AI
+  never marks a guide reviewed or sets those fields: what it writes is `draft`. Editing a reviewed guide's text (steps,
+  notes, fields) returns it to `draft` until a person checks it again.
 - **Secrets.** Firebase config comes from `.env` (see `.env.example`); `.env*`, keys, keystores and
   `google-services.json` are git-ignored. `npm run secret-scan` runs in `npm run check` and before every push.
 
