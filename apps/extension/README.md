@@ -129,8 +129,28 @@ leaks, delete it under **Manage debug tokens** and make a new one.
 
 ## Updating
 
-**Download**: unzip the new release over the same folder (or into a new one and Load unpacked again), then click the
-reload arrow on the Distill card in `chrome://extensions`. The extension id stays the same.
+**Download** (version 0.2.0 and later update from inside the panel):
+
+1. While the panel is open, Distill asks GitHub at most once a day which release is the newest (one request to
+   `api.github.com`, no cookies, nothing about you or the page). When there is a newer one, the panel says so. "Check
+   for a new version" at the bottom of the panel asks at once.
+2. **Get the update** downloads the release zip from GitHub and checks it: its size and checksum as GitHub lists them,
+   every file's checksum inside the zip, that it is a later version, and that its manifest has the same `key` as the
+   running extension (so it is the same extension, not another one). Chrome asks you to allow the download from
+   GitHub; that access is given back as soon as the download ends. Nothing is installed yet.
+3. **Choose Distill's folder and install**: the first time, choose the folder you loaded with "Load unpacked". Chrome
+   gives an extension no way to replace its own files, so you give Distill that one folder. Distill checks the folder
+   holds the running version, writes the new files (the manifest last), and restarts itself. Open the panel again from
+   the toolbar. From then on the step is one click (Chrome may ask to confirm writing to the folder).
+
+If any step fails, the panel shows how to do the same by hand: unzip the new release over the same folder, then
+**Restart Distill** in the panel (or the reload arrow on the Distill card in `chrome://extensions`). The extension id
+stays the same. Version 0.1.0 has no updater, so the step from 0.1.0 is by hand, once. A Chrome Web Store install is
+updated by Chrome and has none of this.
+
+For maintainers: the updater offers the release GitHub marks **latest** when its tag is `v<version>` and it has an
+asset named exactly `distill-extension-<version>.zip` (the `pack:extension` output; never the `-store` copy). A draft
+or a pre-release is ignored. The code is in `src/sidepanel/update/`.
 
 **Build it yourself**:
 
