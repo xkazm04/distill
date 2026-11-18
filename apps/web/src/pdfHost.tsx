@@ -56,7 +56,11 @@ export class PdfHost implements PageHost {
   constructor(private readonly original: Uint8Array, private readonly fileName: string) {
     this.working = original;
     this.reading = readPdf(original, { pdfjs: PDFJS, fileName });
+    this.reading.then((r) => { if (r.protected) { this.isProtected = true; this.changed(); } }, () => undefined);
   }
+
+  /** True when the file's author protected it and allowed filling it in: the filled copy is protected the same way. */
+  isProtected = false;
 
   /** The file's name, on screen only (the header). It never goes into a structure, a page model or a prompt. */
   label() { return this.fileName; }
@@ -162,7 +166,7 @@ function PdfPane({ host, visible }: { host: PdfHost; visible: boolean }) {
       <div className="pdf-pane-bar">
         <p className="muted original-hint">
           {!filled ? "The PDF as you opened it. Distill never changes it: answers go into a copy."
-            : which === "copy" ? "Your filled copy. Fields that Distill filled have a coloured outline." : "The file as you opened it. Distill never changes it."}
+            : which === "copy" ? `Your filled copy. Fields that Distill filled have a coloured outline.${host.isProtected ? " The original is protected by its author, and the copy keeps the same protection." : ""}` : "The file as you opened it. Distill never changes it."}
         </p>
         {filled && <div className="seg" role="radiogroup" aria-label="Which PDF to show">
           {(["copy", "original"] as const).map((w) => (
