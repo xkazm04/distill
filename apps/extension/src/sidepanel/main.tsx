@@ -16,6 +16,7 @@ import { TabHost } from "./host";
 import { connectHandrail, helperAllowed, requestHelper } from "./handrailPort";
 import { LookSetting, useLook } from "./look";
 import { pinnedTabId, tabUpdatedListener } from "./tabEvents";
+import { UpdateNotice } from "./update/UpdateNotice";
 
 interface ShownTab { id: number; title: string; url?: string }
 
@@ -116,4 +117,4 @@ function Panel() {
   );
 }
 
-createRoot(document.getElementById("root") as HTMLElement).render(<StrictMode><Panel /></StrictMode>);
+createRoot(document.getElementById("root") as HTMLElement).render(<StrictMode><Panel /><UpdateNotice /></StrictMode>);
