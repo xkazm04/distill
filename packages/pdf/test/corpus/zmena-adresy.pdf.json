@@ -1,0 +1,70 @@
+{
+  "title": "Oznámení o změně místa pobytu",
+  "models": "A print-style office form: cryptic field names (Text1...), every label printed on the left, a date in three boxes with 'den', 'měsíc', 'rok' printed under them, a postcode in five one-character boxes, a consent tick box labelled on its right, and an answer with Czech diacritics.",
+  "layout": {
+    "lang": "cs-CZ",
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 16, "text": "Oznámení o změně místa pobytu" },
+          { "at": [50, 770], "size": 9, "text": "Vyplňte hůlkovým písmem." },
+          { "at": [50, 740], "size": 12, "text": "1. Údaje o cizinci" },
+          { "at": [50, 712], "text": "Příjmení:" },
+          { "at": [50, 688], "text": "Jméno:" },
+          { "at": [50, 664], "text": "Datum narození:" },
+          { "at": [152, 649], "size": 6, "text": "den" },
+          { "at": [181, 649], "size": 6, "text": "měsíc" },
+          { "at": [216, 649], "size": 6, "text": "rok" },
+          { "at": [50, 628], "text": "Státní občanství:" },
+          { "at": [50, 600], "size": 12, "text": "2. Nová adresa" },
+          { "at": [50, 572], "text": "Ulice:" },
+          { "at": [410, 572], "text": "č. p.:" },
+          { "at": [50, 548], "text": "Obec:" },
+          { "at": [50, 524], "text": "PSČ:" },
+          { "at": [68, 490], "text": "Souhlasím s uvedením adresy v evidenci" }
+        ],
+        "fields": [
+          { "type": "text", "name": "Text1", "rect": [150, 706, 250, 18], "required": true },
+          { "type": "text", "name": "Text2", "rect": [150, 682, 250, 18], "required": true },
+          { "type": "text", "name": "Text3", "rect": [150, 658, 24, 18], "maxLen": 2 },
+          { "type": "text", "name": "Text4", "rect": [180, 658, 24, 18], "maxLen": 2 },
+          { "type": "text", "name": "Text5", "rect": [210, 658, 40, 18], "maxLen": 4 },
+          { "type": "text", "name": "Text6", "rect": [150, 622, 250, 18] },
+          { "type": "text", "name": "Text7", "rect": [150, 566, 250, 18] },
+          { "type": "text", "name": "Text8", "rect": [440, 566, 60, 18] },
+          { "type": "text", "name": "Text9", "rect": [150, 542, 250, 18] },
+          { "type": "text", "name": "Text10", "rect": [150, 518, 16, 18], "maxLen": 1 },
+          { "type": "text", "name": "Text11", "rect": [168, 518, 16, 18], "maxLen": 1 },
+          { "type": "text", "name": "Text12", "rect": [186, 518, 16, 18], "maxLen": 1 },
+          { "type": "text", "name": "Text13", "rect": [204, 518, 16, 18], "maxLen": 1 },
+          { "type": "text", "name": "Text14", "rect": [222, 518, 16, 18], "maxLen": 1 },
+          { "type": "checkbox", "name": "Check Box1", "rect": [50, 488, 12, 12] }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "prijmeni", "names": ["Text1"], "kind": "text", "label": "Příjmení", "required": true, "value": "Řeháková-Ďurčová",
+      "probes": [{ "field": "Text1", "value": "Řeháková-Ďurčová", "shows": "Řeháková-Ďurčová" }] },
+    { "key": "jmeno", "names": ["Text2"], "kind": "text", "label": "Jméno", "required": true, "value": "Olena",
+      "probes": [{ "field": "Text2", "value": "Olena", "shows": "Olena" }] },
+    { "key": "narozeni", "names": ["Text3", "Text4", "Text5"], "kind": "date", "label": "Datum narození", "required": false, "value": "5.3.1990",
+      "probes": [{ "field": "Text3", "value": "05" }, { "field": "Text4", "value": "03" }, { "field": "Text5", "value": "1990", "shows": "1990" }] },
+    { "key": "obcanstvi", "names": ["Text6"], "kind": "text", "label": "Státní občanství", "required": false, "value": "Ukrajina",
+      "probes": [{ "field": "Text6", "value": "Ukrajina", "shows": "Ukrajina" }] },
+    { "key": "ulice", "names": ["Text7"], "kind": "text", "label": "Ulice", "required": false, "value": "Žluťoučký kůň",
+      "probes": [{ "field": "Text7", "value": "Žluťoučký kůň", "shows": "Žluťoučký kůň" }] },
+    { "key": "cp", "names": ["Text8"], "kind": "text", "label": "č. p.", "required": false, "value": "12",
+      "probes": [{ "field": "Text8", "value": "12", "shows": "12" }] },
+    { "key": "obec", "names": ["Text9"], "kind": "text", "label": "Obec", "required": false, "value": "Ústí nad Labem",
+      "probes": [{ "field": "Text9", "value": "Ústí nad Labem", "shows": "Ústí nad Labem" }] },
+    { "key": "psc", "names": ["Text10", "Text11", "Text12", "Text13", "Text14"], "kind": "text", "label": "PSČ", "required": false, "maxLength": 5, "value": "110 00",
+      "probes": [{ "field": "Text10", "value": "1" }, { "field": "Text11", "value": "1" }, { "field": "Text12", "value": "0" }, { "field": "Text13", "value": "0" }, { "field": "Text14", "value": "0", "shows": "0" }] },
+    { "key": "souhlas", "names": ["Check Box1"], "kind": "checkbox", "label": "Souhlasím s uvedením adresy v evidenci", "required": false, "value": "true",
+      "probes": [{ "field": "Check Box1", "checked": true }] }
+  ],
+  "byHand": {
+    "Text1": "Řeháková-Ďurčová", "Text2": "Olena", "Text3": "05", "Text4": "03", "Text5": "1990", "Text6": "Ukrajina", "Text7": "Žluťoučký kůň",
+    "Text8": "12", "Text9": "Ústí nad Labem", "Text10": "1", "Text11": "1", "Text12": "0", "Text13": "0", "Text14": "0", "Check Box1": "true"
+  }
+}

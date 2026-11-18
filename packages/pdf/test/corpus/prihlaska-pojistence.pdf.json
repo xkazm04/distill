@@ -1,0 +1,58 @@
+{
+  "title": "Přihláška pojištěnce",
+  "models": "A box-style form as LiveCycle-era tools export it: dotted field names (form1[0].#subform[0].TextField1[0]), small labels printed above each box, a comb field for the birth number, a radio group whose options are codes labelled by printed text, a dropdown whose shown text differs from its codes, tooltips that name two fields, and an address in a multi-line box.",
+  "layout": {
+    "title": "Přihláška pojištěnce",
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 16, "text": "Přihláška pojištěnce" },
+          { "at": [50, 742], "size": 8, "text": "Příjmení" },
+          { "at": [310, 742], "size": 8, "text": "Jméno" },
+          { "at": [50, 700], "size": 8, "text": "Rodné číslo" },
+          { "at": [310, 684], "text": "Pohlaví:" },
+          { "at": [374, 684], "text": "muž" },
+          { "at": [424, 684], "text": "žena" },
+          { "at": [50, 658], "size": 8, "text": "Zdravotní pojišťovna" },
+          { "at": [310, 658], "size": 8, "text": "Tel." },
+          { "at": [50, 616], "size": 8, "text": "Adresa trvalého pobytu v ČR" },
+          { "at": [68, 532], "text": "zaměstnanec" }
+        ],
+        "fields": [
+          { "type": "text", "name": "form1[0].#subform[0].TextField1[0]", "rect": [50, 720, 240, 18], "required": true },
+          { "type": "text", "name": "form1[0].#subform[0].TextField2[0]", "rect": [310, 720, 235, 18], "required": true },
+          { "type": "text", "name": "form1[0].#subform[0].TextField3[0]", "rect": [50, 678, 200, 18], "maxLen": 10, "comb": true, "required": true },
+          { "type": "radio", "name": "form1[0].#subform[0].RadioButtonList[0]", "options": [{ "value": "1", "rect": [360, 682, 10, 10] }, { "value": "2", "rect": [410, 682, 10, 10] }] },
+          { "type": "dropdown", "name": "form1[0].#subform[0].DropDownList1[0]", "rect": [50, 636, 240, 18],
+            "options": [["111", "Všeobecná zdravotní pojišťovna"], ["201", "Vojenská zdravotní pojišťovna"], ["205", "Česká průmyslová zdravotní pojišťovna"]] },
+          { "type": "text", "name": "form1[0].#subform[0].TextField4[0]", "rect": [310, 636, 235, 18], "tooltip": "Telefon" },
+          { "type": "text", "name": "form1[0].#subform[0].TextField5[0]", "rect": [50, 560, 495, 50], "multiline": true },
+          { "type": "checkbox", "name": "form1[0].#subform[0].CheckBox1[0]", "rect": [50, 530, 12, 12], "tooltip": "Jsem zaměstnanec" }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "prijmeni", "names": ["form1[0].#subform[0].TextField1[0]"], "kind": "text", "label": "Příjmení", "required": true, "value": "Kovalenková",
+      "probes": [{ "field": "form1[0].#subform[0].TextField1[0]", "value": "Kovalenková", "shows": "Kovalenková" }] },
+    { "key": "jmeno", "names": ["form1[0].#subform[0].TextField2[0]"], "kind": "text", "label": "Jméno", "required": true, "value": "Ľudmila",
+      "probes": [{ "field": "form1[0].#subform[0].TextField2[0]", "value": "Ľudmila", "shows": "Ľudmila" }] },
+    { "key": "rc", "names": ["form1[0].#subform[0].TextField3[0]"], "kind": "text", "label": "Rodné číslo", "required": true, "maxLength": 10, "value": "870619/4321",
+      "probes": [{ "field": "form1[0].#subform[0].TextField3[0]", "value": "8706194321", "shows": "8706194321" }] },
+    { "key": "pohlavi", "names": ["form1[0].#subform[0].RadioButtonList[0]"], "kind": "radio", "label": "Pohlaví", "required": false, "options": 2, "optionLabels": ["muž", "žena"], "value": "2",
+      "probes": [{ "field": "form1[0].#subform[0].RadioButtonList[0]", "value": "2" }] },
+    { "key": "pojistovna", "names": ["form1[0].#subform[0].DropDownList1[0]"], "kind": "select", "label": "Zdravotní pojišťovna", "required": false, "options": 3, "value": "205",
+      "probes": [{ "field": "form1[0].#subform[0].DropDownList1[0]", "value": "205", "shows": "Česká průmyslová zdravotní pojišťovna" }] },
+    { "key": "telefon", "names": ["form1[0].#subform[0].TextField4[0]"], "kind": "text", "label": "Telefon", "required": false, "value": "+420 601 234 567",
+      "probes": [{ "field": "form1[0].#subform[0].TextField4[0]", "value": "+420 601 234 567", "shows": "+420 601 234 567" }] },
+    { "key": "adresa", "names": ["form1[0].#subform[0].TextField5[0]"], "kind": "textarea", "label": "Adresa trvalého pobytu v ČR", "required": false, "value": "Žitná 12\n120 00 Praha 2",
+      "probes": [{ "field": "form1[0].#subform[0].TextField5[0]", "value": "Žitná 12\n120 00 Praha 2", "shows": "Žitná 12120 00 Praha 2" }] },
+    { "key": "zamestnanec", "names": ["form1[0].#subform[0].CheckBox1[0]"], "kind": "checkbox", "label": "Jsem zaměstnanec", "required": false, "value": "true",
+      "probes": [{ "field": "form1[0].#subform[0].CheckBox1[0]", "checked": true }] }
+  ],
+  "byHand": {
+    "form1[0].#subform[0].TextField1[0]": "Kovalenková", "form1[0].#subform[0].TextField2[0]": "Ľudmila", "form1[0].#subform[0].TextField3[0]": "8706194321",
+    "form1[0].#subform[0].RadioButtonList[0]": "2", "form1[0].#subform[0].DropDownList1[0]": "205", "form1[0].#subform[0].TextField4[0]": "+420 601 234 567",
+    "form1[0].#subform[0].TextField5[0]": "Žitná 12\n120 00 Praha 2", "form1[0].#subform[0].CheckBox1[0]": "true"
+  }
+}

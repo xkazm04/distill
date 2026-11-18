@@ -1,0 +1,82 @@
+{
+  "title": "Prohlášení poplatníka daně",
+  "models": "A two-page form the employer has partly filled in already (its name, its company number and one tick), labels in a left column far from their boxes, generated names (ctl00_f1...), a radio group listed downwards, a read-only box and an unsigned signature box that are not answers, a date in three unlabelled boxes sized 2-2-4, and a name written in Ukrainian (Cyrillic).",
+  "layout": {
+    "lang": "cs",
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 16, "text": "Prohlášení poplatníka daně" },
+          { "at": [50, 750], "size": 12, "text": "Údaje o plátci daně" },
+          { "at": [50, 722], "text": "Název plátce" },
+          { "at": [50, 698], "text": "IČO" },
+          { "at": [50, 660], "size": 12, "text": "Údaje o poplatníkovi" },
+          { "at": [50, 632], "text": "Příjmení a jméno" },
+          { "at": [50, 608], "text": "Rodné číslo" },
+          { "at": [50, 584], "text": "Adresa bydliště" },
+          { "at": [50, 556], "text": "Daňový rezident:" },
+          { "at": [234, 555], "text": "Česká republika" },
+          { "at": [234, 539], "text": "jiný stát" },
+          { "at": [68, 507], "text": "Uplatňuji slevu na poplatníka" },
+          { "at": [50, 466], "text": "Kód formuláře" }
+        ],
+        "fields": [
+          { "type": "text", "name": "ctl00_f1", "rect": [220, 716, 320, 18], "prefill": "Stavební firma Zqxvbrt s.r.o." },
+          { "type": "text", "name": "ctl00_f2", "rect": [220, 692, 120, 18], "prefill": "27082440" },
+          { "type": "text", "name": "ctl00_f3", "rect": [220, 626, 320, 18], "required": true },
+          { "type": "text", "name": "ctl00_f4", "rect": [220, 602, 120, 18], "maxLen": 11 },
+          { "type": "text", "name": "ctl00_f5", "rect": [220, 578, 320, 18] },
+          { "type": "radio", "name": "ctl00_f6", "options": [{ "value": "CZ", "rect": [220, 553, 10, 10] }, { "value": "XX", "rect": [220, 537, 10, 10] }] },
+          { "type": "checkbox", "name": "ctl00_f7", "rect": [50, 505, 12, 12], "prefill": true },
+          { "type": "text", "name": "ctl00_f13", "rect": [220, 460, 100, 18], "readOnly": true, "prefill": "25 5457" }
+        ]
+      },
+      {
+        "text": [
+          { "at": [50, 790], "size": 14, "text": "Slevy a daňová zvýhodnění" },
+          { "at": [68, 752], "text": "Sleva na studenta" },
+          { "at": [50, 722], "text": "Počet vyživovaných dětí" },
+          { "at": [50, 698], "text": "Datum podpisu" },
+          { "at": [246, 698], "text": "." },
+          { "at": [276, 698], "text": "." },
+          { "at": [50, 640], "text": "Podpis poplatníka" }
+        ],
+        "fields": [
+          { "type": "checkbox", "name": "ctl00_f8", "rect": [50, 750, 12, 12] },
+          { "type": "text", "name": "ctl00_f9", "rect": [220, 716, 40, 18] },
+          { "type": "text", "name": "ctl00_f10", "rect": [220, 692, 24, 18], "maxLen": 2 },
+          { "type": "text", "name": "ctl00_f11", "rect": [250, 692, 24, 18], "maxLen": 2 },
+          { "type": "text", "name": "ctl00_f12", "rect": [280, 692, 40, 18], "maxLen": 4 },
+          { "type": "signature", "name": "Podpis", "rect": [220, 620, 200, 40] }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "platce", "names": ["ctl00_f1"], "kind": "text", "label": "Název plátce", "required": false,
+      "probes": [{ "field": "ctl00_f1", "value": "Stavební firma Zqxvbrt s.r.o.", "shows": "Stavební firma Zqxvbrt s.r.o." }] },
+    { "key": "ico", "names": ["ctl00_f2"], "kind": "text", "label": "IČO", "required": false,
+      "probes": [{ "field": "ctl00_f2", "value": "27082440" }] },
+    { "key": "jmeno", "names": ["ctl00_f3"], "kind": "text", "label": "Příjmení a jméno", "required": true, "value": "Шевченко Олена",
+      "probes": [{ "field": "ctl00_f3", "value": "Шевченко Олена", "shows": "Шевченко Олена" }] },
+    { "key": "rc", "names": ["ctl00_f4"], "kind": "text", "label": "Rodné číslo", "required": false, "maxLength": 11, "value": "870619/4321",
+      "probes": [{ "field": "ctl00_f4", "value": "870619/4321", "shows": "870619/4321" }] },
+    { "key": "adresa", "names": ["ctl00_f5"], "kind": "text", "label": "Adresa bydliště", "required": false, "value": "Václavské náměstí 1, Praha",
+      "probes": [{ "field": "ctl00_f5", "value": "Václavské náměstí 1, Praha", "shows": "Václavské náměstí 1, Praha" }] },
+    { "key": "rezident", "names": ["ctl00_f6"], "kind": "radio", "label": "Daňový rezident", "required": false, "options": 2, "optionLabels": ["Česká republika", "jiný stát"], "value": "XX",
+      "probes": [{ "field": "ctl00_f6", "value": "XX" }] },
+    { "key": "sleva", "names": ["ctl00_f7"], "kind": "checkbox", "label": "Uplatňuji slevu na poplatníka", "required": false,
+      "probes": [{ "field": "ctl00_f7", "checked": true }] },
+    { "key": "student", "names": ["ctl00_f8"], "kind": "checkbox", "label": "Sleva na studenta", "required": false, "value": "true",
+      "probes": [{ "field": "ctl00_f8", "checked": true }] },
+    { "key": "deti", "names": ["ctl00_f9"], "kind": "text", "label": "Počet vyživovaných dětí", "required": false, "value": "2",
+      "probes": [{ "field": "ctl00_f9", "value": "2", "shows": "2" }] },
+    { "key": "datum", "names": ["ctl00_f10", "ctl00_f11", "ctl00_f12"], "kind": "date", "label": "Datum podpisu", "required": false, "value": "2026-11-18",
+      "probes": [{ "field": "ctl00_f10", "value": "18", "shows": "18" }, { "field": "ctl00_f11", "value": "11" }, { "field": "ctl00_f12", "value": "2026" }] }
+  ],
+  "prefilled": ["Stavební firma Zqxvbrt s.r.o.", "27082440", "25 5457"],
+  "byHand": {
+    "ctl00_f3": "Шевченко Олена", "ctl00_f4": "870619/4321", "ctl00_f5": "Václavské náměstí 1, Praha", "ctl00_f6": "XX", "ctl00_f8": "true",
+    "ctl00_f9": "2", "ctl00_f10": "18", "ctl00_f11": "11", "ctl00_f12": "2026"
+  }
+}

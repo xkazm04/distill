@@ -1,0 +1,30 @@
+{
+  "name": "@distill/pdf",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fonts/*": "./fonts/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "bench:forms": "vitest run --config vitest.bench.config.ts",
+    "bench:forms:update": "vitest run --config vitest.bench.config.ts --mode update-baseline"
+  },
+  "dependencies": {
+    "@cantoo/fontkit": "2.0.12",
+    "@cantoo/pdf-lib": "2.11.1",
+    "@distill/engine": "*",
+    "pdfjs-dist": "6.5.438"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

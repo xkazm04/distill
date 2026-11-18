@@ -1,0 +1,59 @@
+{
+  "title": "Žádost o prodloužení dlouhodobého pobytu",
+  "models": "A form whose required answers are marked only by a printed '*', names a Czech form tool gives (Pole1, Skupina1, Seznam1), a radio group across one line, a label that wraps onto a second line beside a multi-line box, a dropdown of plain options, and a date in three boxes named only by their tooltips ('den', 'měsíc', 'rok').",
+  "layout": {
+    "pages": [
+      {
+        "text": [
+          { "at": [50, 790], "size": 15, "text": "Žádost o prodloužení dlouhodobého pobytu" },
+          { "at": [50, 742], "text": "Příjmení *" },
+          { "at": [50, 718], "text": "Jméno *" },
+          { "at": [50, 694], "text": "Číslo cestovního dokladu" },
+          { "at": [50, 664], "text": "Účel pobytu:" },
+          { "at": [194, 664], "text": "zaměstnání" },
+          { "at": [304, 664], "text": "studium" },
+          { "at": [394, 664], "text": "rodina" },
+          { "at": [50, 634], "text": "Adresa ubytování" },
+          { "at": [50, 622], "text": "na území ČR" },
+          { "at": [50, 576], "text": "Doba prodloužení" },
+          { "at": [50, 552], "text": "E-mail" },
+          { "at": [50, 528], "text": "Platnost od" }
+        ],
+        "fields": [
+          { "type": "text", "name": "Pole1", "rect": [180, 736, 300, 18] },
+          { "type": "text", "name": "Pole2", "rect": [180, 712, 300, 18] },
+          { "type": "text", "name": "Pole3", "rect": [180, 688, 150, 18], "maxLen": 9 },
+          { "type": "radio", "name": "Skupina1", "options": [{ "value": "Volba1", "rect": [180, 662, 10, 10] }, { "value": "Volba2", "rect": [290, 662, 10, 10] }, { "value": "Volba3", "rect": [380, 662, 10, 10] }] },
+          { "type": "text", "name": "Pole4", "rect": [180, 600, 300, 46], "multiline": true },
+          { "type": "dropdown", "name": "Seznam1", "rect": [180, 570, 120, 18], "options": ["1 rok", "2 roky"] },
+          { "type": "text", "name": "Pole5", "rect": [180, 546, 300, 18] },
+          { "type": "text", "name": "Pole6", "rect": [180, 522, 24, 18], "tooltip": "den" },
+          { "type": "text", "name": "Pole7", "rect": [210, 522, 24, 18], "tooltip": "měsíc" },
+          { "type": "text", "name": "Pole8", "rect": [240, 522, 40, 18], "tooltip": "rok" }
+        ]
+      }
+    ]
+  },
+  "fields": [
+    { "key": "prijmeni", "names": ["Pole1"], "kind": "text", "label": "Příjmení", "required": true, "value": "Nguyễn Thị Hương",
+      "probes": [{ "field": "Pole1", "value": "Nguyễn Thị Hương", "shows": "Nguyễn Thị Hương" }] },
+    { "key": "jmeno", "names": ["Pole2"], "kind": "text", "label": "Jméno", "required": true, "value": "Hương",
+      "probes": [{ "field": "Pole2", "value": "Hương", "shows": "Hương" }] },
+    { "key": "doklad", "names": ["Pole3"], "kind": "text", "label": "Číslo cestovního dokladu", "required": false, "maxLength": 9, "value": "FX1234567",
+      "probes": [{ "field": "Pole3", "value": "FX1234567", "shows": "FX1234567" }] },
+    { "key": "ucel", "names": ["Skupina1"], "kind": "radio", "label": "Účel pobytu", "required": false, "options": 3, "optionLabels": ["zaměstnání", "studium", "rodina"], "value": "Volba2",
+      "probes": [{ "field": "Skupina1", "value": "Volba2" }] },
+    { "key": "adresa", "names": ["Pole4"], "kind": "textarea", "label": "Adresa ubytování na území ČR", "required": false, "value": "Na Příkopě 5, Praha 1",
+      "probes": [{ "field": "Pole4", "value": "Na Příkopě 5, Praha 1", "shows": "Na Příkopě 5, Praha 1" }] },
+    { "key": "doba", "names": ["Seznam1"], "kind": "select", "label": "Doba prodloužení", "required": false, "options": 2, "value": "2 roky",
+      "probes": [{ "field": "Seznam1", "value": "2 roky", "shows": "2 roky" }] },
+    { "key": "email", "names": ["Pole5"], "kind": "text", "label": "E-mail", "required": false, "value": "huong@example.com",
+      "probes": [{ "field": "Pole5", "value": "huong@example.com", "shows": "huong@example.com" }] },
+    { "key": "platnost", "names": ["Pole6", "Pole7", "Pole8"], "kind": "date", "label": "Platnost od", "required": false, "value": "1.12.2026",
+      "probes": [{ "field": "Pole6", "value": "01" }, { "field": "Pole7", "value": "12" }, { "field": "Pole8", "value": "2026", "shows": "2026" }] }
+  ],
+  "byHand": {
+    "Pole1": "Nguyễn Thị Hương", "Pole2": "Hương", "Pole3": "FX1234567", "Skupina1": "Volba2", "Pole4": "Na Příkopě 5, Praha 1", "Seznam1": "2 roky",
+    "Pole5": "huong@example.com", "Pole6": "01", "Pole7": "12", "Pole8": "2026"
+  }
+}
