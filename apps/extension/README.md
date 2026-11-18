@@ -16,8 +16,11 @@ for exactly what each version keeps and where.
 ## Route 1: download the public build
 
 1. Download `distill-extension-<version>.zip` from the repository's
-   [Releases page](https://github.com/xkazm04/distill/releases) and unzip it into a folder you will keep.
-2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose that folder.
+   [Releases page](https://github.com/xkazm04/distill/releases) (under **Assets** - not "Source code", which is the
+   repository) and unzip it into a folder you will keep.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and choose that folder:
+   the one with `manifest.json` directly inside it. "Manifest file is missing or unreadable" means the chosen folder is
+   one level too high or too low (the repository's `apps/extension` folder is not an extension either; its build is).
 3. Pin Distill from the puzzle-piece menu, open a web page and click the Distill icon. The side panel opens.
 4. The panel's model card shows the state of Chrome's built-in model. If it says "ready to download", click
    **Download the model**. Chrome decides whether a computer can run it (Chrome 138 or newer, a desktop computer with
