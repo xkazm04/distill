@@ -120,6 +120,16 @@ describe("view keys", () => {
   });
 });
 
+describe("reader languages", () => {
+  it("offers English and Ukrainian, the two reader languages of the Czechia corridor", async () => {
+    await mount(new FakeHost());
+    const select = el.querySelector<HTMLSelectElement>("select")!; // "I read in"
+    const offered = [...select.options].map((o) => [o.value, o.textContent]);
+    expect(offered).toContainEqual(["en", "English"]);
+    expect(offered).toContainEqual(["uk", "Ukrainian"]);
+  });
+});
+
 describe("the Original control", () => {
   it("offers Beside only with a pane for the original and room for it", async () => {
     await mount(new PaneHost());
