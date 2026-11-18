@@ -1,6 +1,6 @@
 // What the shared UI needs from "the page it is looking at". The web app implements it over a sandboxed iframe holding
 // pasted or demo HTML; the extension implements it over messages to a content script in the real tab.
-import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
+import type { FormErrors, FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { ReactNode } from "react";
 
 export interface PageHost {
@@ -12,6 +12,9 @@ export interface PageHost {
   /** Device-only. The result must never be put in a cloud-eligible prompt. */
   readValues(structure: FormStructure): Promise<FormValues>;
   writeValues(structure: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[] }>;
+  /** The validation errors the page shows now (engine readErrors). Device-only, like readValues: an error can repeat
+   *  what the person typed, so it never goes into a cloud-eligible prompt or to the agent. */
+  readErrors?(structure: FormStructure): Promise<FormErrors>;
   /** Outline these fields in the original page (empty array clears) in `color`: the active theme's accent, resolved
    *  by the caller with `accentColor()`. Hosts pass it to `applyHighlight`, which falls back when it is unreadable. */
   highlight(fieldIds: string[], color?: string): Promise<void>;

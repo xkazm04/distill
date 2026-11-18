@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import type { FormStructure, FormValues, PageModel } from "@distill/engine";
+import type { FormErrors, FormStructure, FormValues, PageModel } from "@distill/engine";
 import { engine } from "./ui/engine";
 import { applyHighlight, applyLocate, fieldElements, focusColor } from "./ui/dom";
 import type { LocateTarget, PageHost } from "./ui/host";
@@ -43,6 +43,7 @@ export class IframeHost implements PageHost {
   }
   async readValues(s: FormStructure): Promise<FormValues> { return engine.readValues(await this.doc(), s); }
   async writeValues(s: FormStructure, v: FormValues) { return engine.writeValues(await this.doc(), s, v); }
+  async readErrors(s: FormStructure): Promise<FormErrors> { return engine.readErrors(await this.doc(), s); }
   async highlight(ids: string[], color?: string) { applyHighlight(await this.doc(), ids, color); }
   async showOriginal() { /* the shell shows or hides the pane */ }
 

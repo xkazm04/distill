@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FieldStructure, FormStructure } from "@distill/engine";
-import { basicFormat, basicWizard, originChip } from "./Wayfill";
+import { basicFormat, basicWizard, errorNote, originChip } from "./Wayfill";
 
 const field = (f: Partial<FieldStructure> & Pick<FieldStructure, "fieldId" | "label">): FieldStructure => ({ kind: "text", required: false, ...f });
 
@@ -44,5 +44,15 @@ describe("origin chip", () => {
   it("says no AI was used for basic steps and keeps the saved-guide wording", () => {
     expect(originChip({ kind: "basic", why: "AI is off." })).toEqual({ text: "No AI used", title: "AI is off. These steps use the form's own labels." });
     expect(originChip({ kind: "cache" }).text).toBe("Saved guide (no AI used)");
+  });
+});
+
+describe("errorNote (a page's error with no explanation)", () => {
+  it("says the explanation needs the model on this device, in words for each model state", () => {
+    expect(errorNote("unavailable")).toBe("Explaining this message needs the model on this device, and there is none here. This is the form's own message, as written.");
+    expect(errorNote("downloadable")).toMatch(/needs the model on this device\. Download it/);
+    expect(errorNote("downloading")).toMatch(/still downloading/);
+    expect(errorNote("checking")).toMatch(/^Checking/);
+    for (const s of ["unavailable", "downloadable", "downloading", "checking"] as const) expect(errorNote(s)).not.toMatch(/cloud/i);
   });
 });

@@ -1,7 +1,7 @@
 // Runs in the page (the DOM lives here). Injected on demand by the side panel through chrome.scripting, so the
 // extension holds no standing access to any site: it reads a page only with the activeTab grant from clicking its
 // icon, or a site the person allowed from the panel.
-import { extractActions, extractForm, extractPage, readValues, writeValues } from "@distill/engine";
+import { extractActions, extractForm, extractPage, readErrors, readValues, writeValues } from "@distill/engine";
 import { applyHighlight, applyLocate, fieldElements } from "@distill/web/dom";
 import type { ContentRequest, ContentResponse, LocateTarget, PageChanged } from "./messages";
 import { readPageTheme } from "./pageTheme";
@@ -48,6 +48,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:getForm": return extractForm(document, location.href, req.formIndex);
     case "distill:readValues": return readValues(document, req.structure);
     case "distill:writeValues": return writeValues(document, req.structure, req.values);
+    case "distill:readErrors": return readErrors(document, req.structure);
     case "distill:highlight": applyHighlight(document, req.fieldIds, req.color); return { ok: true };
     case "distill:getTheme": return readPageTheme(document);
     case "distill:locate": locate(req.target, req.color); return { ok: true };

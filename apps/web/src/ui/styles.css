@@ -379,6 +379,16 @@ html:has(.workspace) { font-size: 100%; }
 }
 .workspace .field-tools { margin-top: .3rem; font-size: .84rem; }
 .wf-need { margin: .4rem 0 0; font-size: .875rem; }
+/* An error the page shows for a field: its own words, then the explanation (or why there is none). */
+.wf-error {
+  margin-top: .45rem; padding: .45rem .7rem; font-size: .875rem; background: var(--warn-bg); color: var(--warn-fg);
+  border-left: 4px solid var(--warn-fg); border-radius: calc(var(--radius) * .6);
+}
+.wf-error p { margin: 0; }
+.wf-error p + p { margin-top: .25rem; }
+.wf-error .muted { color: inherit; }
+.notice .wf-error { margin: .35rem 0 0; padding: 0; border: 0; background: none; }
+.wf-stepbtn.flagged .wf-dot { border-color: var(--warn-fg); border-width: 2px; }
 .workspace .remember { margin: .7rem 0 0; padding-top: .6rem; border-top: 1px solid color-mix(in srgb, var(--line) 35%, var(--card)); font-size: .875rem; color: var(--muted); align-items: center; }
 .workspace .remember input { width: 1.1rem; height: 1.1rem; margin-top: 0; }
 .workspace .wf-card .nav { margin: .75rem 0 0; justify-content: flex-start; align-items: center; gap: .5rem; }

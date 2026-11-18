@@ -1,7 +1,7 @@
 // The content script in a page: it keeps the block -> element map from its last read, points at a block or a step's
 // fields on distill:locate without touching the filled-field outline, and tells the panel when the page changes.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { PageModel } from "@distill/engine";
+import type { FormErrors, FormStructure, PageModel } from "@distill/engine";
 import type { ContentRequest, ContentResponse } from "./messages";
 
 type Listener = (req: ContentRequest, sender: { id?: string }, send: (r: ContentResponse<unknown>) => void) => boolean;
@@ -77,5 +77,17 @@ describe("distill:listActions and distill:doAction", () => {
     document.getElementById("go")!.remove();
     await expect(ask({ type: "distill:doAction", actionId: actions[0]!.actionId })).rejects.toThrow(/no longer on the page/);
     expect(clicked).toEqual(["go"]);
+  });
+});
+
+describe("distill:readErrors", () => {
+  it("answers the errors the page shows for the form, through the same reading as the guide's", async () => {
+    const structure = await ask<FormStructure>({ type: "distill:getForm", formIndex: 0 });
+    expect(await ask<FormErrors>({ type: "distill:readErrors", structure })).toEqual({ fields: {}, form: [] });
+    const jmeno = document.getElementById("jmeno")!;
+    jmeno.setAttribute("aria-invalid", "true");
+    jmeno.setAttribute("aria-describedby", "jmeno-err");
+    jmeno.insertAdjacentHTML("afterend", `<span id="jmeno-err" class="error">Jméno je povinné</span>`);
+    expect(await ask<FormErrors>({ type: "distill:readErrors", structure })).toEqual({ fields: { jmeno: { text: "Jméno je povinné", source: "aria" } }, form: [] });
   });
 });

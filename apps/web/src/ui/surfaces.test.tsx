@@ -3,7 +3,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FieldStructure, FormStructure, FormValues, PageModel, UserSettingsDoc } from "@distill/engine";
+import type { FieldStructure, FormErrors, FormStructure, FormValues, PageModel, UserSettingsDoc } from "@distill/engine";
 import { AiError, type RunResult } from "../ai";
 
 const runMock = vi.hoisted(() => vi.fn());
@@ -155,6 +155,106 @@ describe("Wayfill", () => {
     const input = el.querySelector("#wf-kraj");
     expect(input?.tagName).toBe("INPUT");
     expect(input?.getAttribute("type")).toBe("text");
+  });
+});
+
+// ---- Wayfill: the errors the page shows -----------------------------------------------------------------------------
+
+describe("Wayfill: the page's errors", () => {
+  const s = form([field("jmeno", "Jméno"), field("rc", "Rodné číslo")]);
+  const RC_ERROR = "Rodné číslo '870619/43' není ve správném tvaru";
+  const ready = { ...model, state: "available" as const };
+  /** wizardFor for buildWizard; explainError answers in plain text, as the device model does. */
+  const runs = (explanation = "The birth number needs 9 or 10 digits after the date, like 900101/1234.") =>
+    runMock.mockImplementation(async (task: string) => (task === "explainError" ? { data: explanation, source: "on_device", ms: 300, reason: "Runs only on this device." } : wizardFor(s)));
+  const withErrors = (errors: FormErrors) => {
+    const host = fakeHost(s, async (v) => ({ written: Object.keys(v), failed: [] }));
+    return Object.assign(host, { readErrors: vi.fn(async () => errors) });
+  };
+
+  it("with no model on this device: the form's own words on the step, and a sentence saying why there is no explanation", async () => {
+    runs();
+    const host = withErrors({ fields: { jmeno: { text: "Jméno je povinné", source: "nearby" } }, form: [] });
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    const err = q("field-error");
+    expect(err?.getAttribute("data-field")).toBe("jmeno");
+    expect(err?.querySelector('[data-testid="error-original"]')?.textContent).toBe("Jméno je povinné");
+    expect(err?.querySelector('[data-testid="error-original"]')?.getAttribute("lang")).toBe("cs");
+    expect(err?.querySelector('[data-testid="error-note"]')?.textContent).toBe(
+      "Explaining this message needs the model on this device, and there is none here. This is the form's own message, as written.",
+    );
+    expect(runMock.mock.calls.map((c) => c[0])).not.toContain("explainError"); // never degraded to the cloud
+    expect(el.querySelector(".wf-stepbtn.flagged")?.textContent).toContain("(the form shows an error)");
+  });
+
+  it("with the model ready: the explanation in the reader's language, with where it ran, from an on-device values task", async () => {
+    runs();
+    const host = withErrors({ fields: { rc: { text: RC_ERROR, source: "aria" } }, form: [] });
+    await render(<Wayfill host={host} settings={{ ...settings, readerLang: "uk" }} model={ready as never} onShowOriginal={() => undefined} />);
+    const call = runMock.mock.calls.find((c) => c[0] === "explainError");
+    expect(call?.[1]).toContain(RC_ERROR);
+    expect(call?.[1]).toContain("in Ukrainian");
+    expect(call?.[2]).toBeNull();
+    expect(engine.route("explainError", "prefer_in_cloud").mode).toBe("only_on_device");
+    // The error is on the second step: go there.
+    await click(button("Skip"));
+    const err = q("field-error");
+    expect(err?.getAttribute("data-field")).toBe("rc");
+    expect(err?.querySelector('[data-testid="error-explained"]')?.textContent).toContain("needs 9 or 10 digits");
+    expect(err?.querySelector('[data-testid="source-chip"]')?.textContent).toContain("On this device");
+    // Read again with the same message: it is not explained twice.
+    expect(runMock.mock.calls.filter((c) => c[0] === "explainError")).toHaveLength(1);
+  });
+
+  it("a failed explanation says so in plain words and keeps the form's message", async () => {
+    runMock.mockImplementation(async (task: string) => {
+      if (task === "explainError") throw new AiError("device-only");
+      return wizardFor(s);
+    });
+    const host = withErrors({ fields: { jmeno: { text: "Jméno je povinné", source: "nearby" } }, form: [] });
+    await render(<Wayfill host={host} settings={settings} model={ready as never} onShowOriginal={() => undefined} />);
+    expect(q("field-error")?.querySelector('[data-testid="error-original"]')?.textContent).toBe("Jméno je povinné");
+    expect(q("field-error")?.querySelector('[data-testid="error-note"]')?.textContent).toBe(new AiError("device-only").message);
+  });
+
+  it("an error of the whole form gets one place at the top of the guide", async () => {
+    runs("The form could not be sent. Check the answers marked below and send it again.");
+    const host = withErrors({ fields: {}, form: ["Žádost se nepodařilo odeslat"] });
+    await render(<Wayfill host={host} settings={settings} model={ready as never} onShowOriginal={() => undefined} />);
+    const box = q("form-errors");
+    expect(box?.textContent).toContain("The form shows an error for the whole form.");
+    expect(box?.querySelectorAll('[data-testid="form-error"]')).toHaveLength(1);
+    expect(box?.textContent).toContain("Žádost se nepodařilo odeslat");
+    expect(box?.textContent).toContain("Check the answers marked below");
+    expect(q("field-error")).toBeNull();
+  });
+
+  it("after Next writes an answer, the page's errors are read again and shown on that step", async () => {
+    runs();
+    const host = withErrors({ fields: {}, form: [] });
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    expect(q("field-error")).toBeNull();
+    host.readErrors.mockResolvedValue({ fields: { jmeno: { text: "Jméno nesmí obsahovat číslice", source: "nearby" } }, form: [] });
+    const input = el.querySelector<HTMLInputElement>("#wf-jmeno")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Jana2");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(button("Next"));
+    expect(host.readErrors).toHaveBeenCalledTimes(2);
+    await click(button("Back"));
+    expect(q("field-error")?.textContent).toContain("Jméno nesmí obsahovat číslice");
+  });
+
+  it("when the page changes in place (a failed submit), the errors are read again", async () => {
+    runs();
+    const host = withErrors({ fields: {}, form: [] });
+    const view = (changeKey: number) => <Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} changeKey={changeKey} />;
+    await render(view(0));
+    host.readErrors.mockResolvedValue({ fields: { jmeno: { text: "Jméno je povinné", source: "aria" } }, form: [] });
+    await render(view(1));
+    expect(q("form-changed")).toBeNull(); // the same form: the guide keeps its place
+    expect(q("field-error")?.textContent).toContain("Jméno je povinné");
   });
 });
 

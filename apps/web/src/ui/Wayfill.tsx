@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { FieldStructure, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FieldError, FieldStructure, FormErrors, FormStructure, FormValues, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -65,6 +65,44 @@ function modelNote(state: LocalModel["state"]): string {
     case "checking": return "Checking whether suggestions can run on this device.";
     default: return AI_WORDS["device-only"];
   }
+}
+
+/** Why a page's error message is shown without an explanation: explaining it runs only on this device (the message can
+ *  repeat what the person typed), and the model there is not ready. */
+export function errorNote(state: LocalModel["state"]): string {
+  switch (state) {
+    case "downloadable": return "Explaining this message needs the model on this device. Download it from the menu.";
+    case "downloading": return "The model on this device is still downloading. The explanation will show when it is ready.";
+    case "checking": return "Checking whether this message can be explained on this device.";
+    default: return "Explaining this message needs the model on this device, and there is none here. This is the form's own message, as written.";
+  }
+}
+
+const NO_ERRORS: FormErrors = { fields: {}, form: [] };
+
+/** The key of one explanation: the reader's language, the field ("" for the form as a whole) and the message. */
+const errorKey = (lang: string, fieldId: string, text: string): string => `${lang}\u0000${fieldId}\u0000${text}`;
+
+/** An explanation of a page's error, or the plain words for why there is none. */
+type Explained = { text: string; meta: AiMeta } | { failed: string };
+
+/** One error the page shows: its own words (in the page's language), then the explanation in the reader's language
+ *  with where it ran, or the sentence that says why there is none. Screen only: never stored, never sent. */
+function PageError({ text, lang, explained, note, testId, fieldId }: {
+  text: string; lang?: string; explained?: Explained; note: string; testId: string; fieldId?: string;
+}) {
+  return (
+    <div className="wf-error" data-testid={testId} data-field={fieldId}>
+      <p className="wf-error-orig">
+        <strong>The form says:</strong> <span lang={lang} data-testid="error-original">{text}</span>
+      </p>
+      {explained && "text" in explained ? (
+        <p data-testid="error-explained">{explained.text} <SourceChip meta={explained.meta} /></p>
+      ) : (
+        <p className="muted" data-testid="error-note">{explained && "failed" in explained ? explained.failed : note}</p>
+      )}
+    </div>
+  );
 }
 
 interface Props {
@@ -169,6 +207,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [forgotten, setForgotten] = useState(false);
   /** Bumped by "Start again" (and by a change while there is nothing to keep) to build the guide afresh. */
   const [nonce, setNonce] = useState(0);
+  /** The errors the page shows now (values class: on screen only, never stored, saved or sent). */
+  const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
+  /** errorKey -> its explanation, made on this device only. Screen only, like `errors`. */
+  const [explained, setExplained] = useState<Record<string, Explained>>({});
 
   useEffect(() => {
     let live = true;
@@ -264,7 +306,22 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, settings.readerLang, reloadKey, nonce]);
 
-  // The page changed in place: the same form keeps the guide's place; another form (or none) offers to start again.
+  /** Reads the errors the page shows now for this form. Device-only; a host that cannot read them shows none. */
+  const readErrors = useCallback(async (s: FormStructure): Promise<void> => {
+    if (!host.readErrors) return;
+    const e = await host.readErrors(s).catch(() => null);
+    // Only a well-formed answer counts (an older content script may answer something else).
+    if (e && typeof e.fields === "object" && e.fields && Array.isArray(e.form)) setErrors(e);
+  }, [host]);
+
+  // Once the guide is built (a reload may bring the page back with its errors), the page's errors are read.
+  useEffect(() => {
+    if (phase === "ready" && structure) void readErrors(structure);
+    else setErrors(NO_ERRORS);
+  }, [phase, structure, readErrors]);
+
+  // The page changed in place: the same form keeps the guide's place (and its errors are read again: a failed submit
+  // shows them this way); another form (or none) offers to start again.
   const now = useRef({ phase, structure });
   now.current = { phase, structure };
   const seenChange = useRef(changeKey);
@@ -275,11 +332,45 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     if (ph !== "ready" || !cur) { setNonce((n) => n + 1); return; } // nothing to keep: just read it again
     let on = true;
     host.getForm(0).then(
-      (s) => { if (on) setChanged(s.fingerprint !== cur.fingerprint || s.fields.length === 0); },
+      (s) => {
+        if (!on) return;
+        const other = s.fingerprint !== cur.fingerprint || s.fields.length === 0;
+        setChanged(other);
+        if (!other) void readErrors(cur);
+      },
       () => { if (on) setChanged(true); },
     );
     return () => { on = false; };
-  }, [changeKey, host]);
+  }, [changeKey, host, readErrors]);
+
+  // Each error the page shows is explained once, on this device only (explainError is values class: route() pins it
+  // there and run() refuses it without a local model). With no model ready, the message is shown as written.
+  const localReady = model.state === "available";
+  const readerLang = settings.readerLang;
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!structure || !localReady) return;
+    const wanted: { key: string; fieldId?: string; text: string }[] = [
+      ...Object.entries(errors.fields)
+        .filter(([fieldId]) => structure.fields.some((f) => f.fieldId === fieldId))
+        .map(([fieldId, e]) => ({ key: errorKey(readerLang, fieldId, e.text), fieldId, text: e.text })),
+      ...errors.form.map((text) => ({ key: errorKey(readerLang, "", text), text })),
+    ];
+    for (const w of wanted) {
+      if (asked.current.has(w.key)) continue;
+      asked.current.add(w.key);
+      void (async () => {
+        try {
+          const prompt = await engine.prompts.explainError(structure, w.fieldId, w.text, readerLang);
+          const r = await run<string>("explainError", prompt, null, { structure, fieldId: w.fieldId, value: w.text });
+          const text = String(r.data).trim();
+          setExplained((x) => ({ ...x, [w.key]: text ? { text, meta: { source: r.source, reason: r.reason, ms: r.ms } } : { failed: "The explanation came back empty. This is the form's own message, as written." } }));
+        } catch (e) {
+          setExplained((x) => ({ ...x, [w.key]: { failed: aiWords(e) } }));
+        }
+      })();
+    }
+  }, [errors, structure, localReady, readerLang]);
 
   // Every step change (and every answer) is kept on this device, so a reload picks up here.
   useEffect(() => {
@@ -371,6 +462,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
     setFilled(nextFilled);
     await host.highlight(nextFilled, accentColor()).catch(() => undefined);
+    await readErrors(structure); // a page that checks an answer as it is typed says so now
     if (res.failed.length > 0) { setProblem({ fieldIds: res.failed, unreachable: false }); return; }
     go(idx + 1);
   }
@@ -410,11 +502,13 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     setValues({}); setCarried({}); setRestored(false); setForgotten(true);
   }
 
-  const localReady = model.state === "available";
   const hasProfile = Object.keys(profile).length > 0;
   const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
 
   const answered = steps.filter((st) => st.fieldIds.some((id) => filled.includes(id))).length;
+  /** The page's own words are in the page's language; the browser's own message is in the browser's. */
+  const errLang = (e: FieldError): string | undefined => (e.source !== "native" && structure.lang !== "und" ? structure.lang : undefined);
+  const note = errorNote(model.state);
   const chip = (
     <>
       {origin?.kind === "ai" && <SourceChip meta={origin.meta} />}
@@ -443,6 +537,15 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           </div>
         </div>
       )}
+      {errors.form.length > 0 && !changed && (
+        <div className="notice notice-warn" role="status" data-testid="form-errors">
+          <p><strong>The form shows {errors.form.length === 1 ? "an error" : "errors"} for the whole form.</strong></p>
+          {errors.form.map((text) => (
+            <PageError key={text} text={text} lang={structure.lang !== "und" ? structure.lang : undefined}
+              explained={explained[errorKey(readerLang, "", text)]} note={note} testId="form-error" />
+          ))}
+        </div>
+      )}
       {restored && !changed && (
         <p className="muted wf-saved" role="status" data-testid="wf-restored">
           Picked up where you left off. Your answers were kept on this device{filled.length ? ", and the ones you had filled in are back in the form" : ""}.
@@ -455,14 +558,16 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
             const done = st.fieldIds.some((id) => filled.includes(id));
             const shown = done ? shownAnswer(st.fieldIds, fields, values) : "";
             const state = i === idx ? "current" : done ? "done" : i < idx ? "skipped" : "todo";
+            const flagged = st.fieldIds.some((id) => errors.fields[id]);
             return (
               <li key={st.stepId}>
-                <button type="button" className={`wf-stepbtn ${state}`} aria-current={i === idx ? "step" : undefined} onClick={() => go(i)}>
+                <button type="button" className={`wf-stepbtn ${state}${flagged ? " flagged" : ""}`} aria-current={i === idx ? "step" : undefined} onClick={() => go(i)}>
                   <span className="wf-dot" aria-hidden="true">{done && i !== idx ? "" : i + 1}</span>
                   <span className="wf-q">
                     {st.question}
                     {state === "done" && <span className="visually-hidden"> (answered)</span>}
                     {state === "skipped" && <span className="visually-hidden"> (skipped)</span>}
+                    {flagged && <span className="visually-hidden"> (the form shows an error)</span>}
                   </span>
                   {shown && <span className="wf-v">{shown}</span>}
                 </button>
@@ -500,6 +605,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                         <small className="muted" data-testid="carried-over">Carried over from the previous page. Check it, then press Next.</small>
                       )}
                       <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
+                      {errors.fields[f.fieldId] && (
+                        <PageError text={errors.fields[f.fieldId]!.text} lang={errLang(errors.fields[f.fieldId]!)} fieldId={f.fieldId}
+                          explained={explained[errorKey(readerLang, f.fieldId, errors.fields[f.fieldId]!.text)]} note={note} testId="field-error" />
+                      )}
                       {f.kind !== "file" && f.kind !== "checkbox" && (
                         <div className="field-tools">
                           {localReady ? (

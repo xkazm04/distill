@@ -1,6 +1,6 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
-import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
+import type { FormErrors, FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
@@ -9,6 +9,8 @@ export type ContentRequest =
   | { type: "distill:getForm"; formIndex: number }
   | { type: "distill:readValues"; structure: FormStructure }
   | { type: "distill:writeValues"; structure: FormStructure; values: FormValues }
+  /** The validation errors the page shows now. Device-only: an error can repeat what the person typed. */
+  | { type: "distill:readErrors"; structure: FormStructure }
   /** `color`: the side panel's accent at call time; the content script normalises it or falls back. */
   | { type: "distill:highlight"; fieldIds: string[]; color?: string }
   | { type: "distill:getTheme" }
@@ -29,6 +31,7 @@ export interface ContentReplies {
   "distill:getForm": FormStructure;
   "distill:readValues": FormValues;
   "distill:writeValues": { written: string[]; failed: string[] };
+  "distill:readErrors": FormErrors;
   "distill:highlight": { ok: true };
   /** Computed colours, fonts and radius only (see pageTheme.ts): no value, no text. */
   "distill:getTheme": PageThemeSeed;

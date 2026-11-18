@@ -1,4 +1,4 @@
-import type { FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
+import type { FormErrors, FormStructure, FormValues, PageAction, PageModel } from "@distill/engine";
 import type { LocateTarget, PageHost } from "@distill/web/ui";
 import { focusColor } from "@distill/web/dom";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
@@ -48,6 +48,8 @@ export class TabHost implements PageHost {
   getForm(formIndex = 0): Promise<FormStructure> { return this.send<"distill:getForm">({ type: "distill:getForm", formIndex }); }
   readValues(structure: FormStructure): Promise<FormValues> { return this.send<"distill:readValues">({ type: "distill:readValues", structure }); }
   writeValues(structure: FormStructure, values: FormValues) { return this.send<"distill:writeValues">({ type: "distill:writeValues", structure, values }); }
+  /** Device-only, like readValues: the panel shows them and explains them on this device only. */
+  readErrors(structure: FormStructure): Promise<FormErrors> { return this.send<"distill:readErrors">({ type: "distill:readErrors", structure }); }
   async highlight(fieldIds: string[], color?: string) {
     await this.send({ type: "distill:highlight", fieldIds, ...(color ? { color } : {}) });
   }
