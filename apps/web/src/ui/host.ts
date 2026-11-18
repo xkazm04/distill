@@ -7,7 +7,9 @@ export interface PageHost {
   /** Short label for the header: the page title or host name. */
   label(): string;
   getPage(): Promise<PageModel>;
-  /** Structure only. Rejects with a plain-words Error when the page has no form. */
+  /** Structure only. Rejects with a plain-words Error when the page has no form. When the host knows exactly why the
+   *  page cannot be filled (a PDF that is a scan, an XFA form, a protected or signed file), the Error carries
+   *  `problem` (see FormProblem) and Wayfill shows those words as they are. */
   getForm(formIndex?: number): Promise<FormStructure>;
   /** Device-only. The result must never be put in a cloud-eligible prompt. */
   readValues(structure: FormStructure): Promise<FormValues>;
@@ -32,6 +34,23 @@ export interface PageHost {
   listActions?(): Promise<PageAction[]>;
   /** Clicks the control `actionId` of the LAST listActions. Called only after the person pressed Accept. */
   doAction?(actionId: string): Promise<void>;
+  /**
+   * Web PDF only: saves the filled copy as a new file on this device (a download). The file the person opened is
+   * never changed. Absent where the page itself holds the answers (a web form).
+   */
+  saveCopy?(): Promise<void>;
+}
+
+/** Why a page cannot be filled, in plain words for the person: shown as written, never sent anywhere. */
+export interface FormProblem {
+  title: string;
+  detail: string;
+}
+
+/** The FormProblem an error from getForm carries, if any. */
+export function formProblemOf(e: unknown): FormProblem | null {
+  const p = (e as { problem?: Partial<FormProblem> } | null)?.problem;
+  return p && typeof p.title === "string" && typeof p.detail === "string" ? { title: p.title, detail: p.detail } : null;
 }
 
 /** What `locate` points at: a block of the PageModel (by its id) or the fields of a form step. */

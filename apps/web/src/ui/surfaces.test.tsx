@@ -92,6 +92,48 @@ describe("Wayfill", () => {
     expect(el.textContent).not.toContain("no reply");
   });
 
+  it("a page the host knows it cannot fill (an XFA PDF) shows the host's own plain words, and asks no AI", async () => {
+    const host = fakeHost(form([]), async () => ({ written: [], failed: [] }));
+    host.getForm.mockRejectedValueOnce(Object.assign(new Error("x"), {
+      problem: { title: "This PDF is an XFA form, which Distill cannot fill", detail: "XFA is an older Adobe form format." },
+    }));
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    expect(q("no-form")?.getAttribute("data-reason")).toBe("problem");
+    expect(q("no-form")?.querySelector("h3")?.textContent).toBe("This PDF is an XFA form, which Distill cannot fill");
+    expect(q("no-form")?.textContent).toContain("XFA is an older Adobe form format.");
+    expect(runMock).not.toHaveBeenCalled();
+  });
+
+  it("a host that fills a copy (a PDF) offers to save it once an answer is written, and says the opened file is unchanged", async () => {
+    const s = form([field("jmeno", "Jméno")]);
+    runMock.mockResolvedValue(wizardFor(s));
+    const saveCopy = vi.fn(async () => undefined);
+    const host = { ...fakeHost(s, async (v) => ({ written: Object.keys(v), failed: [] })), saveCopy };
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    expect(q("save-copy")).toBeNull(); // nothing written yet
+    const input = el.querySelector<HTMLInputElement>("#wf-jmeno")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Olena");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(button("Finish"));
+    expect(q("wf-done")?.textContent).toContain("1 field was filled in on a copy of the form");
+    expect(q("wf-done")?.textContent).toContain("The file you opened stays as it was.");
+    await click(q("wf-done")?.querySelector('[data-testid="save-copy"]'));
+    expect(saveCopy).toHaveBeenCalledOnce();
+    expect(q("save-note")?.textContent).toBe("Saved as a new file on this device. The file you opened is unchanged.");
+  });
+
+  it("a web page's host has no copy to save: no save button", async () => {
+    const s = form([field("jmeno", "Jméno")]);
+    runMock.mockResolvedValue(wizardFor(s));
+    const host = fakeHost(s, async (v) => ({ written: Object.keys(v), failed: [] }));
+    await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    await click(button("Skip"));
+    expect(q("wf-done")?.textContent).toContain("on the original form");
+    expect(q("save-copy")).toBeNull();
+  });
+
   it("when Next cannot write a value, the step names the field, stays, and offers the original form", async () => {
     const s = form([field("jmeno", "Jméno"), field("rc", "Rodné číslo")]);
     runMock.mockResolvedValue(wizardFor(s));

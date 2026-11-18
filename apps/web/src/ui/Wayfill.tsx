@@ -10,7 +10,7 @@ import { labelsKey, normLabel, type GuideStore } from "./guideStore";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
 import { SourceChip, type AiMeta } from "./chips";
 import { WizardSkeleton } from "./loading";
-import type { PageHost } from "./host";
+import { formProblemOf, type FormProblem, type PageHost } from "./host";
 import type { LocalModel } from "./useLocalModel";
 
 const CHECK_SCHEMA = { type: "object", properties: { ok: { type: "boolean" }, message: { type: "string" } }, required: ["ok", "message"] };
@@ -171,8 +171,9 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
     : `Could not fill in ${names} on the original form: the page did not take ${one ? "the answer" : "these answers"}, or Distill could not confirm it did. Please fill ${one ? "it" : "them"} in there yourself.`;
 }
 
-/** Why there is no guide: the page has no fillable field, or the page could not be read at all. */
-type NoForm = "none" | "unreadable";
+/** Why there is no guide: the page has no fillable field, the page could not be read at all, or the host said exactly
+ *  why (a PDF that is a scan, an XFA form, a protected or signed file). */
+type NoForm = "none" | "unreadable" | "problem";
 
 /** The answer to a step as the person sees it on the stepper: option labels, "Yes" for a ticked box. Screen only. */
 function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
@@ -188,6 +189,9 @@ function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values:
 export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep, guideStore, reloadKey = 0, changeKey = 0 }: Props) {
   const [phase, setPhase] = useState<"loading" | "noform" | "ready">("loading");
   const [noForm, setNoForm] = useState<NoForm>("none");
+  const [formProblem, setFormProblem] = useState<FormProblem | null>(null);
+  /** The filled copy is being saved, was saved, or could not be (host.saveCopy: a PDF). */
+  const [saving, setSaving] = useState<"idle" | "busy" | "saved" | "failed">("idle");
   const [structure, setStructure] = useState<FormStructure | null>(null);
   const [wizard, setWizard] = useState<Wizard | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -221,8 +225,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         s = await host.getForm(0);
       } catch (e) {
         if (!live) return;
-        console.warn("[distill] no form:", e);
-        setNoForm("unreadable");
+        const problem = formProblemOf(e);
+        if (!problem) console.warn("[distill] no form:", e);
+        setFormProblem(problem);
+        setNoForm(problem ? "problem" : "unreadable");
         setPhase("noform");
         return;
       }
@@ -431,8 +437,17 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return (
       <div className="ws-content">
         <div className="ws-empty" role="status" data-testid="no-form" data-reason={noForm}>
-          <h3>{noForm === "none" ? "There is no form to fill on this page" : "Distill could not read a form on this page"}</h3>
-          <p>Open a page with a form to use the step-by-step guide. You can still read this page in the other views.</p>
+          {noForm === "problem" && formProblem ? (
+            <>
+              <h3>{formProblem.title}</h3>
+              <p>{formProblem.detail}</p>
+            </>
+          ) : (
+            <>
+              <h3>{noForm === "none" ? "There is no form to fill on this page" : "Distill could not read a form on this page"}</h3>
+              <p>Open a page with a form to use the step-by-step guide. You can still read this page in the other views.</p>
+            </>
+          )}
         </div>
       </div>
     );
@@ -461,6 +476,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     }
     const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
     setFilled(nextFilled);
+    if (res.written.length) setSaving("idle"); // a copy saved before this answer is out of date
     await host.highlight(nextFilled, accentColor()).catch(() => undefined);
     await readErrors(structure); // a page that checks an answer as it is typed says so now
     if (res.failed.length > 0) { setProblem({ fieldIds: res.failed, unreachable: false }); return; }
@@ -504,6 +520,23 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
 
   const hasProfile = Object.keys(profile).length > 0;
   const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
+  /** Saves the filled copy (a PDF) as a new file. The file the person opened is not changed. */
+  const saveCopy = host.saveCopy ? async () => {
+    setSaving("busy");
+    try { await host.saveCopy?.(); setSaving("saved"); } catch (e) { console.warn("[distill] could not save:", e); setSaving("failed"); }
+  } : null;
+  const saveButton = (primary: boolean) => saveCopy && (
+    <button type="button" className={primary ? "btn btn-primary" : "btn btn-small"} disabled={saving === "busy"} onClick={() => void saveCopy()} data-testid="save-copy">
+      Save the filled copy
+    </button>
+  );
+  const saveNote = saveCopy && saving !== "idle" && saving !== "busy" && (
+    <p className={saving === "failed" ? "notice notice-warn" : "muted wf-saved"} role="status" data-testid="save-note">
+      {saving === "saved"
+        ? "Saved as a new file on this device. The file you opened is unchanged."
+        : "The copy could not be saved. Please try again."}
+    </p>
+  );
 
   const answered = steps.filter((st) => st.fieldIds.some((id) => filled.includes(id))).length;
   /** The page's own words are in the page's language; the browser's own message is in the browser's. */
@@ -526,6 +559,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         <h2 id="wf-h" className="ws-tool-label">{structure.title || "Form guide"}</h2>
         <span className="ws-grow" />
         <span className="muted" data-testid="wf-answered">{answered} of {steps.length} answered</span>
+        {filled.length > 0 && saveButton(false)}
         {chip}
       </div>
 
@@ -546,6 +580,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           ))}
         </div>
       )}
+      {saveNote}
       {restored && !changed && (
         <p className="muted wf-saved" role="status" data-testid="wf-restored">
           Picked up where you left off. Your answers were kept on this device{filled.length ? ", and the ones you had filled in are back in the form" : ""}.
@@ -657,10 +692,15 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           {finished && (
             <div className="card wf-card" data-testid="wf-done">
               <h3>All steps done</h3>
-              <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
+              {saveCopy ? (
+                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on a copy of the form. Look it over, then save the copy. The file you opened stays as it was.</p>
+              ) : (
+                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
+              )}
               <div className="nav">
                 <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
-                <button type="button" className="btn btn-primary" onClick={showOriginal}>Show original form</button>
+                <button type="button" className={saveCopy ? "btn" : "btn btn-primary"} onClick={showOriginal}>Show original form</button>
+                {saveButton(true)}
               </div>
             </div>
           )}
