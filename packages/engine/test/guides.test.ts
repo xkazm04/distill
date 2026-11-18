@@ -1,0 +1,246 @@
+// The guide library's engine: the door a guide file passes (parseGuide), which guide fits the form on screen
+// (matchGuide), and the steps a person sees when the form changed since the guide was written (guideWizard,
+// mergeWizards).
+import { describe, expect, it } from "vitest";
+import {
+  fingerprint, guideWizard, matchGuide, mergeWizards, narrowStructure, parseGuide, parseLibrary, GUIDE_MIN_OVERLAP,
+  type FieldStructure, type FormGuide, type FormStructure, type GuideStep, type Wizard,
+} from "../src/index.js";
+
+const URL_NEW = "https://ipc.gov.cz/formular/zmena";
+const URL_OLD = "https://www.mvcr.cz/formular/zmena";
+
+const FIELDS: FieldStructure[] = [
+  { fieldId: "prijmeni", kind: "text", label: "Příjmení", required: true },
+  { fieldId: "jmeno", kind: "text", label: "Jméno", required: true },
+  { fieldId: "narozeni", kind: "date", label: "Datum narození", required: true },
+  { fieldId: "ulice", kind: "text", label: "Ulice", required: true },
+  { fieldId: "obec", kind: "text", label: "Obec", required: true },
+  { fieldId: "psc", kind: "text", label: "PSČ", required: false },
+];
+
+const steps = (lang: "en" | "uk"): GuideStep[] => [
+  {
+    stepId: "name", fieldIds: ["prijmeni", "jmeno"],
+    question: lang === "en" ? "Your surname and first name" : "Ваше прізвище та ім'я",
+    explanation: lang === "en" ? "As in your passport." : "Як у паспорті.",
+    official: { text: "Uveďte jméno a příjmení podle cestovního dokladu.", lang: "cs" },
+  },
+  { stepId: "birth", fieldIds: ["narozeni"], question: lang === "en" ? "Date of birth" : "Дата народження", explanation: "DD.MM.RRRR", expectedFormat: "DD.MM.YYYY" },
+  { stepId: "address", fieldIds: ["ulice", "obec", "psc"], question: lang === "en" ? "Your new address" : "Нова адреса", explanation: lang === "en" ? "Where you live now." : "Де ви живете зараз." },
+];
+
+async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
+  return {
+    guideVersion: 1,
+    id: "cz/zmena-adresy",
+    status: "reviewed",
+    authority: { name: "Ministerstvo vnitra", nameEn: "the Ministry of the Interior" },
+    formName: { cs: "Oznámení změny adresy", en: "Change of address", uk: "Повідомлення про зміну адреси" },
+    formLang: "cs",
+    officialFormUrl: "https://ipc.gov.cz/formular/zmena.pdf",
+    instructionsUrl: "https://ipc.gov.cz/navod",
+    draftedOn: "2026-11-18",
+    reviewer: "Jana Testová",
+    reviewedOn: "2026-11-20",
+    match: { format: "html", fingerprints: [await fingerprint(URL_NEW, FIELDS)], urls: [URL_NEW, URL_OLD], fields: FIELDS.map(({ fieldId, kind, label }) => ({ fieldId, kind, label })) },
+    wizards: { en: { notes: ["Fill the form in Czech."], steps: steps("en") }, uk: { notes: ["Заповнюйте форму чеською."], steps: steps("uk") } },
+    ...over,
+  };
+}
+
+async function form(fields: FieldStructure[] = FIELDS, url = URL_NEW): Promise<FormStructure> {
+  return { fingerprint: await fingerprint(url, fields), url, lang: "cs", title: "Oznámení", fields };
+}
+
+const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+
+describe("parseGuide: the door for a guide file", () => {
+  it("a complete reviewed guide passes as written", async () => {
+    const g = await guide();
+    const r = parseGuide(clone(g), { id: "cz/zmena-adresy" });
+    expect(r.problems).toEqual([]);
+    expect(r.guide).toEqual(g);
+  });
+
+  it("refuses HTML, script addresses, unknown keys and kinds, and fields that do not exist", async () => {
+    const cases: [string, (g: FormGuide & Record<string, unknown>) => void, RegExp][] = [
+      ["html", (g) => { g.wizards.en.steps[0]!.explanation = "As in your <b>passport</b>."; }, /would not pass the door/],
+      ["entity", (g) => { g.wizards.en.steps[0]!.question = "Name &amp; surname"; }, /would not pass the door/],
+      ["script", (g) => { g.wizards.uk.steps[1]!.example = "javascript:alert(1)"; }, /script address/],
+      ["unknown key", (g) => { (g.wizards.en.steps[0] as unknown as Record<string, unknown>).explaination = "x"; }, /unknown key "explaination"/],
+      ["unknown top key", (g) => { g.verified = true; }, /unknown key "verified"/],
+      ["kind", (g) => { (g.match.fields[0] as { kind: string }).kind = "signature"; }, /not a field kind/],
+      ["missing field", (g) => { g.wizards.en.steps[0]!.fieldIds = ["prijmeni", "nope"]; }, /"nope" is not a field/],
+      ["uncovered", (g) => { g.wizards.en.steps[2]!.fieldIds = ["ulice", "obec"]; g.wizards.uk.steps[2]!.fieldIds = ["ulice", "obec"]; }, /no step covers the field "psc"/],
+      ["two steps", (g) => { g.wizards.en.steps[1]!.fieldIds = ["narozeni", "jmeno"]; }, /already in an earlier step/],
+      ["order", (g) => { for (const l of ["en", "uk"] as const) g.wizards[l].steps.reverse(); }, /not in the form's field order/],
+      ["parallel", (g) => { g.wizards.uk.steps[0]!.stepId = "jmena"; }, /wizards differ/],
+      ["uk missing", (g) => { delete (g.wizards as Record<string, unknown>).uk; }, /wizards\.uk is missing/],
+      ["other language", (g) => { (g.wizards as Record<string, unknown>).de = g.wizards.en; }, /carries en and uk only/],
+      ["http", (g) => { g.instructionsUrl = "http://ipc.gov.cz/navod"; }, /instructionsUrl must be an https address/],
+      ["date", (g) => { g.reviewedOn = "2026-02-30"; }, /reviewedOn, a date/],
+      ["drafted date", (g) => { g.draftedOn = "18.11.2026"; }, /draftedOn must be a date/],
+      ["query", (g) => { g.match.urls = ["https://ipc.gov.cz/formular/zmena?id=1"]; }, /no query or fragment/],
+      ["fingerprint", (g) => { g.match.fingerprints = ["abc"]; }, /sha-256/],
+      ["pdf with urls", (g) => { g.match.format = "pdf"; }, /match\.urls is for web forms only/],
+      ["id", (g) => { g.id = "cz/jina"; }, /file is cz\/zmena-adresy\.json/],
+    ];
+    for (const [name, change, why] of cases) {
+      const g = clone(await guide()) as FormGuide & Record<string, unknown>;
+      change(g);
+      const r = parseGuide(g, { id: "cz/zmena-adresy" });
+      expect(r.guide, name).toBeNull();
+      expect(r.problems.join("\n"), name).toMatch(why);
+    }
+  });
+
+  it("a reviewed guide names its reviewer and date and has no open review notes; a draft names neither", async () => {
+    const noReviewer = clone(await guide()) as Partial<FormGuide>;
+    delete noReviewer.reviewer;
+    expect(parseGuide(noReviewer).problems.join()).toMatch(/reviewer must be text/);
+    const noDate = clone(await guide()) as Partial<FormGuide>;
+    delete noDate.reviewedOn;
+    expect(parseGuide(noDate).problems.join()).toMatch(/needs reviewedOn/);
+    expect(parseGuide(await guide({ reviewNotes: ["uk not checked"] })).problems.join()).toMatch(/no open reviewNotes/);
+    expect(parseGuide(await guide({ reviewedOn: "2026-11-01" })).problems.join()).toMatch(/before draftedOn/);
+
+    const draft = await guide({ status: "draft", reviewNotes: ["The Ukrainian text is machine-written."] });
+    expect(parseGuide(draft).problems.join()).toMatch(/a draft names no reviewer/);
+    delete draft.reviewer; delete draft.reviewedOn;
+    expect(parseGuide(draft).problems).toEqual([]);
+  });
+
+  it("a demo guide is a draft, matched by path", async () => {
+    const demo = clone(await guide({ status: "draft", demo: true })) as Partial<FormGuide>;
+    delete demo.reviewer; delete demo.reviewedOn;
+    demo.match!.urls = ["/demo/form.html"];
+    expect(parseGuide(demo).problems).toEqual([]);
+    expect(parseGuide({ ...demo, status: "reviewed", reviewer: "X", reviewedOn: "2026-11-20" }).problems.join()).toMatch(/demo guide is never reviewed/);
+    // A path is for the demo guide only.
+    expect(parseGuide(await guide({ match: { ...(await guide()).match, urls: ["/demo/form.html"] } })).problems.join()).toMatch(/must be an https address/);
+  });
+
+  it("parseLibrary keeps the guides that pass and names the ones that do not", async () => {
+    const good = await guide();
+    const bad = { ...clone(good), id: "cz/spatna", officialFormUrl: "ftp://x" };
+    const r = parseLibrary([good, bad, "nonsense"]);
+    expect(r.guides.map((g) => g.id)).toEqual(["cz/zmena-adresy"]);
+    expect(r.rejected.map((x) => x.id)).toEqual(["cz/spatna", "#2"]);
+  });
+});
+
+describe("matchGuide", () => {
+  it("an exact fingerprint is an exact match, and a form elsewhere is not matched", async () => {
+    const g = await guide();
+    const m = matchGuide(await form(), [g]);
+    expect(m).toMatchObject({ exact: true, changed: [], removed: 0, overlap: 1 });
+    expect(m?.same).toEqual(FIELDS.map((f) => f.fieldId));
+    expect(matchGuide(await form(FIELDS, "https://evil.example/formular/zmena"), [g])).toBeNull();
+    expect(matchGuide(await form(FIELDS, "https://ipc.gov.cz/jiny-formular"), [g])).toBeNull();
+  });
+
+  it("the same fields at the office's other host are exact too (the fingerprint holds the address)", async () => {
+    const m = matchGuide(await form(FIELDS, `${URL_OLD}/`), [await guide()]);
+    expect(m?.exact).toBe(true);
+  });
+
+  it("a label that differs only in case, spacing or a star is the same field", async () => {
+    const fields = FIELDS.map((f) => (f.fieldId === "obec" ? { ...f, label: "OBEC *" } : f));
+    expect(matchGuide(await form(fields), [await guide()])).toMatchObject({ exact: true, changed: [] });
+  });
+
+  it("a changed form: the new and relabelled fields are named, and the overlap is shared / all", async () => {
+    const fields: FieldStructure[] = [
+      ...FIELDS.map((f) => (f.fieldId === "psc" ? { ...f, label: "Poštovní směrovací číslo" } : f)),
+      { fieldId: "telefon", kind: "tel", label: "Telefon", required: false },
+    ];
+    const m = matchGuide(await form(fields), [await guide()]);
+    expect(m).toMatchObject({ exact: false, changed: ["psc", "telefon"], removed: 1 });
+    expect(m?.overlap).toBeCloseTo(5 / (6 + 7 - 5));
+  });
+
+  it(`below ${GUIDE_MIN_OVERLAP} overlap the guide is not used`, async () => {
+    const g = await guide();
+    // 3 of 6 kept, 3 new: 3 / 9 = 0.33.
+    const fields: FieldStructure[] = [...FIELDS.slice(0, 3), ...["a", "b", "c"].map((id): FieldStructure => ({ fieldId: id, kind: "text", label: id, required: false }))];
+    expect(matchGuide(await form(fields), [g])).toBeNull();
+    // 4 of 6 kept, 2 new: 4 / 8 = 0.5, still used.
+    const used = [...FIELDS.slice(0, 4), ...["a", "b"].map((id): FieldStructure => ({ fieldId: id, kind: "text", label: id, required: false }))];
+    expect(matchGuide(await form(used), [g])?.overlap).toBe(0.5);
+  });
+
+  it("a draft is used only with drafts switched on; the demo guide always, on its path only", async () => {
+    const draft = await guide({ status: "draft" });
+    const s = await form();
+    expect(matchGuide(s, [draft])).toBeNull();
+    expect(matchGuide(s, [draft], { drafts: true })?.guide).toBe(draft);
+
+    const demo = await guide({ status: "draft", demo: true, match: { ...draft.match, fingerprints: ["0".repeat(64)], urls: ["/demo/form.html"] } });
+    expect(matchGuide(await form(FIELDS, "http://127.0.0.1:5181/demo/form.html"), [demo])?.exact).toBe(true);
+    expect(matchGuide(await form(FIELDS, "https://distill-hybrid-ai.web.app/demo/form.html"), [demo])?.exact).toBe(true);
+    expect(matchGuide(await form(FIELDS, "http://127.0.0.1:5181/form.html"), [demo])).toBeNull();
+  });
+
+  it("a PDF is known by its title, never by an address; an html guide never matches a PDF", async () => {
+    const PDF = "pdf://local/";
+    const html = await guide();
+    const pdf = await guide({ match: { format: "pdf", fingerprints: [await fingerprint(PDF, FIELDS)], titles: ["Oznámení změny adresy"], fields: html.match.fields } });
+    const s: FormStructure = { ...(await form(FIELDS, PDF)), title: "OZNÁMENÍ ZMĚNY ADRESY" };
+    expect(matchGuide(s, [html])).toBeNull();
+    expect(matchGuide(s, [pdf])?.exact).toBe(true);
+    // Another PDF with the same generic field ids but another title: not this form.
+    expect(matchGuide({ ...s, title: "Žádost o něco jiného", fingerprint: "x" }, [pdf])).toBeNull();
+    // The same PDF, one field relabelled: matched by title, with the drift named.
+    const changed = FIELDS.map((f) => (f.fieldId === "obec" ? { ...f, label: "Obec a část obce" } : f));
+    expect(matchGuide({ ...s, fields: changed, fingerprint: await fingerprint(PDF, changed) }, [pdf])).toMatchObject({ exact: false, changed: ["obec"] });
+  });
+
+  it("the best guide wins: exact before changed, then the larger overlap", async () => {
+    const a = await guide({ id: "cz/a" });
+    const b = await guide({ id: "cz/b", match: { ...a.match, fingerprints: ["1".repeat(64)], fields: a.match.fields.slice(0, 5) } });
+    expect(matchGuide(await form(), [b, a])?.guide.id).toBe("cz/a");
+  });
+});
+
+describe("guideWizard and mergeWizards", () => {
+  it("an exact match gives the guide's steps, its quotes and notes, in the reader's language", async () => {
+    const s = await form();
+    const m = matchGuide(s, [await guide()])!;
+    const en = guideWizard(m, s, "en")!;
+    expect(en.wizard.steps.map((st) => st.stepId)).toEqual(["name", "birth", "address"]);
+    expect(en.wizard.fingerprint).toBe(s.fingerprint);
+    expect(en.quotes).toEqual({ name: { text: "Uveďte jméno a příjmení podle cestovního dokladu.", lang: "cs" } });
+    expect(en.notes).toEqual(["Fill the form in Czech."]);
+    expect(en.rest).toEqual([]);
+    expect(guideWizard(m, s, "uk")?.wizard.steps[0]?.question).toBe("Ваше прізвище та ім'я");
+    expect(guideWizard(m, s, "uk-UA")?.wizard.readerLang).toBe("uk");
+    expect(guideWizard(m, s, "de")).toBeNull();
+  });
+
+  it("a changed form: a step any of whose fields changed goes to the normal path whole, with the new fields", async () => {
+    const fields: FieldStructure[] = [
+      ...FIELDS.map((f) => (f.fieldId === "psc" ? { ...f, label: "Poštovní směrovací číslo" } : f)),
+      { fieldId: "telefon", kind: "tel", label: "Telefon", required: false },
+    ];
+    const s = await form(fields);
+    const g = guideWizard(matchGuide(s, [await guide()])!, s, "en")!;
+    expect(g.wizard.steps.map((st) => st.stepId)).toEqual(["name", "birth"]);
+    expect(g.rest).toEqual(["ulice", "obec", "psc", "telefon"]);
+
+    const rest: Wizard = { fingerprint: "x", readerLang: "en", steps: narrowStructure(s, g.rest).fields.map((f) => ({ stepId: f.fieldId === "telefon" ? "name" : f.fieldId, fieldIds: [f.fieldId], question: f.label, explanation: "" })) };
+    const { wizard, fromGuide } = mergeWizards(s, g.wizard, rest);
+    expect(wizard.steps.map((st) => st.stepId)).toEqual(["name", "birth", "ulice", "obec", "psc", "name_2"]);
+    expect(fromGuide).toEqual(["name", "birth"]);
+    expect(wizard.steps.flatMap((st) => st.fieldIds)).toEqual(fields.map((f) => f.fieldId));
+  });
+
+  it("the steps pass the wizard door again against the form on screen", async () => {
+    const s = await form();
+    const g = await guide();
+    // A guide changed after it was loaded (it never should be) still cannot carry HTML to the screen.
+    g.wizards.en.steps[0]!.explanation = "<img src=x onerror=alert(1)>As in your passport.";
+    const out = guideWizard(matchGuide(s, [g])!, s, "en")!;
+    expect(out.wizard.steps[0]?.explanation).toBe("As in your passport.");
+  });
+});

@@ -11,6 +11,10 @@ export { prompts } from "./prompts.js";
 export { schemas } from "./schemas.js";
 export { fingerprint } from "./fingerprint.js";
 export {
+  parseGuide, parseLibrary, matchGuide, guideWizard, guideLang, guideStructure, mergeWizards, narrowStructure, formAddress, sameLabel,
+  isHttps, isIsoDate, GUIDE_LANGS, GUIDE_MIN_OVERLAP, type GuideCheck, type GuideLang, type GuideMatchResult, type GuideSteps,
+} from "./guides.js";
+export {
   pageToken, parseSimplified, agentCanDo, agentDoor, extractActions, AGENT_TASKS, MAX_ACTIONS,
   type AgentTask, type AgentVerdict, type DoorContext, type PageAction, type PageActionKind, type Simplified,
 } from "./agent.js";
