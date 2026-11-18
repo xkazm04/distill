@@ -265,9 +265,10 @@ export interface ExtractOptions {
 }
 
 export function extractPage(doc: Document, url: string, opts?: ExtractOptions): PageModel {
-  // The page view reads the top document's own tree: a form in a frame or a shadow root is reachable to Wayfill, but
-  // its surroundings are not page text here.
-  const forms = listForms(doc).filter((f) => f.getRootNode() === doc);
+  // The page view reads the top document's own tree: a form in a frame or a shadow root is reachable to Wayfill (and
+  // counted in formCount), but its surroundings are not page text here.
+  const reachable = listForms(doc);
+  const forms = reachable.filter((f) => f.getRootNode() === doc);
   const form = dominantForm(doc, forms);
   let root = pickRoot(doc);
   // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.
@@ -306,6 +307,6 @@ export function extractPage(doc: Document, url: string, opts?: ExtractOptions): 
     kind: classify(doc, url, blocks, !!form),
     blocks,
   };
-  if (forms.length > 0) page.formCount = forms.length;
+  if (reachable.length > 0) page.formCount = reachable.length;
   return page;
 }

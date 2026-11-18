@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractForm, readValues, writeValues } from "../src/index.js";
+import { extractForm, extractPage, readValues, writeValues } from "../src/index.js";
 import { live, parse } from "./helpers.js";
 
 const URL_ = "https://forms.example/f";
@@ -61,6 +61,10 @@ describe("forms in same-origin frames", () => {
     expect(writeValues(doc, s, { drzitel: "Olena", pocet: "2" }).written).toEqual(["drzitel", "pocet"]);
     expect((frame.getElementById("drzitel") as HTMLInputElement).value).toBe("Olena");
     expect(readValues(doc, s)).toEqual({ drzitel: "Olena", pocet: "2" });
+    // The page view counts the form (so the panel can say a form is here) but reads only the top document's text.
+    const page = extractPage(doc, URL_);
+    expect(page.formCount).toBe(1);
+    expect(JSON.stringify(page)).not.toContain("Držitel");
     await close();
   });
 
