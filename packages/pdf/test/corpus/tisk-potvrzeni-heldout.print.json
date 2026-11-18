@@ -1,0 +1,80 @@
+{
+  "title": "Žádost o vydání potvrzení (print-only, held out)",
+  "models": "A print-only application written after the print-only rules were final and scored once, untuned: labels and their dotted leaders printed as one text item, two of them on a row; a label over a dotted line with a second dotted line under it; a postcode in five character boxes; a box with a small caption inside; a label over three dotted lines; ANO and NE tick squares; a place and date written inline ('V ..... dne .....'); a signature line; and a section for the office ('Vyplní úřad') with a box for the reference number and one for the stamp.",
+  "heldOut": "Written after the rules of packages/pdf/src/printed.ts were final; scored once and kept untuned.",
+  "layout": {
+    "lang": "cs-CZ",
+    "pages": [{
+      "fields": [],
+      "text": [
+        { "at": [40, 815], "size": 9, "text": "Ministerstvo vnitra ČR" },
+        { "at": [150, 790], "size": 15, "text": "ŽÁDOST O VYDÁNÍ POTVRZENÍ" },
+        { "at": [40, 740], "text": "Příjmení: ................................" },
+        { "at": [300, 740], "text": "Jméno: ........................................" },
+        { "at": [40, 720], "text": "Datum narození: ........................" },
+        { "at": [300, 720], "text": "Státní občanství: .............................." },
+        { "at": [40, 700], "text": "Telefon: .............................." },
+        { "at": [300, 700], "text": "E-mail: ........................................" },
+        { "at": [40, 675], "text": "Adresa pobytu v ČR:" },
+        { "at": [40, 660], "text": ".............................................................................................................................................................................................." },
+        { "at": [40, 645], "text": ".............................................................................................................................................................................................." },
+        { "at": [40, 620], "text": "PSČ:" },
+        { "at": [303, 626], "size": 7, "text": "Číslo cestovního dokladu" },
+        { "at": [40, 585], "text": "Účel žádosti:" },
+        { "at": [40, 570], "text": ".............................................................................................................................................................................................." },
+        { "at": [40, 555], "text": ".............................................................................................................................................................................................." },
+        { "at": [40, 540], "text": ".............................................................................................................................................................................................." },
+        { "at": [40, 510], "text": "Mám zájem o zaslání poštou:" },
+        { "at": [220, 510], "text": "ANO" },
+        { "at": [275, 510], "text": "NE" },
+        { "at": [40, 450], "text": "V" },
+        { "at": [52, 450], "text": "........................................" },
+        { "at": [165, 450], "text": "dne" },
+        { "at": [187, 450], "text": ".............................." },
+        { "at": [400, 438], "size": 8, "text": "podpis žadatele" },
+        { "at": [40, 380], "size": 9, "text": "Vyplní úřad:" },
+        { "at": [43, 362], "size": 7, "text": "Číslo jednací" },
+        { "at": [303, 362], "size": 7, "text": "Razítko a podpis úředníka" }
+      ],
+      "lines": [
+        { "from": [350, 450], "to": [540, 450] }
+      ],
+      "rects": [
+        { "rect": [70, 615, 14, 16] }, { "rect": [84, 615, 14, 16] }, { "rect": [98, 615, 14, 16] }, { "rect": [112, 615, 14, 16] }, { "rect": [126, 615, 14, 16] },
+        { "rect": [300, 610, 245, 24] },
+        { "rect": [245, 507, 12, 12] }, { "rect": [295, 507, 12, 12] },
+        { "rect": [40, 330, 250, 40] }, { "rect": [300, 330, 245, 40] }
+      ]
+    }]
+  },
+  "fields": [
+    { "key": "prijmeni", "kind": "text", "label": "Příjmení", "at": [120, 744], "value": "Kovalenková",
+      "probes": [{ "text": "Kovalenková", "within": [84, 738, 171, 754] }] },
+    { "key": "jmeno", "kind": "text", "label": "Jméno", "at": [380, 744], "value": "Olena",
+      "probes": [{ "text": "Olena", "within": [335, 738, 443, 754] }] },
+    { "key": "narozeni", "kind": "text", "label": "Datum narození", "at": [150, 724], "value": "5. 3. 1990",
+      "probes": [{ "text": "5. 3. 1990", "within": [120, 718, 186, 734] }] },
+    { "key": "obcanstvi", "kind": "text", "label": "Státní občanství", "at": [420, 724], "value": "Ukrajina",
+      "probes": [{ "text": "Ukrajina", "within": [379, 718, 461, 734] }] },
+    { "key": "telefon", "kind": "text", "label": "Telefon", "at": [120, 704], "value": "+420 777 123 456",
+      "probes": [{ "text": "+420 777 123 456", "within": [79, 698, 161, 714] }] },
+    { "key": "email", "kind": "text", "label": "E-mail", "at": [380, 704], "value": "olena@example.cz",
+      "probes": [{ "text": "olena@example.cz", "within": [334, 698, 442, 714] }] },
+    { "key": "adresa", "kind": "textarea", "label": "Adresa pobytu v ČR", "at": [200, 664], "value": "Lidická 1880/14, 602 00 Brno - Černá Pole, u paní Novákové, byt číslo 3 ve druhém patře",
+      "probes": [{ "text": "Lidická 1880/14, 602 00 Brno - Černá Pole, u paní Novákové, byt číslo 3 ve druhém patře", "within": [39, 643, 551, 672] }] },
+    { "key": "psc", "kind": "text", "label": "PSČ", "maxLength": 5, "at": [77, 623], "value": "602 00",
+      "probes": [{ "text": "60200", "within": [70, 615, 140, 631] }] },
+    { "key": "doklad", "kind": "text", "label": "Číslo cestovního dokladu", "at": [420, 615], "value": "FX4471902",
+      "probes": [{ "text": "FX4471902", "within": [300, 610, 545, 625] }] },
+    { "key": "ucel", "kind": "textarea", "label": "Účel žádosti", "at": [200, 574], "value": "Potvrzení o pobytu pro zaměstnavatele a pro banku, kde si chci otevřít účet. Potřebuji dva výtisky.",
+      "probes": [{ "text": "Potvrzení o pobytu pro zaměstnavatele a pro banku, kde si chci otevřít účet. Potřebuji dva výtisky.", "within": [39, 538, 551, 582] }] },
+    { "key": "ano", "kind": "checkbox", "label": "ANO", "at": [251, 513], "value": "true",
+      "probes": [{ "text": "X", "within": [245, 507, 257, 519] }] },
+    { "key": "ne", "kind": "checkbox", "label": "NE", "at": [301, 513], "value": "",
+      "probes": [] },
+    { "key": "misto", "kind": "text", "label": "V", "at": [100, 454], "value": "Brně",
+      "probes": [{ "text": "Brně", "within": [52, 448, 160, 464] }] },
+    { "key": "dne", "kind": "text", "label": "dne", "at": [220, 454], "value": "12. 11. 2026",
+      "probes": [{ "text": "12. 11. 2026", "within": [187, 448, 268, 464] }] }
+  ]
+}
