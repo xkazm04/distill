@@ -25,12 +25,13 @@ export const shortName = (name: string): string => (name.split(".").pop() ?? nam
 
 /**
  * A name a form tool gave a field, not a person: "Text12", "Text Field 3", "Check Box2", "ctl00_f1", "f1_23",
- * "Group1", "untitled5", "Pole12", or nothing but digits and punctuation.
+ * "Group1", "untitled5", "Pole12", "undefined_2" (what automatic field detection writes when it found no name),
+ * or nothing but digits and punctuation.
  */
 export function isCryptic(name: string): boolean {
   const n = shortName(name);
   if (!/\p{L}{2,}/u.test(n)) return true;
-  return /^(text|textfield|text ?field|text ?box|field|txt|tf|t|fill|fill_text|check ?box|checkbox|cb|chk|radio|radio ?button|rb|group|combo ?box|combobox|list ?box|dropdown|drop ?down|untitled|pole|textov[eé] ?pole|button|btn|ctl\d*|f|p\d+|page\d*|form\d*|topmostsubform|subform)[\s_.-]*[\d_.-]*$/iu.test(n) ||
+  return /^(text|textfield|text ?field|text ?box|field|txt|tf|t|fill|fill_text|check ?box|checkbox|cb|chk|radio|radio ?button|rb|group|combo ?box|combobox|list ?box|dropdown|drop ?down|untitled|unnamed|undefined|null|none|pole|textov[eé] ?pole|button|btn|ctl\d*|f|p\d+|page\d*|form\d*|topmostsubform|subform)[\s_.-]*[\d_.-]*$/iu.test(n) ||
     /^ctl\d+/iu.test(n) || /^f\d+[_\d-]*$/iu.test(n);
 }
 
@@ -83,17 +84,73 @@ function widgetBetweenY(g: Geo, b: Box, y0: number, y1: number, self: string): b
     w.box.x1 < b.x2 && w.box.x2 > b.x1);
 }
 
-/** The run printed just left of the box, on its line, with no other field between. */
-function leftOf(g: Geo, b: Box, self: string, maxGap = 320): { run: Run; gap: number } | null {
-  let best: { run: Run; gap: number } | null = null;
+/** Printed underscores or dots for handwriting: what a field drawn over a printed line covers. */
+const FILLER = /[_.…]{3,}/gu;
+const hasWords = (s: string): boolean => /[\p{L}\p{N}]/u.test(s.replace(FILLER, ""));
+
+/** The runs printed left of the box, on its line, with no other field between, nearest first. Runs that are only
+ *  underscores or dots are not labels. */
+function leftRuns(g: Geo, b: Box, self: string, maxGap = 320): { run: Run; gap: number }[] {
+  const out: { run: Run; gap: number }[] = [];
   for (const r of g.runs) {
     if (r.page !== b.page || r.x1 > b.x1 + 2 || !sameLine(r, b)) continue;
     const gap = b.x1 - r.x1;
-    if (gap > maxGap || ENUMERATOR.test(r.text)) continue;
+    if (gap > maxGap || ENUMERATOR.test(r.text) || !hasWords(r.text)) continue;
     if (widgetBetweenX(g, b, r.x1, b.x1, self)) continue;
-    if (!best || gap < best.gap) best = { run: r, gap };
+    out.push({ run: r, gap });
   }
-  return best;
+  return out.sort((p, q) => p.gap - q.gap);
+}
+
+/** The run printed just left of the box, on its line, with no other field between. */
+const leftOf = (g: Geo, b: Box, self: string, maxGap = 320): { run: Run; gap: number } | null => leftRuns(g, b, self, maxGap)[0] ?? null;
+
+/**
+ * A label printed on the box's line that runs into the box: "Sídlo: ______" where the field is drawn over the
+ * underscores. The label is the text just before the stretch of underscores or dots under the box, and must end
+ * before the box starts. Positions inside a run are estimated from character counts.
+ */
+function inlineOf(g: Geo, b: Box): string {
+  for (const r of g.runs) {
+    if (r.page !== b.page || r.x0 >= b.x1 - 2 || r.x1 <= b.x1 + 2 || !sameLine(r, b)) continue;
+    const text = r.text;
+    const at = (i: number): number => r.x0 + ((r.x1 - r.x0) * i) / text.length;
+    let from = 0;
+    for (const m of text.matchAll(FILLER)) {
+      const s = m.index ?? 0;
+      const e = s + m[0].length;
+      if (at(e) > b.x1 && at(s) < b.x2) {
+        const label = text.slice(from, s);
+        if (hasWords(label) && at(s) <= b.x1 + 0.5 * r.size) return label;
+        break;
+      }
+      from = e;
+    }
+  }
+  return "";
+}
+
+/**
+ * A label printed inside its own box, at its left and on its middle line: a field drawn over its label (what automatic
+ * field detection does to a table cell that holds the label and the space for the answer).
+ */
+function insideLeftOf(g: Geo, b: Box): Run | null {
+  const w = b.x2 - b.x1;
+  const inside = g.runs.filter((r) => {
+    const mid = (r.y + top(r)) / 2;
+    return r.page === b.page && r.x0 >= b.x1 - 1 && r.x0 <= b.x1 + Math.max(12, 0.1 * w) && r.x1 <= b.x1 + 0.7 * w &&
+      mid >= b.y1 && mid <= b.y2 && r.size <= b.y2 - b.y1 && hasWords(r.text) && !ENUMERATOR.test(r.text);
+  });
+  return inside.sort((p, q) => q.y - p.y)[0] ?? null;
+}
+
+/**
+ * True when the run is already the label of another field on its own line: printed just left of that field's box,
+ * or running into it. Such a run is not the label of a box below it; taking it would ask the other field's question.
+ */
+function ownedByOther(g: Geo, r: Run, self: string): boolean {
+  return g.widgets.some((w) => w.name !== self && w.box.page === r.page && sameLine(r, w.box) && r.x0 < w.box.x1 + 2 &&
+    (r.x1 > w.box.x1 - 2 || w.box.x1 - r.x1 <= 24) && !widgetBetweenX(g, w.box, r.x1, w.box.x1, w.name));
 }
 
 /** The run printed just right of the box, close to it, with no other field between. */
@@ -117,19 +174,24 @@ function aboveOf(g: Geo, b: Box, self: string): { run: Run; gap: number; aligned
     const gap = bottom(r) - b.y2;
     if (gap < -0.35 * r.size || gap > Math.max(14, 1.8 * r.size)) continue;
     if (r.x0 < b.x1 - 8 || r.x0 > b.x2 - 4) continue;
-    if (ENUMERATOR.test(r.text) || widgetBetweenY(g, b, b.y2, bottom(r), self)) continue;
+    if (ENUMERATOR.test(r.text) || widgetBetweenY(g, b, b.y2, bottom(r), self) || ownedByOther(g, r, self)) continue;
     const aligned = Math.abs(r.x0 - b.x1) <= 10;
     if (!best || gap < best.gap - 0.5 || (Math.abs(gap - best.gap) <= 0.5 && Math.abs(r.x0 - b.x1) < Math.abs(best.run.x0 - b.x1))) best = { run: r, gap, aligned };
   }
   return best;
 }
 
-/** The label above the box with the lines it wraps from: runs above it that start where it starts, closely spaced. */
-function aboveLabel(g: Geo, first: Run): string {
+/**
+ * The label above the box with the lines it wraps from: runs above it, closely spaced, that start where it starts, or
+ * that form one block with it over the box (a column header on two lines, each line placed on its own).
+ */
+function aboveLabel(g: Geo, first: Run, b: Box): string {
   const parts = [first];
   let cur = first;
+  const overBox = (r: Run): boolean => r.x0 >= b.x1 - 8 && r.x1 <= b.x2 + 8;
+  const block = (r: Run, c: Run): boolean => overBox(r) && overBox(c) && Math.min(r.x1, c.x1) - Math.max(r.x0, c.x0) >= 0.5 * Math.min(r.x1 - r.x0, c.x1 - c.x0);
   for (;;) {
-    const prev = g.runs.find((r) => r !== cur && r.page === cur.page && Math.abs(r.x0 - first.x0) <= 3 && r.y - cur.y > 0.5 * cur.size &&
+    const prev = g.runs.find((r) => r !== cur && r.page === cur.page && (Math.abs(r.x0 - first.x0) <= 3 || block(r, cur)) && r.y - cur.y > 0.5 * cur.size &&
       r.y - cur.y <= 1.5 * cur.size && Math.abs(r.size - cur.size) < 0.6);
     if (!prev || parts.length >= 3) break;
     parts.unshift(prev);
@@ -220,16 +282,23 @@ function boxLabel(g: Geo, f: RawField, b: Box): Labelled {
   const left = leftOf(g, b, f.name);
   const above = aboveOf(g, b, f.name);
   const caption = captionIn(g, b);
+  const inline = inlineOf(g, b);
+  const inside = insideLeftOf(g, b);
   // Box-style forms print the label tightly above the box, aligned with its left edge; a label on the left wins
-  // otherwise, as it does on most forms. A label printed under the box (a signature line) comes last.
+  // otherwise, as it does on most forms. A label in the box's own line (before the underscores the box covers, or
+  // inside the box at its left) is the box's own and beats one above, which may be another row's. A label printed
+  // under the box (a signature line) comes last. Text above that is already another field's label is never taken
+  // (aboveOf): with nothing else, the field keeps its own name rather than ask another field's question.
   const tightAbove = above && above.aligned && above.gap <= 0.8 * above.run.size + 3;
   let raw = "";
   let from: Source = "name";
   if (left && left.gap <= 24) { raw = leftLabel(g, b, left.run); from = "left"; }
+  else if (inline) { raw = inline; from = "left"; }
   else if (caption) { raw = caption.text; from = "caption"; }
-  else if (tightAbove) { raw = aboveLabel(g, above.run); from = "above"; }
+  else if (inside) { raw = inside.text; from = "left"; }
+  else if (tightAbove) { raw = aboveLabel(g, above.run, b); from = "above"; }
   else if (left) { raw = leftLabel(g, b, left.run); from = "left"; }
-  else if (above) { raw = aboveLabel(g, above.run); from = "above"; }
+  else if (above) { raw = aboveLabel(g, above.run, b); from = "above"; }
   else {
     const below = belowOf(g, b, f.name);
     if (below) { raw = below.text; from = "below"; }
@@ -277,13 +346,15 @@ function groupLabel(g: Geo, f: RawField, options: FieldOption[]): Labelled {
   const first = [...f.widgets].sort((p, q) => p.box.page - q.box.page || q.box.y2 - p.box.y2 || p.box.x1 - q.box.x1)[0];
   if (!first) return byName(f);
   const b = first.box;
-  const left = leftOf(g, b, f.name);
-  if (left && !optionTexts.has(cleanLabel(left.run.text))) return finish(left.run.text, f, "left");
+  // On the left: the nearest run that is not an option's own label ("Question?  Ano [ ]  Ne [ ]": past the "Ano").
+  const left = leftRuns(g, b, f.name).find((c) => !optionTexts.has(cleanLabel(c.run.text)));
+  if (left) return finish(left.run.text, f, "left");
   const above = aboveOf(g, b, f.name);
-  if (above && !optionTexts.has(cleanLabel(above.run.text))) return finish(aboveLabel(g, above.run), f, "above");
+  if (above && !optionTexts.has(cleanLabel(above.run.text))) return finish(aboveLabel(g, above.run, b), f, "above");
   // Above the whole group: the nearest run over the topmost widget, wherever it starts.
   const topW = Math.max(...f.widgets.map((w) => w.box.y2));
-  const over = g.runs.filter((r) => r.page === b.page && bottom(r) >= topW - 1 && bottom(r) - topW <= 2 * r.size && r.x0 <= b.x1 + 4 && !optionTexts.has(cleanLabel(r.text)))
+  const over = g.runs.filter((r) => r.page === b.page && bottom(r) >= topW - 1 && bottom(r) - topW <= 2 * r.size && r.x0 <= b.x1 + 4 &&
+    !optionTexts.has(cleanLabel(r.text)) && !ownedByOther(g, r, f.name))
     .sort((p, q) => bottom(p) - bottom(q))[0];
   if (over) return finish(over.text, f, "above");
   return byName(f);

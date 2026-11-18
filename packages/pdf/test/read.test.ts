@@ -74,7 +74,7 @@ describe("reading a fillable PDF", () => {
   });
 
   it("knows a tool's name from a person's: Text12, ctl00_f1, Check Box3 are cryptic, Prijmeni is not", () => {
-    for (const n of ["Text12", "Text Field 3", "Check Box3", "ctl00_f1", "f1_23", "form1[0].#subform[0].TextField1[0]", "Group1", "Pole12", "42"]) expect(isCryptic(n), n).toBe(true);
+    for (const n of ["Text12", "Text Field 3", "Check Box3", "ctl00_f1", "f1_23", "form1[0].#subform[0].TextField1[0]", "Group1", "Pole12", "42", "undefined", "undefined_3", "Untitled 2"]) expect(isCryptic(n), n).toBe(true);
     for (const n of ["Prijmeni", "datum_narozeni", "form1[0].page1[0].Jmeno[0]", "Obchodní firma"]) expect(isCryptic(n), n).toBe(false);
   });
 
@@ -83,5 +83,42 @@ describe("reading a fillable PDF", () => {
     expect(cleanLabel("Jméno:")).toBe("Jméno");
     expect(cleanLabel("Obec ..........")).toBe("Obec");
     expect(cleanLabel("Ulice ____")).toBe("Ulice");
+  });
+});
+
+describe("labels on forms a tool made fillable", () => {
+  const read = async (text: Layout["pages"][number]["text"], fields: Layout["pages"][number]["fields"]) => {
+    const r = await readPdf(await buildPdf({ pages: [{ text, fields }] }), { pdfjs: PDFJS });
+    return Object.fromEntries(r.bindings.map((b) => [b.names[0], r.structure!.fields.find((f) => f.fieldId === b.fieldId)!.label]));
+  };
+
+  it("a label in the same line as the underscores the box covers, two of them in one printed line", async () => {
+    const got = await read([{ at: [50, 700], text: "Jméno: ______________________ Příjmení: ______________________" }],
+      [{ type: "text", name: "undefined", rect: [86, 694, 110, 18] }, { type: "text", name: "undefined_2", rect: [262, 694, 110, 18] }]);
+    expect(got).toEqual({ undefined: "Jméno", undefined_2: "Příjmení" });
+  });
+
+  it("a label printed inside the left of its own box wins over the previous row's label above it", async () => {
+    const got = await read([{ at: [50, 718], text: "Sídlo: ______________________________" }, { at: [56, 689], text: "Předmět podnikání:" }],
+      [{ type: "text", name: "undefined", rect: [84, 712, 200, 18] }, { type: "text", name: "undefined_2", rect: [50, 682, 380, 22] }]);
+    expect(got).toEqual({ undefined: "Sídlo", undefined_2: "Předmět podnikání" });
+  });
+
+  it("a box with no label of its own keeps its own name rather than take the previous row's label", async () => {
+    const got = await read([{ at: [50, 718], text: "Obec:" }],
+      [{ type: "text", name: "Text1", rect: [84, 712, 200, 18] }, { type: "text", name: "Text2", rect: [50, 682, 380, 22] }]);
+    expect(got).toEqual({ Text1: "Obec", Text2: "Text2" });
+  });
+
+  it("the question left of Ano/Ne radio buttons labelled on their left", async () => {
+    const r = await readPdf(await buildPdf({ pages: [{ text: [{ at: [50, 590], text: "Máte trvalý pobyt v ČR?" }, { at: [350, 590], text: "Ano" }, { at: [410, 590], text: "Ne" }],
+      fields: [{ type: "radio", name: "Group1", options: [{ value: "Choice1", rect: [374, 588, 10, 10] }, { value: "Choice2", rect: [428, 588, 10, 10] }] }] }] }), { pdfjs: PDFJS });
+    expect(r.structure?.fields[0]).toMatchObject({ label: "Máte trvalý pobyt v ČR?", options: [{ value: "Choice1", label: "Ano" }, { value: "Choice2", label: "Ne" }] });
+  });
+
+  it("a column header on two lines placed on their own is read whole", async () => {
+    const got = await read([{ at: [262, 652], size: 9, text: "Doba trvání" }, { at: [258, 642], size: 9, text: "(na dobu určitou do)" }],
+      [{ type: "text", name: "undefined_4", rect: [240, 612, 120, 18] }]);
+    expect(got).toEqual({ undefined_4: "Doba trvání (na dobu určitou do)" });
   });
 });
