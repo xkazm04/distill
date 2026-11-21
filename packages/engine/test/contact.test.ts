@@ -50,6 +50,15 @@ describe("findContacts", () => {
     expect(texts(items, "hours")).toEqual(["Po, St 8.00 - 12.00 13.00 - 17.00"]);
   });
 
+  it("never reads a row of prices in a table as one phone number (seen on a live trailer rental site)", () => {
+    const { items } = find(`<html><body><table>
+      <tr><th>Přívěs</th><th>1 den</th><th>víkend</th><th>týden</th></tr>
+      <tr><td>Bržděný</td><td>400</td><td>300</td><td>1000</td></tr>
+      <tr><td>Skříňový</td><td>400</td><td>300</td><td>2000</td></tr>
+    </table><p>Rezervace na tel. 602 106 000</p></body></html>`);
+    expect(texts(items, "phone")).toEqual(["602 106 000"]);
+  });
+
   it("takes tel: and mailto: links first and lists each number and address once", () => {
     const { items } = find(`<html><body>
       <header><a href="tel:+420377912345">Zavolejte nám</a> <a href="mailto:obec@obec-example.cz?subject=Dotaz">Napište nám</a></header>

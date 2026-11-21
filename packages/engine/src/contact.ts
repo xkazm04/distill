@@ -210,11 +210,9 @@ const TIME_IN = /(?:^|[^\d])\d{1,2}[.:]\d{2}(?!\d)/;
 
 const digits = (s: string): string => s.replace(/\D/g, "");
 
-/** A candidate as a whole when it reads as a number, else its pieces split at " / ", " | " or a wide gap. */
-function pieces(text: string, at: number, ok: (t: string, at: number) => boolean): [string, number][] {
-  if (ok(text, at)) return [[text, at]];
+/** `text` cut at `sep`, each piece with its offset. */
+function split(text: string, at: number, sep: RegExp): [string, number][] {
   const out: [string, number][] = [];
-  const sep = /\s+[/|]\s+|\s{2,}/g;
   let from = 0;
   for (const m of [...text.matchAll(sep), null]) {
     const end = m ? m.index ?? 0 : text.length;
@@ -222,7 +220,16 @@ function pieces(text: string, at: number, ok: (t: string, at: number) => boolean
     if (piece.trim()) out.push([piece, at + from]);
     if (m) from = end + m[0].length;
   }
-  return out.length > 1 ? out : [];
+  return out;
+}
+
+/**
+ * The numbers in a candidate. A wide gap always parts two (table cells read as one line are two spaces apart: a row
+ * of prices "400  300  1000" is not one number). Each part counts as a whole when it reads as a number, else its
+ * pieces at " / " or " | " ("377 912 345 / 777 123 456").
+ */
+function pieces(text: string, at: number, ok: (t: string, at: number) => boolean): [string, number][] {
+  return split(text, at, /\s{2,}/g).flatMap(([part, from]) => (ok(part, from) ? [[part, from] as [string, number]] : split(part, from, /\s+[/|]\s+/g)));
 }
 
 /** "tel" when the number came from a tel: link; else what stands before it in its line. */
@@ -253,8 +260,9 @@ function phoneOf(raw: string, ctx: "tel" | { before: string; after: string }, ur
     } else if (d.length === 9) {
       // A Czech or Slovak number: 9 digits, never starting with 0 or 1.
       if (/^[01]/.test(d) || (!spaced && !labelled)) return null;
-    } else if (d.length === 10 && /^\(?[2-9]\d{2}\)?[\s.-]\d{3}[\s.-]\d{4}$/.test(text)) {
-      // North American: (555) 123-4567.
+    } else if (d.length === 10 && /^(?:\([2-9]\d{2}\)\s?|[2-9]\d{2}[.-])\d{3}[.-]\d{4}$/.test(text)) {
+      // North American, written its own way: (555) 123-4567, 555-123-4567, 555.123.4567. With spaces only it is not
+      // told from three prices in a row.
     } else if (!(labelled && d.length >= 6 && d.length <= 12)) {
       return null;
     }
