@@ -150,3 +150,87 @@ describe("findClutter", () => {
     for (const el of els.values()) expect(el.classList.contains("spacer") || el.hasAttribute("hidden")).toBe(false);
   });
 });
+
+/** Things that float over the page (#4). `box` plays the browser: where each fixed box sits in a 1440x900 window. */
+describe("findClutter: things that float over the page", () => {
+  const WIN = { winWidth: 1440, winHeight: 900 };
+  const at = (left: number, top: number, width: number, height: number) => ({ left, top, width, height, ...WIN });
+  /** Adds `html` at the start of the article page's body; returns the kind found for each element with a data-t. */
+  function kinds(html: string, place: Record<string, ReturnType<typeof at>> = {}, protect: (doc: Document) => Element[] = () => []) {
+    const doc = parse(news.replace("<body>", `<body>${html}`));
+    const { keep, body } = contentOf(doc);
+    const els = new Map<string, Element>();
+    const items = findClutter(doc, {
+      keep, body, protect: protect(doc), onElement: (id, el) => els.set(id, el),
+      box: (el) => place[el.getAttribute("data-t") ?? ""] ?? null,
+    });
+    const out: Record<string, string> = {};
+    for (const it of items) { const t = els.get(it.id)?.getAttribute("data-t"); if (t) out[t] = it.kind; }
+    return { out, items };
+  }
+
+  it("knows each kind by the names its makers give it", () => {
+    const { out, items } = kinds([
+      '<div data-t="a" id="intercom-container" style="position: fixed"><iframe title="Intercom live chat launcher" srcdoc="<p></p>"></iframe></div>',
+      '<div data-t="b" class="tawk-min-container" style="position: fixed"><p>Napište nám</p></div>',
+      '<div data-t="c" class="_hj_feedback_container" style="position: fixed"><button>Feedback</button></div>',
+      '<div data-t="d" class="usabilla_live_button_container" style="position: fixed"><button>Zpětná vazba</button></div>',
+      '<div data-t="e" class="article-video sticky-player" style="position: fixed"><video src="/v.mp4"></video></div>',
+      '<div data-t="f" class="smartbanner smartbanner--android" style="position: fixed"><p>Open in the app</p></div>',
+      '<a data-t="g" class="back-to-top" href="#" style="position: fixed">Nahoru</a>',
+      '<a data-t="h" id="scrollTop" href="#" style="position: fixed"><svg></svg></a>',
+      '<div data-t="i" id="smartsupp-widget-container"><iframe srcdoc="<p></p>"></iframe></div>',
+    ].join(""));
+    expect(out).toEqual({ a: "chat", b: "chat", c: "feedback", d: "feedback", e: "player", f: "appBanner", g: "backToTop", h: "backToTop", i: "chat" });
+    expect(items.find((i) => i.kind === "chat")?.label).toBe("Chat button");
+    expect(items.find((i) => i.kind === "feedback")?.label).toBe("Feedback tab");
+    expect(items.find((i) => i.kind === "player")?.label).toBe("Floating video");
+    expect(items.find((i) => i.kind === "appBanner")?.label).toBe("App banner");
+    expect(items.find((i) => i.kind === "backToTop")?.label).toBe("Back to top button");
+  });
+
+  it("knows a small fixed box with no telling name by its place, what it holds and its words", () => {
+    const { out } = kinds([
+      '<div data-t="chat" class="x8f2" style="position: fixed"><iframe srcdoc="<p>Hi</p>"></iframe></div>',
+      '<div data-t="tab" class="k1" style="position: fixed"><button>Feedback</button></div>',
+      '<div data-t="video" class="k2" style="position: fixed"><div><video src="/ad.mp4"></video></div></div>',
+      '<div data-t="top" class="k3" style="position: fixed"><a href="#top"><svg></svg></a></div>',
+      '<div data-t="help" class="k4" style="position: fixed"><button aria-label="Potřebujete poradit?"><svg></svg></button></div>',
+      '<div data-t="app" class="k5" style="position: fixed"><p>Stáhněte si naši aplikaci</p><a href="#">Otevřít</a></div>',
+      '<div data-t="box" class="k6" style="position: fixed"><p>Win a prize today</p></div>',
+    ].join(""), {
+      chat: at(1340, 800, 70, 70), // bottom-right corner
+      tab: at(1400, 380, 40, 140), // the right edge, half way down
+      video: at(1060, 640, 360, 200),
+      top: at(1370, 820, 48, 48),
+      help: at(20, 820, 60, 60), // bottom-left
+      app: at(0, 0, 1440, 64), // a bar across the top
+      box: at(500, 300, 440, 300), // in the middle: a pop-up, whatever it says
+    });
+    expect(out).toEqual({ chat: "chat", tab: "feedback", video: "player", top: "backToTop", help: "chat", app: "appBanner", box: "popup" });
+  });
+
+  it("does not take a fixed header with the site's menu for a chat button", () => {
+    const { out } = kinds([
+      '<div data-t="bar" class="top-wrap" style="position: fixed"><a href="/">Home</a> <a href="/chat">Chat</a> <a href="/help">Need help?</a></div>',
+      '<header data-t="head" style="position: fixed"><nav><a href="/">Home</a> <a href="/chat">Live chat</a></nav></header>',
+    ].join(""), { bar: at(0, 0, 1440, 72), head: at(0, 0, 1440, 90) });
+    expect(out.bar).not.toBe("chat");
+    expect(out.head).toBe("header");
+    // Without layout (no box), the same bar is a pop-up as before, never a chat button.
+    expect(kinds('<div data-t="bar" style="position: fixed"><a href="/">Home</a> <a href="/chat">Chat</a></div>').out.bar).toBe("popup");
+  });
+
+  it("never takes a floating player that is the page's main video", () => {
+    const { out } = kinds('<div data-t="p" class="sticky-player" style="position: fixed"><video src="/main.mp4"></video></div>',
+      { p: at(1060, 640, 360, 200) }, (doc) => [doc.querySelector("video") as Element]);
+    expect(out.p).toBeUndefined();
+  });
+
+  it("takes a feedback box and a back-to-top link from inside the article", () => {
+    const doc = parse(news.replace("</article>", '<div class="article-feedback"><p>Was this article helpful?</p><button>Yes</button></div><div class="totop"><a href="#top">Back to top</a></div></article>'));
+    const { items, els } = clean(doc);
+    const inside = items.filter((i) => els.get(i.id)?.closest("article"));
+    expect(inside.map((i) => i.kind)).toEqual(["feedback", "backToTop"]);
+  });
+});

@@ -6,7 +6,9 @@ import { SKIP_TAGS, attr, collapse, isHidden, tag } from "./dom.js";
 
 export type ClutterKind =
   | "cookie" | "popup" | "ad" | "menu" | "header" | "sidebar" | "footer" | "comments" | "related" | "share" | "newsletter"
-  | "other";
+  | "other"
+  // Things that float over the page (#4): small widgets docked to an edge or a corner of the window.
+  | "chat" | "feedback" | "player" | "appBanner" | "backToTop";
 
 export interface ClutterItem {
   /** `c0`, `c1`, ... in document order. Stable within one call. */
@@ -29,7 +31,15 @@ export const CLUTTER_LABELS: Record<ClutterKind, string> = {
   share: "Share buttons",
   newsletter: "Newsletter sign-up",
   other: "Other part of the site",
+  chat: "Chat button",
+  feedback: "Feedback tab",
+  player: "Floating video",
+  appBanner: "App banner",
+  backToTop: "Back to top button",
 };
+
+/** Where a box sits in the window, in CSS px (getBoundingClientRect plus the window's size). */
+export interface ClutterBox { left: number; top: number; width: number; height: number; winWidth: number; winHeight: number }
 
 export interface ClutterOptions {
   /** The elements the content was read from (extractPage's onSource, plus what the host knows is content: the main
@@ -47,6 +57,9 @@ export interface ClutterOptions {
   /** The share of the window the element covers (0-1). An empty box over most of the window is a pop-up's backdrop.
    *  Default: 0 (a test document has no layout). */
   covers?: (el: Element) => number;
+  /** Where the element sits in the window. Lets a small fixed box docked to a corner or an edge be told apart from a
+   *  bar across the page (a chat bubble, not a site header). Default: unknown (a test document has no layout). */
+  box?: (el: Element) => ClutterBox | null;
   /** Called once per item with its id and the element to hide. The element never leaves the page. */
   onElement?: (id: string, el: Element) => void;
 }
@@ -55,7 +68,7 @@ const SILENT = new Set([...SKIP_TAGS, "link", "meta", "base", "title", "br", "wb
 SILENT.delete("iframe"); // an ad is often an iframe; it is judged like any other element
 
 /** Kinds that name themselves plainly enough to be taken out even when the page reader read their text. */
-const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie"]);
+const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie", "chat", "feedback", "appBanner", "backToTop"]);
 
 /** Characters of running text below which a page is treated as thin (see findClutter). */
 const THIN_PAGE = 400;
@@ -90,6 +103,29 @@ const TEXT_KINDS: [ClutterKind, RegExp][] = [
 /** Consent tools by their own names, wherever they appear in a class or id ("sp_message_container_123"). */
 const CONSENT_VENDORS = /(sp_message|qc-cmp|onetrust|didomi|cookiebot|usercentrics|fc-consent|cmpbox|truste|cookie-law|cookieconsent)/i;
 
+/** Floating widgets by the names their makers give them, matched on the class and id words joined by "-" (so
+ *  "hubspot-messages-iframe-container", "_hj_feedback_container" and "backToTop" all read alike). A leading "-" is a
+ *  word edge; a vendor's name may run on ("intercom-launcher"), a plain phrase ends at a word edge. */
+const WIDGETS: [ClutterKind, RegExp][] = [
+  ["chat", /-(intercom|zendesk|ze-?snippet|webwidget|tawk|livechat|live-chat|crisp-client|drift-(widget|frame|conductor)|hubspot-messages|smartsupp|tidio|olark|freshchat|fb-customerchat|chatbot|webchat|chat-?(widget|bubble|button|launcher|box|icon)-)/],
+  ["feedback", /-(feedback|usabilla|hotjar|hj-(widget|feedback|survey)|survicate|mopinion|qualaroo)/],
+  ["player", /-((sticky|floating|float|mini|docked|pip)-?(video-?)?player|player-?(sticky|floating|float|mini|docked)|video-?(sticky|floating|float|docked|dock))-/],
+  ["appBanner", /-(smartbanner|smart-banner|app-?banner|app-?promo|install-?app|get-?the-?app|branch-banner)/],
+  // Not "scroll-up": a header that shows again on scrolling up is named so ("header--scroll-up").
+  ["backToTop", /-(back-?to-?top|scroll-?to-?top|scrolltop|go-?top|to-?top|nahoru)-/],
+];
+
+/** What a small floating box says it is, by its words or its labels (an icon button has only aria-label or title). */
+const FLOAT_WORDS: [ClutterKind, RegExp][] = [
+  ["backToTop", /^(\^|↑|⬆|▲|top|nahoru|na za[čc][áa]tek)$|(?<!\p{L})(back to top|scroll to top|go to top|zp[ěe]t nahoru|nahoru)(?!\p{L})/iu],
+  ["feedback", /(?<!\p{L})(feedback|zp[ěe]tn[áa] vazba|v[áa][šs] n[áa]zor|ohodno[tť]te|rate us)(?!\p{L})/iu],
+  ["chat", /(?<!\p{L})(chat|live chat|chatujte|napi[šs]te n[áa]m|need help|can we help|how can we help|pot[řr]ebujete poradit|m[áa]te dotaz|zeptejte se)(?!\p{L})/iu],
+];
+const APP_WORDS = /(?<!\p{L})(get the app|download the app|open in (the )?app|use the app|install the app|app store|google play|st[áa]hn[ěe]te si (na[šs]i )?aplikaci|otev[řr][íi]t v aplikaci)(?!\p{L})/iu;
+
+/** A video host's player in a frame: a floating box holding one is a floating video. */
+const VIDEO_HOSTS = /(youtube(-nocookie)?\.com\/embed|player\.vimeo\.com|dailymotion\.com\/embed|jwplayer|jwplatform|brightcove|videoplayer)/i;
+
 const AD_HOSTS = /(doubleclick|googlesyndication|googletagservices|adservice|adform|ssp\.seznam|sklik|criteo|taboola|outbrain|amazon-adsystem|adnxs|rubiconproject|pubmatic|smartadserver)\./i;
 
 function tokens(el: Element): string[] {
@@ -99,6 +135,8 @@ function tokens(el: Element): string[] {
 function kindByTokens(el: Element): ClutterKind | null {
   if (CONSENT_VENDORS.test(`${attr(el, "class")} ${attr(el, "id")}`)) return "cookie";
   const toks = tokens(el);
+  const joined = `-${toks.join("-")}-`;
+  for (const [kind, re] of WIDGETS) if (re.test(joined)) return kind;
   for (const [kind, re] of TOKENS) if (toks.some((t) => re.test(t))) return kind;
   if (tag(el) === "iframe" && AD_HOSTS.test(attr(el, "src"))) return "ad";
   return null;
@@ -125,13 +163,65 @@ function kindByText(el: Element): ClutterKind | null {
   return null;
 }
 
-/** What an element that is not content is. `overlay`: it floats over the page (fixed or sticky). */
-function kindOf(el: Element, overlay: boolean): ClutterKind {
+/** The words a person or a screen reader gets from a small box: its text, then its labels. */
+function floatWords(el: Element): string {
+  // Text node by text node, so "aplikaci</p><a>Otevřít" stays two words.
+  const parts: string[] = [];
+  const walker = el.ownerDocument.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let n = walker.nextNode(), len = 0; n && len < 600; n = walker.nextNode()) { parts.push(n.nodeValue ?? ""); len += (n.nodeValue ?? "").length; }
+  const labels = [el, ...Array.from(el.querySelectorAll("[aria-label], [title], img[alt]")).slice(0, 8)]
+    .map((e) => `${attr(e, "aria-label")} ${attr(e, "title")} ${tag(e) === "img" ? attr(e, "alt") : ""}`).join(" ");
+  return collapse(`${parts.join(" ")} ${labels}`).slice(0, 300);
+}
+
+/** A video in the box: a <video>, or a video host's player in a frame. */
+const holdsVideo = (el: Element): boolean =>
+  !!el.querySelector("video") || [el, ...Array.from(el.querySelectorAll("iframe"))].some((f) => tag(f) === "iframe" && VIDEO_HOSTS.test(attr(f, "src")));
+
+type Place = "corner" | "edge" | "bar" | "free";
+
+/** How a fixed box sits in the window: docked to a corner (a chat bubble, a mini player), to a side edge (a feedback
+ *  tab), a bar across the window (a header, an app banner), or anything else. Null without layout. */
+function placeOf(b: ClutterBox | null): Place | null {
+  if (!b || b.winWidth <= 0 || b.winHeight <= 0 || b.width <= 0 || b.height <= 0) return null;
+  if (b.width >= b.winWidth * 0.6) return "bar";
+  const small = b.width <= Math.min(460, b.winWidth * 0.5) && b.height <= b.winHeight * 0.5
+    && (b.width * b.height) / (b.winWidth * b.winHeight) <= 0.15;
+  if (!small) return "free";
+  const near = 140; // px from an edge of the window
+  const side = b.left <= near || b.winWidth - (b.left + b.width) <= near;
+  const end = b.top <= near || b.winHeight - (b.top + b.height) <= near;
+  if (side && end) return "corner";
+  if (side && b.width <= 72) return "edge";
+  return "free";
+}
+
+/** A fixed box with no telling name: what it is by what it holds, its words and its place. Null: nothing says. */
+function floatKind(el: Element, place: Place | null): ClutterKind | null {
+  const words = floatWords(el);
+  // An app banner is a bar across the top or the bottom of the window; its words say it ("Get the app").
+  if (place === "bar") return APP_WORDS.test(words) ? "appBanner" : null;
+  if (place !== "corner" && place !== "edge") return null;
+  if (holdsVideo(el)) return "player";
+  for (const [kind, re] of FLOAT_WORDS) if (re.test(words)) return kind;
+  if (APP_WORDS.test(words)) return "appBanner";
+  // No words at all: a link to the top of the page is a back-to-top arrow; a frame in a corner is a chat window.
+  if (!collapse(el.textContent ?? "")) {
+    const link = tag(el) === "a" ? el : el.querySelector("a[href]");
+    if (link && /^#(top|page|header|main|content|body|nahoru)?$/i.test(attr(link, "href"))) return "backToTop";
+    if (place === "corner" && (tag(el) === "iframe" || el.querySelector("iframe"))) return "chat";
+  }
+  return null;
+}
+
+/** What an element that is not content is. `overlay`: it floats over the page (fixed or sticky); `place`: where a
+ *  fixed one sits in the window (null when unknown). */
+function kindOf(el: Element, overlay: boolean, place: Place | null = null): ClutterKind {
   // A menu, a footer or a dialog says what it is by its element; its words ("Subscribe now") do not change that. A
   // header or an aside is only a box, so what it says comes first ("We use cookies", "Advertisement").
   const role = kindByRole(el);
   const semantic = role === "menu" || role === "footer" || role === "popup" ? role : null;
-  return kindByTokens(el) ?? semantic ?? kindByText(el) ?? role ?? (overlay ? "popup" : "other");
+  return kindByTokens(el) ?? semantic ?? kindByText(el) ?? (overlay ? floatKind(el, place) : null) ?? role ?? (overlay ? "popup" : "other");
 }
 
 /** Inside the main column only things that announce themselves are clutter: an ad, a share bar, comments. */
@@ -181,6 +271,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   const position = opts.position ?? inlinePosition;
 
   const covers = opts.covers ?? (() => 0);
+  const box = opts.box ?? (() => null);
   const protect = opts.protect ?? [];
   // The headline is content even when the page reader left it out (it drops an h1 that only repeats the title).
   const headline = Array.from(body.querySelectorAll("h1")).find((h) => shown(h) && !!collapse(h.textContent ?? ""));
@@ -210,7 +301,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
     if (SILENT.has(tag(el))) continue;
     const pos = position(el);
     if (pos !== "fixed" && pos !== "sticky") continue;
-    if (eligible(el)) add(el, kindOf(el, true));
+    if (eligible(el)) add(el, kindOf(el, true, pos === "fixed" ? placeOf(box(el)) : null));
     // A backdrop: nothing in it, but it greys out the page behind a dialog.
     else if (!chain.has(el) && !insideKeep(el) && !hasSubstance(el) && covers(el) >= 0.3 && shown(el)) add(el, "popup");
   }
