@@ -41,7 +41,7 @@ export const LAUNCH = {
  * written to. `grantHosts: false` keeps the shipped manifest unchanged. `grantHelper: true` also grants the optional
  * nativeMessaging permission (Chrome's prompt cannot be pressed in a test), for the scenarios that play the helper.
  */
-function prepareExtension(grantHosts: boolean, grantHelper: boolean): string {
+export function prepareExtension(grantHosts: boolean, grantHelper: boolean): string {
   if (!existsSync(join(DIST, "manifest.json")) || !existsSync(join(DIST, "content.js"))) {
     throw new Error(`No built extension in ${DIST}. Run \`npm run build -w @distill/extension\` first (npm run e2e does).`);
   }
