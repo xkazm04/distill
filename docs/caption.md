@@ -212,6 +212,44 @@ These are carried over from the R2 review, to settle when their slices come:
 - **Remember my answers:** show it on every form step, or fold it into Details (slice 5)?
 - **A playing recipe step:** should it keep playing on Next (slice 6)?
 
+## Round 1: Distill on any page (2026-11-21)
+
+The owner chose nine use cases from ten proposed (the spark "universal-core"; the review board is an artifact, the
+notes are in `.spark/`, not tracked). Each one runs after Clean, changes the page only through what it can take back,
+and steps aside for Original. #7 (where am I on a long page) had no verdict and was not built.
+
+| # | Use case | What it does | Code |
+| --- | --- | --- | --- |
+| 1 | Fill the hole Clean leaves | Boxes of the main column that had a removed sidebar beside them grow into the freed room, up to about 70 characters a line, centred. Gives the room back when the sidebar is shown again. | `caption/reflow.ts`, engine `reading.ts` |
+| 2 | The page's language from its words | `detectLang`: common words and letters for 12 Latin-script languages, script for the rest; Czech without diacritics too. Used when a page has no lang attribute (on a thin page, from its whole text). | engine `lang.ts`, `page.ts` |
+| 3 | Stay clean | Watches for new boxes (late pop-ups, lazy ads, a single-page app's new view) and judges them like Clean; never what the person just opened or is typing in. | `caption/watch.ts`, `page.ts` `recheck` |
+| 4 | Things that float | New clutter kinds: chat button, feedback tab, floating video, app banner, back-to-top. A sticky header stack over 12% of the window scrolls with the page. | engine `clutter.ts`, `caption/float.ts` |
+| 5 | Call, write or find them | Phones, e-mails, addresses, opening hours and the contact page, from the whole page (hidden parts too), in More: Call, Write, Copy, Show on page. | engine `contact.ts`, `caption/contact.ts`, `frame/Contact.tsx` |
+| 6 | Comfortable to read | Only where the main text needs it: 16 px, line height 1.5, about 75 characters, WCAG AA contrast (hue kept). A switch in More. | `caption/comfort.ts`, engine `contrast.ts` |
+| 8 | Calm the page | Pauses media that started by itself (not the main video), marquees, hover-paused carousels and endless animations; Play again. | `caption/calm.ts`, `frame/Calm.tsx` |
+| 9 | Ready to send? | "Form 4 of 7 · Next" in the row (form pages, or forms of 4+ fields), counts in More. Counts only: never a value. | `caption/formCheck.ts`, `frame/FormCheck.tsx` |
+| 10 | Translate in place | Slice 2's core: task `translateBlocks` (page class), door `parseTranslation`, text replaced node by node, Keep Czech, the chip from the run. | engine `translate.ts`, `caption/translate.ts`, `frame/Translate.tsx` |
+
+Found on the way and fixed:
+
+- **The caption frame could not reach the on-device model.** A `chrome-extension://` frame in a page is denied the
+  `language-model` feature unless its embedder delegates it: `page.ts` now sets `allow="language-model"`. A site that
+  forbids the feature for itself by header still blocks it there; that case needs the offscreen document (risk 1).
+- **Form reading threw on every plain http page** (`crypto.subtle` needs a secure context), the side panel's included.
+  The fingerprint falls back to the engine's own SHA-256 (`sha256.ts`).
+- **The e2e build has no stand-in model by default.** Translate's tests switch the dev fake on per session
+  (`chrome.storage.session` key `distill:e2e:fakeAi`, e2e build only).
+
+Known and left for later:
+
+- A sticky header that comes back from More comes back sticky (unstick runs once at Clean).
+- Calm leaves any video 320 px or wider alone (`contentExtras` protects it as the main video); on Deník a second,
+  playing video stayed. Protect only the largest or the main column's video.
+- Clean hides a form of fewer than 3 fields (a two-field comment box); only 3+ field forms are protected.
+- Stay clean does not re-run reflow, comfort, unstick or Calm's animation pass on late content.
+- An address without a postcode is not found (the trailer rental's).
+- The live probes (`e2e/live/probes/`) run with every `npm run e2e:live`.
+
 ## Code map
 
 | File | Role |
