@@ -2,8 +2,15 @@
 // caption frame, an extension page), and what Distill changes in the page itself (Clean, Original). Everything here is
 // reversible: closing the caption puts the page back exactly as it was. Nothing read here leaves the page except the
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
-import { extractPage, findClutter, type ClutterItem, type PageModel } from "@distill/engine";
-import type { CleanReport } from "../messages";
+import { detectLang, extractPage, findClutter, type ClutterItem, type PageModel } from "@distill/engine";
+import type { CaptionUpdate, CleanReport } from "../messages";
+import { calmPage, clearCalm } from "./calm";
+import { applyComfort, clearComfort } from "./comfort";
+import { commonAncestor, type CleanContext } from "./context";
+import { restick, unstick } from "./float";
+import { unwiden, widen } from "./reflow";
+import { clearTranslation, originalShown } from "./translate";
+import { watchForClutter } from "./watch";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -34,6 +41,10 @@ interface State {
   style: HTMLStyleElement;
   report: CleanReport | null;
   removed: Map<string, Element>;
+  /** What the last Clean knew (round-1 modules read it). */
+  ctx: CleanContext | null;
+  /** Stops Stay clean's watching (#3). */
+  unwatch: () => void;
 }
 
 let state: State | null = null;
@@ -74,7 +85,7 @@ export function open(doc: Document, tabId: number): void {
   (doc.head ?? doc.documentElement).append(style);
 
   doc.documentElement.setAttribute(OPEN, "");
-  state = { tabId, host, frame, spacer, style, report: null, removed: new Map() };
+  state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined };
   // Slide in on the next frame, so the transition runs from below the window.
   requestAnimationFrame(() => requestAnimationFrame(() => host.style.setProperty("transform", "none", "important")));
 }
@@ -82,6 +93,12 @@ export function open(doc: Document, tabId: number): void {
 /** Takes Distill off the page: every change goes back, and the strip goes. */
 export function close(doc: Document): void {
   if (!state) return;
+  state.unwatch();
+  unwiden(doc);
+  clearComfort(doc);
+  clearCalm(doc);
+  restick(doc);
+  clearTranslation();
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
   doc.documentElement.removeAttribute(ORIGINAL);
   doc.documentElement.removeAttribute(UNLOCK);
@@ -104,6 +121,29 @@ export function resize(height: number, win: Window): number {
 export function showOriginal(doc: Document, on: boolean): void {
   if (!state) return;
   doc.documentElement.toggleAttribute(ORIGINAL, on);
+  originalShown(on);
+}
+
+/** True while the person looks at the untouched original (round-1 modules leave the page alone then). */
+export const originalOn = (doc: Document): boolean => doc.documentElement.hasAttribute(ORIGINAL);
+
+/** What the last Clean knew, for the round-1 modules the content script calls (translate, contact). */
+export const context = (): CleanContext | null => state?.ctx ?? null;
+
+/** Tells the caption frame that the report changed without being asked (Stay clean, #3). */
+export function notifyFrame(report: CleanReport): void {
+  if (!state) return;
+  const msg: CaptionUpdate = { type: "distill:caption:update", tabId: state.tabId, report };
+  try { void chrome.runtime.sendMessage(msg).catch(() => undefined); } catch { /* the extension went away */ }
+}
+
+/**
+ * Stay clean (#3): judges what came into the page since the last Clean, hides new clutter, adds it to the report and
+ * tells the frame. Returns whether anything new was hidden. STUB: owned by the round-1 builder W2, who fills this body.
+ */
+export async function recheck(doc: Document, win: Window): Promise<boolean> {
+  void doc; void win;
+  return false;
 }
 
 /** Whether a box takes space on screen right now. */
@@ -158,7 +198,7 @@ function anchorOf(keep: Element[], win: Window): { el: Element; top: number } | 
 /** Clean, once per page: hide what is not content, fading it out first (instantly under reduced motion). */
 export async function clean(doc: Document, win: Window): Promise<CleanReport> {
   if (!state) throw new Error("Distill is not open on this page.");
-  if (state.report) return { ...state.report, restored: restoredIds() };
+  if (state.report) return current();
   cleaning ??= cleanOnce(doc, win).finally(() => { cleaning = null; });
   return cleaning;
 }
@@ -173,9 +213,10 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     return k === "paragraph" || k === "list" || k === "table" || k === "quote" || k === "code";
   });
   const removed = new Map<string, Element>();
+  const protect = contentExtras(doc, win);
   const items: ClutterItem[] = findClutter(doc, {
     keep,
-    protect: contentExtras(doc, win),
+    protect,
     body,
     shown: shownOn(win),
     position: (el) => win.getComputedStyle(el).position,
@@ -199,10 +240,36 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   // Keep the reader's place: what they were looking at stays where it was on screen.
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
 
-  if (!state) return { items: [], restored: [], lang: page.lang, kind: page.kind, unlockedScroll }; // closed meanwhile
+  // The language: the page's own lang attribute, else its words (#2).
+  let lang = page.lang;
+  let langFrom: CleanReport["langFrom"] = lang === "und" ? "none" : "page";
+  if (lang === "und") {
+    const found = detectLang(body.map((el) => el.textContent ?? "").join("\n").slice(0, 20_000));
+    if (found.lang !== "und") { lang = found.lang; langFrom = "text"; }
+  }
+  const base: CleanReport = { items, restored: [], lang, kind: page.kind, unlockedScroll, langFrom, widened: 0, comfort: 0, calm: { media: 0, motion: 0 }, unstuck: 0 };
+  if (!state) return base; // closed meanwhile
+
+  // Round 1 (spark universal-core): each module changes the page only through what it can take back.
+  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
+  const ctx: CleanContext = { doc, win, keep, body, main, protect, removed };
+  state.ctx = ctx;
   state.removed = removed;
-  state.report = { items, restored: [], lang: page.lang, kind: page.kind, unlockedScroll };
+  state.report = {
+    ...base,
+    unstuck: unstick(ctx),
+    widened: widen(ctx),
+    comfort: applyComfort(ctx),
+    calm: calmPage(ctx),
+  };
+  state.unwatch = watchForClutter(doc, win, () => { void recheck(doc, win); });
   return state.report;
+}
+
+/** The report as it stands, with what the person brought back. */
+function current(): CleanReport {
+  if (!state?.report) throw new Error("Nothing was removed on this page.");
+  return { ...state.report, restored: restoredIds() };
 }
 
 function restoredIds(): string[] {

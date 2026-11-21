@@ -4,34 +4,27 @@
 // Original and the model state. Translate, Simplify and the tours come in later slices (docs/caption.md).
 import { StrictMode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { clutterSummary, type LocalModelState } from "@distill/engine";
+import type { LocalModelState } from "@distill/engine";
 import { downloadLocalModel, isOnDeviceOnlyBuild, localModelState, ON_DEVICE_ONLY_NOTE } from "@distill/web/ai";
 import { BRAND_DARK, BRAND_LIGHT } from "@distill/web/ui/theme/brand";
 import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
 import "@fontsource-variable/fredoka/wght.css";
 import "./caption.css";
 import { applyBinding } from "../../sidepanel/applyBinding";
-import type { CleanReport, ContentReplies, ContentRequest, ContentResponse } from "../../messages";
-
-const tabId = Number(new URLSearchParams(location.search).get("tabId"));
-
-/** To the content script of the top frame of this tab (never to other frames, never to this frame). */
-async function send<K extends ContentRequest["type"]>(req: ContentRequest): Promise<ContentReplies[K]> {
-  const res = (await chrome.tabs.sendMessage(tabId, req, { frameId: 0 })) as ContentResponse<ContentReplies[K]> | undefined;
-  if (!res) throw new Error("The page did not answer.");
-  if (!res.ok) throw new Error(res.error);
-  return res.data;
-}
+import { isCaptionUpdate, type CleanReport } from "../../messages";
+import { send, tabId } from "./send";
+import { statusLine } from "./status";
+import { CalmSection } from "./Calm";
+import { ComfortSection } from "./Comfort";
+import { ContactSection } from "./Contact";
+import { FormCheckRow, FormCheckSection } from "./FormCheck";
+import { TranslateRow, useTranslate } from "./Translate";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
   downloadable: "AI model on this device: not downloaded yet.",
   downloading: "AI model on this device: downloading.",
   unavailable: "This computer cannot run the AI model on the device.",
-};
-
-const langName = (code: string): string => {
-  try { return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code; } catch { return code; }
 };
 
 function useTheme() {
@@ -76,7 +69,12 @@ function Caption() {
     void send<"distill:caption:clean">({ type: "distill:caption:clean" }).then(setReport, (e: unknown) =>
       setProblem(e instanceof Error ? e.message : String(e)));
     void localModelState().then(setModel);
+    // Stay clean (#3): the page side removed something new by itself.
+    const onUpdate = (m: unknown) => { if (isCaptionUpdate(m) && m.tabId === tabId) setReport(m.report); };
+    chrome.runtime.onMessage.addListener(onUpdate);
+    return () => chrome.runtime.onMessage.removeListener(onUpdate);
   }, []);
+  const translate = useTranslate(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -110,9 +108,7 @@ function Caption() {
   }, [more, original, toggleOriginal]);
 
   const removed = report ? report.items.length - report.restored.length : 0;
-  const lang = report && report.lang !== "en" && report.lang !== "und" ? langName(report.lang) : null;
-  const status = problem ?? (!report ? "Cleaning the page..."
-    : report.restored.length ? `${clutterSummary(report.items)} · ${report.restored.length} back` : clutterSummary(report.items));
+  const status = problem ?? (!report ? "Cleaning the page..." : statusLine(report, translate.state));
 
   return (
     <div className="cap" ref={root} data-testid="caption">
@@ -150,6 +146,12 @@ function Caption() {
                 {isOnDeviceOnlyBuild() && <p className="note">{ON_DEVICE_ONLY_NOTE}</p>}
               </div>
             </div>
+            <div className="more-extra">
+              <ContactSection report={report} />
+              <FormCheckSection report={report} />
+              <ComfortSection report={report} setReport={setReport} />
+              <CalmSection report={report} setReport={setReport} />
+            </div>
           </section>
         )}
         {original ? (
@@ -162,12 +164,14 @@ function Caption() {
         ) : (
           <div className="row" data-testid="cap-row">
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
-            <span className="status" role="status" data-testid="cap-status">{status}{lang ? ` · Page in ${lang}` : ""}</span>
+            <span className="status" role="status" data-testid="cap-status">{status}</span>
             {report && (
               <span className="chip" data-src="none" tabIndex={0} title="Clean reads the page's own structure on this device. No AI is used and nothing is sent anywhere."
                 data-testid="cap-chip">No AI used</span>
             )}
             <span className="sp" />
+            {report && <FormCheckRow report={report} />}
+            {report && <TranslateRow report={report} translate={translate} />}
             <button type="button" className="btn quiet" ref={moreBtn} aria-expanded={more} aria-controls="cap-more" disabled={!report}
               onClick={() => setMore((m) => !m)} data-testid="cap-more-btn">More <span className="car" aria-hidden="true">{more ? "▾" : "▴"}</span></button>
             <button type="button" className="btn quiet" onClick={() => void toggleOriginal()} disabled={!report} data-testid="cap-original">Original</button>

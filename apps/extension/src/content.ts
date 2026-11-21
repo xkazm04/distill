@@ -7,6 +7,11 @@ import type { ContentRequest, ContentResponse, LocateTarget, PageChanged } from 
 import { readPageTheme } from "./pageTheme";
 import { watchPage } from "./pageWatch";
 import * as caption from "./caption/page";
+import { playAgain } from "./caption/calm";
+import { setComfort } from "./caption/comfort";
+import { readContacts, showContact } from "./caption/contact";
+import { formProgress, nextField } from "./caption/formCheck";
+import { applyTranslation, showSource, textBlocks } from "./caption/translate";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -69,6 +74,19 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:original": caption.showOriginal(document, req.on); return { ok: true };
     case "distill:caption:size": return { height: caption.resize(req.height, window) };
     case "distill:caption:close": caption.close(document); return { ok: true };
+    // ---- round 1 (spark universal-core) ----
+    case "distill:caption:comfort": return { comfort: setComfort(document, req.on) };
+    case "distill:caption:play": playAgain(document); return { ok: true };
+    case "distill:caption:contact": return readContacts(document, Array.from(caption.context()?.removed.values() ?? []));
+    case "distill:caption:showContact": showContact(document, req.id); return { ok: true };
+    case "distill:caption:form": return formProgress(document);
+    case "distill:caption:nextField": return nextField(document);
+    case "distill:caption:blocks": {
+      const ctx = caption.context();
+      return ctx ? textBlocks(ctx) : [];
+    }
+    case "distill:caption:translated": return { applied: applyTranslation(req.blocks) };
+    case "distill:caption:sourceText": showSource(req.on); return { ok: true };
   }
 }
 

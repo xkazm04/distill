@@ -52,6 +52,11 @@ button { font: inherit; color: inherit; }
 .model { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
 .note { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
 
+/* Round 1: what Distill found on the page (contact, form, reading, calm), one section each, below the two columns */
+.more-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 32px; }
+.more-extra:empty { display: none; }
+.more-extra > section { padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+
 /* A phone: two rows. What Distill did and where it ran on top; the actions below, the next step widest. */
 @media (max-width: 560px) {
   .row { flex-wrap: wrap; row-gap: 2px; gap: 8px; }
