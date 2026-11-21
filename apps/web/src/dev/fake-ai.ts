@@ -6,7 +6,11 @@
 // real SDK's wording, so they pass through the same plain-words door in ai.ts as a real failure would.
 import type { FormStructure, PageModel, Task } from "@distill/engine";
 
-export interface FakeContext { page?: PageModel; structure?: FormStructure; fieldId?: string; value?: string }
+export interface FakeContext {
+  page?: PageModel; structure?: FormStructure; fieldId?: string; value?: string;
+  /** translateBlocks: the blocks of the page's main text being translated. */
+  blocks?: readonly { id: string; text: string }[];
+}
 
 export type FakeFailure = "busy" | "genuine" | "device" | "other" | "empty";
 
@@ -110,6 +114,10 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
           { stepId: "r1", question: "(dev fake AI) What is your reference number?", explanation: "The office uses it to find your file." },
         ],
       };
+    case "translateBlocks":
+      // schemas.translate: {blocks: [{id, text}]}. Not a translation: the source marked "[EN]", so a screen shows which
+      // blocks were replaced (names, numbers and links stay exactly where they were).
+      return { blocks: empty ? [] : (ctx.blocks ?? []).map((b) => ({ id: b.id, text: `[EN] ${b.text}` })) };
     case "draftReply":
       // schemas.replyDraft
       return empty ? { reply: "" } : { reply: "(dev fake AI) Dobrý den, dokument pošlu do [datum]. S pozdravem", translation: "(dev fake AI) Hello, I will send the document by [date]. Kind regards" };

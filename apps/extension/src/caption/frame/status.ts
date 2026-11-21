@@ -14,7 +14,25 @@ export function statusLine(report: CleanReport, translate: TranslateState): stri
   const parts = [clutterSummary(report.items)];
   if (report.restored.length) parts.push(`${report.restored.length} back`);
   if (report.calm.media) parts.push(`Paused ${plural(report.calm.media, "video", "videos")}`);
-  // Translate (#10, W4) words the language part while it runs and once it is done.
-  if (translate.phase === "idle" && report.lang !== "en" && report.lang !== "und") parts.push(`Page in ${langName(report.lang)}`);
+  // Translate (#10) words the language part while it runs and once it is done.
+  const lang = languagePart(report, translate);
+  if (lang) parts.push(lang);
   return parts.join(" · ");
+}
+
+/** "cs" from "cs-CZ". */
+const primary = (lang: string): string => lang.split("-")[0]?.toLowerCase() || "und";
+
+/** The language part (#10): "Page in Czech" when it is not the reader's language, then what Translate did. */
+export function languagePart(report: CleanReport, translate: TranslateState, reader = primary(navigator.language || "en")): string | null {
+  const from = langName(translate.from ?? primary(report.lang));
+  switch (translate.phase) {
+    case "translating": return `Translating from ${from}...`;
+    case "done": return `Translated from ${from}`;
+    case "failed": return `Not translated: ${translate.problem ?? "something went wrong with the AI"}`;
+    case "idle": {
+      const lang = primary(report.lang);
+      return lang !== "und" && lang !== reader ? `Page in ${langName(lang)}` : null;
+    }
+  }
 }

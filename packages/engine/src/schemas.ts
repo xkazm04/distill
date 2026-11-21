@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate", object> = {
   recast: {
     type: "object",
     properties: {
@@ -112,6 +112,17 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
       translation: str,
     },
     required: ["reply"],
+  },
+  // The caption's Translate: one entry per translated block, keyed by the block's id ("t3"), the same shape as simplify.
+  translate: {
+    type: "object",
+    properties: {
+      blocks: {
+        type: "array",
+        items: { type: "object", properties: { id: str, text: str }, required: ["id", "text"] },
+      },
+    },
+    required: ["blocks"],
   },
 };
 

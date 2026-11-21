@@ -18,7 +18,7 @@ import { CalmSection } from "./Calm";
 import { ComfortSection } from "./Comfort";
 import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
-import { TranslateRow, useTranslate } from "./Translate";
+import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -165,10 +165,10 @@ function Caption() {
           <div className="row" data-testid="cap-row">
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
             <span className="status" role="status" data-testid="cap-status">{status}</span>
-            {report && (
-              <span className="chip" data-src="none" tabIndex={0} title="Clean reads the page's own structure on this device. No AI is used and nothing is sent anywhere."
-                data-testid="cap-chip">No AI used</span>
-            )}
+            {report && (() => {
+              const chip = sourceChip(translate.state);
+              return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
+            })()}
             <span className="sp" />
             {report && <FormCheckRow report={report} />}
             {report && <TranslateRow report={report} translate={translate} />}

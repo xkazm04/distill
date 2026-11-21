@@ -350,7 +350,8 @@ export type Task =
   | "explainError"      // values (the page's error text can repeat what the person typed)
   | "readLetter"      // page (Envelope: OCR text of a letter the person chose to share)
   | "buildReplyWizard"  // page (Envelope: the same letter text; never the person's answers)
-  | "draftReply";       // values (Envelope: carries the person's answers)
+  | "draftReply"        // values (Envelope: carries the person's answers)
+  | "translateBlocks";  // page (the caption's Translate: the main text of the page, never a form's values)
 
 export interface RouteDecision {
   task: Task;

@@ -70,3 +70,8 @@ button { font: inherit; color: inherit; }
   .more { animation: grow 200ms cubic-bezier(.2,.8,.2,1); }
   @keyframes grow { from { opacity: 0; transform: translateY(6px); } }
 }
+
+/* Translate in place (#10): the source chip once a translation is on the page */
+.chip[data-src="in_cloud"] { color: var(--chip-cloud); border-color: color-mix(in srgb, var(--chip-cloud) 40%, transparent); }
+.chip[data-src="agent"] { color: var(--chip-agent); border-color: color-mix(in srgb, var(--chip-agent) 40%, transparent); }
+.chip[data-src="agent"]::before { border-radius: 0; }

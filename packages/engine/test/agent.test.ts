@@ -15,7 +15,7 @@ const FORM: FormStructure = {
     { fieldId: "email", kind: "email", label: "E-mail", required: false },
   ],
 };
-const ALL_TASKS: readonly Task[] = ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "readLetter", "buildReplyWizard", "draftReply"];
+const ALL_TASKS: readonly Task[] = ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "readLetter", "buildReplyWizard", "draftReply", "translateBlocks"];
 // Compile-time proof the list is complete: a Task missing from ALL_TASKS makes this line fail to typecheck.
 const _complete: Exclude<Task, (typeof ALL_TASKS)[number]> extends never ? true : never = true;
 void _complete;
