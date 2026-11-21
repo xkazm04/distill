@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riverside Park reopens with a new playground | Riverside Weekly</title>
+<style>
+body{font:17px/1.55 Georgia,serif;margin:0;padding:64px 0 40px;background:#fbfaf7;color:#222}
+.smartbanner{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;background:#16324f;color:#fff;font:15px Arial,sans-serif;z-index:20}
+.smartbanner a{color:#fff;font-weight:bold}
+.masthead{max-width:900px;margin:0 auto;padding:.6rem 1rem;font:15px Arial,sans-serif;border-bottom:2px solid #16324f}
+.masthead nav a{margin-right:1rem;color:#16324f}
+main{max-width:900px;margin:0 auto;padding:0 1rem}
+h1{font-size:2rem;line-height:1.2;margin:1.2rem 0 .4rem;animation:rise .5s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.updated{font:14px Arial,sans-serif;color:#555;display:flex;align-items:center;gap:8px}
+.live-dot{width:10px;height:10px;border-radius:50%;background:#c0392b;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
+figure{margin:1.2rem 0}
+figcaption{font:14px Arial,sans-serif;color:#555}
+.splide{position:relative;overflow:hidden;height:220px;border-radius:8px;background:#ddd;margin:1.2rem 0}
+.splide__slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:20px Arial,sans-serif;color:#fff;opacity:0;transition:opacity .3s}
+.splide__slide.is-active{opacity:1}
+marquee{font:15px Arial,sans-serif;background:#fff3cd;padding:.4rem;margin:1rem 0}
+aside,footer{max-width:900px;margin:1rem auto;padding:.6rem 1rem;background:#eee;font:14px Arial,sans-serif}
+.sticky-player-wrap{position:fixed;left:16px;bottom:16px;width:280px;z-index:30;background:#000;box-shadow:0 4px 18px rgba(0,0,0,.3)}
+.back-to-top{position:fixed;right:96px;bottom:20px;width:44px;height:44px;border-radius:50%;background:#16324f;color:#fff;display:flex;align-items:center;justify-content:center;text-decoration:none;font:20px Arial,sans-serif;z-index:30}
+#w-4f2a{position:fixed;right:20px;bottom:20px;width:64px;height:64px;border-radius:50%;overflow:hidden;z-index:30;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+#w-4f2a iframe{border:0;width:64px;height:64px}
+.tab-fb{position:fixed;right:0;top:40%;writing-mode:vertical-rl;padding:12px 6px;background:#e67e22;color:#fff;border:0;font:14px Arial,sans-serif;z-index:30}
+.newsletter-popup{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(420px,90vw);padding:1.4rem;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);z-index:50;font:16px Arial,sans-serif}
+.popup-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40}
+.ad-slot{margin:1.2rem 0;padding:1rem;background:#f1f1f1;border:1px dashed #aaa;font:14px Arial,sans-serif;color:#666;text-align:center}
+</style>
+</head>
+<body>
+<div class="smartbanner"><span>Riverside Weekly is better in the app.</span> <a href="#">Get the app</a></div>
+<header class="masthead"><strong>Riverside Weekly</strong> <nav><a href="#">News</a><a href="#">Events</a><a href="#">Sport</a><a href="#">Contact</a></nav></header>
+<main id="story">
+<article>
+<h1>Riverside Park reopens with a new playground</h1>
+<p class="updated"><span class="live-dot" aria-hidden="true"></span> Updated 10 minutes ago</p>
+<p>After eighteen months of work, Riverside Park opened its gates again on Saturday morning. Families queued at the north entrance before eight, and the first children were on the new climbing frame a few minutes later.</p>
+<figure><video id="main-video" autoplay muted loop playsinline width="640" height="360"></video><figcaption>The opening morning at the north entrance.</figcaption></figure>
+<p>The new playground has a water garden, a rope bridge and a quiet corner with sand tables for the youngest. The paths are now step-free all the way from the bus stop on Mill Street to the boathouse.</p>
+<div class="splide" aria-label="Photos from the opening">
+  <div class="splide__slide is-active" style="background:#2a6f97">The rope bridge</div>
+  <div class="splide__slide" style="background:#468faf">The water garden</div>
+  <div class="splide__slide" style="background:#61a5c2">The sand tables</div>
+</div>
+<p>The council paid for most of the work, with help from the Friends of Riverside Park, who raised money for the benches and the new trees along the river. Volunteers will run a café in the old boathouse at weekends.</p>
+<div class="hours"><marquee>Opening hours: every day from 6:00 to 22:00. Dogs on a lead, please.</marquee></div>
+<p>The park keeper asked visitors to keep to the paths while the new grass grows, and said the meadow by the river will open in June. Bicycles are welcome on the riverside path but not in the playground.</p>
+<p><a href="#" id="next-story">Next story: the farmers market moves to Saturdays</a></p>
+</article>
+</main>
+<aside>Most read: Bridge repairs start in May. New bus to the hospital. School holidays: what is on.</aside>
+<footer>Riverside Weekly, 12 Mill Street. About us. Advertise. Privacy.</footer>
+
+<div class="sticky-player-wrap"><div class="sticky-player"><div class="frame"><video id="side-video" autoplay muted loop playsinline width="280" height="158"></video></div></div></div>
+<a class="back-to-top" href="#top" aria-label="Back to top">&#8593;</a>
+<div id="w-4f2a"><iframe title="Questions? We are here." srcdoc="<body style='margin:0;background:#27ae60'></body>"></iframe></div>
+<button class="tab-fb" type="button">Feedback</button>
+
+<script>
+// A moving picture without a video file: a canvas drawn 20 times a second, played as a muted stream.
+function stream(color) {
+  var c = document.createElement("canvas"); c.width = 320; c.height = 180;
+  var g = c.getContext("2d"), t = 0;
+  setInterval(function () { g.fillStyle = color; g.fillRect(0, 0, 320, 180); g.fillStyle = "#fff"; g.fillRect((t++ * 6) % 320, 70, 40, 40); }, 50);
+  return c.captureStream(20);
+}
+document.getElementById("main-video").srcObject = stream("#2a6f97");
+document.getElementById("side-video").srcObject = stream("#8e44ad");
+
+// The photo carousel: a slide every 1.2 s, paused while the pointer is over it (as the carousel libraries do).
+(function () {
+  var root = document.querySelector(".splide"), i = 0, hover = false;
+  root.addEventListener("mouseenter", function () { hover = true; });
+  root.addEventListener("mouseleave", function () { hover = false; });
+  setInterval(function () {
+    if (hover) return;
+    var slides = root.querySelectorAll(".splide__slide");
+    slides[i].classList.remove("is-active");
+    i = (i + 1) % slides.length;
+    slides[i].classList.add("is-active");
+    root.setAttribute("data-slide", String(i));
+  }, 1200);
+})();
+
+var params = new URLSearchParams(location.search);
+// The newsletter pop-up slides in a while after the page loaded (?late=<ms>, default 2500; 0: never).
+var late = Number(params.get("late") ?? 2500);
+if (late > 0) setTimeout(function () {
+  var back = document.createElement("div"); back.className = "popup-backdrop";
+  var box = document.createElement("div"); box.className = "newsletter-popup"; box.setAttribute("role", "dialog");
+  box.innerHTML = "<h2>Never miss a weekend</h2><p>Get our weekend newsletter every Friday.</p><input type='email' placeholder='Your email'> <button type='button'>Sign up</button>";
+  document.body.append(back, box);
+  document.documentElement.style.overflow = "hidden";
+}, late);
+// An advert that loads late, inside the article (?ad=<ms>, default 3500; 0: never).
+var ad = Number(params.get("ad") ?? 3500);
+if (ad > 0) setTimeout(function () {
+  var slot = document.createElement("div"); slot.className = "ad-slot";
+  slot.innerHTML = "<span>Advertisement</span><p>Garden furniture sale: 30% off this weekend only.</p>";
+  var paras = document.querySelectorAll("#story article > p");
+  paras[3].after(slot);
+}, ad);
+
+// The next story, as a single-page app shows it: the address changes and the article is replaced.
+document.getElementById("next-story").addEventListener("click", function (e) {
+  e.preventDefault();
+  history.pushState({}, "", location.pathname + "?story=market" + (location.search ? "&" + location.search.slice(1) : ""));
+  document.getElementById("story").innerHTML = "<article><h1>The farmers market moves to Saturdays</h1>"
+    + "<p>From next month the farmers market on Mill Street will run on Saturdays instead of Thursdays, so that people who work during the week can come too. The stalls open at eight and close at one.</p>"
+    + "<div class='ad-slot' id='next-ad'><span>Advertisement</span><p>Fresh bread delivered to your door.</p></div>"
+    + "<p>Twenty-two growers have signed up so far, among them three new ones from the villages up the valley. The market committee says there will be more room for stalls once the car park is repainted.</p>"
+    + "<p>Parking on Mill Street will be closed on market mornings; the council asks visitors to come by bus or bike, and the number 4 bus will run every fifteen minutes until two.</p>"
+    + "</article>";
+  document.title = "The farmers market moves to Saturdays | Riverside Weekly";
+});
+</script>
+</body>
+</html>
