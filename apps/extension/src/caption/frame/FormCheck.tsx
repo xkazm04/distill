@@ -34,6 +34,9 @@ function useProgress(): FormProgress | null | undefined {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Below this many fields, a form on a page that is not a form page shows its progress in More only. */
+export const ROW_MIN_FIELDS = 4;
+
 export function FormCheckRow(props: { report: CleanReport }) {
   const p = useProgress();
   // Counted when the report arrives, and again whenever the strip gets focus back: the person may have typed in the
@@ -46,6 +49,9 @@ export function FormCheckRow(props: { report: CleanReport }) {
   }, [props.report.kind]);
 
   if (!p) return null;
+  // The row is for a page that is there to be filled. An article's comment box (a name, an e-mail, the comment) is
+  // not that page's purpose: its progress stays in More only (round-1 integration).
+  if (props.report.kind !== "form" && p.fields < ROW_MIN_FIELDS) return null;
   if (p.filled >= p.fields) return <span className="form-done" data-testid="cap-form-done">Form complete</span>;
   return (
     <button type="button" className="btn form-next" onClick={() => void next()} data-testid="cap-form-next"
