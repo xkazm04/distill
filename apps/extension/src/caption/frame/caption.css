@@ -71,10 +71,12 @@ button { font: inherit; color: inherit; }
   @keyframes grow { from { opacity: 0; transform: translateY(6px); } }
 }
 
-/* Round 1, W3. #5 Contact: the page's ways to reach whoever runs it, in More, across the whole width. */
-.more-extra > .contact { grid-column: 1 / -1; }
-.contact ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; max-height: 146px; overflow: auto; }
-.contact li { display: grid; grid-template-columns: 96px minmax(0, 1fr) 250px; align-items: center; gap: 2px 12px; min-height: 34px; }
+/* Round 1, W3. #5 Contact: the page's ways to reach whoever runs it, in More, two columns wide (the form, reading and
+   calm sections sit beside it, so More stays short). */
+.more-extra > .contact { grid-column: span 2; }
+.contact ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 2px 12px;
+  max-height: 146px; overflow: auto; }
+.contact li { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; min-height: 34px; }
 .contact-kind { font-size: 14px; color: var(--muted); }
 .contact-what { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
 .contact-text { font-weight: 600; user-select: text; overflow-wrap: anywhere; }
@@ -90,6 +92,8 @@ a.btn { text-decoration: none; }
 .form-errors { font-weight: 600; }
 @media (max-width: 560px) {
   .form-word { display: none; }
-  .contact li { grid-template-columns: 72px minmax(0, 1fr); padding: 4px 0; }
+  .more-extra > .contact { grid-column: 1 / -1; }
+  .contact ul { grid-template-columns: 72px minmax(0, 1fr); }
+  .contact li { padding: 4px 0; }
   .contact-acts { grid-column: 1 / -1; }
 }
