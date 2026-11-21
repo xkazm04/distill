@@ -82,6 +82,18 @@ describe("detectLang", () => {
     expect(detectLang(old)).toMatchObject({ lang: "cs" });
   });
 
+  it("names an old company site's whole text (a menu, a counter, few common words) by its letters, less surely", () => {
+    // The visible text of a 2000s car repair shop's home page, as it stands on the live site.
+    const site = "autoservis\npneuservis\nrenovace autoveteránů\nklimatizace\nspeciál\n\nmapa\n\ntel.: 549 211 296, 541 246 631\n\n"
+      + "Počet návštěvníků: 19457\nGDPR - Prohlášení\nGDPR - Žádost";
+    const r = detectLang(site);
+    expect(r.lang).toBe("cs");
+    expect(r.confidence).toBeGreaterThanOrEqual(0.5);
+    expect(r.confidence).toBeLessThanOrEqual(0.65);
+    // Only digits and a label: nothing to go on.
+    expect(detectLang("tel.: 549 211 296, 541 246 631 · fax 549 211 297 · 19457").lang).toBe("und");
+  });
+
   it("says und for a near tie of two languages", () => {
     const half = (PARAGRAPHS.en as string) + " " + (PARAGRAPHS.de as string);
     const r = detectLang(half);

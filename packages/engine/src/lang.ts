@@ -147,7 +147,14 @@ function cyrillic(text: string, share: number): DetectedLang {
 
 function latin(text: string): DetectedLang {
   const score = new Map<string, number>(LATIN_LANGS.map((l) => [l, 0]));
-  const add = (w: Map<string, number> | undefined, by = 1) => { if (w) for (const [l, v] of w) score.set(l, (score.get(l) ?? 0) + v * by); };
+  const byWords = new Map<string, number>();
+  const add = (w: Map<string, number> | undefined, by = 1, also?: Map<string, number>) => {
+    if (!w) return;
+    for (const [l, v] of w) {
+      score.set(l, (score.get(l) ?? 0) + v * by);
+      also?.set(l, (also.get(l) ?? 0) + v * by);
+    }
+  };
   const lower = text.toLowerCase();
   let words = 0;
   for (const word of lower.match(/[\p{L}\p{M}]+/gu) ?? []) {
@@ -155,17 +162,22 @@ function latin(text: string): DetectedLang {
     const bare = fold(word);
     // A word written with diacritics must match exactly ("és" is Hungarian, not Spanish "es"); one without them
     // matches the profile word with or without its diacritics.
-    add(bare === word ? FOLDED.get(bare) : EXACT.get(word));
+    add(bare === word ? FOLDED.get(bare) : EXACT.get(word), 1, byWords);
   }
   for (const ch of lower) add(LETTER.get(ch), LETTER_WEIGHT);
 
   const ranked = [...score].sort((a, b) => b[1] - a[1]);
   const [lang, top] = ranked[0] as [string, number];
   const second = ranked[1]?.[1] ?? 0;
-  // Too few common words for the length of the text: a list of names, codes or a language with no profile.
-  if (top < 3 || top / Math.max(words, 1) < 0.05) return und(0.2);
-  if (second / top >= TIE) return und(0.4);
-  return { lang, confidence: round(sure(top, second)) };
+  const words3 = (byWords.get(lang) ?? 0) >= 3 && top / Math.max(words, 1) >= 0.05;
+  if (words3) {
+    if (second / top >= TIE) return und(0.4);
+    return { lang, confidence: round(sure(top, second)) };
+  }
+  // Few common words (a menu, a list of services, a visitor counter: an old company site's whole text), but letters
+  // only one language uses ("návštěvníků", "autoveteránů"): enough when nothing else comes near, and said less surely.
+  if (top >= 1 && second / top <= 0.5) return { lang, confidence: round(Math.min(0.65, sure(top, second))) };
+  return und(0.2);
 }
 
 /** 0.5 at a near tie (TIE), 1 when nothing else scores. */
