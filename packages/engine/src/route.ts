@@ -6,6 +6,7 @@ const CLASS_OF: Record<Task, PromptClass> = {
   recast: "page",
   readLetter: "page",
   buildReplyWizard: "page",
+  translateBlocks: "page",
   buildWizard: "structure",
   explainField: "structure",
   suggestValue: "values",

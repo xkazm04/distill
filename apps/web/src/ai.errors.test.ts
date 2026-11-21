@@ -109,6 +109,15 @@ describe("dev fake AI", () => {
     expect(fakeRun("simplifyBlocks", { page }, "empty")).toEqual({ blocks: [] });
     expect(fakeRun("recast", { page }, "empty")).toEqual({ version: 1, nodes: [] });
   });
+  it("answers translate in schemas.translate's shape, every block marked, and the answer passes the door", async () => {
+    const { parseTranslation } = await import("@distill/engine");
+    const blocks = [{ id: "t0", text: "Daňové přiznání do 1. dubna." }, { id: "t1", text: "Úvod" }];
+    const answer = fakeRun("translateBlocks", { blocks });
+    expect(answer).toEqual({ blocks: [{ id: "t0", text: "[EN] Daňové přiznání do 1. dubna." }, { id: "t1", text: "[EN] Úvod" }] });
+    expect(parseTranslation(answer, blocks)).toMatchObject({ blocks: (answer as { blocks: unknown[] }).blocks, dropped: 0 });
+    expect(fakeRun("translateBlocks", { blocks }, "empty")).toEqual({ blocks: [] });
+    expect(() => fakeRun("translateBlocks", { blocks }, "device:translateBlocks")).toThrow(/on-device model is not available/);
+  });
   it("covers the Envelope reply tasks so dev screens do not crash", () => {
     const wizard = fakeRun("buildReplyWizard", {}) as { steps: { stepId: string; question: string; explanation: string }[] };
     expect(wizard.steps.map((s) => s.stepId)).toEqual(["r0", "r1"]);

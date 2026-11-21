@@ -1,5 +1,6 @@
 import type { FieldStructure, FormStructure, FormValues, Letter, PageModel, ReplyAnswer } from "./types.js";
 import { NODE_KINDS } from "./repair.js";
+import type { TranslateBlock } from "./translate.js";
 
 const PAGE_BUDGET = 12000;
 const BLOCK_CAP = 600;
@@ -93,6 +94,17 @@ export const prompts = {
       "<page>",
       pageText(page),
       "</page>",
+    ].join("\n"),
+
+  // The caption's Translate: blocks of the page's own main text (never a form's values), one line each.
+  translateBlocks: (blocks: readonly TranslateBlock[], targetLang = "en", sourceLang = "und"): string =>
+    [
+      `Translate each block below ${sourceLang === "und" ? "" : `from ${langName(sourceLang)} `}into ${langName(targetLang)}. Keep the meaning. Keep names, numbers, dates, amounts and addresses exactly as written. Translate the whole block: do not shorten, explain or add anything.`,
+      "Answer with JSON only: {\"blocks\": [{\"id\": \"<id>\", \"text\": \"<translation>\"}]}, one entry per block, with the block's id (for example \"t3\"). Plain text only: no HTML, no markdown.",
+      GUARD,
+      "<blocks>",
+      ...blocks.map((b) => `[${b.id}] ${oneLine(b.text)}`),
+      "</blocks>",
     ].join("\n"),
 
   recast: (page: PageModel, enabledKinds: readonly string[] = NODE_KINDS): string => {

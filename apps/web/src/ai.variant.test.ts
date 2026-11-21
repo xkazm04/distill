@@ -6,7 +6,7 @@ import type { Task } from "@distill/engine";
 
 const ALL_TASKS: readonly Task[] = [
   "classifyPage", "simplifyBlocks", "recast", "readLetter", "buildReplyWizard",
-  "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "draftReply",
+  "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "draftReply", "translateBlocks",
 ];
 // Compile-time proof the list is complete: a Task missing from ALL_TASKS makes this line fail to typecheck.
 const _complete: Exclude<Task, (typeof ALL_TASKS)[number]> extends never ? true : never = true;

@@ -34,6 +34,13 @@ describe("route", () => {
     for (const bad of ["PREFER_ON_DEVICE", "cloud", "", undefined]) expect(route("simplifyBlocks", bad).mode).toBe("prefer_on_device");
   });
 
+  it("Translate sees only the page's own text, so it is page class and prefers the device like simplifyBlocks", () => {
+    expect(route("translateBlocks")).toMatchObject({ task: "translateBlocks", promptClass: "page", mode: "prefer_on_device" });
+    expect(route("translateBlocks", "prefer_in_cloud").mode).toBe("prefer_in_cloud");
+    expect(route("translateBlocks", "nonsense").mode).toBe("prefer_on_device");
+    expect(route("translateBlocks").reason).toBe(route("simplifyBlocks").reason);
+  });
+
   it("classes tasks and explains in plain words", () => {
     expect(route("buildWizard").promptClass).toBe("structure");
     expect(route("explainField").promptClass).toBe("structure");

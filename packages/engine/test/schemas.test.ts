@@ -8,6 +8,7 @@ import recastJson from "../schemas/recast.json";
 import replyDraftJson from "../schemas/replyDraft.json";
 import replyWizardJson from "../schemas/replyWizard.json";
 import simplifyJson from "../schemas/simplify.json";
+import translateJson from "../schemas/translate.json";
 import wizardJson from "../schemas/wizard.json";
 
 // The exported files the Android app reads. A schema added to src/schemas.ts must be exported and listed here.
@@ -18,6 +19,7 @@ const EXPORTED: Record<string, unknown> = {
   replyDraft: replyDraftJson,
   replyWizard: replyWizardJson,
   simplify: simplifyJson,
+  translate: translateJson,
   wizard: wizardJson,
 };
 // The file formats (not model output), exported the same way.
