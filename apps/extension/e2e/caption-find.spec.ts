@@ -1,11 +1,16 @@
 // Round 1, W3 (spark universal-core): what the caption finds on a page. #2 the language from the words of a page with
-// no lang attribute, #5 the contact card. Hermetic, on the demo pages.
+// no lang attribute, #5 the contact card, #9 the form check. Hermetic, on the demo pages.
 import { join } from "node:path";
-import type { Page } from "playwright/test";
+import type { Frame, Page } from "playwright/test";
 import { captionFrame, firstSight, settled, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const shot = (page: Page, name: string) => page.screenshot({ path: join(OUT, `caption-find-${name}.png`), animations: "disabled" });
+
+/** The strip gets focus back, as when the person clicks it after typing in the page. */
+async function refocus(frame: Frame) {
+  await frame.evaluate(() => window.dispatchEvent(new Event("focus")));
+}
 
 const located = (page: Page) => page.evaluate(() => Array.from(document.querySelectorAll("[data-distill-locate]")).map((e) => e.id || e.localName));
 
@@ -72,4 +77,78 @@ test("caption find: the contact card stays out of the way where there is nothing
   // The demo article has no phone, e-mail, address or hours; whatever it finds must not be a number from its text.
   const found = await frame.getByTestId("cap-contact-item").evaluateAll((els) => els.map((e) => e.getAttribute("data-kind")));
   expect(found.filter((k) => k === "phone")).toEqual([]);
+});
+
+test("caption find: Ready to send? counts the form, jumps to the next empty required field and never touches the trap", async ({ distill }) => {
+  const tab = await distill.openTab("caption-hlaseni-zavad");
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  await startCaption(distill.worker, tab.id);
+  const frame = await captionFrame(tab.page);
+  await firstSight(frame);
+
+  // Seven fields a person can see; the hidden token and the robot trap (website) are not counted.
+  const next = frame.getByTestId("cap-form-next");
+  await expect(next).toHaveText("Form 0 of 7 · Next");
+  await expect(frame.getByTestId("cap-row").getByRole("button")).toHaveCount(3); // Form, More, Original
+
+  // Typing in the page is counted when the strip gets focus back.
+  await tab.page.fill("#jmeno", "Jana Nováková");
+  await refocus(frame);
+  await expect(next).toHaveText("Form 1 of 7 · Next");
+
+  // Next: the first empty required field, focused and outlined in view; again: the one after it.
+  await next.click();
+  await expect.poll(() => tab.page.evaluate(() => document.activeElement?.id)).toBe("email");
+  expect(await located(tab.page)).toEqual(["email"]);
+  await shot(tab.page, "form-next");
+  await tab.page.keyboard.type("jana@example.cz");
+  await next.click();
+  await expect.poll(() => tab.page.evaluate(() => document.activeElement?.id)).toBe("druh");
+  await expect(next).toHaveText("Form 2 of 7 · Next");
+
+  // The page's own errors, counted in More after Send (the person pressed it in the page).
+  await tab.page.locator("button[type=submit]").click();
+  await refocus(frame);
+  await frame.getByTestId("cap-more-btn").click();
+  const section = frame.getByTestId("cap-form");
+  await expect(section).toContainText("2 of 7 fields filled. 4 required fields are empty.");
+  await expect(section).toContainText("The page shows 4 errors.");
+  await settled(tab.page);
+  await shot(tab.page, "form-more");
+  await frame.locator("body").press("Escape");
+
+  // Counts only: the reply carries no value the person typed.
+  const reply = await distill.worker.evaluate(async (id) => chrome.tabs.sendMessage(id, { type: "distill:caption:form" }, { frameId: 0 }), tab.id);
+  expect(JSON.stringify(reply)).not.toMatch(/Jana|example\.cz/);
+  expect(Object.keys((reply as { data: object }).data).sort()).toEqual(["errors", "fields", "filled", "required", "requiredLeft"]);
+
+  // Everything filled: a quiet "Form complete", no button.
+  await tab.page.selectOption("#druh", "osvetleni");
+  await tab.page.fill("#telefon", "777 000 111");
+  await tab.page.fill("#misto", "Hlavní, sloup č. 14");
+  await tab.page.fill("#popis", "Lampa nesvítí od pondělí.");
+  await tab.page.check("#souhlas");
+  await refocus(frame);
+  await expect(frame.getByTestId("cap-form-done")).toHaveText("Form complete");
+  await expect(next).toHaveCount(0);
+  expect(await tab.page.inputValue("#website")).toBe(""); // the trap was never visited or filled
+  await settled(tab.page);
+});
+
+test("caption find: the form check is short at phone width, and absent on a page without a form", async ({ distill }) => {
+  const tab = await distill.openTab("caption-hlaseni-zavad");
+  await tab.page.setViewportSize({ width: 390, height: 844 });
+  await startCaption(distill.worker, tab.id);
+  const frame = await captionFrame(tab.page);
+  await firstSight(frame);
+  await expect(frame.getByTestId("cap-form-next")).toHaveText("0 of 7 · Next", { useInnerText: true });
+
+  const article = await distill.openTab("article");
+  await article.page.setViewportSize({ width: 1440, height: 900 });
+  await startCaption(distill.worker, article.id);
+  const f2 = await captionFrame(article.page);
+  await firstSight(f2);
+  await expect(f2.getByTestId("cap-row")).toBeVisible();
+  await expect(f2.getByTestId("cap-form-next")).toHaveCount(0);
+  await expect(f2.getByTestId("cap-form-done")).toHaveCount(0);
 });

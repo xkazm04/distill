@@ -83,7 +83,13 @@ button { font: inherit; color: inherit; }
 .contact-main { flex: 0 0 64px; display: inline-flex; }
 a.btn { text-decoration: none; }
 
+/* Round 1, W3. #9 Ready to send?: the form's count in the row, and its line in More. */
+.form-next { font-variant-numeric: tabular-nums; }
+.form-done { flex: 0 0 auto; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.form-check p { margin: 0 0 4px; }
+.form-errors { font-weight: 600; }
 @media (max-width: 560px) {
+  .form-word { display: none; }
   .contact li { grid-template-columns: 72px minmax(0, 1fr); padding: 4px 0; }
   .contact-acts { grid-column: 1 / -1; }
 }
