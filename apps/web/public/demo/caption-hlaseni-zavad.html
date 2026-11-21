@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Hlášení závad - Obec Lipová Lhota</title>
+<style>
+body{margin:0;background:#f3f5f1;font:16px/1.5 Arial,sans-serif;color:#1d2a1d}
+header{background:#2f5d2f;color:#fff;padding:12px 20px}
+header a{color:#fff;margin-right:14px}
+main{max-width:680px;margin:0 auto;padding:8px 20px 40px;background:#fff}
+label{display:block;margin-top:14px;font-weight:bold}
+input[type=text],input[type=email],input[type=tel],select,textarea{width:100%;box-sizing:border-box;padding:7px;font:inherit;border:1px solid #9aa89a}
+textarea{height:110px}
+.chyba{color:#b00020;font-size:14px;margin:3px 0 0}
+.past{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.souhlas{font-weight:normal}
+button{margin-top:18px;padding:9px 22px;font:inherit;background:#2f5d2f;color:#fff;border:0;cursor:pointer}
+footer{max-width:680px;margin:0 auto;padding:12px 20px;font-size:13px;color:#667}
+</style>
+</head>
+<body>
+<header><strong>Obec Lipová Lhota</strong> &nbsp; <nav style="display:inline"><a href="#">Úvod</a><a href="#">Úřad</a><a href="#">Aktuality</a><a href="#">Kontakty</a></nav></header>
+<main>
+  <h1>Hlášení závad</h1>
+  <p>Prostřednictvím tohoto formuláře můžete obecnímu úřadu nahlásit závadu na veřejném osvětlení, místní komunikaci,
+  mobiliáři nebo černou skládku. Povinné údaje jsou označeny hvězdičkou. Na hlášení odpovíme do pěti pracovních dnů.</p>
+  <form id="hlaseni" action="#" method="post" novalidate>
+    <label for="jmeno">Jméno a příjmení *</label><input id="jmeno" name="jmeno" type="text" required>
+    <label for="email">E-mail *</label><input id="email" name="email" type="email" required>
+    <label for="telefon">Telefon</label><input id="telefon" name="telefon" type="tel">
+    <label for="druh">Druh závady *</label>
+    <select id="druh" name="druh" required><option value="">-- vyberte --</option><option value="osvetleni">Veřejné osvětlení</option><option value="komunikace">Místní komunikace</option><option value="skladka">Černá skládka</option><option value="jine">Jiné</option></select>
+    <label for="misto">Místo závady *</label><input id="misto" name="misto" type="text" required placeholder="ulice, číslo sloupu, okolí">
+    <label for="popis">Popis závady *</label><textarea id="popis" name="popis" required></textarea>
+    <div class="past" aria-hidden="true"><label for="website">Nevyplňujte</label><input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+    <input type="hidden" name="token" value="a81f2c">
+    <label class="souhlas"><input id="souhlas" name="souhlas" type="checkbox" required> Souhlasím se zpracováním osobních údajů *</label>
+    <button type="submit">Odeslat hlášení</button>
+  </form>
+</main>
+<footer>Obecní úřad Lipová Lhota, Hlavní 1, 330 11 Lipová Lhota · Úřední hodiny: Po, St 8.00 - 12.00, 13.00 - 17.00</footer>
+<script>
+// The page's own check, as a village site does it: on Send, a red message under each empty required field.
+document.getElementById("hlaseni").addEventListener("submit", function (e) {
+  e.preventDefault();
+  document.querySelectorAll(".chyba").forEach(function (m) { m.remove(); });
+  this.querySelectorAll("[required]").forEach(function (f) {
+    var empty = f.type === "checkbox" ? !f.checked : !f.value.trim();
+    if (!empty) return;
+    var m = document.createElement("p");
+    m.className = "chyba";
+    m.textContent = "Toto pole je povinné.";
+    (f.type === "checkbox" ? f.parentNode : f).insertAdjacentElement("afterend", m);
+  });
+});
+</script>
+</body>
+</html>
