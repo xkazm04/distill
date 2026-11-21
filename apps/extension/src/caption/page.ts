@@ -2,15 +2,15 @@
 // caption frame, an extension page), and what Distill changes in the page itself (Clean, Original). Everything here is
 // reversible: closing the caption puts the page back exactly as it was. Nothing read here leaves the page except the
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
-import { detectLang, extractPage, findClutter, type ClutterItem, type PageModel } from "@distill/engine";
+import { detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
-import { calmPage, clearCalm } from "./calm";
+import { calmCounts, calmPage, calmProtect, clearCalm } from "./calm";
 import { applyComfort, clearComfort } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
-import { watchForClutter } from "./watch";
+import { inUse, sincePress, watchForClutter } from "./watch";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -143,11 +143,137 @@ export function notifyFrame(report: CleanReport): void {
 
 /**
  * Stay clean (#3): judges what came into the page since the last Clean, hides new clutter, adds it to the report and
- * tells the frame. Returns whether anything new was hidden. STUB: owned by the round-1 builder W2, who fills this body.
+ * tells the frame. Returns whether anything new was hidden. Judging runs before the first await (watch.ts times it).
  */
 export async function recheck(doc: Document, win: Window): Promise<boolean> {
-  void doc; void win;
-  return false;
+  if (!state?.report || !state.ctx || originalOn(doc)) return false;
+  // One at a time: a call while one fades its finds in runs once more after it.
+  if (rechecking) { recheckAgain = true; return false; }
+  rechecking = true;
+  try {
+    let hid = false;
+    do {
+      recheckAgain = false;
+      hid = (await recheckOnce(doc, win)) || hid;
+    } while (recheckAgain && state && !originalOn(doc));
+    return hid;
+  } finally {
+    rechecking = false;
+  }
+}
+
+let rechecking = false;
+let recheckAgain = false;
+/** Boxes that showed up just after the person pressed something (a menu they opened): never hidden by Stay clean. */
+const spared = new WeakSet<Element>();
+/** A box that appears this soon after the person clicked is theirs, not the page's (ms). */
+const PRESS_MS = 3000;
+/** What a click opens: a menu, a dialog, a panel. Never an advert, a cookie notice or a sign-up. */
+const OPENED_BY_PERSON = new Set<ClutterItem["kind"]>(["menu", "popup", "header", "sidebar", "footer", "other"]);
+/** The address at the last judgement: a click that changed it went to another view, not to a menu. */
+let lastHref = "";
+
+/** findClutter's options as Clean and Stay clean both use them: what is on screen and where comes from the browser. */
+function clutterOptions(win: Window, keep: readonly Element[], body: readonly Element[], protect: readonly Element[],
+  onElement: (id: string, el: Element) => void): ClutterOptions {
+  return {
+    keep,
+    protect,
+    body,
+    shown: shownOn(win),
+    position: (el) => win.getComputedStyle(el).position,
+    covers: (el) => {
+      const r = el.getBoundingClientRect();
+      const w = Math.max(0, Math.min(r.right, win.innerWidth) - Math.max(r.left, 0));
+      const h = Math.max(0, Math.min(r.bottom, win.innerHeight) - Math.max(r.top, 0));
+      return (w * h) / (win.innerWidth * win.innerHeight);
+    },
+    box: (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width, height: r.height, winWidth: win.innerWidth, winHeight: win.innerHeight };
+    },
+    onElement,
+  };
+}
+
+/** What Clean knows, read again from the page as it is now (a single-page app showed another page). What Clean hid is
+ *  not read as content. */
+function readContext(doc: Document, win: Window, removed: Map<string, Element>): CleanContext {
+  const read: Element[] = [];
+  const page = extractPage(doc, win.location.href, { onSource: (_id, el) => read.push(el) });
+  const kinds = page.blocks.map((b) => b.kind);
+  const visible = (el: Element) => !el.closest(`[${HIDE}]`);
+  const keep = read.filter(visible);
+  const body = read.filter((el, i) => visible(el) && ["paragraph", "list", "table", "quote", "code"].includes(kinds[i] ?? ""));
+  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
+  return { doc, win, keep, body, main, protect: contentExtras(doc, win), removed };
+}
+
+async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
+  const s = state;
+  if (!s?.report || !s.ctx) return false;
+  // The page as it is now: new text (a lazy paragraph, the advert's own words, a single-page app's next view) is read as
+  // content, so what holds it is judged as Clean judges it. What Clean knew stays known while it is on the page (the
+  // text inside boxes it hid, the main video), so the main column never shrinks and Clean's own judgement holds; after
+  // a single-page app replaced the old text, only the new one counts.
+  const before = s.ctx;
+  const read = readContext(doc, win, s.removed);
+  const union = (old: readonly Element[], now: readonly Element[]) => [...new Set([...old.filter((e) => e.isConnected), ...now])];
+  const body = union(before.body, read.body);
+  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
+  const ctx: CleanContext = { ...read, keep: union(before.keep, read.keep), body, main, protect: union(before.protect, read.protect) };
+  s.ctx = ctx;
+  calmProtect(ctx.protect);
+
+  const found = new Map<string, Element>();
+  const items = findClutter(doc, clutterOptions(win, ctx.keep, ctx.body, ctx.protect, (id, el) => found.set(id, el)));
+  const known = Array.from(s.removed.values());
+  // Right after the person clicked something, a box that came up is theirs (a menu they opened), unless the click went
+  // to another page of a single-page app, or the box names itself (an advert is never the person's doing).
+  const href = win.location.href;
+  const justPressed = sincePress() < PRESS_MS && href === lastHref;
+  lastHref = href;
+  const fresh: { item: ClutterItem; el: Element }[] = [];
+  for (const it of items) {
+    const el = found.get(it.id);
+    if (!el || spared.has(el) || el.hasAttribute(HIDE) || el.closest(`[${HIDE}]`) || el.hasAttribute(SPACER) || el.hasAttribute("data-distill-unstick")) continue;
+    // Never what the person brought back, or anything holding it; never what they are using.
+    if (known.some((k) => k === el || k.contains(el) || el.contains(k))) continue;
+    if (justPressed && OPENED_BY_PERSON.has(it.kind)) { spared.add(el); continue; }
+    if (inUse(el)) continue;
+    fresh.push({ item: it, el });
+  }
+
+  const calm = calmCounts();
+  const calmChanged = calm.media !== s.report.calm.media || calm.motion !== s.report.calm.motion;
+  if (!fresh.length) {
+    if (calmChanged) { s.report = { ...s.report, calm }; notifyFrame(current()); }
+    return false;
+  }
+
+  // New ids after the highest so far ("c<n>"): an id once given never names anything else.
+  let next = 1 + Math.max(-1, ...s.report.items.map((i) => Number(i.id.slice(1))).filter(Number.isFinite));
+  const added: ClutterItem[] = fresh.map(({ item, el }) => {
+    const id = `c${next++}`;
+    s.removed.set(id, el);
+    return { ...item, id };
+  });
+  const els = fresh.map((f) => f.el);
+  const anchor = win.scrollY > 0 ? anchorOf([...ctx.keep], win) : null;
+  const html = doc.documentElement;
+  // A late cookie wall locks the page's scroll like an early one.
+  const locked = !html.hasAttribute(UNLOCK) && scrollLocked(doc, win);
+  if (!reducedMotion()) {
+    for (const el of els) el.setAttribute(FADE, "");
+    await new Promise((r) => setTimeout(r, FADE_MS));
+  }
+  if (state !== s || !s.report) return false; // closed meanwhile: close() took the marks back
+  for (const [i, el] of els.entries()) { el.setAttribute(HIDE, added[i]?.id ?? ""); el.removeAttribute(FADE); }
+  if (locked) html.setAttribute(UNLOCK, "");
+  if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
+  s.report = { ...s.report, items: [...s.report.items, ...added], unlockedScroll: s.report.unlockedScroll || locked, calm: calmCounts() };
+  notifyFrame(current());
+  return true;
 }
 
 /** Whether a box takes space on screen right now. */
@@ -218,20 +344,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   });
   const removed = new Map<string, Element>();
   const protect = contentExtras(doc, win);
-  const items: ClutterItem[] = findClutter(doc, {
-    keep,
-    protect,
-    body,
-    shown: shownOn(win),
-    position: (el) => win.getComputedStyle(el).position,
-    covers: (el) => {
-      const r = el.getBoundingClientRect();
-      const w = Math.max(0, Math.min(r.right, win.innerWidth) - Math.max(r.left, 0));
-      const h = Math.max(0, Math.min(r.bottom, win.innerHeight) - Math.max(r.top, 0));
-      return (w * h) / (win.innerWidth * win.innerHeight);
-    },
-    onElement: (id, el) => removed.set(id, el),
-  });
+  const items: ClutterItem[] = findClutter(doc, clutterOptions(win, keep, body, protect, (id, el) => removed.set(id, el)));
   const unlockedScroll = scrollLocked(doc, win);
 
   const anchor = win.scrollY > 0 ? anchorOf(keep, win) : null;

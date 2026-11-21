@@ -112,3 +112,7 @@ a.btn { text-decoration: none; }
   .contact li { padding: 4px 0; }
   .contact-acts { grid-column: 1 / -1; }
 }
+/* #8 Calm the page: "Motion" in More, what Calm paused and Play again */
+.more-extra > section[data-testid="cap-calm"] { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.more-extra > section[data-testid="cap-calm"] h2 { margin-bottom: 0; }
+.calm-line { margin: 0; font-size: 15px; color: var(--fg); }
