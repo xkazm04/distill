@@ -22,3 +22,5 @@ export { findClutter, clutterSummary, CLUTTER_LABELS, type ClutterItem, type Clu
 export { detectLang, type DetectedLang } from "./lang.js";
 export { findContacts, type ContactKind, type ContactOptions, type FoundContact } from "./contact.js";
 export { parseTranslation, MAX_GROWTH, type TranslateBlock, type Translation } from "./translate.js";
+export { parseColor, composite, contrastRatio, luminance, readableOn, cssColor, type Rgba } from "./contrast.js";
+export { READING, columnWidth, dominantSize, isLargeText, lineHeightFor, measureFor, sizeScale } from "./reading.js";

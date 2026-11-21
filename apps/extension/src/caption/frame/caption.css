@@ -75,3 +75,13 @@ button { font: inherit; color: inherit; }
 .chip[data-src="in_cloud"] { color: var(--chip-cloud); border-color: color-mix(in srgb, var(--chip-cloud) 40%, transparent); }
 .chip[data-src="agent"] { color: var(--chip-agent); border-color: color-mix(in srgb, var(--chip-agent) 40%, transparent); }
 .chip[data-src="agent"]::before { border-radius: 0; }
+/* #6 Comfortable to read (W1): the "Easier to read" switch in More. A real checkbox, drawn as a switch. */
+.switch { display: inline-flex; align-items: center; gap: 10px; min-height: 34px; margin-top: 4px; cursor: pointer; font-size: 15px; }
+.switch input { appearance: none; position: relative; flex: 0 0 auto; width: 38px; height: 22px; margin: 0; border-radius: 999px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--fg) 12%, var(--card)); }
+.switch input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 30%, transparent); }
+.switch input:checked { background: var(--accent); border-color: var(--accent); }
+.switch input:checked::before { left: 18px; background: var(--accent-fg); }
+.switch input:disabled { opacity: .6; cursor: progress; }
+@media (prefers-reduced-motion: no-preference) { .switch input::before { transition: left 120ms ease-out; } }
