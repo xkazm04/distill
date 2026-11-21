@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lipová opraví most přes Bystřici, doprava pojede objížďkou do června</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f3f3f1; color: #1d1f21; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+  .top { background: #24435c; color: #fff; font-family: Arial, sans-serif; }
+  .top .in { max-width: 1000px; margin: 0 auto; padding: 12px 20px; display: flex; gap: 24px; align-items: center; }
+  .top a { color: #fff; text-decoration: none; font-size: 15px; }
+  .top strong { font-size: 20px; margin-right: auto; }
+  .layout { max-width: 1000px; margin: 24px auto; padding: 24px 20px; background: #fff; display: grid; grid-template-columns: 500px 300px; gap: 40px; }
+  article h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; }
+  article .meta { color: #555; font: 14px Arial, sans-serif; margin: 0 0 16px; }
+  article figure { margin: 0 0 16px; }
+  article figure div { height: 220px; background: linear-gradient(135deg, #8fb3cf, #3d6b8f); border-radius: 4px; }
+  article figcaption { font: 13px Arial, sans-serif; color: #555; margin-top: 6px; }
+  aside.sidebar { font-family: Arial, sans-serif; font-size: 15px; }
+  aside.sidebar section { border: 1px solid #ddd; padding: 12px; margin-bottom: 16px; }
+  aside.sidebar h2 { font-size: 16px; margin: 0 0 8px; }
+  aside.sidebar .ad { background: #fff4c2; height: 250px; display: flex; align-items: center; justify-content: center; color: #6b5a00; }
+  footer { max-width: 1000px; margin: 0 auto 40px; padding: 16px 20px; font: 14px Arial, sans-serif; color: #444; }
+  /* The same page built the older ways: a flex row, floats. */
+  html[data-layout="flex"] .layout { display: flex; }
+  html[data-layout="flex"] .layout article { flex: 0 0 500px; }
+  html[data-layout="flex"] .layout aside { flex: 0 0 300px; }
+  html[data-layout="float"] .layout { display: block; overflow: hidden; }
+  html[data-layout="float"] .layout article { float: left; width: 500px; }
+  html[data-layout="float"] .layout aside { float: right; width: 300px; }
+  @media (max-width: 860px) {
+    .layout, html[data-layout] .layout { display: block; margin: 0; }
+    .layout article, .layout aside, html[data-layout] .layout article, html[data-layout] .layout aside { width: auto; float: none; }
+    .top .in { flex-wrap: wrap; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><strong>Lipovské listy</strong><a href="#">Zprávy</a><a href="#">Kultura</a><a href="#">Sport</a><a href="#">Inzerce</a></div></header>
+<div class="layout">
+  <article>
+    <h1>Lipová opraví most přes Bystřici, doprava pojede objížďkou do června</h1>
+    <p class="meta">Zprávy z obce · 14. listopadu</p>
+    <figure><div role="img" aria-label="Most přes Bystřici"></div><figcaption>Most přes Bystřici u školy. Ilustrační obrázek.</figcaption></figure>
+    <p>Zastupitelstvo obce Lipová schválilo na listopadovém zasedání opravu mostu přes Bystřici u základní školy. Práce začnou v pondělí 2. března a mají skončit do konce června, pokud to dovolí počasí.</p>
+    <p>Most je ve špatném stavu od povodní před pěti lety. Statik doporučil omezit jeho zatížení na tři a půl tuny, takže autobusy a nákladní auta už teď jezdí jinudy. Oprava vyjde zhruba na 8,4 milionu korun, polovinu zaplatí kraj.</p>
+    <h2>Kudy se pojede</h2>
+    <ul>
+      <li>Auta pojedou objížďkou přes Horní Lipovou a Lesní ulici, cesta se prodlouží asi o tři kilometry.</li>
+      <li>Pěší a cyklisté mohou použít lávku, kterou firma postaví vedle mostu.</li>
+      <li>Školní autobus bude stavět u hasičské zbrojnice místo u mostu.</li>
+    </ul>
+    <p>Starostka obce slíbila, že lidé z Dolní ulice budou mít během oprav přístup ke svým domům po celou dobu. Na stavbu se lze ptát na obecním úřadě každé pondělí a středu od osmi do pěti.</p>
+    <p>Připomínky k objížďce může každý poslat do 15. ledna. Obec je zveřejní spolu s odpověďmi na úřední desce a v příštím čísle Lipovských listů.</p>
+  </article>
+  <aside class="sidebar">
+    <section><h2>Reklama</h2><div class="ad">Kuchyně na míru – sleva 20 %</div></section>
+    <section><h2>Nejčtenější</h2><ul><li><a href="#">Hasiči slaví 120 let</a></li><li><a href="#">Nová lékárna na náměstí</a></li><li><a href="#">Výsledky okresního přeboru</a></li></ul></section>
+  </aside>
+</div>
+<footer>© Lipovské listy, měsíčník obce Lipová. Ukázková stránka projektu Distill.</footer>
+</body>
+</html>
