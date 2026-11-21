@@ -70,6 +70,10 @@ export function open(doc: Document, tabId: number): void {
   const frame = doc.createElement("iframe");
   frame.src = chrome.runtime.getURL(`caption.html?tabId=${tabId}`);
   frame.title = "Distill";
+  // The on-device model (Prompt API) is a policy-controlled feature: a frame gets it only when its embedder delegates
+  // it. Without this the caption could never translate on the device (round-1 spike, W4). A site that forbids it for
+  // itself by header still blocks it; that case needs the offscreen document (docs/caption.md, risk 1).
+  frame.allow = "language-model";
   important(frame, { display: "block", width: "100%", height: "100%", border: "0", margin: "0", "color-scheme": "normal" });
   root.append(frame);
   doc.documentElement.append(host);
