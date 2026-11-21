@@ -70,3 +70,8 @@ button { font: inherit; color: inherit; }
   .more { animation: grow 200ms cubic-bezier(.2,.8,.2,1); }
   @keyframes grow { from { opacity: 0; transform: translateY(6px); } }
 }
+
+/* #8 Calm the page: "Motion" in More, what Calm paused and Play again */
+.more-extra > section[data-testid="cap-calm"] { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.more-extra > section[data-testid="cap-calm"] h2 { margin-bottom: 0; }
+.calm-line { margin: 0; font-size: 15px; color: var(--fg); }
