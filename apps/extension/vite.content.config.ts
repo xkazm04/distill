@@ -1,12 +1,12 @@
 import { defineConfig } from "vite";
-import { defineOf, outDirOf, variantOf } from "./vite.config";
+import { defineOf, outDirOf, surfaceOf, variantOf } from "./vite.config";
 
 // The content script, built into the same folder as the side panel for the chosen variant (see vite.config.ts).
 export default defineConfig(({ mode }) => {
   const variant = variantOf(mode);
   return {
     envDir: mode === "e2e" ? "." : "../..", // the e2e build reads no .env, so it is the same in every checkout
-    define: defineOf(variant),
+    define: defineOf(variant, surfaceOf(variant, mode)),
     build: {
       target: "es2022",
       outDir: mode === "e2e" ? "dist-e2e" : outDirOf(variant),

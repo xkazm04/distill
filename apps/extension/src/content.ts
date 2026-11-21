@@ -6,6 +6,7 @@ import { applyHighlight, applyLocate, fieldElements } from "@distill/web/dom";
 import type { ContentRequest, ContentResponse, LocateTarget, PageChanged } from "./messages";
 import { readPageTheme } from "./pageTheme";
 import { watchPage } from "./pageWatch";
+import * as caption from "./caption/page";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -59,6 +60,15 @@ async function handle(req: ContentRequest): Promise<unknown> {
       return actions;
     }
     case "distill:doAction": doAction(req.actionId); return { ok: true };
+    case "distill:caption:open":
+      if (caption.isOpen() && req.toggle) { caption.close(document); return { open: false }; }
+      caption.open(document, req.tabId);
+      return { open: true };
+    case "distill:caption:clean": return caption.clean(document, window);
+    case "distill:caption:restore": return caption.restore(req.id);
+    case "distill:caption:original": caption.showOriginal(document, req.on); return { ok: true };
+    case "distill:caption:size": return { height: caption.resize(req.height, window) };
+    case "distill:caption:close": caption.close(document); return { ok: true };
   }
 }
 

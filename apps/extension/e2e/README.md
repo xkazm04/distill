@@ -75,6 +75,14 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   gets no guide. The original demo form at `/demo/form.html` gets no guide either: it stays on the model path (here,
   with no model, "No AI used").
 
+- The caption (`caption.spec.ts`, docs/caption.md): the toolbar click's path (started through the e2e build's
+  `__distillCaption` hook in the service worker) puts the strip on the demo article. First sight says "Removed 6
+  distractions" with "No AI used", More and Original (no next step: tours start only when asked for). The cookie banner, menu, ads and footer are hidden
+  and the article is whole. The strip takes at most 8% of 1440x900 (15% of 390x844) and nothing covers it. More lists
+  what was removed and brings one item back. Original shows everything; Back to Distill hides it again. A second click
+  takes Distill off the page and leaves nothing behind. On the Czech demo form nothing is removed and
+  the strip suggests nothing. The same measurements run on real sites with `npm run e2e:live` (see `live/README.md`).
+
 Expected failures (`test.fail`, shown with a cross but counted as passing) are bugs the harness found; each carries the
 reason. When the bug is fixed the test reports "expected to fail, but passed": remove the `test.fail` line. There are
 none today.

@@ -1,9 +1,29 @@
-// Service worker: opens the side panel from the toolbar icon, relays the Handrail port to the native host once the
+// Service worker: opens Distill from the toolbar icon (the side panel, or the caption strip on the page in a build with
+// VITE_SURFACE=caption, see docs/caption.md), relays the Handrail port to the native host once the
 // person allowed it, and forgets a tab's kept form answers when the tab closes.
-import { HANDRAIL_NATIVE_HOST, HANDRAIL_PORT } from "./messages";
+import { HANDRAIL_NATIVE_HOST, HANDRAIL_PORT, type ContentRequest } from "./messages";
 import { forgetTab } from "./sidepanel/guideStore";
 
-void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+const CAPTION = import.meta.env.VITE_SURFACE === "caption";
+void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !CAPTION });
+
+/**
+ * The caption: the click on the icon grants activeTab, which lets Distill put its content script in this one tab; the
+ * content script then puts the strip on the page. A second click takes it off again. Returns whether it is now open.
+ */
+export async function startCaption(tabId: number): Promise<boolean> {
+  await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  const req: ContentRequest = { type: "distill:caption:open", tabId, toggle: true };
+  const res = (await chrome.tabs.sendMessage(tabId, req, { frameId: 0 })) as { ok: boolean; data?: { open: boolean }; error?: string };
+  if (!res?.ok) throw new Error(res?.error ?? "The page did not answer.");
+  return !!res.data?.open;
+}
+if (CAPTION) {
+  chrome.action.onClicked.addListener((tab) => {
+    // A browser page (chrome://, the Web Store) cannot hold a content script: open the panel, which says so plainly.
+    if (tab.id !== undefined) void startCaption(tab.id).catch(() => chrome.sidePanel.open({ tabId: tab.id as number }).catch(() => undefined));
+  });
+}
 
 /** How long the native host must stay up before the panel hears "connected": Chrome reports a missing or broken
  *  helper program as a disconnect a moment after connectNative, and the panel should not flash "Connected" first. */
@@ -17,6 +37,10 @@ export const CONNECTED_AFTER_MS = 300;
  */
 interface FakeHelper { on: boolean; panels: Set<chrome.runtime.Port>; inbox: unknown[] }
 const fakeHelper: FakeHelper | null = import.meta.env.MODE === "e2e" ? { on: false, panels: new Set(), inbox: [] } : null;
+if (import.meta.env.MODE === "e2e") {
+  // E2E ONLY, like the fake helper: the tests cannot click the toolbar icon, so they start the caption the same way.
+  (globalThis as { __distillCaption?: unknown }).__distillCaption = { start: startCaption };
+}
 if (fakeHelper) {
   (globalThis as { __distillFakeHelper?: unknown }).__distillFakeHelper = {
     enable() { fakeHelper.on = true; },
