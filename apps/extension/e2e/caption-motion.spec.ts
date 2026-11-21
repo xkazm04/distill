@@ -3,7 +3,15 @@
 // caption-sticky.html; the same features on real sites are measured by live/probes/motion.live.ts.
 import type { Page } from "playwright/test";
 import { BAR, baseline, captionFrame, firstSight, measure, settled, startCaption } from "./caption";
-import { expect, test } from "./harness";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { expect, OUT, test } from "./harness";
+
+/** A screenshot of the moment, for the evidence page: e2e/out/caption-motion-<name>.png. */
+const snap = async (page: Page, name: string) => {
+  mkdirSync(OUT, { recursive: true });
+  await page.screenshot({ path: join(OUT, `caption-motion-${name}.png`) });
+};
 
 const count = (status: string): number => Number(/^Removed (\d+)/.exec(status)?.[1] ?? 0);
 
@@ -55,6 +63,8 @@ test("caption-motion: floating widgets go with Clean, Calm pauses what started b
   // A finished entrance animation (the headline's) is not touched.
   expect(await tab.page.locator("h1").evaluate((el) => el.hasAttribute("data-distill-still"))).toBe(false);
   await expect(frame.getByTestId("cap-calm")).toContainText("Paused 1 video and 3 moving parts");
+  await settled(tab.page);
+  await snap(tab.page, "calm-and-widgets");
 
   // The page's own content is all there, and the strip meets the bar.
   const m = await measure(tab.page, base);
@@ -103,6 +113,8 @@ test("caption-motion: stays clean while the page keeps changing, rests during Or
   // The late newsletter pop-up (and its backdrop) and the late advert go by themselves; the status line follows.
   const status = frame.getByTestId("cap-status");
   await expect(status).toHaveText(new RegExp(`^Removed ${first + 3} distractions`), { timeout: 10_000 });
+  await tab.page.waitForTimeout(300);
+  await snap(tab.page, "stay-clean");
   await expect(tab.page.locator(".newsletter-popup")).toBeHidden();
   await expect(tab.page.locator(".popup-backdrop")).toBeHidden();
   await expect(tab.page.locator(".ad-slot")).toBeHidden();
@@ -172,6 +184,18 @@ for (const variant of ["fixed", "sticky"] as const) {
     await firstSight(await captionFrame(tab.page));
     const header = tab.page.locator("header.top");
     await expect(header).toHaveAttribute("data-distill-unstick", variant);
+    if (variant === "fixed") {
+      // Before and after: scrolled a little, the header that covered a sixth of the window has gone up with the page.
+      await tab.page.evaluate(() => scrollTo({ top: 400, behavior: "instant" }));
+      await snap(tab.page, "unstick-distill");
+      const f = await captionFrame(tab.page);
+      await f.getByTestId("cap-original").click();
+      await f.getByTestId("cap-back").waitFor();
+      await snap(tab.page, "unstick-original");
+      await f.getByTestId("cap-back").click();
+      await f.getByTestId("cap-original").waitFor();
+      await tab.page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+    }
     await expect(tab.page.locator("h1")).toBeVisible();
     expect(Math.abs((await pageTop(tab.page, "main p")) - paraTop)).toBeLessThanOrEqual(2);
     expect(await pageTop(tab.page, "h1")).toBeLessThan(150);
