@@ -208,12 +208,16 @@ function readContext(doc: Document, win: Window, removed: Map<string, Element>):
 async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   const s = state;
   if (!s?.report || !s.ctx) return false;
-  // The page as it is now: new text (a lazy paragraph, the advert's own words, a single-page app's next view whose old
-  // main text is gone) is read as content, so what holds it is judged as Clean judges it. What the page was for before
-  // (the main video) stays protected while it is on the page.
+  // The page as it is now: new text (a lazy paragraph, the advert's own words, a single-page app's next view) is read as
+  // content, so what holds it is judged as Clean judges it. What Clean knew stays known while it is on the page (the
+  // text inside boxes it hid, the main video), so the main column never shrinks and Clean's own judgement holds; after
+  // a single-page app replaced the old text, only the new one counts.
   const before = s.ctx;
   const read = readContext(doc, win, s.removed);
-  const ctx: CleanContext = { ...read, protect: [...before.protect.filter((p) => p.isConnected && !read.protect.includes(p)), ...read.protect] };
+  const union = (old: readonly Element[], now: readonly Element[]) => [...new Set([...old.filter((e) => e.isConnected), ...now])];
+  const body = union(before.body, read.body);
+  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
+  const ctx: CleanContext = { ...read, keep: union(before.keep, read.keep), body, main, protect: union(before.protect, read.protect) };
   s.ctx = ctx;
   calmProtect(ctx.protect);
 

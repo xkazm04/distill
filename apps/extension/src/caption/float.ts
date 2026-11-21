@@ -32,11 +32,16 @@ export function unstick(ctx: CleanContext): number {
   // Bars across the top of the window that stay there: fixed or sticky, wide, shown, not taken out by Clean, and not
   // holding the running text (a sticky layout column is not a header).
   const bars: Bar[] = [];
-  for (const el of Array.from(doc.body.querySelectorAll<HTMLElement>("*"))) {
-    if (el.localName === "distill-caption" || bars.some((b) => b.el.contains(el))) continue;
+  // What Clean hid is skipped whole (on a large page that is most of it); a bar found is not searched inside.
+  const walker = doc.createTreeWalker(doc.body, 1 /* NodeFilter.SHOW_ELEMENT */, {
+    acceptNode: (n) => ((n as Element).hasAttribute("data-distill-hide") || (n as Element).localName === "distill-caption" ? 2 /* REJECT */ : 1 /* ACCEPT */),
+  });
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const el = node as HTMLElement;
+    if (bars.some((b) => b.el.contains(el))) continue;
     const cs = win.getComputedStyle(el);
     if (cs.position !== "fixed" && cs.position !== "sticky") continue;
-    if (cs.display === "none" || cs.visibility === "hidden" || el.closest("[data-distill-hide]")) continue;
+    if (cs.display === "none" || cs.visibility === "hidden") continue;
     const r = el.getBoundingClientRect();
     if (r.width < vw * 0.5 || r.height < 8 || r.height > vh * 0.6) continue;
     if (r.top > vh * 0.25 || r.bottom <= 0) continue; // near the top of the window now

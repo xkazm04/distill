@@ -111,7 +111,9 @@ for (const site of SITES) {
     const profile = mkdtempSync(join(tmpdir(), "distill-probe-profile-"));
     const context = await chromium.launchPersistentContext(profile, {
       channel: LAUNCH.channel, headless: LAUNCH.headless, viewport: DESKTOP, locale: "cs-CZ",
-      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
+      // PROBE_AUTOPLAY=1 lets videos start with sound and no click (Playwright's Chromium blocks that, like Chrome on a
+      // site the person never used), to see Calm leave the main video playing and pause the others.
+      args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`, ...(process.env.PROBE_AUTOPLAY ? ["--autoplay-policy=no-user-gesture-required"] : [])],
     });
     const r: ProbeResult = { site: site.id, url: site.url, at: new Date().toISOString(), status: "error", shots: [] };
     const extErrors: string[] = [];
