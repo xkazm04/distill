@@ -43,10 +43,23 @@ function useReportHeight(ref: React.RefObject<HTMLElement | null>) {
     const el = ref.current;
     if (!el) return;
     let last = 0;
-    const ro = new ResizeObserver(() => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      if (h !== last) { last = h; void send({ type: "distill:caption:size", height: h }).catch(() => undefined); }
-    });
+    // The height the strip wants is its natural height: More counted in full even while it scrolls inside itself. The
+    // page side clamps it (at most 45% of the window); when it does, More gets the rest as its own scroll box, so the
+    // row with More and Original always stays on screen.
+    const measure = () => {
+      const more = el.querySelector<HTMLElement>(".more");
+      const natural = Math.ceil(el.getBoundingClientRect().height + (more ? more.scrollHeight - more.clientHeight : 0));
+      for (const c of Array.from(more?.children ?? [])) ro.observe(c);
+      if (natural === last) return;
+      last = natural;
+      void send<"distill:caption:size">({ type: "distill:caption:size", height: natural }).then(({ height }) => {
+        if (!more?.isConnected) return;
+        const over = natural - height;
+        if (over > 0) more.style.setProperty("--more-max", `${Math.max(80, more.scrollHeight - over)}px`);
+        else more.style.removeProperty("--more-max");
+      }, () => undefined);
+    };
+    const ro = new ResizeObserver(measure);
     // Only once the fonts are in: a height measured in the fallback font is a jump the page would see.
     let live = true;
     void document.fonts.ready.then(() => { if (live) ro.observe(el); });

@@ -38,7 +38,8 @@ button { font: inherit; color: inherit; }
 .chip[data-src="on_device"]::before { border-radius: 50%; }
 
 /* More: grows upward above the row */
-.more { padding: 12px 0 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent); }
+.more { padding: 12px 0 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  max-height: var(--more-max, none); overflow: auto; overscroll-behavior: contain; }
 .more h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 600; font-size: 17px; }
 .more-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 8px 32px; }
 .removed { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 16px;

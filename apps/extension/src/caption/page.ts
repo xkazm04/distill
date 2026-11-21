@@ -248,7 +248,10 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   let lang = page.lang;
   let langFrom: CleanReport["langFrom"] = lang === "und" ? "none" : "page";
   if (lang === "und") {
-    const found = detectLang(body.map((el) => el.textContent ?? "").join("\n").slice(0, 20_000));
+    // The running text first; an old site's "text" can be one phone line, so then the title and the whole page's text.
+    let text = body.map((el) => el.textContent ?? "").join("\n").slice(0, 20_000);
+    if ((text.match(/\p{L}/gu)?.length ?? 0) < 200) text = `${doc.title}\n${doc.body?.innerText ?? ""}`.slice(0, 20_000);
+    const found = detectLang(text);
     if (found.lang !== "und") { lang = found.lang; langFrom = "text"; }
   }
   const base: CleanReport = { items, restored: [], lang, kind: page.kind, unlockedScroll, langFrom, widened: 0, comfort: 0, calm: { media: 0, motion: 0 }, unstuck: 0 };

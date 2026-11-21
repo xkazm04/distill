@@ -59,14 +59,17 @@ test("caption: the icon cleans the article in place, says what it did, and every
   await expect(tab.page.locator("nav")).toBeVisible();
 });
 
-test("caption: a Czech form keeps its form, and the strip suggests nothing", async ({ distill }) => {
+test("caption: a Czech form keeps its form, and the strip offers only the form's next empty field", async ({ distill }) => {
   const tab = await distill.openTab("form");
   await tab.page.setViewportSize({ width: 390, height: 844 });
   const base = await baseline(tab.page);
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
   expect(await firstSight(frame)).toBe("Nothing to remove · Page in Czech");
-  await expect(frame.getByRole("button")).toHaveCount(2); // More, Original
+  // Ready to send? (#9, round 1): the form's progress and its next empty field are the one thing added. No tour or
+  // other next step is suggested (owner decision 3).
+  await expect(frame.getByRole("button")).toHaveCount(3); // Form · Next, More, Original
+  await expect(frame.getByTestId("cap-form-next")).toBeVisible();
   await expect(tab.page.locator("#jmeno")).toBeVisible();
   const m = await measure(tab.page, base);
   expect(m.strip.share).toBeLessThanOrEqual(BAR.sharePhone);
