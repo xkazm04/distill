@@ -18,3 +18,4 @@ export {
   pageToken, parseSimplified, agentCanDo, agentDoor, extractActions, AGENT_TASKS, MAX_ACTIONS,
   type AgentTask, type AgentVerdict, type DoorContext, type PageAction, type PageActionKind, type Simplified,
 } from "./agent.js";
+export { findClutter, clutterSummary, CLUTTER_LABELS, type ClutterItem, type ClutterKind, type ClutterOptions } from "./clutter.js";
