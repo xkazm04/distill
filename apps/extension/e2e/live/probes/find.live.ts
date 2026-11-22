@@ -48,6 +48,9 @@ interface ProbeResult {
   next?: { focused: FieldSeen | null; expected: FieldSeen | null; after: FormProgress | null };
   /** #9: robot traps (fields named like website/url/honeypot) and whether each is still empty after Next. */
   traps?: { name: string; empty: boolean }[];
+  /** G13: what the side panel reads (distill:getForm, the engine's FormStructure: labels only, never a value): per form
+   *  of the page, its field count and the labels it marks required. */
+  panelForms?: { fields: number; required: string[] }[];
   shots: string[];
   extErrors: string[];
 }
@@ -160,12 +163,28 @@ for (const site of SITES) {
       await settled(page);
       await page.waitForTimeout(300);
       await shot("more");
+      // G6: an address the card found, shown on the page (when it is in a part Distill kept).
+      const address = frame.locator('[data-testid="cap-contact-item"][data-kind="address"]').first();
+      const showIt = address.getByRole("button", { name: "Show on page" });
+      if (await showIt.count()) {
+        await showIt.click();
+        await settled(page);
+        await page.waitForTimeout(500);
+        await shot("address-shown");
+      }
       await frame.locator("body").press("Escape");
       await settled(page);
 
       // #9: the counts, then Next (it focuses a field; nothing is typed, nothing is sent).
       r.form = await ask<FormProgress | null>(worker, tabId, { type: "distill:caption:form" });
       if (r.form) {
+        // The side panel's reading of the same page: which fields the engine marks required, form by form.
+        r.panelForms = [];
+        for (let formIndex = 0; formIndex < 6; formIndex++) {
+          const s = await ask<{ fields: { label: string; required: boolean }[] }>(worker, tabId, { type: "distill:getForm", formIndex });
+          if (!s.fields.length) break;
+          r.panelForms.push({ fields: s.fields.length, required: s.fields.filter((f) => f.required).map((f) => f.label) });
+        }
         r.traps = await trapsOf(page);
         const fields = await fieldsSeen(page);
         const expected = fields.find((f) => f.required && f.empty) ?? fields.find((f) => f.empty) ?? null;
