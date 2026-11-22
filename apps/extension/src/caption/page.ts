@@ -5,7 +5,7 @@
 import { detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
 import { calmCounts, calmPage, calmProtect, clearCalm } from "./calm";
-import { applyComfort, clearComfort } from "./comfort";
+import { applyComfort, clearComfort, comfortOff } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
 import { unwiden, widen } from "./reflow";
@@ -451,10 +451,17 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   return state.report;
 }
 
-/** The report as it stands, with what the person brought back. */
+/** The report as it stands, with what the person brought back, what Calm holds right now, and the reading layer as
+ *  the person's switch has it (0 while off, as the switch itself answers). */
 function current(): CleanReport {
   if (!state?.report) throw new Error("Nothing was removed on this page.");
-  return { ...state.report, restored: restoredIds() };
+  const doc = state.host.ownerDocument;
+  return { ...state.report, restored: restoredIds(), calm: calmCounts(), comfort: comfortOff(doc) ? 0 : state.report.comfort };
+}
+
+/** Play again (#8) let everything move: the report says so at once, so a Show clicked right after reads 0/0. */
+export function recount(): void {
+  if (state?.report) state.report = { ...state.report, calm: calmCounts() };
 }
 
 function restoredIds(): string[] {

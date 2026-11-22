@@ -173,7 +173,7 @@ export function calmPage(ctx: CleanContext): { media: number; motion: number } {
 }
 
 /** Lets everything Calm stopped play and move again. Media plays again only when it was playing (or set to start by
- *  itself) when Calm paused it; Calm never changed whether it is muted. */
+ *  itself) when Calm paused it; Calm never changed whether it is muted. The counts read 0/0 as soon as it returns. */
 export function playAgain(doc: Document): void {
   if (!active) return;
   for (const { el, play } of media) {

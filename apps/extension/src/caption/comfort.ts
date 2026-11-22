@@ -199,6 +199,9 @@ export function applyComfort(ctx: CleanContext): number {
   return count;
 }
 
+/** The person turned the layer off in More. */
+export const comfortOff = (doc: Document): boolean => doc.documentElement.hasAttribute(OFF);
+
 /** The person's switch: on or off again; returns how many blocks it changes when on (0 when off). */
 export function setComfort(doc: Document, on: boolean): number {
   doc.documentElement.toggleAttribute(OFF, !on);

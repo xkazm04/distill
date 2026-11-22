@@ -104,3 +104,20 @@ test("caption-lifecycle: a tall sticky header brought back from More scrolls wit
   expect(await header.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
 });
 
+test("caption-lifecycle: after Play again, the next report reads no paused video at once (G12)", async ({ distill }) => {
+  // The round-1 motion page: its floating video is paused by Calm with or without G1.
+  const tab = await distill.openTab("caption-motion");
+  await tab.page.goto(`${tab.url}&late=0&ad=0`);
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const { frame, status } = await open(distill, tab);
+  expect(status).toContain("Paused 1 video");
+  await frame.getByTestId("cap-more-btn").click();
+  await frame.getByTestId("cap-play").click();
+  await expect(frame.getByTestId("cap-calm")).toHaveCount(0);
+  // Right away (Stay clean has not looked again yet): bring an item back; its report must not say "Paused".
+  await frame.getByTestId("cap-removed-item").getByRole("button").first().click();
+  const line = frame.getByTestId("cap-status");
+  await expect(line).toContainText("1 back");
+  expect(await line.textContent()).not.toContain("Paused");
+});
+
