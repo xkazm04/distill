@@ -54,6 +54,9 @@ export interface ClutterOptions {
   shown?: (el: Element) => boolean;
   /** The element's CSS position ("static", "fixed", "sticky", ...). Default: from the inline style. */
   position?: (el: Element) => string;
+  /** False when the element draws nothing, and nothing inside it does either (CSS display: none): its inside is not
+   *  looked at for things that float. Lets a big page skip its hidden parts. Default: true. */
+  rendered?: (el: Element) => boolean;
   /** The share of the window the element covers (0-1). An empty box over most of the window is a pop-up's backdrop.
    *  Default: 0 (a test document has no layout). */
   covers?: (el: Element) => number;
@@ -66,6 +69,9 @@ export interface ClutterOptions {
 
 const SILENT = new Set([...SKIP_TAGS, "link", "meta", "base", "title", "br", "wbr"]);
 SILENT.delete("iframe"); // an ad is often an iframe; it is judged like any other element
+/** Elements whose inside is never a box on the page: code, styles, a template, a canvas's fallback, an svg drawing
+ *  (unless it holds HTML in a foreignObject). Nothing inside them floats over the page. */
+const CLOSED = new Set(["script", "style", "noscript", "template", "canvas", "svg"]);
 
 /** Kinds that name themselves plainly enough to be taken out even when the page reader read their text. */
 const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie", "chat", "feedback", "appBanner", "backToTop"]);
@@ -153,8 +159,25 @@ function kindByRole(el: Element): ClutterKind | null {
   return null;
 }
 
+/** The start of the element's text (its textContent), at least `min` characters of it when it has that many. Reads
+ *  text node by text node and stops there: a box around a whole page is not read whole to judge its first words. */
+function textStart(el: Element, min: number): string {
+  let out = "";
+  const walker = el.ownerDocument.createTreeWalker(el, 12 /* NodeFilter.SHOW_TEXT | SHOW_CDATA_SECTION */);
+  for (let n = walker.nextNode(); n && out.length < min; n = walker.nextNode()) out += n.nodeValue ?? "";
+  return out;
+}
+
+/** Whether the element has any text that is not white space (as `collapse(el.textContent)` would say, without reading
+ *  all of it). */
+function hasText(el: Element): boolean {
+  const walker = el.ownerDocument.createTreeWalker(el, 12 /* NodeFilter.SHOW_TEXT | SHOW_CDATA_SECTION */);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) if (/\S/.test(n.nodeValue ?? "")) return true;
+  return false;
+}
+
 /** Only the first 600 characters: a cookie notice is short, and an outer box full of text is judged by its class. */
-const shortText = (el: Element): string => collapse((el.textContent ?? "").slice(0, 600));
+const shortText = (el: Element): string => collapse(textStart(el, 600).slice(0, 600));
 
 function kindByText(el: Element): ClutterKind | null {
   const text = shortText(el);
@@ -206,7 +229,7 @@ function floatKind(el: Element, place: Place | null): ClutterKind | null {
   for (const [kind, re] of FLOAT_WORDS) if (re.test(words)) return kind;
   if (APP_WORDS.test(words)) return "appBanner";
   // No words at all: a link to the top of the page is a back-to-top arrow; a frame in a corner is a chat window.
-  if (!collapse(el.textContent ?? "")) {
+  if (!hasText(el)) {
     const link = tag(el) === "a" ? el : el.querySelector("a[href]");
     if (link && /^#(top|page|header|main|content|body|nahoru)?$/i.test(attr(link, "href"))) return "backToTop";
     if (place === "corner" && (tag(el) === "iframe" || el.querySelector("iframe"))) return "chat";
@@ -238,7 +261,7 @@ function looksLikeClutter(el: Element): ClutterKind | null {
 
 /** Something a person would notice: text, or a picture, a video or a frame. Empty boxes are left alone. */
 const hasSubstance = (el: Element): boolean =>
-  tag(el) === "iframe" || !!collapse(el.textContent ?? "") || !!el.querySelector(MEDIA);
+  tag(el) === "iframe" || hasText(el) || !!el.querySelector(MEDIA);
 
 /** How much of the element's text sits in links (0-1). */
 function linkDensity(el: Element): number {
@@ -271,6 +294,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   if (!body || opts.keep.length === 0) return [];
   const shown = opts.shown ?? ((el: Element) => !isHidden(el));
   const position = opts.position ?? inlinePosition;
+  const rendered = opts.rendered ?? (() => true);
 
   const covers = opts.covers ?? (() => 0);
   const box = opts.box ?? (() => null);
@@ -298,14 +322,31 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   for (const t of text) textLen.set(t, collapse(t.textContent ?? "").length);
   const total = [...textLen.values()].reduce((a, b) => a + b, 0) || 1;
 
-  // 1. Overlays, anywhere.
-  for (const el of Array.from(body.querySelectorAll("*"))) {
-    if (SILENT.has(tag(el))) continue;
+  // 1. Overlays, anywhere. Every element of the body is asked its position, except where nothing can be found: inside
+  // content (nothing inside a `keep` element is an overlay), inside what draws nothing (display: none, a script, an
+  // icon's drawing), so a big page is not asked about its thousands of hidden and icon parts.
+  const walker = doc.createTreeWalker(body, 1 /* NodeFilter.SHOW_ELEMENT */);
+  /** Moves past the current element's inside, to what follows it; null at the end of the body. */
+  const skipInside = (): Node | null => {
+    for (let n: Node | null = walker.currentNode; n && n !== body; n = walker.parentNode()) {
+      const next = walker.nextSibling();
+      if (next) return next;
+    }
+    return null;
+  };
+  for (let n: Node | null = walker.firstChild(); n;) {
+    const el = n as Element;
+    const t = tag(el);
+    if (keep.has(el) || (CLOSED.has(t) && !(t === "svg" && el.querySelector("foreignObject")))) { n = skipInside(); continue; }
+    if (SILENT.has(t)) { n = walker.nextNode(); continue; }
+    if (!rendered(el)) { n = skipInside(); continue; }
     const pos = position(el);
-    if (pos !== "fixed" && pos !== "sticky") continue;
-    if (eligible(el)) add(el, kindOf(el, true, pos === "fixed" ? placeOf(box(el)) : null));
-    // A backdrop: nothing in it, but it greys out the page behind a dialog.
-    else if (!chain.has(el) && !insideKeep(el) && !hasSubstance(el) && covers(el) >= 0.3 && shown(el)) add(el, "popup");
+    if (pos === "fixed" || pos === "sticky") {
+      if (eligible(el)) add(el, kindOf(el, true, pos === "fixed" ? placeOf(box(el)) : null));
+      // A backdrop: nothing in it, but it greys out the page behind a dialog.
+      else if (!chain.has(el) && !insideKeep(el) && !hasSubstance(el) && covers(el) >= 0.3 && shown(el)) add(el, "popup");
+    }
+    n = walker.nextNode();
   }
 
   // 2 and 3. Beside the path to the content. What sits between the headline and the main text (the lead paragraph,

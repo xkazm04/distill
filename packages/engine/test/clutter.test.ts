@@ -288,3 +288,49 @@ describe("findClutter: things that float over the page", () => {
     expect(inside.map((i) => i.kind)).toEqual(["feedback", "backToTop"]);
   });
 });
+
+/** G15: Clean on a very large page. A page's hidden parts, its icons' drawings and its content are not asked about
+ *  things that float; what is found stays the same. */
+describe("findClutter: a very large page", () => {
+  /** The article page with a hidden menu of `n` items (display: none by its inline style, which `rendered` reads here
+   *  as the browser would), `n` icons and a fixed cookie bar. */
+  function big(n: number): Document {
+    const items = Array.from({ length: n }, (_, i) => `<li><a href="/c${i}"><span>Category ${i}</span></a></li>`).join("");
+    const icons = Array.from({ length: n }, () => '<svg viewBox="0 0 24 24"><g><path d="M0 0h24v24H0z"></path><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"></path></g></svg>').join("");
+    return parse(news.replace("<body>", `<body><div class="mega" style="display: none"><ul>${items}</ul><div class="late" style="position: fixed">Late offer</div></div>`
+      + `<div class="toolbar">${icons}</div><div class="bar" style="position: fixed">We use cookies on this site. <button>OK</button></div>`));
+  }
+  const drawn = (el: Element) => !/display\s*:\s*none/.test(el.getAttribute("style") ?? "");
+  const fixed = (el: Element) => (/position\s*:\s*fixed/.test(el.getAttribute("style") ?? "") ? "fixed" : "static");
+
+  it("never asks the position of what is hidden, inside an icon or inside the content", () => {
+    const doc = big(500);
+    const asked: Element[] = [];
+    const { keep, body } = contentOf(doc);
+    const items = findClutter(doc, { keep, body, rendered: drawn, position: (el) => { asked.push(el); return fixed(el); } });
+    expect(asked.some((el) => el.closest(".mega"))).toBe(false);
+    expect(asked.some((el) => el.closest("svg"))).toBe(false);
+    expect(asked.some((el) => keep.some((k) => k.contains(el)))).toBe(false);
+    // The page has about 3,500 elements; fewer than 60 are asked.
+    expect(doc.body.querySelectorAll("*").length).toBeGreaterThan(3000);
+    expect(asked.length).toBeLessThan(60);
+    expect(items.some((i) => i.kind === "cookie")).toBe(true);
+  });
+
+  it("finds the same as when every element is asked", () => {
+    const doc = big(50);
+    const { keep, body } = contentOf(doc);
+    // What a browser says: nothing inside a display: none box is on screen.
+    const shown = (el: Element) => !el.closest("[style*='display: none']");
+    const run = (rendered?: (el: Element) => boolean) => {
+      const els: Element[] = [];
+      const items = findClutter(doc, { keep, body, shown, rendered, position: fixed, onElement: (_id, el) => els.push(el) });
+      return { items, els };
+    };
+    const all = run(), pruned = run(drawn);
+    expect(pruned.items).toEqual(all.items);
+    expect(pruned.els).toEqual(all.els);
+    // The icon toolbar, the fixed cookie bar, then what the article page always had.
+    expect(all.items.map((i) => i.kind)).toEqual(["other", "cookie", "cookie", "header", "sidebar", "newsletter", "footer"]);
+  });
+});
