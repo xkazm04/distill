@@ -46,6 +46,21 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
   };
   const order = docOrder(root);
   const lines = readLines(root);
+  /** The lines that hold a phone: an address without a postcode is trusted next to one (see streetAddresses). */
+  const phoneLines = new Set<number>();
+  let lineOfNode: Map<Node, number> | null = null;
+  const lineOf = (el: Element): number => {
+    if (!lineOfNode) {
+      lineOfNode = new Map();
+      lines.forEach((l, i) => { for (const p of l.parts) lineOfNode?.set(p.node, i); });
+    }
+    const walker = el.ownerDocument.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const i = lineOfNode.get(n);
+      if (i !== undefined) return i;
+    }
+    return -1;
+  };
 
   // Links say it best: tel: and mailto: first.
   for (const a of Array.from(root.querySelectorAll("a[href]"))) {
@@ -56,19 +71,25 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
       const raw = safeDecode(href.slice(4)).replace(/[^\d+]/g, "");
       const shown = collapse(a.textContent ?? "");
       const p = phoneOf(digits(shown).length >= 7 ? shown : raw, "tel", opts.url, doc);
-      if (p) add({ ...p, el: a, at: order(a) });
+      if (p) {
+        add({ ...p, el: a, at: order(a) });
+        phoneLines.add(lineOf(a));
+      }
     } else if (scheme === "mailto:") {
       const addr = safeDecode(href.slice(7).split("?")[0] ?? "").trim();
       if (EMAIL_ONLY.test(addr)) add({ kind: "email", text: addr, href: `mailto:${addr}`, key: addr.toLowerCase(), el: a, at: order(a) });
     }
   }
 
-  for (const line of lines) {
+  for (const [li, line] of lines.entries()) {
     for (const m of line.text.matchAll(PHONE_RE)) {
       // Two numbers written as one run ("377 912 345 / 777 123 456"): when the whole is no number, try its pieces.
       for (const [piece, at] of pieces(m[0], m.index ?? 0, (t, i) => !!phoneOf(t, phoneContext(line.text, i, t.length), opts.url, doc))) {
         const p = phoneOf(piece, phoneContext(line.text, at, piece.length), opts.url, doc);
-        if (p) add({ ...p, ...placeOf(line, at, piece.length, order) });
+        if (p) {
+          add({ ...p, ...placeOf(line, at, piece.length, order) });
+          phoneLines.add(li);
+        }
       }
     }
     for (const m of line.text.matchAll(EMAIL_RE)) {
@@ -93,6 +114,7 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
   }
 
   for (const a of addresses(root, lines, order)) add(a);
+  for (const a of streetAddresses(lines, phoneLines, order)) add(a);
   for (const h of hours(root, lines, order)) add(h);
   const page = contactPage(root, opts.url, order);
   if (page) add(page);
@@ -380,6 +402,149 @@ function streetStart(s: string): number {
   const before = num < 0 ? s : s.slice(0, num);
   const comma = before.lastIndexOf(",");
   return comma + 1;
+}
+
+// ---- addresses without a postcode ----
+
+/** A street and its house number, the whole of a piece of a line: "Rovná 235", "Přáslavice č.p. 23", "Na Výsluní
+ *  1234/5", "U Lípy 12a", "Hauptstraße 12". The name is up to four words. */
+const STREET_PIECE = /^(\p{L}[\p{L}.'’-]*(?:\s+\p{L}[\p{L}.'’-]*){0,3})\s+(\d{1,5}[a-zA-Z]?(?:\/\d{1,5}[a-zA-Z]?)?)$/u;
+const STREET_EN_PIECE = new RegExp(String.raw`^(?:${STREET_EN.source})$`, "u");
+/** Words that can start a street name in lower case: "nám. Míru 1", "třída Svobody 12". */
+const LOWER_START = new Set(["nám.", "náměstí", "třída", "tř.", "ul.", "ulice", "nábř.", "nábřeží", "sídl.", "sídliště", "sady"]);
+/** Small words inside a street or a town name: "Na Výsluní", "Jablonec nad Nisou", "Frankfurt am Main". */
+const SMALL = new Set(["nad", "pod", "na", "u", "v", "ve", "za", "k", "ke", "při", "před", "do", "od", "č.p.", "čp.", "č.", "č.o.",
+  "de", "la", "le", "du", "sur", "an", "am", "im", "in", "der", "bei", "zum", "zur", "upon", "on", "of", "the"]);
+/** A first word that never starts a street or a town: a label, a price list's column, a sentence, a day or a month. */
+const NOT_A_PLACE = new Set(("tel tel. telefon mobil mob. gsm fax email e-mail mail web www mapa map kontakt kontakty contact "
+  + "ič ičo dič ič. psč cena ceny kauce nosnost délka šířka výška typ model verze version strana str. kapitola článek odst. "
+  + "číslo počet celkem kus ks cca max min od rok roku since seit ab bis from until year jahr "
+  + "jsme jsou je najdete sídlíme bydlíme we our wir unsere objednávky otevřeno zavřeno provozní otevírací open opening "
+  + "closed foto fotogalerie galerie popis akce sleva info úvod home menu "
+  + "pondělí úterý středa čtvrtek pátek sobota neděle po út st čt pá so ne "
+  + "monday tuesday wednesday thursday friday saturday sunday mon tue wed thu fri sat sun "
+  + "montag dienstag mittwoch donnerstag freitag samstag sonntag mo di mi do fr sa so "
+  + "leden únor březen duben květen červen červenec srpen září říjen listopad prosinec "
+  + "ledna února března dubna května června července srpna září října listopadu prosince "
+  + "january february march april may june july august september october november december "
+  + "januar februar märz juni juli oktober dezember").split(" "));
+/** A town: capitalised words, the small words between them, a district after a dash, a district number ("Praha 4"). */
+const TOWN_RE = /^\p{Lu}[\p{L}.'’-]*(?:\s+(?:\p{L}[\p{L}.'’-]*|[-–]|\d{1,2}))*$/u;
+const POSTCODE_ONLY = /^(?:\d{3}\s?\d{2}|\d{5})$/;
+/** Says the lines near it are an address. */
+const ADDRESS_WORD = /(?:^|[^\p{L}])(?:adres[aey]|adresa provozovny|sídl[oa]|sídlem|provozovn[ay]|pobočk[ay]|najdete nás|nás najdete|kde nás|address|anschrift|adresse|standort|find us|visit us)(?:[^\p{L}]|$)/iu;
+const PRICE_IN = /\d\s*(?:,-|,–|kč|czk|eur|€|\$|£)|(?:€|\$|£)\s*\d/i;
+/** How many lines apart a phone may be, in the same block, to vouch for an address beside it. */
+const NEAR_PHONE = 6;
+
+/** A street and house number as the page writes it, or null: never a label, a day, a month, a year, a product code. */
+function streetPiece(s: string): string | null {
+  const t = collapse(s);
+  if (t.length > 50) return null;
+  if (STREET_EN_PIECE.test(t)) return t;
+  const m = STREET_PIECE.exec(t);
+  if (!m) return null;
+  const words = (m[1] ?? "").split(/\s+/);
+  const first = words[0] ?? "";
+  if (NOT_A_PLACE.has(first.toLowerCase())) return null;
+  if (!/^\p{Lu}/u.test(first) && !LOWER_START.has(first.toLowerCase())) return null;
+  // The rest: capitalised words or the small words between them ("Na Výsluní", "Přáslavice č.p.").
+  if (!words.slice(1).every((w) => /^\p{Lu}/u.test(w) || SMALL.has(w.toLowerCase()))) return null;
+  // A code in capitals beside ordinary words ("Thule Motion XT 800") is a product, not a street.
+  const caps = words.filter((w) => /^\p{Lu}{2,}$/u.test(w.replace(/[.'’-]/g, "")));
+  if (caps.length && caps.length < words.length) return null;
+  if (/\/(?:19|20)\d{2}$/.test(m[2] ?? "")) return null; // "7/2015": a month and a year
+  return t;
+}
+
+/** A town as the page writes it, or null. */
+function townPiece(s: string): string | null {
+  const t = collapse(s).replace(/[,.;]$/, "");
+  if (t.length < 2 || t.length > 48 || !TOWN_RE.test(t)) return null;
+  const words = t.split(/\s+/);
+  // Capitalised words and the small words between them: "Jablonec nad Nisou", never "Cena za den" or a sentence.
+  if (!words.every((w) => /^(?:\p{Lu}|\d|[-–]$)/u.test(w) || SMALL.has(w.toLowerCase()))) return null;
+  if (words.some((w) => NOT_A_PLACE.has(w.toLowerCase()) && /^\p{Lu}/u.test(w))) return null;
+  HOURS_RE.lastIndex = 0;
+  if (HOURS_RE.test(t)) return null;
+  return t;
+}
+
+/**
+ * Addresses written with no postcode, or with it on a line of its own after the town (round-1 gap G6, the trailer
+ * rental's "Rovná 235 / Jablonec nad Nisou - Kokonín / 468 01"): a street and house number that is the whole of its
+ * line or of a comma-separated piece of it, then the town in the same line or on the next. Taken only where the page
+ * vouches for it: a word that says address before it ("Adresa:", "Sídlo", "Kde nás najdete"), or a phone in the same
+ * block a few lines away. Never a line of running text, a date, hours, a price list's row or a product code.
+ */
+function streetAddresses(lines: Line[], phoneLines: Set<number>, order: (el: Element) => number): Found[] {
+  const out: Found[] = [];
+  const elOf = (i: number): Element | null => (lines[i]?.parts.find((p) => p.node.data.trim()) ?? lines[i]?.parts[0])?.node.parentElement ?? null;
+  const text = (i: number): string => collapse(lines[i]?.text ?? "");
+  const priced = (i: number): boolean => PRICE_IN.test(text(i));
+
+  lines.forEach((line, i) => {
+    const whole = text(i);
+    if (!whole || whole.length > 90 || POSTCODE_RE.test(whole) || DATE_IN.test(whole)) return;
+    const el = elOf(i);
+    if (el?.closest("address")) return; // the <address> element is read as a whole (see addresses)
+    // The label before the address ("Adresa:", "Sídlo firmy:"): what stands before the last colon.
+    const colon = Math.max(whole.lastIndexOf(":"), whole.lastIndexOf("|"), whole.lastIndexOf("•"));
+    const label = colon >= 0 ? whole.slice(0, colon) : "";
+    const body = whole.slice(colon + 1).trim();
+    // "Michal Šmíd, Rovná 235, Jablonec nad Nisou, 468 01": a name may stand before the street, the town after it.
+    const pieces = body.split(/\s*,\s*/).filter(Boolean);
+    const at = pieces.findIndex((p) => !!streetPiece(p));
+    if (at < 0 || at > 2 || pieces.length - at > 3) return;
+    const street = streetPiece(pieces[at] as string) as string;
+    let rest = pieces.slice(at + 1);
+    let last = i;
+    let postcode = "";
+    let town: string | null = null;
+    if (rest.length && POSTCODE_ONLY.test(rest[rest.length - 1] as string)) postcode = rest.pop() as string;
+    if (rest.length) {
+      // The town on the same line: the whole rest of it ("Rovná 235, Jablonec nad Nisou - Kokonín").
+      town = rest.length === 1 ? townPiece(rest[0] as string) : null;
+      if (!town) return;
+    } else {
+      // The town on the next line, maybe after a postcode line, maybe followed by one.
+      let j = i + 1;
+      if (!postcode && POSTCODE_ONLY.test(text(j))) postcode = text(j++);
+      town = townPiece(text(j));
+      if (!town || POSTCODE_RE.test(text(j))) return;
+      last = j;
+      if (!postcode && POSTCODE_ONLY.test(text(j + 1))) { postcode = text(j + 1); last = j + 1; }
+    }
+    // A price list's row is no address, nor a street with a price beside it.
+    if ([i - 1, i, last, last + 1].some(priced)) return;
+    // One word and a year ("Novinka 2025") is more often news than a street: only a label that says address takes it.
+    const yearLike = /^\S+\s+(?:19|20)\d{2}$/.test(street);
+    if (!vouched(i, last, label, !yearLike)) return;
+    const shown = `${street}, ${postcode ? `${postcode.replace(/^(\d{3})(\d{2})$/, "$1 $2")} ` : ""}${town}`;
+    const a = elOf(i);
+    const b = elOf(last);
+    const box = a && b ? common(a, b) : a;
+    out.push({ kind: "address", text: shown, key: fold(shown).replace(/[^a-z0-9]/g, ""), el: box, at: box ? order(box) : Number.MAX_SAFE_INTEGER });
+  });
+  return out;
+
+  /** The page says it is an address (its label, or a short line just before it), or a phone sits in the same block. */
+  function vouched(first: number, last: number, label: string, byPhone: boolean): boolean {
+    if (ADDRESS_WORD.test(label)) return true;
+    for (const k of [first - 1, first - 2]) if (text(k).length <= 50 && ADDRESS_WORD.test(text(k))) return true;
+    if (!byPhone) return false;
+    for (const p of phoneLines) {
+      if (p < 0) continue;
+      const gap = p < first ? first - p : p > last ? p - last : 0;
+      if (gap > NEAR_PHONE) continue;
+      if (gap <= 2) return true;
+      const a = elOf(first);
+      const b = elOf(p);
+      const box = a && b ? common(a, b) : null;
+      if (box && !["body", "html"].includes(box.localName.toLowerCase())) return true;
+    }
+    return false;
+  }
 }
 
 /** An element's text split where the page breaks lines (block children, <br>). */
