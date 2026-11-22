@@ -199,6 +199,7 @@ function apply(s: Reflow): number {
   const rules: string[] = [];
   let count = 0;
   let n = 0;
+  let headDone = false;
   for (const box of path) {
     const side = beside.get(box);
     const freed = side?.freed;
@@ -234,6 +235,10 @@ function apply(s: Reflow): number {
     const width = columnWidth({ box: b.width, text: contentBox(text, win).width, avgChar: avgCharWidth(text, win, sample), room });
     const offCentre = Math.abs((b.left + b.right) / 2 - (left + right) / 2);
     if (width - b.width < 8 && offCentre < 24) continue;
+
+    // The headline above the box, where it stands before the box moves (it follows it, G8).
+    const head = headDone ? null : headlineOver(box, ctx);
+    const headBefore = head ? { h1: boxOf(head.h1), block: boxOf(head.block), text: boxOf(text) } : null;
 
     const id = `w${n++}`;
     box.setAttribute(WIDEN, id);
@@ -271,6 +276,49 @@ function apply(s: Reflow): number {
       style.textContent = rules.join("\n");
       count++;
     }
+
+    // The headline block was left-aligned with the text: it takes the same left edge and right edge as the column
+    // now, through margin and max-width only (never its font, size or colour). Checked after: else it stays as it was.
+    if (head && headBefore && Math.abs(headBefore.h1.left - headBefore.text.left) <= 8) {
+      const dx = boxOf(text).left - headBefore.text.left;
+      const right = boxOf(box).right;
+      if (Math.abs(dx) >= 4) {
+        const hid = `${id}h`;
+        const newLeft = headBefore.block.left + dx;
+        const margin = (parseFloat(win.getComputedStyle(head.block).marginLeft) || 0) + dx;
+        const hdecl = ["box-sizing: border-box", `margin-left: ${px(margin)}`, `max-width: ${px(Math.max(0, right - newLeft))}`];
+        const at = rules.length;
+        head.block.setAttribute(WIDEN, hid);
+        rules.push(`${on} [${WIDEN}="${hid}"] { ${hdecl.map((d) => `${d} !important`).join("; ")}; }`);
+        style.textContent = rules.join("\n");
+        if (Math.abs(boxOf(head.h1).left - boxOf(text).left) > 8) {
+          rules.splice(at, 1);
+          style.textContent = rules.join("\n");
+          head.block.removeAttribute(WIDEN);
+        } else {
+          headDone = true;
+        }
+      }
+    }
   }
   return count;
+}
+
+/**
+ * The page's headline over a widened box: the first h1 shown, outside the box and before it, and the block that
+ * carries it (the h1, or its container holding the byline and lead, up to the level of the box). Null when there is
+ * none, or the block does not sit right above the box (a site's masthead far above is not the article's headline).
+ */
+function headlineOver(box: Element, ctx: CleanContext): { h1: Element; block: Element } | null {
+  const shown = (el: Element) => { const r = el.getBoundingClientRect(); return r.width >= 2 && r.height >= 2 && !el.closest(`[${HIDE}]`); };
+  const h1 = ctx.keep.find((el) => el.localName === "h1" && shown(el))
+    ?? Array.from(ctx.doc.querySelectorAll("h1")).find(shown);
+  if (!h1 || box.contains(h1) || h1.contains(box) || !(h1.compareDocumentPosition(box) & 4 /* box follows h1 */)) return null;
+  let block: Element = h1;
+  while (block.parentElement && !block.parentElement.contains(box)) block = block.parentElement;
+  if (block === ctx.doc.body || block === ctx.doc.documentElement) return null;
+  const hb = boxOf(block);
+  const b = boxOf(box);
+  if (hb.bottom > b.top + 2 || b.top - hb.bottom > 240) return null;
+  return { h1, block };
 }

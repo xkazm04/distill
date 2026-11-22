@@ -12,8 +12,8 @@
   .top a { color: #fff; text-decoration: none; font-size: 15px; }
   .top strong { font-size: 20px; margin-right: auto; }
   .layout { max-width: 1000px; margin: 24px auto; padding: 24px 20px; background: #fff; display: grid; grid-template-columns: 500px 300px; gap: 40px; }
-  article h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; }
-  article .meta { color: #555; font: 14px Arial, sans-serif; margin: 0 0 16px; }
+  .layout h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; }
+  .layout .meta { color: #555; font: 14px Arial, sans-serif; margin: 0 0 16px; }
   article figure { margin: 0 0 16px; }
   article figure div { height: 220px; background: linear-gradient(135deg, #8fb3cf, #3d6b8f); border-radius: 4px; }
   article figcaption { font: 13px Arial, sans-serif; color: #555; margin-top: 6px; }
@@ -29,6 +29,9 @@
   html[data-layout="float"] .layout { display: block; overflow: hidden; }
   html[data-layout="float"] .layout article { float: left; width: 500px; }
   html[data-layout="float"] .layout aside { float: right; width: 300px; }
+  /* ?head: the headline and byline above both columns, across the page, as many news sites set them. */
+  .layout > .head { grid-column: 1 / -1; flex: 0 0 100%; }
+  html[data-layout="flex"] .layout:has(> .head) { flex-wrap: wrap; }
   @media (max-width: 860px) {
     .layout, html[data-layout] .layout { display: block; margin: 0; }
     .layout article, .layout aside, html[data-layout] .layout article, html[data-layout] .layout aside { width: auto; float: none; }
@@ -60,5 +63,24 @@
   </aside>
 </div>
 <footer>© Lipovské listy, měsíčník obce Lipová. Ukázková stránka projektu Distill.</footer>
+<script>
+var params = new URLSearchParams(location.search);
+// ?head: the headline and the byline move out of the article, above both columns.
+if (params.has("head")) {
+  var art = document.querySelector("article");
+  var head = document.createElement("div");
+  head.className = "head";
+  head.append(art.querySelector("h1"), art.querySelector(".meta"));
+  document.querySelector(".layout").prepend(head);
+}
+// ?lateside=<ms>: the sidebar is empty at first; its advert and links load later.
+var lateside = Number(params.get("lateside") || 0);
+if (lateside > 0) {
+  var aside = document.querySelector("aside.sidebar");
+  var parts = Array.prototype.slice.call(aside.children);
+  parts.forEach(function (p) { p.remove(); });
+  setTimeout(function () { parts.forEach(function (p) { aside.append(p); }); }, lateside);
+}
+</script>
 </body>
 </html>

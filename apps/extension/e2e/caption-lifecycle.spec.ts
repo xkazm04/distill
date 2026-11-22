@@ -171,3 +171,70 @@ test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date,
   expect(await tab.page.evaluate(() => document.querySelectorAll("[data-distill-hide], [data-distill-stopped], [data-distill-comfort], [data-distill-comfort-text], style[data-distill]").length)).toBe(0);
 });
 
+/** Where the headline, the text and the column of caption-reflow.html are, and what Distill marked. */
+function headline(page: Page) {
+  return page.evaluate(() => {
+    const h1 = document.querySelector("h1") as HTMLElement;
+    const p = document.querySelector("article p:not(.meta)") as HTMLElement;
+    const a = document.querySelector("article") as HTMLElement;
+    return {
+      h1Left: Math.round(h1.getBoundingClientRect().left), h1Right: Math.round(h1.getBoundingClientRect().right),
+      textLeft: Math.round(p.getBoundingClientRect().left), columnRight: Math.round(a.getBoundingClientRect().right),
+      h1Font: getComputedStyle(h1).font, h1Color: getComputedStyle(h1).color,
+      widened: document.querySelectorAll("[data-distill-widen]").length,
+      headMarked: !!h1.closest("[data-distill-widen]"),
+    };
+  });
+}
+
+test("caption-lifecycle: the headline above the columns follows the centred column, and Original puts it back (G8)", async ({ distill }) => {
+  const tab = await distill.openTab("caption-reflow");
+  await tab.page.goto(`${tab.url}&head`);
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const before = await headline(tab.page);
+  expect(before.h1Left).toBe(before.textLeft);
+
+  const { frame } = await open(distill, tab);
+  const after = await headline(tab.page);
+  expect(after.widened).toBeGreaterThanOrEqual(2); // the column and the headline block
+  expect(after.textLeft).toBeGreaterThan(before.textLeft + 100);
+  expect(Math.abs(after.h1Left - after.textLeft)).toBeLessThanOrEqual(2);
+  expect(after.h1Right).toBeLessThanOrEqual(after.columnRight + 2);
+  // Only its place changes: never its font, size or colour.
+  expect(after.h1Font).toBe(before.h1Font);
+  expect(after.h1Color).toBe(before.h1Color);
+  await settled(tab.page);
+  await snap(tab.page, "headline-follows");
+
+  await frame.getByTestId("cap-original").click();
+  await frame.getByTestId("cap-back").waitFor();
+  expect(await headline(tab.page)).toMatchObject({ h1Left: before.h1Left, textLeft: before.textLeft });
+  await snap(tab.page, "headline-original");
+  await frame.getByTestId("cap-back").click();
+
+  // The sidebar back: the column and the headline take their own place again.
+  await frame.getByTestId("cap-more-btn").click();
+  await frame.getByRole("button", { name: "Show Sidebar again" }).click();
+  await expect.poll(async () => (await headline(tab.page)).h1Left).toBe(before.h1Left);
+  expect((await headline(tab.page)).textLeft).toBe(before.textLeft);
+});
+
+test("caption-lifecycle: a sidebar advert that loads after Clean leaves no hole: the column and its headline follow (G5, G8)", async ({ distill }) => {
+  const tab = await distill.openTab("caption-reflow");
+  await tab.page.goto(`${tab.url}&head&lateside=2500`);
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const before = await headline(tab.page);
+  const { frame, status } = await open(distill, tab);
+  const first = count(status);
+  // Nothing beside the column yet: nothing to widen.
+  expect((await headline(tab.page)).widened).toBe(0);
+
+  await expect(frame.getByTestId("cap-status")).toHaveText(new RegExp(`^Removed ${first + 1} distractions`), { timeout: 10_000 });
+  await expect(tab.page.locator("aside.sidebar")).toBeHidden();
+  await expect.poll(async () => (await headline(tab.page)).widened, { timeout: 3_000 }).toBeGreaterThanOrEqual(2);
+  const after = await headline(tab.page);
+  expect(after.textLeft).toBeGreaterThan(before.textLeft + 100);
+  expect(Math.abs(after.h1Left - after.textLeft)).toBeLessThanOrEqual(2);
+  await settled(tab.page);
+  await snap(tab.page, "late-sidebar-widened");
+});
