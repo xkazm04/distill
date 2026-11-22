@@ -240,15 +240,34 @@ Found on the way and fixed:
 - **The e2e build has no stand-in model by default.** Translate's tests switch the dev fake on per session
   (`chrome.storage.session` key `distill:e2e:fakeAi`, e2e build only).
 
-Known and left for later:
+Closed before round 2 (the owner asked, 2026-11-22):
 
-- A sticky header that comes back from More comes back sticky (unstick runs once at Clean).
-- Calm leaves any video 320 px or wider alone (`contentExtras` protects it as the main video); on Deník a second,
-  playing video stayed. Protect only the largest or the main column's video.
-- Clean hides a form of fewer than 3 fields (a two-field comment box); only 3+ field forms are protected.
-- Stay clean does not re-run reflow, comfort, unstick or Calm's animation pass on late content.
-- An address without a postcode is not found (the trailer rental's).
-- The live probes (`e2e/live/probes/`) run with every `npm run e2e:live`.
+| Gap | Now |
+| --- | --- |
+| Calm and Clean protected every video 320 px or wider | Only the main video (the largest in the first screen or by the main column, or the player); a second autoplaying video is paused |
+| A header brought back from More came back sticky | `restore` runs `unstick` again |
+| Clean hid a 2-field comment form | A form in or right after the main column with one visible field is kept (not a search box, a login, or a self-named sign-up) |
+| Stay clean did not follow up | After it hides something or a single-page app changes view: widen, unstick, the reading layer (the person's switch kept) and a Calm pass for new moving parts |
+| Aktuálně's headline stayed left of the centred column | The headline block follows the widened column (margin and max-width only) |
+| Calm's counts lagged after Play again | Zeroed at once |
+| An ad inside a box the reader took loose text from stayed | Self-named clutter inside such a box goes when it holds no running text, headline or protected media |
+| Clean took 1.5-2.4 s on YouTube | Clean starts when the strip goes on the page (not when its frame asks), and judges with one style read per element: 0.8-1.0 s on every other live site, 1.8-1.9 s on YouTube in the live run of 2026-11-22 (target 1.2 s: missed on YouTube) |
+| "Subscribe" was read as a newsletter sign-up | Only with a field to type an address into, or the word newsletter |
+| An address without a postcode was not found | Street and number with the town, when the page says it is an address or a phone sits beside it |
+| "Required" was read only from attributes | The engine reads a required class, "povinné"/"required" at the end of the label and a star, so the side panel's Wayfill gets it too |
+| A phone line was translated | Contact-only blocks are skipped |
+| Text added later stayed Czech | The main column is watched while a translation is on; new or rewritten blocks are translated (a block rewritten more than 3 times is left) |
+| A site that forbids the model in frames got no on-device translation | Translate (and More's model state) run in an offscreen document; the chip says so |
+| More's Reading line said "Larger, darker" for a line-length change | "Easier-to-read text on N parts" |
+| The live probes ran with every live run | Only with `E2E_PROBES=1` or when named |
+
+Still open:
+
+- Clean on YouTube is 1.8-1.9 s from click to first sight (bar warns above 1.5 s): reading the page (`extractPage`,
+  70-150 ms there), the reading layer, unstick and widen (100-300 ms together) and the strip settling are what is left.
+- Real translation quality and the offscreen path need the owner's check with Gemini Nano in Chrome; no site in
+  `sites.json` sends a policy that blocks the model in frames (proven on a demo page only).
+- Content appended after the article (an infinite scroll's next article) is not translated (main-column rule).
 
 ## Code map
 

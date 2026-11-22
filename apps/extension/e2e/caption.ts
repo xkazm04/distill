@@ -73,7 +73,10 @@ export function baseline(page: Page): Promise<Baseline> {
       for (let e: Element | null = el; e; e = e.parentElement) if (/fixed|sticky/.test(getComputedStyle(e).position)) return true;
       return false;
     };
-    const paras = Array.from(document.querySelectorAll("p")).filter((p) => visible(p) && !floats(p) && (p.textContent ?? "").trim().length >= 120);
+    // A "paragraph" holding form controls is a widget, not text: a calendar's month picker reads as 120 characters of
+    // option labels (Leden Únor Březen...; Štáhlavy's sidebar, 2026-11-22).
+    const paras = Array.from(document.querySelectorAll("p")).filter((p) => visible(p) && !floats(p)
+      && !p.querySelector("select, input, textarea, button") && (p.textContent ?? "").trim().length >= 120);
     // The main region: the deepest element that holds at least 60% of the long paragraphs' text.
     const len = (els: Element[]) => els.reduce((n, p) => n + (p.textContent ?? "").length, 0);
     const total = len(paras) || 1;
