@@ -1,8 +1,8 @@
 // The offscreen document's script (protocol.ts): answers the service worker's run() requests through the same AI
 // wrapper the caption frame uses (@distill/web/ai), here in a document of Distill's own where no site's policy reaches.
 // It closes itself after a while without work, in case the service worker went away before it could close it.
-import { run, toAiError, type RunResult } from "@distill/web/ai";
-import { answer, isOffscreenRun, type OffscreenAsk } from "./protocol";
+import { localModelState, run, toAiError, type RunResult } from "@distill/web/ai";
+import { answer, isOffscreenRun, isOffscreenStateRun, type OffscreenAsk } from "./protocol";
 
 /** A document nobody asked anything for this long closes itself (ms). */
 const IDLE_MS = 60_000;
@@ -28,6 +28,11 @@ async function fake(ask: Omit<OffscreenAsk, "id">): Promise<RunResult<unknown>> 
 chrome.runtime.onMessage.addListener((m: unknown, sender, reply: (r: unknown) => void) => {
   // Only Distill's own service worker asks: never a content script (its sender is the page's address and its tab), never
   // another extension.
+  if (isOffscreenStateRun(m) && sender.id === chrome.runtime.id && !sender.tab) {
+    rest();
+    void localModelState().then(reply, () => reply("unavailable"));
+    return true;
+  }
   if (!isOffscreenRun(m) || sender.id !== chrome.runtime.id || sender.tab || !sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
   rest();
   void answer(m.ask, {

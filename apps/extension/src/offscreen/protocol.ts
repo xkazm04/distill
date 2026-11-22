@@ -4,7 +4,7 @@
 // relays the task to it and closes it once no caption holds a port. The task runs there through the same run() as in
 // the frame, so the answer carries the same `source` and `reason` and the chip stays true. Nothing here leaves the
 // browser: page text goes from the frame to the worker to the offscreen document, all of them Distill's own.
-import { route, type InferenceSource, type Task } from "@distill/engine";
+import { route, type InferenceSource, type LocalModelState, type Task } from "@distill/engine";
 import type { AiFailure, RunContext, RunResult } from "@distill/web/ai";
 
 /** The caption frame's port to the service worker, held while the frame may need the offscreen document. */
@@ -34,6 +34,16 @@ export type OffscreenReply =
   | { ok: false; kind: AiFailure; refused?: "values" };
 
 export type OffscreenAnswer = OffscreenReply & { id: number };
+
+/** The frame asks for the on-device model's state (More's model line): in a blocked frame LanguageModel says
+ *  "unavailable", so the state is read where the model is reachable. */
+export interface OffscreenStateAsk { id: number; state: true }
+export type OffscreenStateAnswer = { id: number; ok: true; modelState: LocalModelState } | { id: number; ok: false; kind: AiFailure };
+export const isStateAsk = (m: OffscreenAsk | OffscreenStateAsk): m is OffscreenStateAsk => (m as OffscreenStateAsk).state === true;
+
+/** Service worker -> the offscreen document: the model's state. */
+export interface OffscreenStateRun { type: "distill:offscreen:state" }
+export const isOffscreenStateRun = (m: unknown): m is OffscreenStateRun => (m as Partial<OffscreenStateRun> | null)?.type === "distill:offscreen:state";
 
 /** Service worker -> the offscreen document (chrome.runtime.sendMessage). */
 export interface OffscreenRun { type: "distill:offscreen:run"; ask: Omit<OffscreenAsk, "id"> }

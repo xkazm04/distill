@@ -1,8 +1,10 @@
 // The service worker's side of the offscreen document (protocol.ts): it opens the document when a caption first asks,
 // relays each task to it, and closes it when the last caption that held a port is gone.
 import {
-  OFFSCREEN_JUSTIFICATION, OFFSCREEN_PORT, OFFSCREEN_URL, type OffscreenAnswer, type OffscreenAsk, type OffscreenReply, type OffscreenRun,
+  isStateAsk, OFFSCREEN_JUSTIFICATION, OFFSCREEN_PORT, OFFSCREEN_URL, type OffscreenAnswer, type OffscreenAsk, type OffscreenReply,
+  type OffscreenRun, type OffscreenStateAnswer, type OffscreenStateAsk, type OffscreenStateRun,
 } from "./protocol";
+import type { LocalModelState } from "@distill/engine";
 
 /** The captions that may need the document now. */
 const users = new Set<chrome.runtime.Port>();
@@ -48,13 +50,29 @@ async function relay(ask: Omit<OffscreenAsk, "id">): Promise<OffscreenReply> {
   }
 }
 
+/** Asks the document for the on-device model's state; opens it if needed. */
+async function relayState(): Promise<LocalModelState> {
+  const msg: OffscreenStateRun = { type: "distill:offscreen:state" };
+  await open();
+  const state = (await chrome.runtime.sendMessage(msg)) as LocalModelState | undefined;
+  if (!state) throw new Error("The offscreen document did not answer.");
+  return state;
+}
+
 /** For the worker's onConnect: takes the caption's offscreen port (true), or leaves the port to others (false). */
 export function offscreenPort(port: chrome.runtime.Port): boolean {
   if (port.name !== OFFSCREEN_PORT) return false;
   // Only Distill's own extension pages (the caption frame): never a content script, whose sender is the page's address.
   if (port.sender?.id !== chrome.runtime.id || !port.sender.url?.startsWith(chrome.runtime.getURL(""))) { port.disconnect(); return true; }
   users.add(port);
-  port.onMessage.addListener((ask: OffscreenAsk) => {
+  port.onMessage.addListener((ask: OffscreenAsk | OffscreenStateAsk) => {
+    if (isStateAsk(ask)) {
+      void relayState().then(
+        (modelState) => post(port, { id: ask.id, ok: true, modelState }),
+        () => post(port, { id: ask.id, ok: false, kind: "other" }),
+      );
+      return;
+    }
     const { id, ...task } = ask;
     void relay(task).then(
       (reply) => post(port, { ...reply, id }),
@@ -68,6 +86,6 @@ export function offscreenPort(port: chrome.runtime.Port): boolean {
   return true;
 }
 
-function post(port: chrome.runtime.Port, answer: OffscreenAnswer): void {
+function post(port: chrome.runtime.Port, answer: OffscreenAnswer | OffscreenStateAnswer): void {
   try { port.postMessage(answer); } catch { /* the caption is gone */ }
 }

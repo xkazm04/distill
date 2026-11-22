@@ -11,6 +11,7 @@ import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
 import "@fontsource-variable/fredoka/wght.css";
 import "./caption.css";
 import { applyBinding } from "../../sidepanel/applyBinding";
+import { deviceModelBlocked, offscreenModelState } from "../../offscreen/client";
 import { isCaptionUpdate, type CleanReport } from "../../messages";
 import { send, tabId } from "./send";
 import { statusLine } from "./status";
@@ -76,12 +77,17 @@ function Caption() {
   const [original, setOriginal] = useState(false);
   const [more, setMore] = useState(false);
   const [model, setModel] = useState<LocalModelState | "checking">("checking");
+  const [modelBlocked, setModelBlocked] = useState(false);
   const moreBtn = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     void send<"distill:caption:clean">({ type: "distill:caption:clean" }).then(setReport, (e: unknown) =>
       setProblem(e instanceof Error ? e.message : String(e)));
-    void localModelState().then(setModel);
+    // On a site that blocks the model in frames, the frame's own LanguageModel always says "unavailable": ask the
+    // offscreen document, where Translate runs there (docs/caption.md, risk 1).
+    const blocked = deviceModelBlocked();
+    setModelBlocked(blocked);
+    void (blocked ? offscreenModelState().catch((): LocalModelState => "unavailable") : localModelState()).then(setModel);
     // Stay clean (#3): the page side removed something new by itself.
     const onUpdate = (m: unknown) => { if (isCaptionUpdate(m) && m.tabId === tabId) setReport(m.report); };
     chrome.runtime.onMessage.addListener(onUpdate);
@@ -154,7 +160,7 @@ function Caption() {
                 <button type="button" className="link" onClick={close} data-testid="cap-close">Close Distill on this page</button>
                 <p className="model" data-testid="cap-model" data-state={model}>
                   {model === "checking" ? "Checking the AI model on this device..." : MODEL_WORDS[model]}
-                  {model === "downloadable" && <> <button type="button" className="link" onClick={() => { setModel("downloading"); void downloadLocalModel(() => undefined).finally(() => void localModelState().then(setModel)); }}>Download the model</button></>}
+                  {model === "downloadable" && !modelBlocked && <> <button type="button" className="link" onClick={() => { setModel("downloading"); void downloadLocalModel(() => undefined).finally(() => void localModelState().then(setModel)); }}>Download the model</button></>}
                 </p>
                 {isOnDeviceOnlyBuild() && <p className="note">{ON_DEVICE_ONLY_NOTE}</p>}
               </div>
@@ -177,7 +183,7 @@ function Caption() {
         ) : (
           <div className="row" data-testid="cap-row">
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
-            <span className="status" role="status" data-testid="cap-status">{status}</span>
+            <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
             {report && (() => {
               const chip = sourceChip(translate.state);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
