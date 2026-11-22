@@ -4,6 +4,9 @@
 // how the removed count grows, the big overlays left, what Calm paused and whether the main video plays on, sticky
 // headers made to scroll, and the share of a 390x844 window covered by fixed boxes with the original page and with
 // Distill's. Output: e2e/out/live/probes/motion/<label>/<site>/ (screenshots) and e2e/out/live/probes/motion/metrics.json.
+// Note: this probe reads the page every second with page.evaluate, which Playwright runs with a user gesture, so a
+// video the page starts meanwhile counts as started by the person and Calm leaves it playing; probes/videos.live.ts
+// scrolls without one to see Calm pause a late video.
 // Run: npx playwright test -c e2e/playwright.live.config.ts probes/motion   (E2E_LIVE_SITES=<ids> to pick sites; the
 // extension is the dist-e2e build, so build it first: npm run build:e2e)
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
