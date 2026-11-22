@@ -71,3 +71,36 @@ test("caption-lifecycle: a small form of the article stays, a sign-up and a sear
   await snap(tab.page, "small-forms");
 });
 
+test("caption-lifecycle: a tall sticky header brought back from More scrolls with the page, and close puts it back (G2)", async ({ distill }) => {
+  const tab = await distill.openTab("caption-lifecycle");
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const header = tab.page.locator("header.site");
+  const { frame } = await open(distill, tab);
+  await expect(header).toBeHidden();
+
+  await frame.getByTestId("cap-more-btn").click();
+  await frame.getByRole("button", { name: "Show Site header again" }).click();
+  await expect(header).toBeVisible();
+  await expect(header).toHaveAttribute("data-distill-unstick", "sticky");
+  // Scrolled down, it has gone up with the page instead of covering the text.
+  await tab.page.evaluate(() => scrollTo({ top: 700, behavior: "instant" }));
+  expect(await header.evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(0);
+  await snap(tab.page, "header-back-scrolls");
+  // Original shows it as the site made it: following the page.
+  await frame.getByTestId("cap-original").click();
+  await frame.getByTestId("cap-back").waitFor();
+  expect(await header.evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBe(0);
+  await frame.getByTestId("cap-back").click();
+  await frame.getByTestId("cap-original").waitFor();
+
+  // Show everything again: the same.
+  await tab.page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+  await frame.getByTestId("cap-more-btn").click();
+  await frame.getByRole("button", { name: "Show everything again" }).click();
+  await expect(header).toHaveAttribute("data-distill-unstick", "sticky");
+
+  expect(await startCaption(distill.worker, tab.id)).toBe(false);
+  await expect(header).not.toHaveAttribute("data-distill-unstick", /.*/);
+  expect(await header.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+});
+

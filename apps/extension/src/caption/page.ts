@@ -462,11 +462,25 @@ function restoredIds(): string[] {
   return Array.from(state.removed).filter(([, el]) => !el.hasAttribute(HIDE)).map(([id]) => id);
 }
 
-/** Brings one removed item back (or all). It stays back for as long as the caption is open. */
+/** Brings one removed item back (or all). It stays back for as long as the caption is open. A tall header that comes
+ *  back scrolls with the page, like the ones Clean left (#4). */
 export function restore(id: string): CleanReport {
   if (!state?.report) throw new Error("Nothing was removed on this page.");
   const els = id === "all" ? Array.from(state.removed.values()) : [state.removed.get(id)].filter((e): e is Element => !!e);
   if (!els.length) throw new Error("That part of the page is no longer there.");
+  const back = els.filter((el) => el.hasAttribute(HIDE));
   for (const el of els) el.removeAttribute(HIDE);
-  return { ...state.report, restored: restoredIds() };
+  const ctx = state.ctx;
+  if (ctx && back.some((el) => floats(el, ctx.win))) state.report = { ...state.report, unstuck: unstick(ctx) };
+  return current();
+}
+
+/** The element or something in it is fixed or sticky (a header bar, a menu that follows the page). */
+function floats(el: Element, win: Window): boolean {
+  const walker = el.ownerDocument.createTreeWalker(el, 1 /* NodeFilter.SHOW_ELEMENT */);
+  for (let n: Node | null = el; n; n = walker.nextNode()) {
+    const p = win.getComputedStyle(n as Element).position;
+    if (p === "fixed" || p === "sticky") return true;
+  }
+  return false;
 }
