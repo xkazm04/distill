@@ -153,3 +153,86 @@ test("translate: a page in the reader's language and a copy with AI off do not s
   await expect(en.page.locator("[data-distill-translated]")).toHaveCount(0);
   await expect(enFrame.getByTestId("cap-chip")).toHaveText("No AI used");
 });
+
+/** Counts what the page side tells the frames (distill:caption:moreText reaches the service worker too). */
+async function listenMoreText(worker: Worker) {
+  await worker.evaluate(() => {
+    const g = globalThis as { __moreText?: unknown[] };
+    g.__moreText = [];
+    chrome.runtime.onMessage.addListener((m: { type?: string }) => { if (m?.type === "distill:caption:moreText") g.__moreText?.push(m); });
+  });
+  return () => worker.evaluate(() => ((globalThis as { __moreText?: unknown[] }).__moreText ?? []) as Record<string, unknown>[]);
+}
+
+test("translate: text the page adds or rewrites later is translated too; Keep Czech and Original keep working; no loop", async ({ distill }) => {
+  const tab = await distill.openTab("caption-translate-more");
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const page = tab.page;
+  await fakeModel(distill.worker);
+  const heard = await listenMoreText(distill.worker);
+  expect(await startCaption(distill.worker, tab.id)).toBe(true);
+  const frame = await captionFrame(page);
+  const chip = frame.getByTestId("cap-chip");
+  await expect(frame.getByTestId("cap-status")).toContainText("Translated from Czech", { timeout: 15_000 });
+  await expect(page.locator("h1")).toHaveText(/^\[EN\] Uzavírka mostu/);
+  const first = await chip.getAttribute("data-blocks");
+
+  // "Load more": two new paragraphs in the main column.
+  await page.click("#nacist");
+  await expect(page.locator("#dalsi p")).toHaveCount(2);
+  for (const p of await page.locator("#dalsi p").all()) await expect(p).toHaveText(/^\[EN\] /, { timeout: 8_000 });
+  await expect(page.locator("#dalsi p").first()).toHaveAttribute("lang", "en");
+  await expect(chip).not.toHaveAttribute("data-blocks", first ?? "");
+  // The frame heard a count, never the words.
+  const told = await heard();
+  expect(told.length).toBeGreaterThanOrEqual(1);
+  for (const m of told) expect(Object.keys(m).sort()).toEqual(["count", "tabId", "type"]);
+  expect(told[0]).toMatchObject({ tabId: tab.id, count: 2 });
+
+  // The page rewrites a line it translated: the new words are translated, and Keep Czech shows the new ones.
+  await expect(page.locator("#stav")).toHaveText(/^\[EN\] Stav k 8:00/);
+  await page.evaluate(() => (window as unknown as { updateStatus(): void }).updateStatus());
+  await expect(page.locator("#stav")).toHaveText("[EN] Stav k 9:00: na objížďce se tvoří kolona, počítejte se zdržením.", { timeout: 8_000 });
+  await shot(page, "more-translated");
+  await frame.getByTestId("cap-keep-source").click();
+  await expect(page.locator("#stav")).toHaveText("Stav k 9:00: na objížďce se tvoří kolona, počítejte se zdržením.");
+  await expect(page.locator("#dalsi p").first()).toHaveText(/^Řidiči nákladních aut/);
+  await expect(page.locator("h1")).toHaveText(/^Uzavírka mostu/);
+  await frame.getByTestId("cap-keep-source").click();
+  await expect(page.locator("#stav")).toHaveText(/^\[EN\] Stav k 9:00/);
+
+  // The comments Clean removed, brought back from More: translated too.
+  await frame.getByTestId("cap-more-btn").click();
+  await frame.getByRole("button", { name: "Show Comments again" }).click();
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(page.locator("#komentare")).toBeVisible();
+  await expect(page.locator("#komentare .comment div").first()).toHaveText(/^\[EN\] Díky za včasnou/, { timeout: 8_000 });
+
+  // A single-page app's next view: the article is replaced in place.
+  await page.click("#dalsi-clanek");
+  await expect(page.locator("h1")).toHaveText("[EN] Sběr nebezpečného odpadu bude v sobotu na návsi", { timeout: 8_000 });
+  for (const p of await page.locator("#clanek p").all()) await expect(p).toHaveText(/^\[EN\] /, { timeout: 8_000 });
+  await shot(page, "next-view");
+
+  // Original: every word the page has now is its own.
+  await frame.getByTestId("cap-original").click();
+  await expect(frame.getByTestId("cap-back")).toBeVisible();
+  expect(await page.locator("body").innerText()).not.toContain("[EN]");
+  await expect(page.locator("h1")).toHaveText("Sběr nebezpečného odpadu bude v sobotu na návsi");
+  await frame.getByTestId("cap-back").click();
+  await expect(page.locator("h1")).toHaveText(/^\[EN\] /);
+
+  // Never loops: with the page quiet, nothing more is heard and the counts stand still.
+  await page.waitForTimeout(1500);
+  const quietCount = (await heard()).length;
+  const quietBlocks = await chip.getAttribute("data-blocks");
+  await page.waitForTimeout(3000);
+  expect((await heard()).length).toBe(quietCount);
+  await expect(chip).toHaveAttribute("data-blocks", quietBlocks ?? "");
+  expect(quietCount).toBeLessThanOrEqual(6);
+
+  // Close: nothing of Distill's left, the page's latest words in place.
+  expect(await startCaption(distill.worker, tab.id)).toBe(false);
+  expect(await page.locator("body").innerText()).not.toContain("[EN]");
+  expect(await page.locator("[data-distill-translated]").count()).toBe(0);
+});
