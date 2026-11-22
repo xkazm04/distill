@@ -10,7 +10,7 @@ import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
-import { inUse, sincePress, watchForClutter } from "./watch";
+import { inUse, sincePress, spent, watchForClutter } from "./watch";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -295,7 +295,9 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
 function follow(s: State, ctx: CleanContext): void {
   if (!s.report || originalOn(ctx.doc)) return;
   s.stale = false;
+  const t0 = performance.now();
   s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx) };
+  spent(performance.now() - t0);
 }
 
 /** Whether a box takes space on screen right now. */

@@ -29,6 +29,11 @@ let activated = 0;
  *  right after is their doing (a menu they opened), not the page's. */
 export const sincePress = (): number => (activated ? Date.now() - activated : Infinity);
 
+let spend: (ms: number) => void = () => undefined;
+/** page.ts tells how long the work after a judgement took (re-running what follows the page's layout): Stay clean
+ *  keeps judging plus that work within its share of the time. */
+export const spent = (ms: number): void => spend(ms);
+
 /** True when the person pressed a pointer or a key inside `el` lately, or is typing in a field inside it. */
 export function inUse(el: Element): boolean {
   if (touched && touched.el.isConnected && el.contains(touched.el) && Date.now() - touched.at < ENGAGED_MS) return true;
@@ -110,11 +115,17 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
     forced = false;
     const t0 = performance.now();
     lastRun = Date.now();
+    followed = 0;
     try { recheck(); } finally {
       // recheck judges synchronously before its first await (the fade), so this is the cost of judging.
-      gap = Math.max(MIN_GAP_MS, (performance.now() - t0) / JUDGE_SHARE);
+      judged = performance.now() - t0;
+      gap = Math.max(MIN_GAP_MS, judged / JUDGE_SHARE);
     }
   };
+  // What followed the judgement (page.ts follow, after the fade) counts too: the next one waits for both.
+  spend = (ms: number) => { followed += ms; gap = Math.max(MIN_GAP_MS, (judged + followed) / JUDGE_SHARE); };
+  let judged = 0;
+  let followed = 0;
 
   const schedule = () => {
     if (stopped || original()) return;
@@ -184,6 +195,7 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
 
   return () => {
     stopped = true;
+    spend = () => undefined;
     observer.disconnect();
     win.removeEventListener("popstate", onHistory);
     nav?.removeEventListener?.("currententrychange", onHistory);
