@@ -16,7 +16,7 @@ describe("extension manifest", () => {
     expect(m.optional_host_permissions).toEqual(["<all_urls>"]);
   });
   it("asks for nativeMessaging (Handrail) only when it is needed", () => {
-    expect(m.permissions).toEqual(["sidePanel", "activeTab", "scripting", "storage"]);
+    expect(m.permissions).toEqual(["sidePanel", "activeTab", "scripting", "storage", "offscreen"]);
     expect(m.optional_permissions).toEqual(["nativeMessaging"]);
   });
   it("has a store-sized description (132 characters at most)", () => {

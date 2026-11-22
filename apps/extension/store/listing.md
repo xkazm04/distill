@@ -57,6 +57,7 @@ ever uploaded: it runs AI only on the device and holds no credential. Keep this 
 | `activeTab` | When you click the Distill icon, Distill may read the page in that tab: its text, its form fields, and its colours and fonts. No standing access to any site. |
 | `scripting` | To run Distill's page reader in the tab you opened it on: it reads the text and form fields, fills in the answers you accepted, and marks the fields it filled. |
 | `storage` | To keep your settings (reading level, language) and your place in a form guide on your device, so a page reload does not lose them. Answers are kept only for the browser session and cleared when the tab closes. |
+| `offscreen` | Only on a site that blocks on-device AI inside frames: Distill runs its on-device AI model in a hidden page of its own, so a translation of that page still runs on your device. The hidden page closes once no page needs it. It opens no window and sends nothing anywhere. |
 | Optional host access `<all_urls>` | Asked for only when you choose it: "Read this page" for one site, or "Allow on all sites" so Distill can follow you from tab to tab and page to page without a click each time. You can take it back at any time in Chrome's extension settings. |
 | Optional `nativeMessaging` | Asked for only when you choose "Connect your helper program": it connects Distill to Handrail, a program you installed on your own computer, so an AI agent you run can propose form answers. Nothing changes until you accept. |
 

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uzavírka mostu přes Sázavu | Zpravodaj obce Lhota u Lesa</title>
+<style>
+body{font:17px/1.55 Georgia,serif;max-width:920px;margin:0 auto;padding:0 1rem;color:#222}
+header.site,nav,aside,footer{font-family:Arial,sans-serif;font-size:.9rem;background:#eef2ee;padding:.6rem;margin:.5rem 0}
+.status{background:#fff7e0;padding:.4rem .6rem;border-left:4px solid #e0a800}
+.comments{font-family:Arial,sans-serif;font-size:.95rem;border-top:1px solid #ccc;margin-top:2rem;padding-top:.5rem}
+.comment{margin:.6rem 0}.comment b{display:block}
+button.more,a.next{font-family:Arial,sans-serif;font-size:.9rem}
+</style>
+</head>
+<body>
+<header class="site"><strong>Zpravodaj obce Lhota u Lesa</strong></header>
+<nav><a href="#">Úvod</a> | <a href="#">Úřad</a> | <a href="#">Aktuality</a> | <a href="#">Kontakty</a></nav>
+<main>
+<article id="clanek">
+<h1>Uzavírka mostu přes Sázavu potrvá do konce dubna</h1>
+<p>Most přes Sázavu na silnici do Benešova bude od pondělí uzavřen. Opravy nosné konstrukce potrvají podle stavební firmy do konce dubna.</p>
+<p>Objízdná trasa vede přes Poříčí a je dlouhá zhruba osm kilometrů. Autobusy pojedou po objížďce a jejich spoje se zpozdí asi o deset minut.</p>
+<p class="status" id="stav">Stav k 8:00: most je uzavřen, objížďka je bez omezení.</p>
+<div id="dalsi"></div>
+<p><button type="button" class="more" id="nacist">Načíst další</button> <a class="next" id="dalsi-clanek" href="#">Další článek: Sběr nebezpečného odpadu</a></p>
+<section class="comments" id="komentare">
+<h2>Komentáře</h2>
+<div class="comment"><b>Jana</b><div>Díky za včasnou informaci, objížďku pojedu už v neděli.</div></div>
+<div class="comment"><b>Petr</b><div>Pojede školní autobus také po objížďce, nebo bude mít vlastní trasu?</div></div>
+</section>
+</article>
+</main>
+<aside>Nejčtenější: Hasiči slavili 120 let. Výsledky fotbalu. Pozvánka na ples.</aside>
+<footer>© Obec Lhota u Lesa. Úřední deska. Kontakty.</footer>
+<script>
+// A small page that keeps changing after it loaded, as many do: "load more", a status line the page updates, and the
+// next article shown in place (as a single-page app does). Each change waits for a click, so a test decides when.
+document.getElementById("nacist").addEventListener("click", function () {
+  var box = document.getElementById("dalsi");
+  box.insertAdjacentHTML("beforeend",
+    "<p>Řidiči nákladních aut nad dvanáct tun musí objíždět přes Vlašim, protože most v Poříčí je pro ně příliš slabý.</p>" +
+    "<p>Obec prosí rodiče, aby děti do školy v době uzavírky raději doprovázeli.</p>");
+});
+window.updateStatus = function () {
+  document.getElementById("stav").firstChild.nodeValue = "Stav k 9:00: na objížďce se tvoří kolona, počítejte se zdržením.";
+};
+document.getElementById("dalsi-clanek").addEventListener("click", function (e) {
+  e.preventDefault();
+  history.pushState({}, "", "#sber-odpadu");
+  document.getElementById("clanek").innerHTML =
+    "<h1>Sběr nebezpečného odpadu bude v sobotu na návsi</h1>" +
+    "<p>V sobotu od osmi do dvanácti hodin můžete na návsi odevzdat staré barvy, baterie, oleje a léky.</p>" +
+    "<p>Pneumatiky a stavební odpad sběrné auto nepřijme. Ty můžete odvézt do sběrného dvora v Benešově.</p>";
+});
+</script>
+</body>
+</html>

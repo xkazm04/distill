@@ -22,7 +22,8 @@
     "sidePanel",
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "offscreen"
   ],
   "optional_permissions": [
     "nativeMessaging"

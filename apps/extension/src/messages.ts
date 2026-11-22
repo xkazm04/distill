@@ -52,7 +52,10 @@ export type ContentRequest =
   /** From the caption: put these translations into the page, block by block; originals are kept (#10). */
   | { type: "distill:caption:translated"; blocks: TextBlock[] }
   /** From the caption: show the page's own words (true, "Keep Czech") or the translation again (false) (#10). */
-  | { type: "distill:caption:sourceText"; on: boolean };
+  | { type: "distill:caption:sourceText"; on: boolean }
+  /** From the caption once a translation is on the page: watch for text the page adds or rewrites later, and tell this
+   *  tab's frame how many blocks wait (CaptionMoreText) (#10). */
+  | { type: "distill:caption:watchText"; tabId: number };
 
 /** A block of the main text by its id (#10). `text` is page text or its translation: it never leaves the browser. */
 export interface TextBlock { id: string; text: string }
@@ -87,6 +90,15 @@ export interface CaptionUpdate { type: "distill:caption:update"; tabId: number; 
 export function isCaptionUpdate(m: unknown): m is CaptionUpdate {
   const x = m as Partial<CaptionUpdate> | null;
   return !!x && x.type === "distill:caption:update" && typeof x.tabId === "number" && !!x.report;
+}
+
+/** Content script -> the caption frame: the page added or rewrote text of its main column while a translation is on it
+ *  (#10). A count of blocks waiting, never their words: the frame asks distill:caption:blocks for them. */
+export interface CaptionMoreText { type: "distill:caption:moreText"; tabId: number; count: number }
+
+export function isCaptionMoreText(m: unknown): m is CaptionMoreText {
+  const x = m as Partial<CaptionMoreText> | null;
+  return !!x && x.type === "distill:caption:moreText" && typeof x.tabId === "number" && typeof x.count === "number";
 }
 
 /** What Clean did, for the caption's status line and "What was removed". Labels and kinds only: no page text. */
@@ -143,6 +155,7 @@ export interface ContentReplies {
   "distill:caption:blocks": TextBlock[];
   "distill:caption:translated": { applied: number };
   "distill:caption:sourceText": { ok: true };
+  "distill:caption:watchText": { ok: true };
 }
 
 /**

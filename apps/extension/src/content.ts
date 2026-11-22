@@ -11,7 +11,7 @@ import { playAgain } from "./caption/calm";
 import { setComfort } from "./caption/comfort";
 import { readContacts, showContact } from "./caption/contact";
 import { formProgress, nextField } from "./caption/formCheck";
-import { applyTranslation, showSource, textBlocks } from "./caption/translate";
+import { applyTranslation, showSource, textBlocks, watchText } from "./caption/translate";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -87,6 +87,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:caption:translated": return { applied: applyTranslation(req.blocks) };
     case "distill:caption:sourceText": showSource(req.on); return { ok: true };
+    case "distill:caption:watchText": watchText(req.tabId, caption.context); return { ok: true };
   }
 }
 

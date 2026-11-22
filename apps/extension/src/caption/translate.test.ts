@@ -1,8 +1,8 @@
 // Translate in place (#10), the page side: which blocks go, how a translation goes into the page node by node, and
 // that the page's own words come back exactly (Keep <language>, Original, close).
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CleanContext } from "./context";
-import { applyTranslation, clearTranslation, originalShown, showSource, spread, textBlocks, TRANSLATED } from "./translate";
+import { applyTranslation, clearTranslation, contactOnly, originalShown, showSource, spread, textBlocks, TRANSLATED, watchText } from "./translate";
 
 const PAGE = `
 <header><h1 id="h">Daňové přiznání 2026</h1><nav><a href="/">Úvod</a></nav></header>
@@ -59,7 +59,203 @@ describe("textBlocks", () => {
 
   it("answers the same blocks while the same Clean stands", () => {
     const ctx = setup();
-    expect(textBlocks(ctx)).toBe(textBlocks(ctx));
+    expect(textBlocks(ctx)).toEqual(textBlocks(ctx));
+  });
+
+  it("a later ask answers only what is still untranslated, and Stay clean reading the page again keeps the translation", () => {
+    const ctx = setup();
+    const blocks = textBlocks(ctx);
+    applyTranslation(blocks.slice(0, 3).map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+    // Stay clean (page.ts recheck) builds a new CleanContext for the same page.
+    const again = textBlocks({ ...ctx, body: [...ctx.body] });
+    expect(again.map((b) => b.id)).toEqual(blocks.slice(3).map((b) => b.id));
+    expect(document.getElementById("h")?.textContent).toBe("EN Daňové přiznání 2026");
+  });
+});
+
+describe("text the page adds later (watchText)", () => {
+  const sent: unknown[] = [];
+  beforeEach(() => {
+    sent.length = 0;
+    (globalThis as { chrome?: unknown }).chrome = { runtime: { sendMessage: (m: unknown) => { sent.push(m); return Promise.resolve(); } } };
+  });
+
+  /** The demo page, fully translated ("EN " + the words), and watched for tab 7. */
+  function translated(): { ctx: CleanContext; ids: string[] } {
+    const ctx = setup();
+    const blocks = textBlocks(ctx);
+    applyTranslation(blocks.map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+    watchText(7, () => ctx);
+    return { ctx, ids: blocks.map((b) => b.id) };
+  }
+  const settle = (ms = 1300) => new Promise((r) => setTimeout(r, ms));
+  const told = () => vi.waitFor(() => expect(sent).toHaveLength(1), { timeout: 4000 });
+
+  it("a paragraph added to the main column: the frame hears a count (never the words), then gets that block alone", async () => {
+    const { ctx, ids } = translated();
+    await settle(); // what changed while the first translation ran: nothing
+    expect(sent).toEqual([]);
+    const late = document.createElement("p");
+    late.id = "late";
+    late.textContent = "Další odstavec přišel až po načtení stránky.";
+    document.getElementById("main")?.append(late);
+    await told();
+    expect(sent[0]).toEqual({ type: "distill:caption:moreText", tabId: 7, count: 1 });
+    const more = textBlocks(ctx);
+    expect(more).toEqual([{ id: `t${ids.length}`, text: "Další odstavec přišel až po načtení stránky." }]);
+    expect(applyTranslation(more.map((b) => ({ id: b.id, text: "Another paragraph came later." })))).toBe(1);
+    expect(late.textContent).toBe("Another paragraph came later.");
+    expect(late.getAttribute("lang")).toBe("en");
+    showSource(true);
+    expect(late.textContent).toBe("Další odstavec přišel až po načtení stránky.");
+    showSource(false);
+    await settle();
+    expect(sent).toHaveLength(1); // Distill's own writes did not wake it
+  });
+
+  it("a box the page loads beside the main column later (a widget, a teaser) is not the main text and is left alone", async () => {
+    translated();
+    const widget = document.createElement("section");
+    widget.innerHTML = "<h2>Video pro vás</h2><p>Pořídili si emu. Z pruhovaných ptáčat vyrostli opeření obři, kteří milují mazlení.</p>";
+    document.querySelector("main")?.after(widget);
+    await settle(1500);
+    expect(sent).toEqual([]);
+    expect(widget.textContent).not.toContain("EN ");
+  });
+
+  it("a block the page rewrote after its translation is translated again; Keep Czech shows the page's new words", async () => {
+    const { ctx } = translated();
+    const h2 = document.getElementById("h2") as HTMLElement;
+    expect(h2.textContent).toBe("EN Co budete potřebovat");
+    (h2.firstChild as Text).nodeValue = "Co si připravit předem";
+    await told();
+    const more = textBlocks(ctx);
+    expect(more.map((b) => b.text)).toEqual(["Co si připravit předem"]);
+    applyTranslation(more.map((b) => ({ id: b.id, text: "What to prepare first" })));
+    expect(h2.textContent).toBe("What to prepare first");
+    showSource(true);
+    expect(h2.textContent).toBe("Co si připravit předem"); // the new original, not the old one
+    originalShown(true);
+    showSource(false);
+    expect(h2.textContent).toBe("Co si připravit předem");
+    originalShown(false);
+    expect(h2.textContent).toBe("What to prepare first");
+    clearTranslation();
+    expect(h2.textContent).toBe("Co si připravit předem");
+    expect(h2.hasAttribute("lang")).toBe(false);
+  });
+
+  it("the page writing a block's old words again gets the translation back without asking the model", async () => {
+    translated();
+    const li = document.querySelector("#list li") as HTMLElement;
+    (li.firstChild as Text).nodeValue = "Občanský průkaz";
+    await settle(1500);
+    expect(li.textContent).toBe("EN Občanský průkaz");
+    expect(sent).toEqual([]);
+  });
+
+  it("Keep Czech, Original and their way back never wake it; text added meanwhile waits for the translation to show", async () => {
+    translated();
+    showSource(true);
+    showSource(false);
+    originalShown(true);
+    originalShown(false);
+    await settle();
+    expect(sent).toEqual([]);
+    showSource(true);
+    const late = document.createElement("li");
+    late.textContent = "Výpis z účtu";
+    document.getElementById("list")?.append(late);
+    await settle();
+    expect(sent).toEqual([]); // the page shows its own words: nothing to translate into it now
+    showSource(false);
+    await told();
+    expect(sent[0]).toMatchObject({ count: 1 });
+  });
+
+  it("a box the person brought back from More (comments) is translated, one block per comment", async () => {
+    const ctx = setup();
+    const comments = document.createElement("section");
+    comments.className = "comments";
+    comments.setAttribute("data-distill-hide", "c0");
+    comments.innerHTML = `<h3>Komentáře</h3><div class="c"><b>Jana</b><div>Díky za návod, ušetřil mi čas.</div></div>
+      <div class="c"><b>Petr</b><div>Kde najdu formulář pro rok 2025?</div></div>`;
+    document.querySelector("main")?.after(comments);
+    const live = { ...ctx, removed: new Map([["c0", comments as Element]]) };
+    const blocks = textBlocks(live);
+    expect(blocks.map((b) => b.text).join(" ")).not.toContain("Díky");
+    applyTranslation(blocks.map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+    watchText(7, () => live);
+    comments.removeAttribute("data-distill-hide");
+    await told();
+    expect(textBlocks(live).map((b) => b.text)).toEqual(["Komentáře", "Jana", "Díky za návod, ušetřil mi čas.", "Petr", "Kde najdu formulář pro rok 2025?"]);
+  });
+
+  it("a block the page keeps rewriting (a live counter) is translated three times, then left in the page's words", async () => {
+    const { ctx } = translated();
+    const h2 = document.getElementById("h2") as HTMLElement;
+    let asked = 0;
+    for (let round = 1; round <= 5; round++) {
+      (h2.firstChild as Text).nodeValue = `Aktualizováno před ${round} minutami`;
+      await settle();
+      const more = textBlocks(ctx);
+      asked += more.length;
+      applyTranslation(more.map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+    }
+    expect(asked).toBe(3);
+    expect(sent).toHaveLength(3);
+    expect(h2.textContent).toBe("Aktualizováno před 5 minutami");
+    expect(h2.hasAttribute(TRANSLATED)).toBe(false);
+  }, 15_000);
+
+  it("stops watching on close", async () => {
+    translated();
+    clearTranslation();
+    document.getElementById("main")?.append(Object.assign(document.createElement("p"), { textContent: "Ještě jeden odstavec." }));
+    await settle();
+    expect(sent).toEqual([]);
+  });
+});
+
+describe("contact details only: nothing to translate", () => {
+  it("a contact label around numbers, e-mails or a web address is skipped (Czech, German, English)", () => {
+    for (const t of [
+      "tel.: 549 211 296, 541 246 631", // Dymáček, live 2026-11-21
+      "Tel./Fax: +420 377 912 345",
+      "mobil: 602 123 456 a 777 654 321",
+      "IČO: 12345678, DIČ: CZ12345678",
+      "e-mail: servis@dymacek.cz",
+      "č. ú.: 123456789/0100",
+      "www.dymacek.cz",
+      "Telefon: 089 123 45 67, E-Mail: info@werkstatt-beispiel.de",
+      "USt-IdNr.: DE123456789",
+      "Handy 0171 1234567 oder 0172 7654321",
+      "Phone: (555) 010-0199 or e-mail office@example.com",
+      "https://www.example.org/kontakt",
+    ]) expect(contactOnly(t), t).toBe(true);
+  });
+
+  it("a sentence that holds a number or an address keeps its own words and is translated", () => {
+    for (const t of [
+      "Volejte 549 211 296 ve všední dny od 8 do 16 hodin.",
+      "Rufen Sie uns unter 089 123 45 67 an.",
+      "Call us on 555 0199 for an appointment.",
+      "Adresa: Hlavní 12, 664 34 Kuřim",
+      "Kontakt",
+      "2026",
+    ]) expect(contactOnly(t), t).toBe(false);
+  });
+
+  it("textBlocks leaves a contact line out and keeps the sentence beside it", () => {
+    document.documentElement.setAttribute("lang", "cs");
+    document.body.innerHTML = `<main><p id="a">Opravujeme osobní i užitková auta všech značek.</p>
+      <p id="b">tel.: 549 211 296, 541 246 631</p><p id="c">Volejte 549 211 296 ve všední dny.</p></main>`;
+    const body = ["a", "b", "c"].map((id) => document.getElementById(id) as Element);
+    const ctx: CleanContext = { doc: document, win: window, keep: body, body, main: document.querySelector("main"), protect: [], removed: new Map() };
+    expect(textBlocks(ctx).map((b) => b.text)).toEqual([
+      "Opravujeme osobní i užitková auta všech značek.",
+      "Volejte 549 211 296 ve všední dny.",
+    ]);
   });
 });
 

@@ -5,8 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseTranslation, prompts, schemas, type InferenceSource } from "@distill/engine";
 import { aiAvailable, run, toAiError, type AiFailure, type RunResult } from "@distill/web/ai";
-import type { CleanReport, TextBlock } from "../../messages";
-import { send } from "./send";
+import { isCaptionMoreText, type CleanReport, type TextBlock } from "../../messages";
+import { deviceModelBlocked, runOffscreen } from "../../offscreen/client";
+import { send, tabId } from "./send";
 import { langName } from "./status";
 
 export interface TranslateState {
@@ -27,6 +28,8 @@ export interface TranslateState {
   problem?: string;
   /** Why it ran where it ran (the Sieve's words), for the chip's title. */
   reason?: string;
+  /** The page forbids the on-device model in frames: the AI ran in Distill's offscreen document instead. */
+  via?: "offscreen";
 }
 
 export interface Translate { state: TranslateState; keepSource(on: boolean): Promise<void> }
@@ -78,9 +81,14 @@ export interface TranslateRun {
   dropped: number;
   source?: InferenceSource;
   reason?: string;
+  /** Some call ran in the offscreen document (the page forbids the on-device model in frames). */
+  via?: "offscreen";
   /** Set when a call failed after some blocks were already on the page. */
   error?: unknown;
 }
+
+/** A run's answer, and whether it came through the offscreen document. */
+export type TranslateCall = RunResult<unknown> & { via?: "offscreen" };
 
 /** Where the whole translation ran: "on device" only if every call ran there. */
 export function overallSource(sources: readonly InferenceSource[]): InferenceSource | undefined {
@@ -94,13 +102,13 @@ export function overallSource(sources: readonly InferenceSource[]): InferenceSou
  */
 export async function translateBlocks(
   blocks: readonly TextBlock[], from: string, to: string,
-  call: (prompt: string, batch: TextBlock[]) => Promise<RunResult<unknown>>,
+  call: (prompt: string, batch: TextBlock[]) => Promise<TranslateCall>,
   put: (blocks: TextBlock[]) => Promise<number>,
 ): Promise<TranslateRun> {
   const out: TranslateRun = { translated: 0, total: blocks.length, dropped: 0 };
   const sources: InferenceSource[] = [];
   for (const batch of batches(blocks)) {
-    let r: RunResult<unknown>;
+    let r: TranslateCall;
     try {
       r = await call(prompts.translateBlocks(batch, to, from), batch);
     } catch (e) {
@@ -112,6 +120,7 @@ export async function translateBlocks(
     out.dropped += t.dropped;
     sources.push(r.source);
     out.reason = r.reason;
+    if (r.via) out.via = r.via;
     if (t.blocks.length) out.translated += await put(t.blocks);
   }
   out.source = overallSource(sources);
@@ -134,7 +143,15 @@ async function e2eFake(): Promise<E2eFake | null> {
   } catch { return null; }
 }
 
-async function runTranslate(prompt: string, batch: TextBlock[]): Promise<RunResult<unknown>> {
+async function runTranslate(prompt: string, batch: TextBlock[]): Promise<TranslateCall> {
+  // The page forbids the on-device model in this frame (docs/caption.md, risk 1): the same run, in Distill's offscreen
+  // document, where no site's policy reaches. An e2e build hands its stand-in model's switch along (the document cannot
+  // read chrome.storage.session); every other build passes nothing.
+  if (deviceModelBlocked()) {
+    const fake = import.meta.env.MODE === "e2e" ? await e2eFake() : null;
+    const r = await runOffscreen<unknown>("translateBlocks", prompt, schemas.translate, { blocks: batch }, fake ?? undefined);
+    return { ...r, via: "offscreen" };
+  }
   if (import.meta.env.MODE === "e2e") {
     const fake = await e2eFake();
     if (fake) {
@@ -160,6 +177,13 @@ async function canRun(): Promise<boolean> {
 export function useTranslate(report: CleanReport | null): Translate {
   const [state, setState] = useState<TranslateState>({ phase: "idle", showingSource: false });
   const started = useRef(false);
+  const now = useRef(state);
+  now.current = state;
+  /** Later runs (text the page added): one at a time, the ids handed over so far, where each run ran. */
+  const later = useRef({ busy: false, again: false, seen: new Set<string>(), sources: [] as InferenceSource[] });
+
+  const put = useCallback(async (b: TextBlock[]) =>
+    (await send<"distill:caption:translated">({ type: "distill:caption:translated", blocks: b })).applied, []);
 
   useEffect(() => {
     if (!report || started.current || !wantsTranslation(report)) return;
@@ -171,8 +195,6 @@ export function useTranslate(report: CleanReport | null): Translate {
       const blocks = await send<"distill:caption:blocks">({ type: "distill:caption:blocks" }).catch(() => [] as TextBlock[]);
       if (!blocks.length) return; // nothing of the main text to translate: the status keeps "Page in <language>"
       setState((s) => ({ ...s, phase: "translating", from, to, total: blocks.length }));
-      const put = async (b: TextBlock[]) =>
-        (await send<"distill:caption:translated">({ type: "distill:caption:translated", blocks: b })).applied;
       try {
         const r = await translateBlocks(blocks, from, to, runTranslate, put);
         if (!r.translated) {
@@ -180,14 +202,55 @@ export function useTranslate(report: CleanReport | null): Translate {
           return;
         }
         if (r.error) console.warn("[distill] Translate stopped part way:", r.error);
+        blocks.forEach((b) => later.current.seen.add(b.id));
+        if (r.source) later.current.sources.push(r.source);
         setState((s) => ({
           ...s, phase: "done", source: r.source, reason: r.reason, translated: r.translated, total: r.total, dropped: r.dropped,
+          ...(r.via ? { via: r.via } : {}),
         }));
+        // From now on, text the page adds or rewrites is translated too (the page side counts it and tells this frame).
+        void send({ type: "distill:caption:watchText", tabId }).catch(() => undefined);
       } catch (e) {
         setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
       }
     })();
-  }, [report]);
+  }, [report, put]);
+
+  /** The page added or rewrote text: translate the blocks still waiting, the same way, while the translation shows. */
+  const translateMore = useCallback(async () => {
+    const run = later.current;
+    if (run.busy) { run.again = true; return; }
+    run.busy = true;
+    try {
+      do {
+        run.again = false;
+        const s = now.current;
+        if (s.phase !== "done" || s.showingSource || !s.from || !s.to) return;
+        const blocks = await send<"distill:caption:blocks">({ type: "distill:caption:blocks" }).catch(() => [] as TextBlock[]);
+        if (!blocks.length) continue;
+        blocks.forEach((b) => run.seen.add(b.id));
+        try {
+          const r = await translateBlocks(blocks, s.from, s.to, runTranslate, put);
+          if (r.error) console.warn("[distill] Translate stopped part way on the page's new text:", r.error);
+          if (r.source) run.sources.push(r.source);
+          setState((p) => ({
+            ...p, translated: (p.translated ?? 0) + r.translated, total: run.seen.size, dropped: (p.dropped ?? 0) + r.dropped,
+            source: overallSource(run.sources) ?? p.source, reason: r.reason ?? p.reason, ...(r.via ? { via: r.via } : {}),
+          }));
+        } catch (e) {
+          console.warn("[distill] Translate could not translate the page's new text:", e);
+        }
+      } while (run.again);
+    } finally {
+      run.busy = false;
+    }
+  }, [put]);
+
+  useEffect(() => {
+    const onMessage = (m: unknown) => { if (isCaptionMoreText(m) && m.tabId === tabId) void translateMore(); };
+    chrome.runtime.onMessage.addListener(onMessage);
+    return () => chrome.runtime.onMessage.removeListener(onMessage);
+  }, [translateMore]);
 
   const keepSource = useCallback(async (on: boolean) => {
     await send({ type: "distill:caption:sourceText", on });
@@ -197,12 +260,16 @@ export function useTranslate(report: CleanReport | null): Translate {
   return { state, keepSource };
 }
 
+/** Why the AI ran in Distill's offscreen document, for the chip's title. */
+export const OFFSCREEN_WORDS = "This site blocks on-device AI inside frames, so Distill ran it in a hidden page of its own.";
+
 /** The source chip: "No AI used" until a translation is on the page, then where it ran. `data` carries Translate's
  *  phase and counts (no text) for the live run to read. */
 export function sourceChip(state: TranslateState): { src: "none" | InferenceSource; text: string; title: string; data: Record<string, string> } {
   const data: Record<string, string> = { "data-translate": state.phase };
   if (state.total !== undefined) data["data-blocks"] = `${state.translated ?? 0}/${state.total}`;
   if (state.dropped) data["data-dropped"] = String(state.dropped);
+  if (state.via) data["data-via"] = state.via;
   if (state.phase !== "done" || !state.source) {
     return { src: "none", text: "No AI used", title: "Clean reads the page's own structure on this device. No AI is used and nothing is sent anywhere.", data };
   }
@@ -211,7 +278,7 @@ export function sourceChip(state: TranslateState): { src: "none" | InferenceSour
     data,
     src: state.source,
     text: state.source === "on_device" ? "On this device" : state.source === "in_cloud" ? "In the cloud" : "Your agent",
-    title: `The translation from ${langName(state.from ?? "und")} ran ${where}${state.source === "in_cloud" ? " (the page's text was sent, nothing of yours)" : ""}. ${state.reason ?? ""} Clean used no AI.`.replace(/\s+/g, " ").trim(),
+    title: `The translation from ${langName(state.from ?? "und")} ran ${where}${state.source === "in_cloud" ? " (the page's text was sent, nothing of yours)" : ""}. ${state.reason ?? ""} ${state.via === "offscreen" ? OFFSCREEN_WORDS : ""} Clean used no AI.`.replace(/\s+/g, " ").trim(),
   };
 }
 
