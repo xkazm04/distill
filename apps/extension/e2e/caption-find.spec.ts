@@ -127,6 +127,9 @@ test("caption find: Ready to send? counts the form, jumps to the next empty requ
   await tab.page.fill("#telefon", "777 000 111");
   await tab.page.fill("#misto", "Hlavní, sloup č. 14");
   await tab.page.fill("#popis", "Lampa nesvítí od pondělí.");
+  // The strip sits over the bottom of the window; Playwright scrolls a control only just into view, where the strip
+  // can be over it and take the click (it failed 1 run in 3). A person scrolls it clear: so does the test.
+  await tab.page.locator("#souhlas").evaluate((el) => el.scrollIntoView({ block: "center" }));
   await tab.page.check("#souhlas");
   await refocus(frame);
   await expect(frame.getByTestId("cap-form-done")).toHaveText("Form complete");
