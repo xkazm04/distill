@@ -143,10 +143,22 @@ function kindByTokens(el: Element): ClutterKind | null {
   const toks = tokens(el);
   const joined = `-${toks.join("-")}-`;
   for (const [kind, re] of WIDGETS) if (re.test(joined)) return kind;
-  for (const [kind, re] of TOKENS) if (toks.some((t) => re.test(t))) return kind;
+  for (const [kind, re] of TOKENS) {
+    if (!toks.some((t) => re.test(t))) continue;
+    // "Subscribe" alone is also a channel's or a calendar's button: a sign-up has a field to type an address into.
+    if (kind === "newsletter" && !toks.some((t) => NEWSLETTER_WORD.test(t)) && !takesAddress(el)) continue;
+    return kind;
+  }
   if (tag(el) === "iframe" && AD_HOSTS.test(attr(el, "src"))) return "ad";
   return null;
 }
+
+/** Words that say newsletter outright; "subscribe" and "signup" only do with a field to type into. */
+const NEWSLETTER_WORD = /^(newsletter|newsletters|odber)$/;
+
+/** The box asks for an address: an e-mail or text field, or a form. */
+const takesAddress = (el: Element): boolean =>
+  tag(el) === "form" || !!el.querySelector("form, input[type=email], input[type=text], input:not([type])");
 
 function kindByRole(el: Element): ClutterKind | null {
   const t = tag(el);
@@ -182,7 +194,11 @@ const shortText = (el: Element): string => collapse(textStart(el, 600).slice(0, 
 function kindByText(el: Element): ClutterKind | null {
   const text = shortText(el);
   if (!text || text.length >= 600) return null;
-  for (const [kind, re] of TEXT_KINDS) if (re.test(text)) return kind;
+  for (const [kind, re] of TEXT_KINDS) {
+    if (!re.test(text)) continue;
+    if (kind === "newsletter" && !/newsletter/i.test(text) && !takesAddress(el)) continue;
+    return kind;
+  }
   return null;
 }
 

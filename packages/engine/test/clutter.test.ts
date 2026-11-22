@@ -334,3 +334,22 @@ describe("findClutter: a very large page", () => {
     expect(all.items.map((i) => i.kind)).toEqual(["other", "cookie", "cookie", "header", "sidebar", "newsletter", "footer"]);
   });
 });
+
+describe("a Subscribe button is not a newsletter sign-up", () => {
+  it("leaves a channel's Subscribe button, takes a sign-up box with a field", () => {
+    const doc = parse(`<!doctype html><html lang="en"><body>
+      <main><h1>Potato pancakes</h1>
+        <p>${"A long description of how to make potato pancakes at home, with grated potatoes and garlic. ".repeat(4)}</p>
+        <div class="owner"><a href="/c/chef">Chef</a><div id="subscribe-button"><button>Subscribe</button></div></div>
+        <p>${"Fry them in lard until golden on both sides, then serve with sauerkraut. ".repeat(4)}</p>
+        <div class="subscribe"><p>Get our recipes every week</p><input type="email" placeholder="E-mail"><button>Subscribe</button></div>
+      </main></body></html>`);
+    const keep: Element[] = [];
+    extractPage(doc, "https://example.org/watch", { onSource: (_id, el) => keep.push(el) });
+    const kinds: [string, string][] = [];
+    findClutter(doc, { keep, onElement: (id, el) => kinds.push([el.className || el.id, id]) });
+    const names = kinds.map(([n]) => n);
+    expect(names).not.toContain("subscribe-button");
+    expect(names).toContain("subscribe");
+  });
+});
