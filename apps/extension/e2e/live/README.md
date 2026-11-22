@@ -9,7 +9,12 @@ made-up pages; this runs real ones. See `docs/caption.md` for the plan and the q
 npm run e2e:live -w @distill/extension                       # every site in sites.json
 E2E_LIVE_SITES=news npm run e2e:live -w @distill/extension    # one use case (news, form, video, company) or site ids
 E2E_HEADED=1 npm run e2e:live -w @distill/extension           # watch it
+E2E_PROBES=1 npm run e2e:live -w @distill/extension           # also the per-feature probes (live/probes/), minutes more
 ```
+
+The probes under `live/probes/` measure one round-1 feature each (layout, motion, find, translate) on the sites they
+name, before and after, and save their screenshots and `metrics.json` under `e2e/out/live/probes/<feature>/`. They run
+only with `E2E_PROBES=1`, or when named: `npx playwright test -c e2e/playwright.live.config.ts probes/find`.
 
 It builds the e2e extension (the same `dist-e2e` that `npm run e2e` uses) and opens each site in Playwright's Chromium,
 with the locale `cs-CZ`, at 1440x900.

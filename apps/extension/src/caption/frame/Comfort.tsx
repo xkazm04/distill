@@ -25,7 +25,7 @@ export function ComfortSection(props: { report: CleanReport; setReport: (r: Clea
   return (
     <section aria-labelledby="cap-comfort-h" data-testid="cap-comfort-section">
       <h2 id="cap-comfort-h">Reading</h2>
-      <p className="note">Larger, darker text on {known === 1 ? "1 part" : `${known} parts`} of the page</p>
+      <p className="note">Easier-to-read text on {known === 1 ? "1 part" : `${known} parts`} of the page</p>
       <label className="switch">
         <input type="checkbox" role="switch" checked={on} disabled={busy} onChange={(e) => void toggle(e.currentTarget.checked)}
           data-testid="cap-comfort" />

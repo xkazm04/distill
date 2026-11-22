@@ -160,7 +160,7 @@ test("caption comfort: tiny grey text on long lines becomes 16 px, AA contrast a
   await frame.getByTestId("cap-more-btn").click();
   const section = frame.getByTestId("cap-comfort-section");
   await expect(section).toContainText("Reading");
-  await expect(section).toContainText(`Larger, darker text on ${after.marked} parts of the page`);
+  await expect(section).toContainText(`Easier-to-read text on ${after.marked} parts of the page`);
   const sw = frame.getByTestId("cap-comfort");
   await expect(sw).toBeChecked();
   await expect(frame.getByLabel("Easier to read")).toBeVisible();
