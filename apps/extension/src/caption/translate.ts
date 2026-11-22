@@ -63,6 +63,40 @@ function inLang(text: string, target: string): boolean {
   return words.filter((w) => EN_COMMON.has(w)).length / words.length >= 0.25;
 }
 
+/** Words that only name a way to reach someone (Czech, German, English, and the common short forms), and the words that
+ *  join two numbers. A block of these around numbers, e-mails and web addresses reads the same in any language. */
+const CONTACT_WORDS = new Set([
+  "tel", "telefon", "telefonní", "číslo", "mobil", "mob", "gsm", "fax", "e-mail", "email", "mail", "web", "www", "ičo",
+  "ič", "dič", "adresa", "kontakt", "č", "ú", "účet", "účtu", "a", "nebo",
+  "handy", "mobiltelefon", "adresse", "anschrift", "ust-idnr", "ust-id", "steuernr", "steuernummer", "internet", "und", "oder",
+  "phone", "telephone", "mobile", "cell", "address", "website", "vat", "and", "or",
+].map((w) => w.normalize("NFC")));
+const JOINERS = new Set(["a", "nebo", "und", "oder", "and", "or"]);
+
+/**
+ * True when a block holds nothing to translate but contact details: its only words are contact labels ("tel.", "IČO",
+ * "E-Mail") around phone numbers, e-mails or web addresses ("tel.: 549 211 296, 541 246 631"). A sentence that holds a
+ * number ("Volejte 549 211 296 ve všední dny") has words of its own and is translated.
+ */
+export function contactOnly(text: string): boolean {
+  const rest = text
+    .replace(/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu, " ") // e-mails
+    .replace(/\b(?:https?:\/\/|www\.)\S+/giu, " ") // web addresses
+    .replace(/[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.(?:cz|sk|de|at|ch|com|org|net|eu|info|biz)\b\S*/giu, " "); // bare domains
+  const reached = rest !== text;
+  const tokens = rest.toLowerCase().normalize("NFC").split(/[^\p{L}\p{N}-]+/u).filter(Boolean);
+  let numbers = 0;
+  let labels = 0;
+  for (const t of tokens) {
+    if (/\d/.test(t)) { numbers++; continue; } // a number, a VAT id like CZ12345678
+    const w = t.replace(/^-+|-+$/g, "");
+    if (!CONTACT_WORDS.has(w)) return false;
+    if (!JOINERS.has(w)) labels++;
+  }
+  // An e-mail or a web address, or a label with its number. A lone "Kontakt" is a heading and is translated.
+  return reached || (numbers > 0 && labels > 0);
+}
+
 /** Text nodes inside `root` that may be translated, in document order. */
 function textNodes(root: Element): Text[] {
   const doc = root.ownerDocument;
@@ -133,7 +167,8 @@ export function textBlocks(ctx: CleanContext): TextBlock[] {
   const list: TextBlock[] = [];
   for (const [el, nodes] of byOwner) {
     const source = wordsOf(nodes);
-    if (!/\p{L}/u.test(source) || inLang(source, target)) continue; // numbers only, or already in the reader's language
+    // Numbers only, contact details only ("tel.: 549 211 296"), or already in the reader's language.
+    if (!/\p{L}/u.test(source) || contactOnly(source) || inLang(source, target)) continue;
     const id = `t${units.size}`;
     units.set(id, { id, el, nodes, source });
     list.push({ id, text: source });

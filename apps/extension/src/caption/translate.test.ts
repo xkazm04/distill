@@ -2,7 +2,7 @@
 // that the page's own words come back exactly (Keep <language>, Original, close).
 import { afterEach, describe, expect, it } from "vitest";
 import type { CleanContext } from "./context";
-import { applyTranslation, clearTranslation, originalShown, showSource, spread, textBlocks, TRANSLATED } from "./translate";
+import { applyTranslation, clearTranslation, contactOnly, originalShown, showSource, spread, textBlocks, TRANSLATED } from "./translate";
 
 const PAGE = `
 <header><h1 id="h">Daňové přiznání 2026</h1><nav><a href="/">Úvod</a></nav></header>
@@ -60,6 +60,48 @@ describe("textBlocks", () => {
   it("answers the same blocks while the same Clean stands", () => {
     const ctx = setup();
     expect(textBlocks(ctx)).toBe(textBlocks(ctx));
+  });
+});
+
+describe("contact details only: nothing to translate", () => {
+  it("a contact label around numbers, e-mails or a web address is skipped (Czech, German, English)", () => {
+    for (const t of [
+      "tel.: 549 211 296, 541 246 631", // Dymáček, live 2026-11-21
+      "Tel./Fax: +420 377 912 345",
+      "mobil: 602 123 456 a 777 654 321",
+      "IČO: 12345678, DIČ: CZ12345678",
+      "e-mail: servis@dymacek.cz",
+      "č. ú.: 123456789/0100",
+      "www.dymacek.cz",
+      "Telefon: 089 123 45 67, E-Mail: info@werkstatt-beispiel.de",
+      "USt-IdNr.: DE123456789",
+      "Handy 0171 1234567 oder 0172 7654321",
+      "Phone: (555) 010-0199 or e-mail office@example.com",
+      "https://www.example.org/kontakt",
+    ]) expect(contactOnly(t), t).toBe(true);
+  });
+
+  it("a sentence that holds a number or an address keeps its own words and is translated", () => {
+    for (const t of [
+      "Volejte 549 211 296 ve všední dny od 8 do 16 hodin.",
+      "Rufen Sie uns unter 089 123 45 67 an.",
+      "Call us on 555 0199 for an appointment.",
+      "Adresa: Hlavní 12, 664 34 Kuřim",
+      "Kontakt",
+      "2026",
+    ]) expect(contactOnly(t), t).toBe(false);
+  });
+
+  it("textBlocks leaves a contact line out and keeps the sentence beside it", () => {
+    document.documentElement.setAttribute("lang", "cs");
+    document.body.innerHTML = `<main><p id="a">Opravujeme osobní i užitková auta všech značek.</p>
+      <p id="b">tel.: 549 211 296, 541 246 631</p><p id="c">Volejte 549 211 296 ve všední dny.</p></main>`;
+    const body = ["a", "b", "c"].map((id) => document.getElementById(id) as Element);
+    const ctx: CleanContext = { doc: document, win: window, keep: body, body, main: document.querySelector("main"), protect: [], removed: new Map() };
+    expect(textBlocks(ctx).map((b) => b.text)).toEqual([
+      "Opravujeme osobní i užitková auta všech značek.",
+      "Volejte 549 211 296 ve všední dny.",
+    ]);
   });
 });
 
