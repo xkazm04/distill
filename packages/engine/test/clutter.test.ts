@@ -151,6 +151,60 @@ describe("findClutter", () => {
   });
 });
 
+/** G11: the page reader took loose text from a box (a bare text node in an <article>), so that box is content; what
+ *  names itself plainly inside it still goes, as inside the main column, as long as it holds none of the content. */
+describe("findClutter: clutter inside a box the page reader read text from", () => {
+  const LONG = "The council said on Monday that the tram line to the hospital opens in June, with a stop every four minutes at rush hour, and that the old bus line will run on until the end of the summer.";
+  /** An article with a bare line of text of its own (so the page reader takes the article itself in), around `inner`. */
+  const page = (inner: string, articleAttrs = "") => `<!doctype html><html lang="en"><body>
+    <nav><a href="/">Home</a> <a href="/city">City</a></nav>
+    <article${articleAttrs}><h1>The tram line opens in June</h1>
+      By the city desk, 12 May 2026. ${LONG}
+      <p>${LONG} Tickets stay at the same price for now, the transport office said.</p>
+      ${inner}
+      <p>${LONG} Cyclists will get a new lane along the line by the autumn.</p>
+      <p>${LONG} The works on Mill Street end a week before the opening.</p>
+    </article>
+    <footer>Copyright The Ledger</footer></body></html>`;
+
+  it("takes an ad, a share bar, a sign-up and a back-to-top link from inside it", () => {
+    const doc = parse(page([
+      '<div class="share-bar"><a href="#">Share on X</a> <a href="#">Share on Facebook</a></div>',
+      '<div class="ad-slot"><span>Advertisement</span><p>Garden furniture sale: 30% off this weekend only.</p></div>',
+      '<div class="newsletter-box"><p>Get the city newsletter every Friday.</p><button>Sign up</button></div>',
+      '<div class="totop"><a href="#top">Back to top</a></div>',
+    ].join("")));
+    const { items, els } = clean(doc);
+    // The article is content (the page reader read its own line of text), and stays.
+    expect([...els.values()].some((el) => el.localName === "article" || el.querySelector("article"))).toBe(false);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "share", "ad", "newsletter", "backToTop", "footer"]);
+  });
+
+  it("keeps an inline 'Advertisement' word in its text and in a paragraph", () => {
+    const doc = parse(page('<p>Every shop on the line can show an <b>Advertisement</b> in the stops, the office said, at a price set by the council.</p>')
+      .replace("By the city desk", "<span>Advertisement</span> By the city desk"));
+    const { items, els } = clean(doc);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "footer"]);
+    expect([...els.values()].some((el) => el.closest("article"))).toBe(false);
+  });
+
+  it("keeps the box itself when it is the running text, whatever it calls itself, and keeps a box holding the main video", () => {
+    const doc = parse(page('<div class="player ad-showing"><video src="/v.mp4"></video></div><div class="share"><a href="#">Share</a></div>', ' class="post comments-open"'));
+    const { keep, body } = contentOf(doc);
+    const video = doc.querySelector("video") as Element;
+    const els = new Map<string, Element>();
+    const items = findClutter(doc, { keep, body, protect: [video], onElement: (id, el) => els.set(id, el) });
+    expect(items.map((i) => i.kind)).toEqual(["menu", "share", "footer"]);
+    for (const el of els.values()) { expect(el.contains(video)).toBe(false); expect(el.localName).not.toBe("article"); }
+  });
+
+  it("never looks inside a box of running text with no blocks of its own (a paragraph)", () => {
+    const doc = parse(page('<p>The office will put up a notice <span class="ad">sponsored by the tram company</span> at every stop before the opening day.</p>'));
+    const { items } = clean(doc);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "footer"]);
+  });
+});
+
 /** Things that float over the page (#4). `box` plays the browser: where each fixed box sits in a 1440x900 window. */
 describe("findClutter: things that float over the page", () => {
   const WIN = { winWidth: 1440, winHeight: 900 };

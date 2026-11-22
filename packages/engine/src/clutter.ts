@@ -2,7 +2,7 @@
 // page.ts: it never changes the page. The caller (the extension's content script) hides what this returns, lists it
 // in "What was removed", and can bring each item back. Layout facts (is it on screen, is it fixed) come from the caller,
 // because only a browser knows them; the defaults read attributes and inline styles, which is what a test document has.
-import { SKIP_TAGS, attr, collapse, isHidden, tag } from "./dom.js";
+import { BLOCKISH, SKIP_TAGS, attr, collapse, isHidden, isNoise, tag } from "./dom.js";
 
 export type ClutterKind =
   | "cookie" | "popup" | "ad" | "menu" | "header" | "sidebar" | "footer" | "comments" | "related" | "share" | "newsletter"
@@ -262,7 +262,9 @@ function commonAncestor(a: Element, b: Element): Element {
  * 3. inside the main column, only boxes that announce themselves as clutter (ads, share bars, comments, related).
  * Nothing that holds a `keep` element is returned, with one exception: a box inside the main column that names itself
  * comments, related links, an ad, a share bar, a sign-up or a cookie notice, and holds less than half of the running
- * text (`body`) or is mostly links without the headline. Nothing that holds a `protect` element is ever returned. With no `keep` there is nothing to protect, so nothing is returned.
+ * text (`body`) or is mostly links without the headline. Inside a `keep` element that has blocks of its own, only such
+ * a self-named block that holds no content goes. Nothing that holds a `protect` element is ever returned. With no
+ * `keep` there is nothing to protect, so nothing is returned.
  */
 export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] {
   const body = doc.body;
@@ -319,11 +321,27 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   // its menu IS the way to its content. There only what announces itself goes, as inside a main column.
   // A page that holds a form or a video is there for it, not navigated: never thin.
   const thin = total < THIN_PAGE && protect.length === 0;
-  /** `strongOnly`: on a thin page only what names itself plainly (ads, cookie notices, share bars...) goes. */
-  const scanInside = (el: Element, strongOnly = false): void => {
+  /** `strongOnly`: on a thin page only what names itself plainly (ads, cookie notices, share bars...) goes. `inRead`:
+   *  `el` sits inside a box the page reader read text from, and holds none of its content (it is off the chain). */
+  const scanInside = (el: Element, strongOnly = false, inRead = false): void => {
     const kind = looksLikeClutter(el);
-    if (kind && (!strongOnly || STRONG.has(kind))) { if (eligible(el)) add(el, kind); return; }
-    for (const c of Array.from(el.children)) if (!SILENT.has(tag(c))) scanInside(c, strongOnly);
+    if (kind && (!strongOnly || STRONG.has(kind))) {
+      if (inRead ? !chain.has(el) && hasSubstance(el) && shown(el) : eligible(el)) add(el, kind);
+      return;
+    }
+    for (const c of Array.from(el.children)) if (!SILENT.has(tag(c))) scanInside(c, strongOnly, inRead);
+  };
+  // A box the page reader read text from (an <article> with a bare line of text of its own, a box around an inline
+  // <marquee>) is content, and so is all of it; but what names itself plainly among its blocks (an ad, a share bar, a
+  // sign-up) still goes, as inside the main column. Only its blocks and what the reader skipped as noise: what the
+  // reader ran into the box's own text (an inline "Advertisement" word) is that text. A box with no blocks of its own
+  // (a paragraph) is text only. A block that holds any content is on the chain, so it never goes this way.
+  const scanRead = (e: Element): void => {
+    if (keep.has(e) && !Array.from(e.children).some((c) => BLOCKISH.has(tag(c)))) return;
+    for (const c of Array.from(e.children)) {
+      if (chain.has(c) || SILENT.has(tag(c)) || !(BLOCKISH.has(tag(c)) || isNoise(c))) continue;
+      scanInside(c, true, true);
+    }
   };
   // A box inside the main column that calls itself comments, related links, an ad, a share bar or a sign-up is
   // clutter even though the page reader took its text in (a "412 comments" heading, the comments themselves), as long
@@ -349,7 +367,8 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   }
 
   for (const e of chain) {
-    if (e === doc.documentElement || keep.has(e)) continue;
+    if (e === doc.documentElement) continue;
+    if (insideKeep(e)) { scanRead(e); continue; }
     for (const c of Array.from(e.children)) {
       if (chain.has(c) || SILENT.has(tag(c))) continue;
       if (thin) scanInside(c, true);
