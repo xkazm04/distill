@@ -107,8 +107,61 @@ const isControlKept = (el: Element): boolean => {
 
 const isRequired = (el: Element): boolean => el.hasAttribute("required") || attr(el, "aria-required").toLowerCase() === "true";
 
+// ---------------------------------------------------------------- required, as pages write it
+
+/** A class that says required, the way form libraries and old village sites write it (Štáhlavy: `class="text
+ *  required"` on the field, Přáslavice: `<label class="required">`). The whole class name only: never "not-required". */
+const REQUIRED_CLASS = /(^|\s)(required|is-required|form-required|field-required|required-field|mandatory|povinne|povinny|povinna|pflicht|pflichtfeld)(\s|$)/i;
+/** The word that marks a field required, at the end of its label: "Typ hlášení - povinné", "E-mail (required)",
+ *  "Name (Pflichtfeld)". At the end only: a sentence that only mentions the word marks nothing. */
+const REQUIRED_WORD = /(?:^|[\s(\[,/|–—-])(?:povinn[éýáeya](?:\s+(?:údaj|pole|položka))?|required|mandatory|pflicht(?:feld|angabe)?|obligatoire|obligatorio|obbligatorio|wymagane|kötelező)[\s)\].:*]*$/iu;
+/** "Vyplnění není povinné", "not required", "kein Pflichtfeld": the word said the other way round. */
+const NEGATED = /(?:^|[^\p{L}])(?:ne|není|nejsou|not|nicht|kein|keine|non|nie|no)$/iu;
+/** One star at the end or the start of a label: "Jméno *", "E-mail*:", "Jméno (*)", "* Jméno". Never a rating ("***",
+ *  "Hotel 4*"): a star after a star or a digit, or before one, does not count. */
+const STAR = /(?<![*\d])\*\)?\s*:?\s*$|^\(?\*(?![*\d])/;
+
+/** True when a label's own text, as the page writes it, marks its field required: one star, or the word at its end. */
+function labelSaysRequired(raw: string): boolean {
+  const t = collapse(raw);
+  if (!t) return false;
+  if (STAR.test(t)) return true;
+  const m = REQUIRED_WORD.exec(t);
+  if (!m) return false;
+  return !NEGATED.test(t.slice(0, m.index).replace(/[\s(\[,/|–—-]+$/, ""));
+}
+
+const classSays = (el: Element | null | undefined): boolean => !!el && REQUIRED_CLASS.test(attr(el, "class"));
+
+/**
+ * Required the way a page marks it when it sets no attribute: a required class on the field itself, on its label, or
+ * on a box around it that holds no other field (a `.form-group.required`, up to three levels up), or its label's own
+ * text (a star, the word). Only the field's label is read: a help text or an intro sentence that says "povinné" is not.
+ * `by` are the elements whose own flag counts (the members, and a group's box).
+ */
+function markedRequired(members: Element[], by: Element[], raw: string, controls: Control[], ctx: Ctx): boolean {
+  if (labelSaysRequired(raw)) return true;
+  if (by.some(classSays)) return true;
+  if (members.length === 1) {
+    const one = members[0] as Element;
+    if (classSays(labelFor(one, ctx)) || classSays(one.closest("label"))) return true;
+  }
+  const set = new Set(members);
+  let up = commonBox(members);
+  for (let depth = 0; up && depth < 3; depth++, up = up.parentElement) {
+    if (["form", "body", "html"].includes(tag(up)) || !holdsOnly(up, set, controls)) break;
+    if (classSays(up)) return true;
+  }
+  return false;
+}
+
+/** A label element's text as the page writes it (the controls inside it left out): stars and marks kept. */
+function labelRaw(label: Element): string {
+  return collapse(textOf(label, (e) => ["input", "select", "textarea", "button"].includes(tag(e))));
+}
+
 function labelText(label: Element): string {
-  return cleanLabel(textOf(label, (e) => ["input", "select", "textarea", "button"].includes(tag(e))));
+  return cleanLabel(labelRaw(label));
 }
 
 /** Fields under `el` (native controls and ARIA widgets), hidden inputs left out. */
@@ -116,14 +169,17 @@ const fieldsIn = (el: Element): number =>
   Array.from(el.querySelectorAll(FIELDISH)).filter((e) => !(tag(e) === "input" && attr(e, "type").toLowerCase() === "hidden")).length;
 
 /** The short text just before the field: in its own or its wrappers' previous siblings (a table's previous cell). */
-function nearbyText(el: Element): string {
+const nearbyText = (el: Element): string => cleanLabel(nearbyRaw(el));
+
+/** nearbyText as the page writes it, stars and marks kept. */
+function nearbyRaw(el: Element): string {
   let cur: Element | null = el;
   for (let depth = 0; depth < 8 && cur; depth++) {
     let sib: Node | null = cur.previousSibling;
     while (sib) {
       if (sib.nodeType === 3) {
         const t = collapse(sib.nodeValue ?? "");
-        if (t) return t.length <= 80 ? cleanLabel(t) : "";
+        if (t) return t.length <= 80 ? t : "";
       } else if (sib.nodeType === 1) {
         const s = sib as Element;
         if (isHidden(s) || SKIP_TAGS.has(tag(s)) || isError(s)) {
@@ -131,8 +187,8 @@ function nearbyText(el: Element): string {
           continue;
         }
         if (s.matches(FIELDISH) || s.querySelector(FIELDISH)) return "";
-        const t = textOf(s);
-        if (t) return t.length <= 80 ? cleanLabel(t) : "";
+        const t = collapse(textOf(s));
+        if (t) return t.length <= 80 ? t : "";
       }
       sib = sib.previousSibling;
     }
@@ -180,32 +236,46 @@ function textOfIds(el: Element, ids: string): string {
     .join(" ");
 }
 
-function accessibleName(el: Element): string {
+const accessibleName = (el: Element): string => cleanLabel(accessibleRaw(el));
+
+/** accessibleName as the page writes it, stars and marks kept. */
+function accessibleRaw(el: Element): string {
   const labelledBy = attr(el, "aria-labelledby");
   if (labelledBy) {
-    const t = cleanLabel(textOfIds(el, labelledBy));
-    if (t) return t;
+    const t = collapse(textOfIds(el, labelledBy));
+    if (cleanLabel(t)) return t;
   }
-  return cleanLabel(attr(el, "aria-label"));
+  return collapse(attr(el, "aria-label"));
 }
 
 /** A toggle widget (role=checkbox, switch, radio) is named by its own text when nothing else names it. A combobox's
  *  own text is the value shown in it, so it never names the field. */
-const ownName = (el: Element): string => (["checkbox", "switch", "radio"].includes(widgetRole(el)) ? cleanLabel(textOf(el)) : "");
+const ownRaw = (el: Element): string => (["checkbox", "switch", "radio"].includes(widgetRole(el)) ? collapse(textOf(el)) : "");
+const ownName = (el: Element): string => cleanLabel(ownRaw(el));
 
-function fieldLabel(el: Element, ctx: Ctx): string {
+/** A field's label, and the text it came from as the page writes it (where a star or "povinné" can mark it required). */
+interface Named { label: string; raw: string; usedLegend?: string }
+
+/** The first of these that names the field: the label element, a wrapping label, the ARIA name, a toggle's own text,
+ *  the text just before it, the placeholder, the title; else the name attribute. */
+function fieldLabel(el: Element, ctx: Ctx): Named {
   const byFor = labelFor(el, ctx);
-  if (byFor && labelText(byFor)) return labelText(byFor);
   const wrap = el.closest("label");
-  if (wrap && labelText(wrap)) return labelText(wrap);
-  return (
-    accessibleName(el) ||
-    ownName(el) ||
-    nearbyText(wrap ?? el) ||
-    cleanLabel(attr(el, "placeholder")) ||
-    cleanLabel(attr(el, "title")) ||
-    attr(el, "name")
-  );
+  const tries: (() => string)[] = [
+    () => (byFor ? labelRaw(byFor) : ""),
+    () => (wrap ? labelRaw(wrap) : ""),
+    () => accessibleRaw(el),
+    () => ownRaw(el),
+    () => nearbyRaw(wrap ?? el),
+    () => collapse(attr(el, "placeholder")),
+    () => collapse(attr(el, "title")),
+  ];
+  for (const t of tries) {
+    const raw = t();
+    const label = cleanLabel(raw);
+    if (label) return { label, raw };
+  }
+  return { label: attr(el, "name"), raw: "" };
 }
 
 function optionLabel(el: Element, ctx: Ctx): string {
@@ -242,24 +312,29 @@ function hintOf(el: Element): string {
 const holdsOnly = (box: Element, members: Set<Element>, controls: Control[]): boolean =>
   controls.filter((c) => box.contains(c.el)).every((c) => members.has(c.el));
 
-function groupLabel(members: Element[], controls: Control[]): { label: string; usedLegend?: string } {
+/** A group's label: its fieldset's legend when the fieldset holds only the group, the group's ARIA name, or the text
+ *  just before it. The options' own labels never name the group (and their stars, a rating's, never mark it). */
+function groupLabel(members: Element[], controls: Control[]): Named {
   const first = members[0] as Element;
   const set = new Set(members);
   const fieldset = first.closest("fieldset");
   if (fieldset) {
     const lg = Array.from(fieldset.children).find((c) => tag(c) === "legend");
     if (lg && holdsOnly(fieldset, set, controls)) {
-      const text = cleanLabel(textOf(lg));
-      if (text) return { label: text, usedLegend: text };
+      const raw = textOf(lg);
+      const text = cleanLabel(raw);
+      if (text) return { label: text, raw, usedLegend: text };
     }
   }
   const grp = first.closest('[role="radiogroup"], [role="group"]');
   if (grp) {
-    const n = accessibleName(grp);
-    if (n) return { label: n };
+    const raw = accessibleRaw(grp);
+    const n = cleanLabel(raw);
+    if (n) return { label: n, raw };
   }
-  const near = nearbyText(first.closest("label") ?? first);
-  return { label: near || attr(first, "name") };
+  const raw = nearbyRaw(first.closest("label") ?? first);
+  const near = cleanLabel(raw);
+  return near ? { label: near, raw } : { label: attr(first, "name"), raw: "" };
 }
 
 // ---------------------------------------------------------------- dates split into day, month and year
@@ -326,26 +401,29 @@ function dateGroups(controls: Control[], ctx: Ctx): Map<Element, { els: Element[
 
 /** The label of a split date: its fieldset's legend or group's name when they hold only the pieces, else the first
  *  piece's label unless that label only says "Day". */
-function dateLabel(els: Element[], controls: Control[], ctx: Ctx): { label: string; usedLegend?: string } {
+function dateLabel(els: Element[], controls: Control[], ctx: Ctx): Named {
   const set = new Set(els);
   const first = els[0] as Element;
   const fieldset = first.closest("fieldset");
   const lg = fieldset ? Array.from(fieldset.children).find((c) => tag(c) === "legend") : undefined;
   if (fieldset && lg && holdsOnly(fieldset, set, controls)) {
-    const text = cleanLabel(textOf(lg));
-    if (text) return { label: text, usedLegend: text };
+    const raw = textOf(lg);
+    const text = cleanLabel(raw);
+    if (text) return { label: text, raw, usedLegend: text };
   }
   const grp = first.closest('[role="group"]');
   if (grp && holdsOnly(grp, set, controls)) {
-    const n = accessibleName(grp);
-    if (n) return { label: n };
+    const raw = accessibleRaw(grp);
+    const n = cleanLabel(raw);
+    if (n) return { label: n, raw };
   }
   const lab = labelFor(first, ctx) ?? first.closest("label");
   const box = commonBox(els);
-  for (const t of [lab ? labelText(lab) : "", accessibleName(first), box ? nearbyText(box) : "", nearbyText(first)]) {
-    if (t && !onlyPartWords(t)) return { label: t };
+  for (const raw of [lab ? labelRaw(lab) : "", accessibleRaw(first), box ? nearbyRaw(box) : "", nearbyRaw(first)]) {
+    const t = cleanLabel(raw);
+    if (t && !onlyPartWords(t)) return { label: t, raw };
   }
-  return { label: attr(first, "name") };
+  return { label: attr(first, "name"), raw: "" };
 }
 
 // ---------------------------------------------------------------- bindings
@@ -393,7 +471,6 @@ function bindingsOf(scope: Element): FieldBinding[] {
 
   interface Extra {
     options?: FieldOption[];
-    usedLegend?: string;
     /** The one control whose placeholder, pattern and maxlength describe the field. */
     single?: Element;
     via?: FieldBinding["via"];
@@ -401,10 +478,12 @@ function bindingsOf(scope: Element): FieldBinding[] {
     /** Elements whose required flag counts (a radiogroup carries aria-required for its radios). */
     requiredBy?: Element[];
   }
-  const add = (c: Control, members: Element[], idBase: string, kind: FieldKind, label: string, x: Extra = {}): void => {
+  const add = (c: Control, members: Element[], idBase: string, kind: FieldKind, named: Named, x: Extra = {}): void => {
     members.forEach((m) => done.add(m));
-    const section = [...c.legends].reverse().find((l) => l && l !== x.usedLegend) || c.heading || undefined;
-    const field: FieldStructure = { fieldId: uniqueId(idBase), kind, label, required: (x.requiredBy ?? members).some(isRequired) };
+    const section = [...c.legends].reverse().find((l) => l && l !== named.usedLegend) || c.heading || undefined;
+    const by = x.requiredBy ?? members;
+    const required = by.some(isRequired) || markedRequired(members, by, named.raw, controls, ctx);
+    const field: FieldStructure = { fieldId: uniqueId(idBase), kind, label: named.label, required };
     if (x.options && x.options.length) field.options = x.options;
     const one = x.single;
     if (one) {
@@ -435,7 +514,7 @@ function bindingsOf(scope: Element): FieldBinding[] {
     const date = dates.get(el);
     if (date) {
       const g = dateLabel(date.els, controls, ctx);
-      add(c, date.els, attr(el, "id") || attr(el, "name"), "date", g.label, { usedLegend: g.usedLegend, via: "date", parts: date.parts });
+      add(c, date.els, attr(el, "id") || attr(el, "name"), "date", g, { via: "date", parts: date.parts });
       continue;
     }
 
@@ -445,8 +524,8 @@ function bindingsOf(scope: Element): FieldBinding[] {
       const groupOf = (e: Element): Element | null => e.closest("[role=radiogroup]") ?? e.parentElement;
       const members = controls.filter((o) => !done.has(o.el) && widgetRole(o.el) === "radio" && groupOf(o.el) === grp).map((o) => o.el);
       const g = groupLabel(members, controls);
-      add(c, members, (grp && attr(grp, "id")) || attr(el, "id"), "radio", g.label, {
-        options: itemOptions(members), usedLegend: g.usedLegend, via: "aria", requiredBy: grp ? [...members, grp] : members,
+      add(c, members, (grp && attr(grp, "id")) || attr(el, "id"), "radio", g, {
+        options: itemOptions(members), via: "aria", requiredBy: grp ? [...members, grp] : members,
       });
       continue;
     }
@@ -457,8 +536,8 @@ function bindingsOf(scope: Element): FieldBinding[] {
         : [el];
       if (members.length > 1 && box) {
         const g = groupLabel(members, controls);
-        add(c, members, attr(box, "id") || attr(el, "id"), "checkbox", g.label, {
-          options: itemOptions(members), usedLegend: g.usedLegend, via: "aria", requiredBy: [...members, box],
+        add(c, members, attr(box, "id") || attr(el, "id"), "checkbox", g, {
+          options: itemOptions(members), via: "aria", requiredBy: [...members, box],
         });
       } else {
         add(c, [el], attr(el, "id"), "checkbox", fieldLabel(el, ctx), { via: "aria" });
@@ -495,9 +574,8 @@ function bindingsOf(scope: Element): FieldBinding[] {
         .filter((o) => !widgetRole(o.el) && attr(o.el, "type").toLowerCase() === type && attr(o.el, "name") === name)
         .map((o) => o.el);
       const g = groupLabel(members, controls);
-      add(c, members, name, kind, g.label, {
+      add(c, members, name, kind, g, {
         options: members.map((m) => ({ value: attr(m, "value") || "on", label: optionLabel(m, ctx) })),
-        usedLegend: g.usedLegend,
       });
       continue;
     }

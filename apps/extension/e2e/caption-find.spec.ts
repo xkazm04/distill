@@ -135,6 +135,45 @@ test("caption find: Ready to send? counts the form, jumps to the next empty requ
   await settled(tab.page);
 });
 
+test("caption find: the side panel's guide marks the same fields required as the strip counts, read the village way", async ({ distill }) => {
+  // The demo village form marks "required" its own way, as Štáhlavy and Přáslavice do: a star, a required class, a
+  // "- povinné" in the label; the attribute is on one field only. The engine reads them all, for the strip and the panel.
+  const tab = await distill.openTab("caption-hlaseni-zavad");
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  expect(await tab.page.locator("#hlaseni [required]").count()).toBe(1);
+  const panel = await distill.openPanel(tab.id);
+  await panel.locator(".workspace").waitFor();
+  const strip = panel.getByTestId("view-strip");
+  if (await strip.isVisible()) await strip.getByRole("button", { name: /^Fill a form/ }).click();
+  else await panel.getByRole("tab", { name: /^Fill a form/ }).click();
+  const step = panel.getByTestId("wf-step");
+  await expect(panel.getByTestId("wf-answered")).toHaveText("0 of 7 answered");
+
+  // The first step: required by its star alone, so Next waits for an answer.
+  await expect(step.locator(".field label").first()).toContainText("Jméno a příjmení (required)");
+  await expect(step.getByRole("button", { name: "Next" })).toBeDisabled();
+  await expect(step).toContainText("Fill in the required answer to continue");
+  await panel.screenshot({ path: join(OUT, "caption-find-panel-required.png") });
+
+  // Every step, skipped through: the fields the panel marks required are the six the page marks its own way.
+  const marked: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    for (const t of await step.locator(".field label").allTextContents()) marked.push(`${t.replace(/\s*label on the form$/, "")}`);
+    await step.getByRole("button", { name: "Skip" }).click();
+  }
+  expect(marked.filter((t) => t.endsWith("(required)")).map((t) => t.replace(/ \(required\)$/, ""))).toEqual([
+    "Jméno a příjmení", "E-mail", "Druh závady - povinné", "Místo závady", "Popis závady", "Souhlasím se zpracováním osobních údajů",
+  ]);
+  expect(marked).toContain("Telefon (nepovinné)");
+
+  // The strip counts the same six.
+  await startCaption(distill.worker, tab.id);
+  const frame = await captionFrame(tab.page);
+  await firstSight(frame);
+  const reply = await distill.worker.evaluate(async (id) => chrome.tabs.sendMessage(id, { type: "distill:caption:form" }, { frameId: 0 }), tab.id);
+  expect((reply as { data: { required: number; fields: number } }).data).toMatchObject({ fields: 7, required: 6 });
+});
+
 test("caption find: the form check is short at phone width, and absent on a page without a form", async ({ distill }) => {
   const tab = await distill.openTab("caption-hlaseni-zavad");
   await tab.page.setViewportSize({ width: 390, height: 844 });
