@@ -8,6 +8,7 @@ import { calmCounts, calmPage, calmProtect, clearCalm } from "./calm";
 import { applyComfort, clearComfort } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
+import { layoutOf, type Layout } from "./layout";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, watchForClutter } from "./watch";
@@ -173,23 +174,26 @@ const OPENED_BY_PERSON = new Set<ClutterItem["kind"]>(["menu", "popup", "header"
 /** The address at the last judgement: a click that changed it went to another view, not to a menu. */
 let lastHref = "";
 
-/** findClutter's options as Clean and Stay clean both use them: what is on screen and where comes from the browser. */
+/** findClutter's options as Clean and Stay clean both use them: what is on screen and where comes from the browser,
+ *  each element's style and box read once per judgement (layout.ts). */
 function clutterOptions(win: Window, keep: readonly Element[], body: readonly Element[], protect: readonly Element[],
   onElement: (id: string, el: Element) => void): ClutterOptions {
+  const look = layoutOf(win);
   return {
     keep,
     protect,
     body,
-    shown: shownOn(win),
-    position: (el) => win.getComputedStyle(el).position,
+    shown: shownOn(win, look),
+    position: (el) => look.style(el).position,
+    rendered: (el) => look.style(el).display !== "none",
     covers: (el) => {
-      const r = el.getBoundingClientRect();
+      const r = look.rect(el);
       const w = Math.max(0, Math.min(r.right, win.innerWidth) - Math.max(r.left, 0));
       const h = Math.max(0, Math.min(r.bottom, win.innerHeight) - Math.max(r.top, 0));
       return (w * h) / (win.innerWidth * win.innerHeight);
     },
     box: (el) => {
-      const r = el.getBoundingClientRect();
+      const r = look.rect(el);
       return { left: r.left, top: r.top, width: r.width, height: r.height, winWidth: win.innerWidth, winHeight: win.innerHeight };
     },
     onElement,
@@ -276,13 +280,14 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   return true;
 }
 
-/** Whether a box takes space on screen right now. */
-function shownOn(win: Window) {
+/** Whether a box takes space on screen right now. `look`: one judgement's reading of the layout, shared with its other
+ *  questions (a fresh one by default). */
+function shownOn(win: Window, look: Layout = layoutOf(win)) {
   return (el: Element): boolean => {
-    const cs = win.getComputedStyle(el);
+    const cs = look.style(el);
     if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
     if (cs.display === "contents") return true;
-    const r = el.getBoundingClientRect();
+    const r = look.rect(el);
     return r.width >= 2 && r.height >= 2;
   };
 }

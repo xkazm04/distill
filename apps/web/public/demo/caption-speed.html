@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bramboráky jako od babičky | Vařečka TV</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fafafa; color: #1b1b1b; font: 15px/1.5 Arial, Helvetica, sans-serif; }
+  svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
+  .masthead { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #fff; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 16px; padding: 0 16px; z-index: 20; }
+  .masthead .logo { font: bold 20px Georgia, serif; color: #b3261e; margin-right: auto; }
+  .masthead form input { width: 360px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 16px; }
+  .masthead button { background: none; border: 0; padding: 6px; cursor: pointer; }
+  .mega { display: none; }
+  .page { display: flex; gap: 24px; max-width: 1400px; margin: 0 auto; padding: 72px 16px 24px; }
+  .primary { flex: 1 1 auto; min-width: 0; }
+  #player-box { width: 100%; max-width: 900px; aspect-ratio: 16 / 9; background: #111; border-radius: 12px; overflow: hidden; }
+  #player-box video { width: 100%; height: 100%; display: block; }
+  article.description { max-width: 900px; }
+  article.description h1 { font-size: 22px; margin: 14px 0 6px; }
+  article.description p { margin: 10px 0; }
+  .share-bar, .ad-slot, .newsletter-box { margin: 14px 0; padding: 10px 12px; border-radius: 8px; }
+  .share-bar { background: #f1f1f1; display: flex; gap: 10px; }
+  .ad-slot { background: #fff6d6; border: 1px dashed #c9a700; color: #6b5a00; }
+  .newsletter-box { background: #e8f2ff; }
+  section.comments { max-width: 900px; margin-top: 24px; }
+  .comment { display: flex; gap: 10px; margin: 12px 0; }
+  .comment .who { font-weight: bold; }
+  .comment .actions button { background: none; border: 0; color: #555; padding: 2px 6px; }
+  aside#related { flex: 0 0 380px; }
+  .card { display: flex; gap: 8px; margin-bottom: 10px; }
+  .card .thumb { flex: 0 0 160px; height: 90px; border-radius: 8px; background: linear-gradient(135deg, #e9c46a, #e76f51); }
+  .card a { color: #1b1b1b; text-decoration: none; font-weight: bold; font-size: 14px; }
+  .card .meta { color: #606060; font-size: 12px; }
+  .cookie-bar { position: fixed; left: 16px; right: 16px; bottom: 16px; background: #fff; border: 1px solid #ccc; border-radius: 10px; padding: 14px 16px; box-shadow: 0 4px 24px rgba(0,0,0,.2); z-index: 30; display: flex; gap: 12px; align-items: center; }
+  .cookie-bar p { margin: 0 auto 0 0; }
+  footer { max-width: 1400px; margin: 0 auto; padding: 24px 16px; color: #606060; border-top: 1px solid #e5e5e5; }
+</style>
+</head>
+<body>
+<!-- A video page as big as a large video site's: a hidden mega-menu of thousands of links, icons everywhere, a long
+     column of recommendations and a long comment thread. Built by the script below (?n= sets the menu's size). -->
+<div class="masthead">
+  <span class="logo">Vařečka TV</span>
+  <form role="search" action="#"><input type="search" name="q" placeholder="Hledat recepty"></form>
+  <span class="icons"></span>
+</div>
+<div class="mega" id="mega"><ul></ul></div>
+
+<div class="page">
+  <div class="primary">
+    <div id="player-box"><video id="main-video" width="900" height="506" controls preload="none"></video></div>
+    <article class="description">
+      <h1>Bramboráky jako od babičky</h1>
+      Zveřejněno 3. března 2026 · 128 tis. zhlédnutí · Kanál Vaříme doma
+      <p>Bramboráky patří k nejoblíbenějším jídlům české kuchyně. Potřebujete kilogram brambor, dvě vejce, tři stroužky česneku, hrst hladké mouky, majoránku, sůl a pepř. Na smažení sádlo nebo olej.</p>
+      <div class="share-bar"><a href="#">Sdílet na Facebooku</a> <a href="#">Sdílet na X</a> <a href="#">Kopírovat odkaz</a></div>
+      <p>Brambory oloupejte a nastrouhejte najemno, vymačkejte z nich vodu a přidejte vejce, prolisovaný česnek, majoránku, sůl a pepř. Mouku přidávejte postupně, dokud těsto nedrží pohromadě.</p>
+      <div class="ad-slot"><span>Reklama</span><p>Litinové pánve se slevou 30 % jen tento víkend.</p></div>
+      <p>Na rozpáleném tuku smažte placky z obou stran dozlatova, asi tři minuty z každé strany. Hotové bramboráky nechte okapat na papírové utěrce a podávejte hned, dokud jsou křupavé.</p>
+      <div class="newsletter-box"><p>Nové recepty každý pátek do vaší schránky.</p><button type="button">Odebírat novinky</button></div>
+      <p>Tip: do těsta můžete přidat i trochu uzeného masa nebo strouhaný sýr. Zbylé těsto vydrží v lednici do druhého dne, jen ho před smažením znovu promíchejte.</p>
+    </article>
+    <section class="comments" id="comments"><h2>Komentáře</h2></section>
+  </div>
+  <aside id="related"></aside>
+</div>
+<footer>Vařečka TV · O nás · Podmínky · Soukromí · Reklama u nás</footer>
+<div class="cookie-bar"><p>Používáme cookies, abychom vám mohli nabízet lepší obsah.</p><button type="button">Souhlasím</button><button type="button">Nastavení</button></div>
+
+<script>
+var ICON = '<svg viewBox="0 0 24 24"><g><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"></path><path d="M0 0h24v24H0z" fill="none"></path></g></svg>';
+var params = new URLSearchParams(location.search);
+var n = Number(params.get("n") || 3000);
+var dishes = ["Svíčková", "Guláš", "Knedlíky", "Řízek", "Koláče", "Buchty", "Polévka", "Bábovka", "Palačinky", "Vánočka"];
+function many(count, make) { var out = []; for (var i = 0; i < count; i++) out.push(make(i)); return out.join(""); }
+
+document.querySelector(".masthead .icons").innerHTML = many(8, function () { return '<button type="button" aria-label="Nabídka">' + ICON + "</button>"; });
+document.querySelector("#mega ul").innerHTML = many(n, function (i) {
+  return '<li><a href="#k' + i + '">' + ICON + "<span>" + dishes[i % dishes.length] + " " + (i + 1) + "</span></a></li>";
+});
+document.getElementById("related").innerHTML = "<h2>Další videa</h2>" + many(300, function (i) {
+  return '<div class="card"><div class="thumb"></div><div><a href="#v' + i + '">' + dishes[i % dishes.length] + " podle babičky, díl " + (i + 1) + '</a><div class="meta">' + ICON + " " + (i * 7 % 90 + 3) + " tis. zhlédnutí</div></div></div>";
+});
+document.getElementById("comments").insertAdjacentHTML("beforeend", many(200, function (i) {
+  return '<div class="comment">' + ICON + '<div><span class="who">Divák ' + (i + 1) + "</span><p>Dělala jsem podle tohoto receptu a byly výborné, děkuji. Příště zkusím přidat více majoránky.</p>"
+    + '<div class="actions"><button type="button">' + ICON + ' Líbí se</button><button type="button">' + ICON + " Odpovědět</button></div></div></div>";
+}));
+</script>
+</body>
+</html>

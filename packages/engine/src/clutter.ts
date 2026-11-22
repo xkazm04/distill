@@ -2,7 +2,7 @@
 // page.ts: it never changes the page. The caller (the extension's content script) hides what this returns, lists it
 // in "What was removed", and can bring each item back. Layout facts (is it on screen, is it fixed) come from the caller,
 // because only a browser knows them; the defaults read attributes and inline styles, which is what a test document has.
-import { SKIP_TAGS, attr, collapse, isHidden, tag } from "./dom.js";
+import { BLOCKISH, SKIP_TAGS, attr, collapse, isHidden, isNoise, tag } from "./dom.js";
 
 export type ClutterKind =
   | "cookie" | "popup" | "ad" | "menu" | "header" | "sidebar" | "footer" | "comments" | "related" | "share" | "newsletter"
@@ -54,6 +54,9 @@ export interface ClutterOptions {
   shown?: (el: Element) => boolean;
   /** The element's CSS position ("static", "fixed", "sticky", ...). Default: from the inline style. */
   position?: (el: Element) => string;
+  /** False when the element draws nothing, and nothing inside it does either (CSS display: none): its inside is not
+   *  looked at for things that float. Lets a big page skip its hidden parts. Default: true. */
+  rendered?: (el: Element) => boolean;
   /** The share of the window the element covers (0-1). An empty box over most of the window is a pop-up's backdrop.
    *  Default: 0 (a test document has no layout). */
   covers?: (el: Element) => number;
@@ -66,6 +69,9 @@ export interface ClutterOptions {
 
 const SILENT = new Set([...SKIP_TAGS, "link", "meta", "base", "title", "br", "wbr"]);
 SILENT.delete("iframe"); // an ad is often an iframe; it is judged like any other element
+/** Elements whose inside is never a box on the page: code, styles, a template, a canvas's fallback, an svg drawing
+ *  (unless it holds HTML in a foreignObject). Nothing inside them floats over the page. */
+const CLOSED = new Set(["script", "style", "noscript", "template", "canvas", "svg"]);
 
 /** Kinds that name themselves plainly enough to be taken out even when the page reader read their text. */
 const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie", "chat", "feedback", "appBanner", "backToTop"]);
@@ -153,8 +159,25 @@ function kindByRole(el: Element): ClutterKind | null {
   return null;
 }
 
+/** The start of the element's text (its textContent), at least `min` characters of it when it has that many. Reads
+ *  text node by text node and stops there: a box around a whole page is not read whole to judge its first words. */
+function textStart(el: Element, min: number): string {
+  let out = "";
+  const walker = el.ownerDocument.createTreeWalker(el, 12 /* NodeFilter.SHOW_TEXT | SHOW_CDATA_SECTION */);
+  for (let n = walker.nextNode(); n && out.length < min; n = walker.nextNode()) out += n.nodeValue ?? "";
+  return out;
+}
+
+/** Whether the element has any text that is not white space (as `collapse(el.textContent)` would say, without reading
+ *  all of it). */
+function hasText(el: Element): boolean {
+  const walker = el.ownerDocument.createTreeWalker(el, 12 /* NodeFilter.SHOW_TEXT | SHOW_CDATA_SECTION */);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) if (/\S/.test(n.nodeValue ?? "")) return true;
+  return false;
+}
+
 /** Only the first 600 characters: a cookie notice is short, and an outer box full of text is judged by its class. */
-const shortText = (el: Element): string => collapse((el.textContent ?? "").slice(0, 600));
+const shortText = (el: Element): string => collapse(textStart(el, 600).slice(0, 600));
 
 function kindByText(el: Element): ClutterKind | null {
   const text = shortText(el);
@@ -206,7 +229,7 @@ function floatKind(el: Element, place: Place | null): ClutterKind | null {
   for (const [kind, re] of FLOAT_WORDS) if (re.test(words)) return kind;
   if (APP_WORDS.test(words)) return "appBanner";
   // No words at all: a link to the top of the page is a back-to-top arrow; a frame in a corner is a chat window.
-  if (!collapse(el.textContent ?? "")) {
+  if (!hasText(el)) {
     const link = tag(el) === "a" ? el : el.querySelector("a[href]");
     if (link && /^#(top|page|header|main|content|body|nahoru)?$/i.test(attr(link, "href"))) return "backToTop";
     if (place === "corner" && (tag(el) === "iframe" || el.querySelector("iframe"))) return "chat";
@@ -238,7 +261,7 @@ function looksLikeClutter(el: Element): ClutterKind | null {
 
 /** Something a person would notice: text, or a picture, a video or a frame. Empty boxes are left alone. */
 const hasSubstance = (el: Element): boolean =>
-  tag(el) === "iframe" || !!collapse(el.textContent ?? "") || !!el.querySelector(MEDIA);
+  tag(el) === "iframe" || hasText(el) || !!el.querySelector(MEDIA);
 
 /** How much of the element's text sits in links (0-1). */
 function linkDensity(el: Element): number {
@@ -262,13 +285,16 @@ function commonAncestor(a: Element, b: Element): Element {
  * 3. inside the main column, only boxes that announce themselves as clutter (ads, share bars, comments, related).
  * Nothing that holds a `keep` element is returned, with one exception: a box inside the main column that names itself
  * comments, related links, an ad, a share bar, a sign-up or a cookie notice, and holds less than half of the running
- * text (`body`) or is mostly links without the headline. Nothing that holds a `protect` element is ever returned. With no `keep` there is nothing to protect, so nothing is returned.
+ * text (`body`) or is mostly links without the headline. Inside a `keep` element that has blocks of its own, only such
+ * a self-named block that holds no content goes. Nothing that holds a `protect` element is ever returned. With no
+ * `keep` there is nothing to protect, so nothing is returned.
  */
 export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] {
   const body = doc.body;
   if (!body || opts.keep.length === 0) return [];
   const shown = opts.shown ?? ((el: Element) => !isHidden(el));
   const position = opts.position ?? inlinePosition;
+  const rendered = opts.rendered ?? (() => true);
 
   const covers = opts.covers ?? (() => 0);
   const box = opts.box ?? (() => null);
@@ -296,14 +322,31 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   for (const t of text) textLen.set(t, collapse(t.textContent ?? "").length);
   const total = [...textLen.values()].reduce((a, b) => a + b, 0) || 1;
 
-  // 1. Overlays, anywhere.
-  for (const el of Array.from(body.querySelectorAll("*"))) {
-    if (SILENT.has(tag(el))) continue;
+  // 1. Overlays, anywhere. Every element of the body is asked its position, except where nothing can be found: inside
+  // content (nothing inside a `keep` element is an overlay), inside what draws nothing (display: none, a script, an
+  // icon's drawing), so a big page is not asked about its thousands of hidden and icon parts.
+  const walker = doc.createTreeWalker(body, 1 /* NodeFilter.SHOW_ELEMENT */);
+  /** Moves past the current element's inside, to what follows it; null at the end of the body. */
+  const skipInside = (): Node | null => {
+    for (let n: Node | null = walker.currentNode; n && n !== body; n = walker.parentNode()) {
+      const next = walker.nextSibling();
+      if (next) return next;
+    }
+    return null;
+  };
+  for (let n: Node | null = walker.firstChild(); n;) {
+    const el = n as Element;
+    const t = tag(el);
+    if (keep.has(el) || (CLOSED.has(t) && !(t === "svg" && el.querySelector("foreignObject")))) { n = skipInside(); continue; }
+    if (SILENT.has(t)) { n = walker.nextNode(); continue; }
+    if (!rendered(el)) { n = skipInside(); continue; }
     const pos = position(el);
-    if (pos !== "fixed" && pos !== "sticky") continue;
-    if (eligible(el)) add(el, kindOf(el, true, pos === "fixed" ? placeOf(box(el)) : null));
-    // A backdrop: nothing in it, but it greys out the page behind a dialog.
-    else if (!chain.has(el) && !insideKeep(el) && !hasSubstance(el) && covers(el) >= 0.3 && shown(el)) add(el, "popup");
+    if (pos === "fixed" || pos === "sticky") {
+      if (eligible(el)) add(el, kindOf(el, true, pos === "fixed" ? placeOf(box(el)) : null));
+      // A backdrop: nothing in it, but it greys out the page behind a dialog.
+      else if (!chain.has(el) && !insideKeep(el) && !hasSubstance(el) && covers(el) >= 0.3 && shown(el)) add(el, "popup");
+    }
+    n = walker.nextNode();
   }
 
   // 2 and 3. Beside the path to the content. What sits between the headline and the main text (the lead paragraph,
@@ -319,11 +362,27 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   // its menu IS the way to its content. There only what announces itself goes, as inside a main column.
   // A page that holds a form or a video is there for it, not navigated: never thin.
   const thin = total < THIN_PAGE && protect.length === 0;
-  /** `strongOnly`: on a thin page only what names itself plainly (ads, cookie notices, share bars...) goes. */
-  const scanInside = (el: Element, strongOnly = false): void => {
+  /** `strongOnly`: on a thin page only what names itself plainly (ads, cookie notices, share bars...) goes. `inRead`:
+   *  `el` sits inside a box the page reader read text from, and holds none of its content (it is off the chain). */
+  const scanInside = (el: Element, strongOnly = false, inRead = false): void => {
     const kind = looksLikeClutter(el);
-    if (kind && (!strongOnly || STRONG.has(kind))) { if (eligible(el)) add(el, kind); return; }
-    for (const c of Array.from(el.children)) if (!SILENT.has(tag(c))) scanInside(c, strongOnly);
+    if (kind && (!strongOnly || STRONG.has(kind))) {
+      if (inRead ? !chain.has(el) && hasSubstance(el) && shown(el) : eligible(el)) add(el, kind);
+      return;
+    }
+    for (const c of Array.from(el.children)) if (!SILENT.has(tag(c))) scanInside(c, strongOnly, inRead);
+  };
+  // A box the page reader read text from (an <article> with a bare line of text of its own, a box around an inline
+  // <marquee>) is content, and so is all of it; but what names itself plainly among its blocks (an ad, a share bar, a
+  // sign-up) still goes, as inside the main column. Only its blocks and what the reader skipped as noise: what the
+  // reader ran into the box's own text (an inline "Advertisement" word) is that text. A box with no blocks of its own
+  // (a paragraph) is text only. A block that holds any content is on the chain, so it never goes this way.
+  const scanRead = (e: Element): void => {
+    if (keep.has(e) && !Array.from(e.children).some((c) => BLOCKISH.has(tag(c)))) return;
+    for (const c of Array.from(e.children)) {
+      if (chain.has(c) || SILENT.has(tag(c)) || !(BLOCKISH.has(tag(c)) || isNoise(c))) continue;
+      scanInside(c, true, true);
+    }
   };
   // A box inside the main column that calls itself comments, related links, an ad, a share bar or a sign-up is
   // clutter even though the page reader took its text in (a "412 comments" heading, the comments themselves), as long
@@ -349,7 +408,8 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   }
 
   for (const e of chain) {
-    if (e === doc.documentElement || keep.has(e)) continue;
+    if (e === doc.documentElement) continue;
+    if (insideKeep(e)) { scanRead(e); continue; }
     for (const c of Array.from(e.children)) {
       if (chain.has(c) || SILENT.has(tag(c))) continue;
       if (thin) scanInside(c, true);

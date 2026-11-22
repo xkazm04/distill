@@ -151,6 +151,60 @@ describe("findClutter", () => {
   });
 });
 
+/** G11: the page reader took loose text from a box (a bare text node in an <article>), so that box is content; what
+ *  names itself plainly inside it still goes, as inside the main column, as long as it holds none of the content. */
+describe("findClutter: clutter inside a box the page reader read text from", () => {
+  const LONG = "The council said on Monday that the tram line to the hospital opens in June, with a stop every four minutes at rush hour, and that the old bus line will run on until the end of the summer.";
+  /** An article with a bare line of text of its own (so the page reader takes the article itself in), around `inner`. */
+  const page = (inner: string, articleAttrs = "") => `<!doctype html><html lang="en"><body>
+    <nav><a href="/">Home</a> <a href="/city">City</a></nav>
+    <article${articleAttrs}><h1>The tram line opens in June</h1>
+      By the city desk, 12 May 2026. ${LONG}
+      <p>${LONG} Tickets stay at the same price for now, the transport office said.</p>
+      ${inner}
+      <p>${LONG} Cyclists will get a new lane along the line by the autumn.</p>
+      <p>${LONG} The works on Mill Street end a week before the opening.</p>
+    </article>
+    <footer>Copyright The Ledger</footer></body></html>`;
+
+  it("takes an ad, a share bar, a sign-up and a back-to-top link from inside it", () => {
+    const doc = parse(page([
+      '<div class="share-bar"><a href="#">Share on X</a> <a href="#">Share on Facebook</a></div>',
+      '<div class="ad-slot"><span>Advertisement</span><p>Garden furniture sale: 30% off this weekend only.</p></div>',
+      '<div class="newsletter-box"><p>Get the city newsletter every Friday.</p><button>Sign up</button></div>',
+      '<div class="totop"><a href="#top">Back to top</a></div>',
+    ].join("")));
+    const { items, els } = clean(doc);
+    // The article is content (the page reader read its own line of text), and stays.
+    expect([...els.values()].some((el) => el.localName === "article" || el.querySelector("article"))).toBe(false);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "share", "ad", "newsletter", "backToTop", "footer"]);
+  });
+
+  it("keeps an inline 'Advertisement' word in its text and in a paragraph", () => {
+    const doc = parse(page('<p>Every shop on the line can show an <b>Advertisement</b> in the stops, the office said, at a price set by the council.</p>')
+      .replace("By the city desk", "<span>Advertisement</span> By the city desk"));
+    const { items, els } = clean(doc);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "footer"]);
+    expect([...els.values()].some((el) => el.closest("article"))).toBe(false);
+  });
+
+  it("keeps the box itself when it is the running text, whatever it calls itself, and keeps a box holding the main video", () => {
+    const doc = parse(page('<div class="player ad-showing"><video src="/v.mp4"></video></div><div class="share"><a href="#">Share</a></div>', ' class="post comments-open"'));
+    const { keep, body } = contentOf(doc);
+    const video = doc.querySelector("video") as Element;
+    const els = new Map<string, Element>();
+    const items = findClutter(doc, { keep, body, protect: [video], onElement: (id, el) => els.set(id, el) });
+    expect(items.map((i) => i.kind)).toEqual(["menu", "share", "footer"]);
+    for (const el of els.values()) { expect(el.contains(video)).toBe(false); expect(el.localName).not.toBe("article"); }
+  });
+
+  it("never looks inside a box of running text with no blocks of its own (a paragraph)", () => {
+    const doc = parse(page('<p>The office will put up a notice <span class="ad">sponsored by the tram company</span> at every stop before the opening day.</p>'));
+    const { items } = clean(doc);
+    expect(items.map((i) => i.kind)).toEqual(["menu", "footer"]);
+  });
+});
+
 /** Things that float over the page (#4). `box` plays the browser: where each fixed box sits in a 1440x900 window. */
 describe("findClutter: things that float over the page", () => {
   const WIN = { winWidth: 1440, winHeight: 900 };
@@ -232,5 +286,51 @@ describe("findClutter: things that float over the page", () => {
     const { items, els } = clean(doc);
     const inside = items.filter((i) => els.get(i.id)?.closest("article"));
     expect(inside.map((i) => i.kind)).toEqual(["feedback", "backToTop"]);
+  });
+});
+
+/** G15: Clean on a very large page. A page's hidden parts, its icons' drawings and its content are not asked about
+ *  things that float; what is found stays the same. */
+describe("findClutter: a very large page", () => {
+  /** The article page with a hidden menu of `n` items (display: none by its inline style, which `rendered` reads here
+   *  as the browser would), `n` icons and a fixed cookie bar. */
+  function big(n: number): Document {
+    const items = Array.from({ length: n }, (_, i) => `<li><a href="/c${i}"><span>Category ${i}</span></a></li>`).join("");
+    const icons = Array.from({ length: n }, () => '<svg viewBox="0 0 24 24"><g><path d="M0 0h24v24H0z"></path><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"></path></g></svg>').join("");
+    return parse(news.replace("<body>", `<body><div class="mega" style="display: none"><ul>${items}</ul><div class="late" style="position: fixed">Late offer</div></div>`
+      + `<div class="toolbar">${icons}</div><div class="bar" style="position: fixed">We use cookies on this site. <button>OK</button></div>`));
+  }
+  const drawn = (el: Element) => !/display\s*:\s*none/.test(el.getAttribute("style") ?? "");
+  const fixed = (el: Element) => (/position\s*:\s*fixed/.test(el.getAttribute("style") ?? "") ? "fixed" : "static");
+
+  it("never asks the position of what is hidden, inside an icon or inside the content", () => {
+    const doc = big(500);
+    const asked: Element[] = [];
+    const { keep, body } = contentOf(doc);
+    const items = findClutter(doc, { keep, body, rendered: drawn, position: (el) => { asked.push(el); return fixed(el); } });
+    expect(asked.some((el) => el.closest(".mega"))).toBe(false);
+    expect(asked.some((el) => el.closest("svg"))).toBe(false);
+    expect(asked.some((el) => keep.some((k) => k.contains(el)))).toBe(false);
+    // The page has about 3,500 elements; fewer than 60 are asked.
+    expect(doc.body.querySelectorAll("*").length).toBeGreaterThan(3000);
+    expect(asked.length).toBeLessThan(60);
+    expect(items.some((i) => i.kind === "cookie")).toBe(true);
+  });
+
+  it("finds the same as when every element is asked", () => {
+    const doc = big(50);
+    const { keep, body } = contentOf(doc);
+    // What a browser says: nothing inside a display: none box is on screen.
+    const shown = (el: Element) => !el.closest("[style*='display: none']");
+    const run = (rendered?: (el: Element) => boolean) => {
+      const els: Element[] = [];
+      const items = findClutter(doc, { keep, body, shown, rendered, position: fixed, onElement: (_id, el) => els.push(el) });
+      return { items, els };
+    };
+    const all = run(), pruned = run(drawn);
+    expect(pruned.items).toEqual(all.items);
+    expect(pruned.els).toEqual(all.els);
+    // The icon toolbar, the fixed cookie bar, then what the article page always had.
+    expect(all.items.map((i) => i.kind)).toEqual(["other", "cookie", "cookie", "header", "sidebar", "newsletter", "footer"]);
   });
 });
