@@ -84,7 +84,11 @@ async function serveDemo(): Promise<{ server: Server; origin: string }> {
     }
     const file = normalize(join(DEMO, path));
     if (!file.startsWith(DEMO + sep) || !existsSync(file)) { res.writeHead(404).end("not found"); return; }
-    res.writeHead(200, { "content-type": TYPES[extname(file)] ?? "application/octet-stream" });
+    const headers: Record<string, string> = { "content-type": TYPES[extname(file)] ?? "application/octet-stream" };
+    // A site that forbids the on-device model for itself and its frames (Translate's offscreen document, docs/caption.md
+    // risk 1): the one demo page served with that policy.
+    if (path === "/caption-translate-blocked.html") headers["permissions-policy"] = "language-model=()";
+    res.writeHead(200, headers);
     res.end(readFileSync(file));
   });
   await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));

@@ -1,7 +1,9 @@
 // Service worker: opens Distill from the toolbar icon (the side panel, or the caption strip on the page in a build with
 // VITE_SURFACE=caption, see docs/caption.md), relays the Handrail port to the native host once the
-// person allowed it, and forgets a tab's kept form answers when the tab closes.
+// person allowed it, opens the offscreen document for a caption on a site that forbids the on-device model in frames,
+// and forgets a tab's kept form answers when the tab closes.
 import { HANDRAIL_NATIVE_HOST, HANDRAIL_PORT, type ContentRequest } from "./messages";
+import { offscreenPort } from "./offscreen/host";
 import { forgetTab } from "./sidepanel/guideStore";
 
 const CAPTION = import.meta.env.VITE_SURFACE === "caption";
@@ -50,6 +52,8 @@ if (fakeHelper) {
 }
 
 chrome.runtime.onConnect.addListener((panel) => {
+  // A caption on a site that forbids the on-device model in frames runs it in the offscreen document (offscreen/host.ts).
+  if (offscreenPort(panel)) return;
   if (panel.name !== HANDRAIL_PORT) return;
   if (fakeHelper?.on) {
     fakeHelper.panels.add(panel);

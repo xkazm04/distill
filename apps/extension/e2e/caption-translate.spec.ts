@@ -3,7 +3,7 @@
 // what is checked is the mechanism: which text is replaced, what survives, and that the page's own words come back.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Page, Worker } from "playwright/test";
+import type { Frame, Page, Worker } from "playwright/test";
 import { BAR, baseline, captionFrame, firstSight, measure, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
@@ -235,4 +235,58 @@ test("translate: text the page adds or rewrites later is translated too; Keep Cz
   expect(await startCaption(distill.worker, tab.id)).toBe(false);
   expect(await page.locator("body").innerText()).not.toContain("[EN]");
   expect(await page.locator("[data-distill-translated]").count()).toBe(0);
+});
+
+/** How many offscreen documents Distill has open now. */
+const offscreenDocs = (worker: Worker) => worker.evaluate(async () =>
+  (await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT" as chrome.runtime.ContextType] })).length);
+const policyAllows = (target: Page | Frame) => target.evaluate(() =>
+  (document as Document & { featurePolicy?: { allowsFeature(f: string): boolean } }).featurePolicy?.allowsFeature("language-model") ?? null);
+
+test("translate: a site that forbids the on-device model in frames is translated through Distill's offscreen document", async ({ distill }) => {
+  await fakeModel(distill.worker);
+
+  // The control: a page with no such policy translates in the frame itself, and no offscreen document opens.
+  const plain = await distill.openTab("caption-translate");
+  await startCaption(distill.worker, plain.id);
+  const plainFrame = await captionFrame(plain.page);
+  expect(await policyAllows(plainFrame)).toBe(true);
+  await expect(plainFrame.getByTestId("cap-status")).toContainText("Translated from Czech", { timeout: 15_000 });
+  await expect(plainFrame.getByTestId("cap-chip")).not.toHaveAttribute("data-via", /./);
+  expect(await offscreenDocs(distill.worker)).toBe(0);
+  expect(await startCaption(distill.worker, plain.id)).toBe(false);
+
+  // The site sends Permissions-Policy: language-model=(): denied to the page and to the caption frame in it.
+  const tab = await distill.openTab("caption-translate-blocked");
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const page = tab.page;
+  distill.tab = page;
+  expect(await policyAllows(page)).toBe(false);
+  expect(await startCaption(distill.worker, tab.id)).toBe(true);
+  const frame = await captionFrame(page);
+  expect(await policyAllows(frame)).toBe(false);
+
+  await expect(frame.getByTestId("cap-status")).toContainText("Translated from Czech", { timeout: 15_000 });
+  await expect(page.locator("h1")).toHaveText("[EN] Poplatek za odpad na rok 2027 zůstává stejný");
+  for (const li of await page.locator("article li").all()) await expect(li).toHaveText(/^\[EN\] /);
+  // The chip says where it ran, from the run's own answer, and why it went through the offscreen document.
+  const chip = frame.getByTestId("cap-chip");
+  await expect(chip).toHaveText("On this device");
+  await expect(chip).toHaveAttribute("data-src", "on_device");
+  await expect(chip).toHaveAttribute("data-via", "offscreen");
+  await expect(chip).toHaveAttribute("title", /translation from Czech ran on this device/);
+  await expect(chip).toHaveAttribute("title", /in Distill's offscreen document/); // the stand-in model's reason, from there
+  await expect(chip).toHaveAttribute("title", /blocks on-device AI inside frames, so Distill ran it in a hidden page of its own/);
+  expect(await offscreenDocs(distill.worker)).toBe(1);
+  await shot(page, "offscreen");
+
+  // Keep Czech works as anywhere.
+  await frame.getByTestId("cap-keep-source").click();
+  await expect(page.locator("h1")).toHaveText("Poplatek za odpad na rok 2027 zůstává stejný");
+  await frame.getByTestId("cap-keep-source").click();
+
+  // Closing Distill on the page closes the offscreen document: no caption needs it any more.
+  expect(await startCaption(distill.worker, tab.id)).toBe(false);
+  await expect.poll(() => offscreenDocs(distill.worker), { timeout: 5_000 }).toBe(0);
+  expect(await page.locator("body").innerText()).not.toContain("[EN]");
 });
