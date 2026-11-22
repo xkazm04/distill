@@ -101,10 +101,13 @@ const MEASURED = /^(p|ul|ol|dl|blockquote|div|section|article)$/;
 /** Fewer characters than this is a label or a badge, not running text. */
 const MIN_CHARS = 20;
 
-/** Applies the layer where the main text needs it; returns how many blocks it changes. */
+/** Applies the layer where the main text needs it; returns how many blocks it changes when on. Run again (Stay clean
+ *  after the page changed), it keeps the person's switch: off stays off. */
 export function applyComfort(ctx: CleanContext): number {
-  clearComfort(ctx.doc);
   const { doc, win } = ctx;
+  const off = comfortOff(doc);
+  clearComfort(doc);
+  if (off) doc.documentElement.setAttribute(OFF, "");
   const protectedEl = (el: Element) => ctx.protect.some((p) => p.contains(el) || el.contains(p));
   const shown = (el: Element) => { const r = el.getBoundingClientRect(); return el.isConnected && r.width >= 2 && r.height >= 2; };
   const body = ctx.body.filter((el) => shown(el) && !protectedEl(el) && (el.textContent ?? "").trim().length >= MIN_CHARS);
@@ -198,6 +201,9 @@ export function applyComfort(ctx: CleanContext): number {
   state = { style, count };
   return count;
 }
+
+/** The person turned the layer off in More. */
+export const comfortOff = (doc: Document): boolean => doc.documentElement.hasAttribute(OFF);
 
 /** The person's switch: on or off again; returns how many blocks it changes when on (0 when off). */
 export function setComfort(doc: Document, on: boolean): number {

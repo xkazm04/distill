@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nová lávka přes Úhlavu je otevřená | Podhradský zpravodaj</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #faf9f6; color: #1f2124; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+header.site { position: sticky; top: 0; z-index: 20; height: 132px; background: #23402f; color: #fff; font-family: Arial, sans-serif; }
+header.site .in { max-width: 820px; margin: 0 auto; padding: 14px 20px; }
+header.site strong { display: block; font-size: 24px; margin-bottom: 10px; }
+header.site nav a { color: #fff; margin-right: 18px; font-size: 15px; text-decoration: none; }
+header.site form { margin-top: 10px; }
+header.site input { font: 14px Arial, sans-serif; padding: 4px 8px; width: 220px; }
+main { max-width: 820px; margin: 0 auto; padding: 8px 20px 40px; }
+h1 { font-size: 32px; line-height: 1.2; margin: 20px 0 8px; }
+.meta { font: 14px Arial, sans-serif; color: #555; }
+figure { margin: 16px 0; }
+figcaption { font: 13px Arial, sans-serif; color: #555; }
+video { display: block; background: #000; }
+form.note, form.oprava { font-family: Arial, sans-serif; background: #f0eee8; padding: 14px; margin: 20px 0; }
+form label { display: block; font-size: 14px; font-weight: bold; margin-top: 8px; }
+form input, form textarea { width: 100%; font: 15px Arial, sans-serif; padding: 5px; }
+form.newsletter { font-family: Arial, sans-serif; background: #e6f0ea; padding: 14px; margin: 20px 0; }
+.reklama { margin: 18px 0; padding: 16px; background: #fff4c2; border: 1px dashed #b49b2a; font: 14px Arial, sans-serif; text-align: center; color: #6b5a00; }
+marquee { font: 15px Arial, sans-serif; background: #fdecea; padding: 6px; }
+.live { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #c0392b; animation: blik 1s ease-in-out infinite; }
+@keyframes blik { 50% { opacity: .2; } }
+/* The next stories (?story=2, 3) come from a partner office: small grey print. */
+article.partner p, article.partner li { font: 11px/1.25 Verdana, sans-serif; color: #9a9a9a; }
+footer { max-width: 820px; margin: 0 auto 40px; padding: 14px 20px; font: 14px Arial, sans-serif; color: #444; background: #eeece6; }
+</style>
+</head>
+<body>
+<header class="site"><div class="in">
+  <strong>Podhradský zpravodaj</strong>
+  <nav><a href="#">Zprávy</a><a href="#">Kultura</a><a href="#">Sport</a><a href="#">Inzerce</a><a href="#">Kontakt</a></nav>
+  <form role="search" action="#" onsubmit="return false"><input type="search" name="q" placeholder="Hledat ve zpravodaji" aria-label="Hledat"></form>
+</div></header>
+<main id="obsah">
+<article id="clanek">
+  <h1>Nová lávka přes Úhlavu je otevřená</h1>
+  <p class="meta">Zprávy z obce · 18. listopadu · <span class="live" aria-hidden="true"></span> aktualizováno</p>
+  <p>Po půl roce stavby mohou lidé z Dolního Podhradí znovu chodit do školy a na nádraží přímo přes řeku. Nová lávka pro pěší a cyklisty nahradila starou dřevěnou, kterou loni na jaře poškodila velká voda.</p>
+  <figure><video id="hlavni-video" autoplay muted loop playsinline width="640" height="360"></video><figcaption>Slavnostní otevření lávky v sobotu ráno.</figcaption></figure>
+  <p>Lávka je široká tři metry a má osvětlení, které se samo rozsvítí, když se setmí. Stavba stála 6,2 milionu korun; dvě třetiny zaplatil kraj z programu pro obnovu po povodních.</p>
+  <p>Starosta při otevření poděkoval hasičům, kteří po povodni zajistili zbytky staré lávky, a lidem z Dolního Podhradí za trpělivost s objížďkou přes silniční most. Objížďka měřila skoro dva kilometry.</p>
+  <form class="newsletter" action="#" onsubmit="return false">
+    <p>Odebírejte náš newsletter: zprávy z obce jednou týdně.</p>
+    <input type="email" name="email" aria-label="E-mail"> <button type="submit">Odebírat</button>
+  </form>
+  <p>Na stavbě pracovala firma z Klatov. Zábradlí je z modříku a pochozí plocha z protiskluzových desek, takže by lávka měla vydržet bez větší opravy aspoň čtyřicet let.</p>
+  <figure><video id="druhe-video" autoplay muted loop playsinline width="630" height="354"></video><figcaption>Video: jak se lávka stavěla, od jara do podzimu.</figcaption></figure>
+  <p>Na jaře obec kolem lávky vysadí nové stromy a na břehu u školy postaví lavičky. Lidé mohou do konce ledna posílat nápady, co dalšího by u řeky chtěli mít.</p>
+  <form id="comment" class="note" action="#" onsubmit="return false">
+    <p>Napište redakci, co si o lávce myslíte.</p>
+    <label for="jmeno">Jméno</label><input id="jmeno" name="jmeno" type="text">
+    <label for="vzkaz">Vzkaz</label><textarea id="vzkaz" name="vzkaz" rows="3"></textarea>
+    <button type="submit">Odeslat</button>
+  </form>
+  <p><a href="#" id="dalsi">Další zpráva: zimní údržba chodníků</a></p>
+</article>
+<form class="oprava" action="#" onsubmit="return false">
+  <label for="chyba">Našli jste v článku chybu? Dejte nám vědět.</label>
+  <textarea id="chyba" name="chyba" rows="2"></textarea>
+  <button type="submit">Poslat</button>
+</form>
+</main>
+<footer>© Podhradský zpravodaj, měsíčník obce Podhradí. Ukázková stránka projektu Distill.</footer>
+<script>
+// A moving picture without a video file: a canvas drawn 20 times a second, played as a muted stream.
+function stream(color) {
+  var c = document.createElement("canvas"); c.width = 320; c.height = 180;
+  var g = c.getContext("2d"), t = 0;
+  setInterval(function () { g.fillStyle = color; g.fillRect(0, 0, 320, 180); g.fillStyle = "#fff"; g.fillRect((t++ * 6) % 320, 70, 40, 40); }, 50);
+  return c.captureStream(20);
+}
+document.getElementById("hlavni-video").srcObject = stream("#23402f");
+document.getElementById("druhe-video").srcObject = stream("#8e5b2a");
+
+var params = new URLSearchParams(location.search);
+// Late parts (?late=<ms>; 0 or none: never): an advert loads into the article, with a ticker that runs and a carousel.
+var late = Number(params.get("late") || 0);
+if (late > 0) setTimeout(function () {
+  var ad = document.createElement("div"); ad.className = "reklama";
+  ad.innerHTML = "<span>Reklama</span><p>Zimní pneumatiky se slevou 25 % jen tento týden.</p>";
+  var ticker = document.createElement("div"); ticker.className = "ticker";
+  ticker.innerHTML = "<marquee>Právě teď: lávka je otevřená každý den od 5:00 do 23:00, v noci je osvětlená.</marquee>";
+  var paras = document.querySelectorAll("#clanek > p");
+  paras[2].after(ad);
+  paras[3].after(ticker);
+}, late);
+
+// The next stories, as a single-page app shows them: the address changes and the article is replaced. They come from
+// a partner office in small grey print, each with its own advert.
+var stories = [
+  { title: "Zimní údržba chodníků začíná v pondělí", paras: [
+    "Od pondělí bude obec udržovat chodníky v centru a u školy každé ráno do sedmi hodin. Technické služby mají letos nový malý traktor se sypačem, který projede i úzkou ulicí ke kostelu.",
+    "Chodníky na okraji obce se udržují jen při kalamitě. Kdo uvidí neprůchodný chodník u zastávky, může zavolat na obecní úřad nebo napsat do aplikace obce, technické služby ho uklidí do dvou hodin.",
+    "Posypový materiál si lidé mohou zdarma nabrat do vlastních nádob u hasičské zbrojnice, vždy v pracovní dny od sedmi do patnácti hodin."
+  ] },
+  { title: "Knihovna prodlouží otevírací dobu", paras: [
+    "Od prosince bude obecní knihovna otevřená i ve středu odpoledne a v sobotu dopoledne. Nová knihovnice přijde z Klatov a povede také kroužek čtení pro děti z první třídy.",
+    "Čtenáři si nově mohou knihy objednat přes internet a vyzvednout si je v boxu u úřadu, i když je knihovna zavřená. Registrace zůstává pro děti zdarma, dospělí zaplatí sto korun ročně.",
+    "Knihovna také hledá dobrovolníky, kteří by jednou za měsíc četli seniorům v domě s pečovatelskou službou."
+  ] }
+];
+var shown = 0;
+document.addEventListener("click", function (e) {
+  var link = e.target.closest && e.target.closest("#dalsi");
+  if (!link) return;
+  e.preventDefault();
+  var story = stories[shown++ % stories.length];
+  history.pushState({}, "", location.pathname + "?story=" + (shown + 1) + (late ? "&late=" + late : ""));
+  var html = "<article id='clanek' class='partner'><h1>" + story.title + "</h1>"
+    + "<p class='meta'>Zprávy z obce · 19. listopadu</p>"
+    + "<p>" + story.paras[0] + "</p>"
+    + "<div class='reklama'><span>Reklama</span><p>Palivové dříví, doprava zdarma.</p></div>"
+    + "<p>" + story.paras[1] + "</p><p>" + story.paras[2] + "</p>"
+    + "<div class='ticker'><marquee>Upozornění: ve čtvrtek nepojede autobus v 6:40.</marquee></div>"
+    + "<p><a href='#' id='dalsi'>Další zpráva</a></p></article>";
+  document.getElementById("clanek").outerHTML = html;
+  document.title = story.title + " | Podhradský zpravodaj";
+  scrollTo(0, 0);
+});
+</script>
+</body>
+</html>

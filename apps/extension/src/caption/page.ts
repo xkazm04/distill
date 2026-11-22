@@ -4,14 +4,14 @@
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
 import { detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
-import { calmCounts, calmPage, calmProtect, clearCalm } from "./calm";
-import { applyComfort, clearComfort } from "./comfort";
+import { calmCounts, calmMore, calmPage, calmProtect, clearCalm } from "./calm";
+import { applyComfort, clearComfort, comfortOff } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
 import { layoutOf, type Layout } from "./layout";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
-import { inUse, sincePress, watchForClutter } from "./watch";
+import { inUse, sincePress, spent, watchForClutter } from "./watch";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -46,6 +46,10 @@ interface State {
   ctx: CleanContext | null;
   /** Stops Stay clean's watching (#3). */
   unwatch: () => void;
+  /** The address the context was read at: another one is a single-page app's next view. */
+  href: string;
+  /** Stay clean changed the page and what depends on its layout has not followed yet (follow). */
+  stale: boolean;
 }
 
 let state: State | null = null;
@@ -90,7 +94,7 @@ export function open(doc: Document, tabId: number): void {
   (doc.head ?? doc.documentElement).append(style);
 
   doc.documentElement.setAttribute(OPEN, "");
-  state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined };
+  state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined, href: "", stale: false };
   // Slide in on the next frame, so the transition runs from below the window.
   requestAnimationFrame(() => requestAnimationFrame(() => host.style.setProperty("transform", "none", "important")));
 }
@@ -210,7 +214,7 @@ function readContext(doc: Document, win: Window, removed: Map<string, Element>):
   const keep = read.filter(visible);
   const body = read.filter((el, i) => visible(el) && ["paragraph", "list", "table", "quote", "code"].includes(kinds[i] ?? ""));
   const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
-  return { doc, win, keep, body, main, protect: contentExtras(doc, win), removed };
+  return { doc, win, keep, body, main, protect: contentExtras(doc, win, main), removed };
 }
 
 async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
@@ -228,6 +232,9 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   const ctx: CleanContext = { ...read, keep: union(before.keep, read.keep), body, main, protect: union(before.protect, read.protect) };
   s.ctx = ctx;
   calmProtect(ctx.protect);
+  // A single-page app's next view: another address, another main column, or the old text gone.
+  if (win.location.href !== s.href || ctx.main !== before.main || before.body.some((e) => !e.isConnected)) s.stale = true;
+  s.href = win.location.href;
 
   const found = new Map<string, Element>();
   const items = findClutter(doc, clutterOptions(win, ctx.keep, ctx.body, ctx.protect, (id, el) => found.set(id, el)));
@@ -251,7 +258,8 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   const calm = calmCounts();
   const calmChanged = calm.media !== s.report.calm.media || calm.motion !== s.report.calm.motion;
   if (!fresh.length) {
-    if (calmChanged) { s.report = { ...s.report, calm }; notifyFrame(current()); }
+    if (s.stale) { follow(s, ctx); notifyFrame(current()); }
+    else if (calmChanged) { s.report = { ...s.report, calm }; notifyFrame(current()); }
     return false;
   }
 
@@ -276,8 +284,24 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   if (locked) html.setAttribute(UNLOCK, "");
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
   s.report = { ...s.report, items: [...s.report.items, ...added], unlockedScroll: s.report.unlockedScroll || locked, calm: calmCounts() };
+  s.stale = true;
+  follow(s, ctx);
   notifyFrame(current());
   return true;
+}
+
+/**
+ * Stay clean changed the page (#3): new items went, or a single-page app showed its next view. What Clean did from the
+ * page's layout and text follows: the column grows into a hole a late sidebar advert left (#1), tall headers scroll
+ * (#4), the reading layer covers the new text (#6, the person's switch kept), new moving parts stop (#8, never media
+ * the person played). While the original is shown it waits for the next look (Back to Distill brings one).
+ */
+function follow(s: State, ctx: CleanContext): void {
+  if (!s.report || originalOn(ctx.doc)) return;
+  s.stale = false;
+  const t0 = performance.now();
+  s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx) };
+  spent(performance.now() - t0);
 }
 
 /** Whether a box takes space on screen right now. `look`: one judgement's reading of the layout, shared with its other
@@ -292,10 +316,36 @@ function shownOn(win: Window, look: Layout = layoutOf(win)) {
   };
 }
 
-/** What the page is for, beyond its text: the main video, a form someone came to fill. */
-function contentExtras(doc: Document, win: Window): Element[] {
+/** What the page is for, beyond its text: the main video, a form someone came to fill. `main`: the main column. */
+function contentExtras(doc: Document, win: Window, main: Element | null): Element[] {
   const shown = shownOn(win);
-  // The main video: a player shows a poster before it plays, so the video's own box can still be empty; its player is not.
+  // The column and what sits beside it, unless that is the whole page.
+  const around = main?.parentElement && main.parentElement !== doc.body && main.parentElement !== doc.documentElement ? main.parentElement : null;
+  const video = mainVideo(doc, win, shown, main, around);
+  const fields = (f: Element) =>
+    Array.from(f.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=image]), select, textarea"));
+  const forms = Array.from(doc.querySelectorAll("form")).filter((f) => {
+    if (!shown(f)) return false;
+    const all = fields(f);
+    if (all.length >= 3) return true; // a form someone came to fill, wherever it is
+    // A small form of the article itself (a comment or a question to the editors): inside the main column, or right
+    // after it beside nothing else. Never a search box, a login or a sign-up that names itself.
+    if (!main || !all.some(shown)) return false;
+    const inside = main.contains(f);
+    const after = !inside && !!around?.contains(f) && !!(main.compareDocumentPosition(f) & 4 /* f follows main */);
+    if (!inside && !after) return false;
+    return !searchOrLogin(f, all.filter(shown)) && !selfNamed(f, inside ? main : around as Element);
+  });
+  return [...(video ? [video] : []), ...forms];
+}
+
+/**
+ * The page's main video, the one it is for: of the videos with a player 320 px wide or more, the largest that is in the
+ * first screen or in or beside the main column (a video page's player is both). Other videos are not protected: a
+ * second one that plays by itself is Calm's to pause, and one that sits in the text is kept by Clean as content anyway.
+ */
+function mainVideo(doc: Document, win: Window, shown: (el: Element) => boolean, main: Element | null, around: Element | null): Element | null {
+  // A player shows a poster before it plays, so the video's own box can still be empty; its player is not.
   const wide = (el: Element | null, depth: number): boolean =>
     !!el && depth >= 0 && ((shown(el) && el.getBoundingClientRect().width >= 320) || wide(el.parentElement, depth - 1));
   // Protect the whole player (its controls and poster sit beside the <video>), not the <video> alone: climb while the
@@ -310,10 +360,49 @@ function contentExtras(doc: Document, win: Window): Element[] {
     }
     return box;
   };
-  const videos = Array.from(doc.querySelectorAll("video")).filter((v) => wide(v, 3)).map(player);
-  const forms = Array.from(doc.querySelectorAll("form")).filter((f) =>
-    shown(f) && f.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea").length >= 3);
-  return [...videos, ...forms];
+  let best: Element | null = null;
+  let bestArea = 0;
+  for (const v of Array.from(doc.querySelectorAll("video"))) {
+    if (!wide(v, 3)) continue;
+    const box = player(v);
+    const r = box.getBoundingClientRect();
+    const firstScreen = r.top + win.scrollY < win.innerHeight && r.bottom + win.scrollY > 0;
+    const column = !!main && (main.contains(box) || box.contains(main) || !!around?.contains(box));
+    if (!firstScreen && !column) continue;
+    const area = r.width * r.height;
+    if (area > bestArea) { best = box; bestArea = area; }
+  }
+  return best;
+}
+
+/** A search box (one field of type search or named q/s/search/query, or a search landmark) or a login (a password). */
+function searchOrLogin(form: Element, shownFields: Element[]): boolean {
+  if (form.querySelector("input[type=password]")) return true;
+  if (form.closest("[role=search], search")) return true;
+  if (shownFields.length !== 1) return false;
+  const f = shownFields[0] as HTMLInputElement;
+  return f.type === "search" || /^(q|s|search|query)$/i.test(f.name);
+}
+
+/** Names Clean takes out even from the main column (engine clutter.ts, its STRONG kinds): a form that is, or sits in, a
+ *  sign-up, an advert or a share box is that box's, not the article's. */
+const SELF_NAMED = /^(newsletters?|subscribe|subscription|odber|signup|ads?|adv|advert|adverts|advertisement|sponsored|reklamy?|related|recommended|share|sharing|social|cookies?|consent|gdpr)$/;
+/** A discussion: a comment form inside one is protected only by being the discussion's (protecting it would keep the
+ *  whole thread); a form that only calls itself "comment" is the article's own (a remark to the editors). */
+const DISCUSSION = /^(comments?|discussion|diskuse|diskuze|disqus|replies)$/;
+const SIGN_UP_WORDS = /(?<!\p{L})(newsletter|odeb[ií]rat|k odb[eě]ru|subscribe)(?!\p{L})/iu;
+
+/** The form, or a box around it below `bound`, names itself as something Clean takes out (a newsletter sign-up, an
+ *  advert, a discussion around it), by its class or id, its role, or its words (a sign-up says so in a few words). */
+function selfNamed(form: Element, bound: Element): boolean {
+  for (let el: Element | null = form; el && el !== bound; el = el.parentElement) {
+    const words = `${el.getAttribute("class") ?? ""} ${el.id}`.toLowerCase().split(/[^a-z0-9]+/);
+    if (words.some((w) => SELF_NAMED.test(w) || (el !== form && DISCUSSION.test(w)))) return true;
+    if (/^(footer|aside|nav)$/.test(el.localName) || /^(contentinfo|complementary|navigation)$/.test(el.getAttribute("role") ?? "")) return true;
+    const text = el.textContent ?? "";
+    if (text.length < 600 && SIGN_UP_WORDS.test(text)) return true;
+  }
+  return false;
 }
 
 function scrollLocked(doc: Document, win: Window): boolean {
@@ -348,7 +437,8 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     return k === "paragraph" || k === "list" || k === "table" || k === "quote" || k === "code";
   });
   const removed = new Map<string, Element>();
-  const protect = contentExtras(doc, win);
+  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
+  const protect = contentExtras(doc, win, main);
   const items: ClutterItem[] = findClutter(doc, clutterOptions(win, keep, body, protect, (id, el) => removed.set(id, el)));
   const unlockedScroll = scrollLocked(doc, win);
 
@@ -376,10 +466,10 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   if (!state) return base; // closed meanwhile
 
   // Round 1 (spark universal-core): each module changes the page only through what it can take back.
-  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
   const ctx: CleanContext = { doc, win, keep, body, main, protect, removed };
   state.ctx = ctx;
   state.removed = removed;
+  state.href = win.location.href;
   state.report = {
     ...base,
     unstuck: unstick(ctx),
@@ -391,10 +481,17 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   return state.report;
 }
 
-/** The report as it stands, with what the person brought back. */
+/** The report as it stands, with what the person brought back, what Calm holds right now, and the reading layer as
+ *  the person's switch has it (0 while off, as the switch itself answers). */
 function current(): CleanReport {
   if (!state?.report) throw new Error("Nothing was removed on this page.");
-  return { ...state.report, restored: restoredIds() };
+  const doc = state.host.ownerDocument;
+  return { ...state.report, restored: restoredIds(), calm: calmCounts(), comfort: comfortOff(doc) ? 0 : state.report.comfort };
+}
+
+/** Play again (#8) let everything move: the report says so at once, so a Show clicked right after reads 0/0. */
+export function recount(): void {
+  if (state?.report) state.report = { ...state.report, calm: calmCounts() };
 }
 
 function restoredIds(): string[] {
@@ -402,11 +499,25 @@ function restoredIds(): string[] {
   return Array.from(state.removed).filter(([, el]) => !el.hasAttribute(HIDE)).map(([id]) => id);
 }
 
-/** Brings one removed item back (or all). It stays back for as long as the caption is open. */
+/** Brings one removed item back (or all). It stays back for as long as the caption is open. A tall header that comes
+ *  back scrolls with the page, like the ones Clean left (#4). */
 export function restore(id: string): CleanReport {
   if (!state?.report) throw new Error("Nothing was removed on this page.");
   const els = id === "all" ? Array.from(state.removed.values()) : [state.removed.get(id)].filter((e): e is Element => !!e);
   if (!els.length) throw new Error("That part of the page is no longer there.");
+  const back = els.filter((el) => el.hasAttribute(HIDE));
   for (const el of els) el.removeAttribute(HIDE);
-  return { ...state.report, restored: restoredIds() };
+  const ctx = state.ctx;
+  if (ctx && back.some((el) => floats(el, ctx.win))) state.report = { ...state.report, unstuck: unstick(ctx) };
+  return current();
+}
+
+/** The element or something in it is fixed or sticky (a header bar, a menu that follows the page). */
+function floats(el: Element, win: Window): boolean {
+  const walker = el.ownerDocument.createTreeWalker(el, 1 /* NodeFilter.SHOW_ELEMENT */);
+  for (let n: Node | null = el; n; n = walker.nextNode()) {
+    const p = win.getComputedStyle(n as Element).position;
+    if (p === "fixed" || p === "sticky") return true;
+  }
+  return false;
 }

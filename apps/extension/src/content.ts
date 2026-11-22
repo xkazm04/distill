@@ -76,7 +76,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:close": caption.close(document); return { ok: true };
     // ---- round 1 (spark universal-core) ----
     case "distill:caption:comfort": return { comfort: setComfort(document, req.on) };
-    case "distill:caption:play": playAgain(document); return { ok: true };
+    case "distill:caption:play": playAgain(document); caption.recount(); return { ok: true };
     case "distill:caption:contact": return readContacts(document, Array.from(caption.context()?.removed.values() ?? []));
     case "distill:caption:showContact": showContact(document, req.id); return { ok: true };
     case "distill:caption:form": return formProgress(document);

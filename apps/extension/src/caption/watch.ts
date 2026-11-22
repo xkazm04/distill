@@ -29,6 +29,11 @@ let activated = 0;
  *  right after is their doing (a menu they opened), not the page's. */
 export const sincePress = (): number => (activated ? Date.now() - activated : Infinity);
 
+let spend: (ms: number) => void = () => undefined;
+/** page.ts tells how long the work after a judgement took (re-running what follows the page's layout): Stay clean
+ *  keeps judging plus that work within its share of the time. */
+export const spent = (ms: number): void => spend(ms);
+
 /** True when the person pressed a pointer or a key inside `el` lately, or is typing in a field inside it. */
 export function inUse(el: Element): boolean {
   if (touched && touched.el.isConnected && el.contains(touched.el) && Date.now() - touched.at < ENGAGED_MS) return true;
@@ -110,11 +115,17 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
     forced = false;
     const t0 = performance.now();
     lastRun = Date.now();
+    followed = 0;
     try { recheck(); } finally {
       // recheck judges synchronously before its first await (the fade), so this is the cost of judging.
-      gap = Math.max(MIN_GAP_MS, (performance.now() - t0) / JUDGE_SHARE);
+      judged = performance.now() - t0;
+      gap = Math.max(MIN_GAP_MS, judged / JUDGE_SHARE);
     }
   };
+  // What followed the judgement (page.ts follow, after the fade) counts too: the next one waits for both.
+  spend = (ms: number) => { followed += ms; gap = Math.max(MIN_GAP_MS, (judged + followed) / JUDGE_SHARE); };
+  let judged = 0;
+  let followed = 0;
 
   const schedule = () => {
     if (stopped || original()) return;
@@ -128,9 +139,14 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
 
   const observer = new MutationObserver((records) => {
     let wake = false;
+    // Reflow shows the original for an instant to measure (no frame is painted): on and off again in one batch is no
+    // change, and must not wake the judging that just ran it.
+    const flip = records.find((r) => r.type === "attributes" && r.target === html && r.attributeName === ORIGINAL);
+    const flipped = !!flip && (flip.oldValue !== null) !== original();
     for (const r of records) {
       if (r.type === "attributes") {
         if (r.target === html && r.attributeName === ORIGINAL) {
+          if (!flipped || r !== flip) continue;
           // Original on: rest. Original off: one look at what came meanwhile.
           if (original()) { if (timer !== undefined) clearTimeout(timer); timer = undefined; firstChange = 0; }
           else { forced = true; wake = true; }
@@ -153,7 +169,7 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
     if (added.length > 400) added.splice(0, added.length - 400);
     if (wake) schedule();
   });
-  observer.observe(html, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden", ORIGINAL] });
+  observer.observe(html, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["style", "class", "hidden", ORIGINAL] });
 
   const onHistory = () => { forced = true; schedule(); };
   win.addEventListener("popstate", onHistory);
@@ -179,6 +195,7 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
 
   return () => {
     stopped = true;
+    spend = () => undefined;
     observer.disconnect();
     win.removeEventListener("popstate", onHistory);
     nav?.removeEventListener?.("currententrychange", onHistory);

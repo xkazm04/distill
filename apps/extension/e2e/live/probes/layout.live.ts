@@ -11,7 +11,9 @@ import { captionFrame, firstSight, settled, startCaption } from "../../caption";
 import { LAUNCH, OUT, prepareExtension } from "../../harness";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = join(OUT, "live", "probes", "layout");
+/** PROBE_LABEL names the build under test ("before" / "after"): e2e/out/live/probes/layout/<label>/. Unset: no label. */
+const LABEL = process.env.PROBE_LABEL;
+const OUT_DIR = join(OUT, "live", "probes", "layout", ...(LABEL ? [LABEL] : []));
 interface Site { id: string; url: string; settleMs?: number; cookies?: { name: string; value: string; domain: string; path?: string }[] }
 const ALL = JSON.parse(readFileSync(join(here, "..", "sites.json"), "utf8")) as Site[];
 const DEFAULT = ["demo-article", "news-denik", "news-aktualne", "company-dymacek", "company-pujcovna-smid"];
@@ -28,6 +30,8 @@ interface Look {
   comfortBlocks: number;
   /** Comfort's rules, as "id": declarations. */
   rules: string[];
+  /** The headline's left edge against the main text's (the longest paragraph's): G8, the headline follows the column. */
+  headline: { left: number; textLeft: number; offset: number; follows: string | null; fontSize: number } | null;
 }
 
 function look(page: Page): Promise<Look> {
@@ -71,7 +75,15 @@ function look(page: Page): Promise<Look> {
       return { el: name(el), fontSize: parseFloat(cs.fontSize), lineHeight: cs.lineHeight, color: cs.color, contrast, charsPerLine: Math.round(el.getBoundingClientRect().width / avg), changes, text: (el.textContent ?? "").trim().slice(0, 60) };
     });
     const rules = document.querySelector('style[data-distill="comfort"]')?.textContent?.split("\n").map((l) => l.replace(/^.*\[data-distill-comfort-(text|measure)=/, "")) ?? [];
-    return { scrollWidth: document.documentElement.scrollWidth, innerWidth, widened, text, comfortBlocks: marked.length, rules };
+    const h1 = Array.from(document.querySelectorAll("h1")).find((h) => { const r = h.getBoundingClientRect(); return r.width > 2 && r.height > 2; });
+    const longest = Array.from(document.querySelectorAll("p")).filter((p) => p.getBoundingClientRect().width > 2)
+      .sort((a, b) => (b.textContent ?? "").length - (a.textContent ?? "").length)[0];
+    const headline = h1 && longest ? (() => {
+      const left = Math.round(h1.getBoundingClientRect().left), textLeft = Math.round(longest.getBoundingClientRect().left);
+      const mark = h1.closest("[data-distill-widen]");
+      return { left, textLeft, offset: left - textLeft, follows: mark?.getAttribute("data-distill-widen") ?? null, fontSize: parseFloat(getComputedStyle(h1).fontSize) };
+    })() : null;
+    return { scrollWidth: document.documentElement.scrollWidth, innerWidth, widened, text, comfortBlocks: marked.length, rules, headline };
   });
 }
 
@@ -134,7 +146,15 @@ for (const site of SITES) {
       await original(frame, page, true);
       const before = await look(page);
       await page.screenshot({ path: join(dir, "original-1440.png") });
+      // The headline over the column (G8), as the original has it and as Distill's view has it.
+      await page.evaluate(() => {
+        const h1 = Array.from(document.querySelectorAll("h1")).find((h) => h.getBoundingClientRect().height > 2);
+        if (h1) scrollTo({ top: Math.max(0, h1.getBoundingClientRect().top + scrollY - 60), behavior: "instant" });
+      });
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: join(dir, "headline-original-1440.png") });
       await original(frame, page, false);
+      await page.screenshot({ path: join(dir, "headline-distill-1440.png") });
 
       // The switch in More, when Comfort changed something: off shows the page's own text, on brings the layer back.
       let comfortSwitch: unknown = null;
