@@ -17,9 +17,10 @@ const MAX_FORMS = 12;
 /** A field named like a robot trap: it must stay empty, so it is never counted or visited. */
 const TRAP = /(^|[_\-[\]])(website|url|www|homepage|hp|honeypot|hpot|antispam|spam|bot|trap|nickname|leave[_-]?blank)([_\-[\]]|$)/i;
 
+/** `required` is the engine's reading (FieldStructure.required): the attributes, and what old forms use instead (a
+ *  required class, the word or a star in the label), so the side panel's Wayfill counts the same fields. */
 interface Field { field: FieldStructure; el: HTMLElement | null; filled: boolean; required: boolean }
 interface Scan { structure: FormStructure; fields: Field[] }
-
 
 /** Whether a person can see the field (or, for a styled checkbox or radio, its label). */
 function seen(el: HTMLElement): boolean {
@@ -63,21 +64,6 @@ function isFilled(f: FieldStructure, el: HTMLElement | null, value: string | und
   return true;
 }
 
-/** Words that mark a field as required in its label: "Jméno - povinné", "E-mail (required)", "Pflichtfeld". */
-const REQUIRED_WORD = /povinn[éýáa]|\brequired\b|pflicht|obligatoire|obligatorio|obbligatorio|wymagane|kötelező/i;
-
-/**
- * Required, as the page says it: the engine's reading (the required attribute, aria-required), or what old forms use
- * instead: a "required" class (Štáhlavy), the word in the label ("- povinné", Přáslavice) or a star in it.
- */
-function markedRequired(f: FieldStructure, el: HTMLElement | null): boolean {
-  if (f.required || REQUIRED_WORD.test(f.label)) return true;
-  if (!el) return false;
-  if (/(^|\s)(required|is-required|povinne|povinny|mandatory)(\s|$)/i.test(el.getAttribute("class") ?? "")) return true;
-  const labels = (el as HTMLInputElement).labels;
-  return !!labels && Array.from(labels).some((l) => /\*/.test(l.textContent ?? "") || REQUIRED_WORD.test(l.textContent ?? ""));
-}
-
 /** The page's main form: the one with the most fields a person can see (at least MIN_FIELDS). */
 async function scan(doc: Document): Promise<Scan | null> {
   const url = doc.location?.href ?? "";
@@ -92,7 +78,7 @@ async function scan(doc: Document): Promise<Scan | null> {
     const kept = { ...structure, fields: shown };
     // The person's values: read here, turned into yes/no, and dropped. They never leave this function.
     const values = readValues(doc, kept);
-    best = { structure: kept, fields: shown.map((f) => { const el = els.get(f.fieldId) ?? null; return { field: f, el, filled: isFilled(f, el, values[f.fieldId]), required: markedRequired(f, el) }; }) };
+    best = { structure: kept, fields: shown.map((f) => { const el = els.get(f.fieldId) ?? null; return { field: f, el, filled: isFilled(f, el, values[f.fieldId]), required: f.required }; }) };
   }
   return best;
 }
