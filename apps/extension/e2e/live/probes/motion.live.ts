@@ -72,9 +72,21 @@ function mediaState(page: Page) {
     const t0 = all.map((m) => m.currentTime);
     await new Promise((r) => setTimeout(r, 700));
     return all.map((m, i) => ({
-      tag: m.localName, width: Math.round(m.getBoundingClientRect().width), muted: m.muted,
+      tag: m.localName, width: Math.round(m.getBoundingClientRect().width), top: Math.round(m.getBoundingClientRect().top + scrollY), muted: m.muted,
+      name: `${m.id ? `#${m.id}` : ""}${m.parentElement ? ` in ${m.parentElement.localName}.${String(m.parentElement.className).slice(0, 30)}` : ""}`,
       playing: !m.paused && m.currentTime > (t0[i] ?? 0), paused: m.paused, distillPaused: m.hasAttribute("data-distill-paused"),
     }));
+  });
+}
+
+/** What Distill's round-1 modules hold on the page now, by their marks (#1 widen, #4 unstick, #6 comfort, #8 calm). */
+function marks(page: Page) {
+  return page.evaluate(() => {
+    const n = (sel: string) => document.querySelectorAll(sel).length;
+    return {
+      widened: n("[data-distill-widen]"), unstuck: n("[data-distill-unstick]"), comfort: n("[data-distill-comfort]"),
+      still: n("[data-distill-still]"), stopped: n("[data-distill-stopped]"), paused: n("[data-distill-paused]"),
+    };
   });
 }
 
@@ -83,9 +95,9 @@ const removedCount = async (frame: Frame) => Number(/^Removed (\d+)/.exec((await
 interface ProbeResult {
   site: string; url: string; at: string; status: "ok" | "skipped" | "error"; reason?: string;
   firstSight?: string; firstMs?: number;
-  removedAtFirst?: number; removedAfter?: number; timeline?: { s: number; removed: number }[];
+  removedAtFirst?: number; removedAfter?: number; timeline?: ({ s: number; removed: number; longTaskMs: number } & Awaited<ReturnType<typeof marks>>)[];
   statusAfter?: string; overlaysAtFirst?: string[]; overlaysAfter?: string[];
-  calm?: { attr: boolean; stillMarked: number; mediaBefore: unknown; mediaAfter: unknown; section: string | null };
+  calm?: { attr: boolean; stillMarked: number; mediaBefore: unknown; mediaMid: unknown; mediaAfter: unknown; section: string | null };
   unstuck?: number; removedLabels?: string[];
   phone?: { originalShare: number; distillShare: number; distillShareWithStrip: number };
   desktop?: { originalShare: number; distillShare: number };
@@ -160,11 +172,16 @@ for (const site of SITES) {
 
       // 15 s open: scroll down a screen every 3 s (lazy adverts come with scrolling), then back to the top.
       r.timeline = [];
+      let mediaMid: unknown = null;
       const started = Date.now();
       for (let s = 1; s <= OPEN_MS / 1000; s++) {
         await page.waitForTimeout(1000);
         if (s % 3 === 0 && s < OPEN_MS / 1000) await page.mouse.wheel(0, 700);
-        r.timeline.push({ s, removed: await removedCount(frame) });
+        // Long tasks so far (ms): the cost of Stay clean and what it re-runs, second by second.
+        const lt = Math.round(await page.evaluate(() => (window as unknown as { __lt: number }).__lt));
+        r.timeline.push({ s, removed: await removedCount(frame), longTaskMs: lt, ...await marks(page) });
+        // Three screens down, where a news site's second video starts when it comes into view (G1).
+        if (s === 10) { mediaMid = await mediaState(page); await shot("scrolled"); }
       }
       void started;
       await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
@@ -183,7 +200,7 @@ for (const site of SITES) {
       r.calm = {
         attr: await page.evaluate(() => document.documentElement.hasAttribute("data-distill-calm")),
         stillMarked: await page.evaluate(() => document.querySelectorAll("[data-distill-still]").length),
-        mediaBefore, mediaAfter,
+        mediaBefore, mediaMid, mediaAfter,
         section: (await section.count()) ? await section.textContent() : null,
       };
       await shot("more");

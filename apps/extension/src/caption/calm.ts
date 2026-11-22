@@ -128,11 +128,35 @@ export function calmPage(ctx: CleanContext): { media: number; motion: number } {
     }
   }
 
-  // Moving parts the person can see: marquees, carousels, endless animations.
+  counted = { media: counted.media, motion: holdMotion(doc, trees) };
+  unguard = guard(trees);
+  return calmCounts();
+}
+
+/**
+ * Stay clean showed new parts of the page (a late carousel, a single-page app's next view): while Calm is on, their
+ * marquees, carousels and endless animations stop too. Media is left to the guard, so a video the person played is
+ * never paused again. After Play again Calm is off and nothing happens. Returns the counts.
+ */
+export function calmMore(ctx: CleanContext): { media: number; motion: number } {
+  if (!active) return calmCounts();
+  protect = ctx.protect;
+  const trees = treesOf(ctx.doc);
+  const more = holdMotion(ctx.doc, trees);
+  if (more) counted = { media: counted.media, motion: counted.motion + more };
+  // New shadow roots may have come with the new parts: the guard listens in each tree.
+  unguard();
+  unguard = guard(trees);
+  return calmCounts();
+}
+
+/** Stops the moving parts the person can see that Calm does not hold yet: marquees, carousels, endless animations.
+ *  Returns how many it adds to the motion count (all endless animations count as one). */
+function holdMotion(doc: Document, trees: readonly (Document | ShadowRoot)[]): number {
   let motion = 0;
   for (const t of trees) {
     for (const mq of Array.from(t.querySelectorAll("marquee"))) {
-      if (isProtected(mq) || !shown(mq)) continue;
+      if (marquees.includes(mq) || isProtected(mq) || !shown(mq)) continue;
       (mq as HTMLElement & { stop?: () => void }).stop?.();
       mq.setAttribute(STOPPED, "");
       marquees.push(mq);
@@ -149,6 +173,7 @@ export function calmPage(ctx: CleanContext): { media: number; motion: number } {
     }
   }
   const html = doc.documentElement;
+  let found = false;
   for (const a of typeof doc.getAnimations === "function" ? doc.getAnimations() : []) {
     const effect = a.effect as KeyframeEffect | null;
     const target = effect?.target;
@@ -156,9 +181,10 @@ export function calmPage(ctx: CleanContext): { media: number; motion: number } {
     if (effect.getComputedTiming().endTime !== Infinity || a.playState !== "running" || !shown(target)) continue;
     if ("animationName" in a) target.setAttribute(STILL, ""); // a CSS animation: the style pauses it
     else { a.pause(); scripted.push(a); }
-    animated = true;
+    found = true;
   }
-  if (animated) {
+  if (found && !animated) {
+    animated = true;
     html.setAttribute(CALM, "");
     const style = doc.createElement("style");
     style.setAttribute("data-distill", "calm");
@@ -166,10 +192,7 @@ export function calmPage(ctx: CleanContext): { media: number; motion: number } {
     (doc.head ?? html).append(style);
     motion += 1;
   }
-
-  counted = { media: counted.media, motion };
-  unguard = guard(trees);
-  return calmCounts();
+  return motion;
 }
 
 /** Lets everything Calm stopped play and move again. Media plays again only when it was playing (or set to start by

@@ -4,7 +4,7 @@
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
 import { detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
-import { calmCounts, calmPage, calmProtect, clearCalm } from "./calm";
+import { calmCounts, calmMore, calmPage, calmProtect, clearCalm } from "./calm";
 import { applyComfort, clearComfort, comfortOff } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
@@ -45,6 +45,10 @@ interface State {
   ctx: CleanContext | null;
   /** Stops Stay clean's watching (#3). */
   unwatch: () => void;
+  /** The address the context was read at: another one is a single-page app's next view. */
+  href: string;
+  /** Stay clean changed the page and what depends on its layout has not followed yet (follow). */
+  stale: boolean;
 }
 
 let state: State | null = null;
@@ -89,7 +93,7 @@ export function open(doc: Document, tabId: number): void {
   (doc.head ?? doc.documentElement).append(style);
 
   doc.documentElement.setAttribute(OPEN, "");
-  state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined };
+  state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined, href: "", stale: false };
   // Slide in on the next frame, so the transition runs from below the window.
   requestAnimationFrame(() => requestAnimationFrame(() => host.style.setProperty("transform", "none", "important")));
 }
@@ -224,6 +228,9 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   const ctx: CleanContext = { ...read, keep: union(before.keep, read.keep), body, main, protect: union(before.protect, read.protect) };
   s.ctx = ctx;
   calmProtect(ctx.protect);
+  // A single-page app's next view: another address, another main column, or the old text gone.
+  if (win.location.href !== s.href || ctx.main !== before.main || before.body.some((e) => !e.isConnected)) s.stale = true;
+  s.href = win.location.href;
 
   const found = new Map<string, Element>();
   const items = findClutter(doc, clutterOptions(win, ctx.keep, ctx.body, ctx.protect, (id, el) => found.set(id, el)));
@@ -247,7 +254,8 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   const calm = calmCounts();
   const calmChanged = calm.media !== s.report.calm.media || calm.motion !== s.report.calm.motion;
   if (!fresh.length) {
-    if (calmChanged) { s.report = { ...s.report, calm }; notifyFrame(current()); }
+    if (s.stale) { follow(s, ctx); notifyFrame(current()); }
+    else if (calmChanged) { s.report = { ...s.report, calm }; notifyFrame(current()); }
     return false;
   }
 
@@ -272,8 +280,22 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   if (locked) html.setAttribute(UNLOCK, "");
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
   s.report = { ...s.report, items: [...s.report.items, ...added], unlockedScroll: s.report.unlockedScroll || locked, calm: calmCounts() };
+  s.stale = true;
+  follow(s, ctx);
   notifyFrame(current());
   return true;
+}
+
+/**
+ * Stay clean changed the page (#3): new items went, or a single-page app showed its next view. What Clean did from the
+ * page's layout and text follows: the column grows into a hole a late sidebar advert left (#1), tall headers scroll
+ * (#4), the reading layer covers the new text (#6, the person's switch kept), new moving parts stop (#8, never media
+ * the person played). While the original is shown it waits for the next look (Back to Distill brings one).
+ */
+function follow(s: State, ctx: CleanContext): void {
+  if (!s.report || originalOn(ctx.doc)) return;
+  s.stale = false;
+  s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx) };
 }
 
 /** Whether a box takes space on screen right now. */
@@ -440,6 +462,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   const ctx: CleanContext = { doc, win, keep, body, main, protect, removed };
   state.ctx = ctx;
   state.removed = removed;
+  state.href = win.location.href;
   state.report = {
     ...base,
     unstuck: unstick(ctx),

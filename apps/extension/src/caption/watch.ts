@@ -128,9 +128,14 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
 
   const observer = new MutationObserver((records) => {
     let wake = false;
+    // Reflow shows the original for an instant to measure (no frame is painted): on and off again in one batch is no
+    // change, and must not wake the judging that just ran it.
+    const flip = records.find((r) => r.type === "attributes" && r.target === html && r.attributeName === ORIGINAL);
+    const flipped = !!flip && (flip.oldValue !== null) !== original();
     for (const r of records) {
       if (r.type === "attributes") {
         if (r.target === html && r.attributeName === ORIGINAL) {
+          if (!flipped || r !== flip) continue;
           // Original on: rest. Original off: one look at what came meanwhile.
           if (original()) { if (timer !== undefined) clearTimeout(timer); timer = undefined; firstChange = 0; }
           else { forced = true; wake = true; }
@@ -153,7 +158,7 @@ export function watchForClutter(doc: Document, win: Window, recheck: () => void)
     if (added.length > 400) added.splice(0, added.length - 400);
     if (wake) schedule();
   });
-  observer.observe(html, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden", ORIGINAL] });
+  observer.observe(html, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ["style", "class", "hidden", ORIGINAL] });
 
   const onHistory = () => { forced = true; schedule(); };
   win.addEventListener("popstate", onHistory);

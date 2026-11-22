@@ -121,3 +121,53 @@ test("caption-lifecycle: after Play again, the next report reads no paused video
   expect(await line.textContent()).not.toContain("Paused");
 });
 
+test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date, and keeps the person's switch (G5)", async ({ distill }) => {
+  const tab = await distill.openTab("caption-lifecycle");
+  await tab.page.goto(`${tab.url}&late=2500`);
+  await tab.page.setViewportSize({ width: 1440, height: 900 });
+  const { frame, status } = await open(distill, tab);
+  const first = count(status);
+  const line = frame.getByTestId("cap-status");
+
+  // The late advert goes; the ticker that came with it stops, and Calm counts it.
+  await expect(line).toHaveText(new RegExp(`^Removed ${first + 1} distractions`), { timeout: 10_000 });
+  await expect(tab.page.locator(".reklama")).toBeHidden();
+  await expect(tab.page.locator(".ticker marquee")).toHaveAttribute("data-distill-stopped", "", { timeout: 3_000 });
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(frame.getByTestId("cap-calm")).toContainText("Paused 1 video and 2 moving parts");
+  await frame.getByTestId("cap-more-btn").click();
+
+  // A single-page app shows the next story in small grey print: its advert goes, the reading layer covers its text,
+  // its ticker stops.
+  await tab.page.locator("#dalsi").click();
+  await expect(tab.page.locator("article.partner .reklama")).toBeHidden({ timeout: 5_000 });
+  const size = () => tab.page.locator("article.partner p:not(.meta)").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  await expect.poll(size, { timeout: 5_000 }).toBeGreaterThanOrEqual(16);
+  await expect(tab.page.locator("article.partner marquee")).toHaveAttribute("data-distill-stopped", "");
+  await frame.getByTestId("cap-more-btn").click();
+  const sw = frame.getByTestId("cap-comfort");
+  await expect(sw).toBeChecked();
+  await settled(tab.page);
+  await snap(tab.page, "next-view-comfort");
+
+  // The person turns the reading layer off; the next story keeps it off, and on again it covers that story too.
+  await sw.click();
+  await expect(sw).not.toBeChecked();
+  await expect.poll(size).toBe(11);
+  await frame.getByTestId("cap-more-btn").click();
+  await tab.page.locator("#dalsi").click();
+  await expect(tab.page.locator("article.partner h1")).toHaveText("Knihovna prodlouží otevírací dobu");
+  await expect(tab.page.locator("article.partner .reklama")).toBeHidden({ timeout: 5_000 });
+  await tab.page.waitForTimeout(600);
+  expect(await size()).toBe(11);
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(sw).not.toBeChecked();
+  await sw.click();
+  await expect(sw).toBeChecked();
+  await expect.poll(size).toBeGreaterThanOrEqual(16);
+
+  // Close: nothing of it is left.
+  expect(await startCaption(distill.worker, tab.id)).toBe(false);
+  expect(await tab.page.evaluate(() => document.querySelectorAll("[data-distill-hide], [data-distill-stopped], [data-distill-comfort], [data-distill-comfort-text], style[data-distill]").length)).toBe(0);
+});
+
