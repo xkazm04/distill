@@ -2,13 +2,15 @@
 //   npx playwright test -c e2e/playwright.live.config.ts probes/translate      (after npm run build:e2e)
 // The e2e build has no model, so the dev fake model answers (each block "[EN] " + its words): what is measured is the
 // mechanism on a real page - which blocks go, how fast, that the page's own words come back exactly, that forms are
-// never touched - and the risk spike: whether the caption frame may use the Prompt API on that site at all.
+// never touched - and the risk spike: whether the caption frame may use the Prompt API on that site at all (and when it
+// may not, that the offscreen document ran it: data-via). Then the page is made to change as a person would make it
+// (scroll to its end; YouTube: "...more" on the description) and what Translate did with the new text is counted.
 // Output: e2e/out/live/probes/translate/<site>/*.png and metrics.json, and one metrics.json for all sites.
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, expect, test, type Frame, type Page } from "playwright/test";
+import { chromium, expect, test, type Frame, type Page, type Worker } from "playwright/test";
 import { baseline, captionFrame, firstSight, measure, startCaption } from "../../caption";
 import { LAUNCH, OUT, prepareExtension } from "../../harness";
 import type { Site } from "../caption.live";
@@ -56,6 +58,61 @@ async function finalStatus(frame: Frame, timeout = 60_000): Promise<string> {
   return (await frame.getByTestId("cap-status").textContent()) ?? "";
 }
 
+/** Makes the page change as a person would, then counts the blocks translated before and after, what the frame heard,
+ *  and the blocks the chip reports. A screenshot shows the new text. */
+async function laterText(page: Page, frame: Frame, worker: Worker, dir: string): Promise<Record<string, unknown>> {
+  const count = () => page.locator("[data-distill-translated]").count();
+  const heard = () => worker.evaluate(() => ((globalThis as { __moreText?: { count: number }[] }).__moreText ?? []).map((x) => x.count));
+  const out: Record<string, unknown> = { translatedBefore: await count(), blocksBefore: await frame.getByTestId("cap-chip").getAttribute("data-blocks") };
+  await page.evaluate(() => document.querySelectorAll("[data-distill-translated]").forEach((el, i) => { el.setAttribute("data-e2e-was", String(i)); (el as HTMLElement).dataset.e2eText = el.textContent ?? ""; }));
+  const triggers: string[] = [];
+  // YouTube's description: "...more" expands it in place (its text is replaced by the full one).
+  const expand = page.locator("#description-inline-expander #expand, ytd-text-inline-expander #expand").first();
+  if (await expand.isVisible().catch(() => false)) {
+    await expand.click().catch(() => undefined);
+    triggers.push("description ...more");
+    await page.waitForTimeout(500);
+    await page.locator("#description-inline-expander").first().scrollIntoViewIfNeeded().catch(() => undefined);
+  }
+  // Scroll to the end and back, slowly: lazy sections and "load more" content come in.
+  const steps = await page.evaluate(() => Math.min(30, Math.ceil(document.documentElement.scrollHeight / innerHeight)));
+  for (let i = 0; i < steps; i++) { await page.mouse.wheel(0, 900); await page.waitForTimeout(250); }
+  triggers.push(`scrolled ${steps} screens`);
+  await page.waitForTimeout(6000); // the page settles, Translate looks and the stand-in model answers
+  out.triggers = triggers;
+  out.translatedAfter = await count();
+  out.blocksAfter = await frame.getByTestId("cap-chip").getAttribute("data-blocks");
+  out.moreText = await heard();
+  // No loop: with the page left alone, nothing more is heard.
+  const settled = (await heard()).length;
+  await page.waitForTimeout(4000);
+  out.moreTextAfterQuiet = (await heard()).length - settled;
+  out.blocksAfterQuiet = await frame.getByTestId("cap-chip").getAttribute("data-blocks");
+  // Over a longer quiet spell too: a loop would keep counting up, a page that keeps loading comes to rest.
+  await page.waitForTimeout(10_000);
+  out.moreTextAfter14s = (await heard()).length - settled;
+  out.blocksAfter14s = await frame.getByTestId("cap-chip").getAttribute("data-blocks");
+  await page.waitForTimeout(30_000);
+  out.moreTextAfter44s = (await heard()).length - settled;
+  out.blocksAfter44s = await frame.getByTestId("cap-chip").getAttribute("data-blocks");
+  out.translatedOnPageAfter44s = await count();
+  out.rewrittenByPage = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>("[data-e2e-was]")).filter((el) => el.textContent !== el.dataset.e2eText).slice(0, 8).map((el) =>
+    `${el.localName}.${String(el.className).slice(0, 30)}: was "${(el.dataset.e2eText ?? "").trim().slice(0, 50)}" now "${(el.textContent ?? "").trim().slice(0, 50)}"`));
+  out.newBlocksSample = await page.evaluate(() => Array.from(document.querySelectorAll("[data-distill-translated]:not([data-e2e-was])")).slice(0, 8).map((el) =>
+    `${el.closest("article") ? "in <article>" : "outside <article>"} ${el.localName}.${String(el.className).slice(0, 30)}: ${(el.textContent ?? "").trim().slice(0, 60)}`));
+  const firstNew = await page.evaluate(() => {
+    const t = document.querySelector("#description-inline-expander [data-distill-translated], ytd-text-inline-expander [data-distill-translated]")
+      ?? Array.from(document.querySelectorAll("[data-distill-translated]")).at(-1);
+    if (!t) return null;
+    t.scrollIntoView({ block: "center" });
+    return (t.textContent ?? "").slice(0, 160);
+  });
+  out.sample = firstNew;
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(dir, "later.png") });
+  return out;
+}
+
 test.afterAll(() => {
   if (!existsSync(PROBE_OUT)) return;
   const all = readdirSync(PROBE_OUT, { withFileTypes: true })
@@ -82,6 +139,12 @@ for (const site of SITES) {
       const worker = context.serviceWorkers().find((w) => w.url().startsWith("chrome-extension://"))
         ?? await context.waitForEvent("serviceworker", { timeout: 15_000 });
       await worker.evaluate(async () => { await chrome.storage.session.set({ "distill:e2e:fakeAi": {} }); });
+      // What the page side tells the frame about text added later (a count, never the words) reaches the worker too.
+      await worker.evaluate(() => {
+        const g = globalThis as { __moreText?: unknown[] };
+        g.__moreText = [];
+        chrome.runtime.onMessage.addListener((msg: { type?: string }) => { if (msg?.type === "distill:caption:moreText") g.__moreText?.push(msg); });
+      });
       if (site.cookies?.length) await context.addCookies(site.cookies.map((c) => ({ path: "/", ...c })));
       const page = await context.newPage();
       for (const p of context.pages()) if (p !== page) await p.close();
@@ -130,7 +193,7 @@ for (const site of SITES) {
       m.phase = await chip.getAttribute("data-translate");
       m.blocks = await chip.getAttribute("data-blocks");
       m.dropped = Number((await chip.getAttribute("data-dropped")) ?? 0);
-      m.chip = { text: await chip.textContent(), src: await chip.getAttribute("data-src") };
+      m.chip = { text: await chip.textContent(), src: await chip.getAttribute("data-src"), via: await chip.getAttribute("data-via") };
       const translated = await now(page, "[data-distill-translated]");
       m.translatedOnPage = translated.length;
       m.translatedWithLang = translated.filter((t) => t.lang).length;
@@ -148,6 +211,9 @@ for (const site of SITES) {
       });
       m.firstTranslatedBlock = top;
       if (top) { await page.waitForTimeout(300); await page.screenshot({ path: join(dir, "translated-block.png") }); }
+
+      // Text the page adds later: only while a translation is on the page.
+      if (m.phase === "done") m.later = await laterText(page, frame, worker, dir);
 
       // The form: never touched.
       const formsAfter = await formsNow(page);

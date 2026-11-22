@@ -55,6 +55,10 @@ interface State {
   memo: Map<string, string>;
   /** Watching for text the page adds later, once the frame asked (watchText). */
   watch: Watch | null;
+  /** The main column the translation started with (a single-page app's next view replaces it). */
+  main: Element | null;
+  /** How often the page rewrote each translated block. */
+  rewrites: WeakMap<Element, number>;
 }
 
 let state: State | null = null;
@@ -199,6 +203,7 @@ export function textBlocks(ctx: CleanContext): TextBlock[] {
   const s: State = {
     ctx, roots: [], units: new Map(), byEl: new Map(), original: new Map(), translated: new Map(), done: new Map(),
     target: readerLang(ctx.win.navigator), keepSource: false, originalOn: false, next: 0, memo: new Map(), watch: null,
+    rewrites: new WeakMap(), main: ctx.main,
   };
   state = s;
   reconcile(s, rootsOf(ctx), new Set());
@@ -224,10 +229,12 @@ function reconcile(s: State, roots: readonly Element[], leafy: ReadonlySet<Eleme
   for (const [el, nodes] of owned(top, leafy)) {
     const known = s.byEl.get(el);
     const source = wordsOf(nodes);
+    let renewed = false;
     if (known) {
       if (s.done.has(el)) {
         if (!rewritten(s, known, nodes)) continue;
         undo(s, known);
+        renewed = true;
       } else if (known.source === source) {
         known.nodes = nodes;
         continue; // still waiting, as it was
@@ -236,10 +243,17 @@ function reconcile(s: State, roots: readonly Element[], leafy: ReadonlySet<Eleme
       }
     }
     if (!worthSending(source, s.target)) continue;
+    const before = s.memo.get(source);
+    if (before === undefined) {
+      // A block the page keeps rewriting with new words (a clock, a live counter) stays in the page's words after a few
+      // rounds: each one would be another call to the model.
+      const rounds = (s.rewrites.get(el) ?? 0) + (renewed ? 1 : 0);
+      if (renewed) s.rewrites.set(el, rounds);
+      if (rounds > MAX_REWRITES) continue;
+    }
     const unit: Unit = { id: `t${s.next++}`, el, nodes, source };
     s.units.set(unit.id, unit);
     s.byEl.set(el, unit);
-    const before = s.memo.get(source);
     if (before !== undefined && put(s, unit, before)) continue;
     waiting++;
   }
@@ -432,6 +446,8 @@ const MAX_WAIT_MS = 2500;
 const MIN_GAP_MS = 1000;
 const LOOK_SHARE = 1 / 8;
 const MEMO_MAX = 2000;
+/** A block the page rewrote this many times after its translation is translated no more. */
+const MAX_REWRITES = 3;
 const HIDE = "data-distill-hide";
 const IGNORED = new Set(["script", "style", "link", "meta", "noscript", "template", "br", "wbr", "distill-caption"]);
 const BODY_KINDS = new Set(["paragraph", "list", "table", "quote", "code"]);
@@ -484,14 +500,14 @@ function quiet<T>(write: () => T): T {
 function noticed(w: Watch, records: readonly MutationRecord[]): void {
   const s = state;
   if (!s || s.watch !== w || !records.length) return;
-  const main = s.ctx.main;
+  const main = s.main;
   const restored = () => Array.from(s.ctx.removed.values()).filter((el) => el.isConnected && !el.hasAttribute(HIDE));
-  /** In the main text (or around it, or a box the person brought back), and not hidden or Distill's own. */
+  /** In the main column (or a block of it, or a box the person brought back), and not hidden or Distill's own. */
   const near = (n: Node): boolean => {
     const el = n.nodeType === 1 ? (n as Element) : n.parentElement;
     if (!el || el.closest(`distill-caption, [${HIDE}]`)) return false;
     if (!main?.isConnected) return true; // the main text is gone: a single-page app's next view
-    return main.contains(el) || el.contains(main) || s.roots.some((r) => r.contains(el)) || restored().some((r) => r.contains(el));
+    return main.contains(el) || s.roots.some((r) => r.contains(el)) || restored().some((r) => r.contains(el));
   };
   const words = (n: Node): boolean => {
     if (n.nodeType === 3) return /\p{L}/u.test(n.nodeValue ?? "");
@@ -554,11 +570,20 @@ function reread(s: State, w: Watch): number {
   const shown = (el: Element) => !el.closest(`[${HIDE}]`);
   const keep = read.filter(shown);
   const body = read.filter((el, i) => shown(el) && BODY_KINDS.has(kinds[i] ?? ""));
-  const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : ctx.main;
+  // The main column the translation started with, while it is on the page: a late box beside it (a video widget, tags,
+  // a teaser the page loads on scroll) is not the main text, though the page reader may take it in. When a single-page
+  // app replaced it, the column the page reads now.
+  if (!s.main?.isConnected) s.main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : ctx.main;
+  const main = s.main;
+  const inMain = (el: Element) => !!main?.contains(el);
   const live = (els: readonly Element[]) => els.filter((el) => el.isConnected);
   const restored = Array.from(ctx.removed.values()).filter((el) => el.isConnected && shown(el));
   const roots = [
-    ...rootsOf({ keep: [...new Set([...live(ctx.keep), ...keep])], body: [...new Set([...live(ctx.body), ...body])], main }),
+    ...rootsOf({
+      keep: [...new Set([...live(ctx.keep), ...keep])].filter(inMain),
+      body: [...new Set([...live(ctx.body), ...body])].filter(inMain),
+      main,
+    }),
     ...restored,
   ];
   return reconcile(s, roots, new Set(restored));

@@ -113,6 +113,16 @@ describe("text the page adds later (watchText)", () => {
     expect(sent).toHaveLength(1); // Distill's own writes did not wake it
   });
 
+  it("a box the page loads beside the main column later (a widget, a teaser) is not the main text and is left alone", async () => {
+    translated();
+    const widget = document.createElement("section");
+    widget.innerHTML = "<h2>Video pro vás</h2><p>Pořídili si emu. Z pruhovaných ptáčat vyrostli opeření obři, kteří milují mazlení.</p>";
+    document.querySelector("main")?.after(widget);
+    await settle(1500);
+    expect(sent).toEqual([]);
+    expect(widget.textContent).not.toContain("EN ");
+  });
+
   it("a block the page rewrote after its translation is translated again; Keep Czech shows the page's new words", async () => {
     const { ctx } = translated();
     const h2 = document.getElementById("h2") as HTMLElement;
@@ -180,6 +190,23 @@ describe("text the page adds later (watchText)", () => {
     await told();
     expect(textBlocks(live).map((b) => b.text)).toEqual(["Komentáře", "Jana", "Díky za návod, ušetřil mi čas.", "Petr", "Kde najdu formulář pro rok 2025?"]);
   });
+
+  it("a block the page keeps rewriting (a live counter) is translated three times, then left in the page's words", async () => {
+    const { ctx } = translated();
+    const h2 = document.getElementById("h2") as HTMLElement;
+    let asked = 0;
+    for (let round = 1; round <= 5; round++) {
+      (h2.firstChild as Text).nodeValue = `Aktualizováno před ${round} minutami`;
+      await settle();
+      const more = textBlocks(ctx);
+      asked += more.length;
+      applyTranslation(more.map((b) => ({ id: b.id, text: `EN ${b.text}` })));
+    }
+    expect(asked).toBe(3);
+    expect(sent).toHaveLength(3);
+    expect(h2.textContent).toBe("Aktualizováno před 5 minutami");
+    expect(h2.hasAttribute(TRANSLATED)).toBe(false);
+  }, 15_000);
 
   it("stops watching on close", async () => {
     translated();
