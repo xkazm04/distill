@@ -5,8 +5,9 @@
 //
 // What is read, and only inside the page's forms (a form in the page's main area, with at least two fields to fill):
 // - text nodes, grouped by their nearest block (a label, a legend, a cell, a button...), so a label stays one sentence;
-// - the attributes a person reads: placeholder, aria-label, title, and a value-less button's label (an <input
-//   type=button|reset>, or a submit input without a name: one with a name sends its value with the form);
+// - the attributes a person reads: placeholder, aria-label, title, and an input button's label (its value). A submit
+//   input with a name sends that value with the form: while the form is being sent its own value is put back, so the
+//   data is the same (see `sending`);
 // - each option's text and each optgroup's label.
 // What is never read: an input's or a textarea's value, the value attribute of an option, contenteditable areas, an
 // <output>, live regions (aria-live, role=alert/status/log: what a page writes there as the person types), and any
@@ -65,7 +66,11 @@ interface TextUnit {
   /** The element's own lang attribute before Distill wrote one (null: none). */
   lang: string | null;
 }
-interface AttrUnit { id: string; kind: "attr"; el: Element; name: string; source: string; translation?: string }
+interface AttrUnit {
+  id: string; kind: "attr"; el: Element; name: string; source: string; translation?: string;
+  /** A named submit input's value: sent with the form when it is the button pressed. */
+  sent?: boolean;
+}
 type Unit = TextUnit | AttrUnit;
 
 interface Watch { observer: MutationObserver; doc: Document; tabId: number; timer?: ReturnType<typeof setTimeout>; last: number }
@@ -83,6 +88,8 @@ interface State {
   originalOn: boolean;
   target: string;
   watch: Watch | null;
+  /** The document a submit listener is on (a named submit input's value is put back while the form is sent). */
+  submitDoc: Document | null;
 }
 
 let state: State | null = null;
@@ -90,7 +97,7 @@ let state: State | null = null;
 function ensure(): State {
   state ??= {
     units: new Map(), seenNodes: new WeakSet(), seenAttrs: new WeakMap(), errorOf: new WeakMap(), next: 0, nextError: 0,
-    keepSource: false, originalOn: false, target: readerLang(), watch: null,
+    keepSource: false, originalOn: false, target: readerLang(), watch: null, submitDoc: null,
   };
   return state;
 }
@@ -177,6 +184,7 @@ function addAttr(s: State, el: Element, name: string): AttrUnit | null {
   const value = el.getAttribute(name);
   if (value === null || !hasWords(value) || value.length > TEXT_MAX || s.units.size >= MAX_UNITS || seenAttr(s, el, name)) return null;
   const unit: AttrUnit = { id: `f${s.next++}`, kind: "attr", el, name, source: value };
+  if (name === "value" && el.localName === "input" && (el.getAttribute("type") ?? "").toLowerCase() === "submit" && el.hasAttribute("name")) unit.sent = true;
   s.units.set(unit.id, unit);
   return unit;
 }
@@ -190,7 +198,7 @@ function readableAttrs(el: Element): string[] {
   if ((t === "input" && type !== "hidden") || t === "textarea") out.push("placeholder");
   if (el.hasAttribute("aria-label")) out.push("aria-label");
   if (el.hasAttribute("title") && (t === "input" || t === "select" || t === "textarea" || t === "button" || t === "abbr")) out.push("title");
-  if (t === "input" && (type === "button" || type === "reset" || (type === "submit" && !el.hasAttribute("name")))) out.push("value");
+  if (t === "input" && (type === "button" || type === "reset" || type === "submit")) out.push("value");
   if (t === "optgroup") out.push("label");
   return out;
 }
@@ -371,6 +379,7 @@ function apply(blocks: readonly TextBlock[], kind: "text" | "error"): number {
         u.translation = spread(text, u.source);
       }
       show(s, u);
+      if (u.kind === "attr" && u.sent) listenForSubmit(s, u.el.ownerDocument);
       n++;
     }
     mark(s);
@@ -407,9 +416,41 @@ export function clearFormText(): void {
   const s = state;
   if (!s) return;
   stopWatching(s);
+  s.submitDoc?.removeEventListener("submit", sending, true);
+  s.submitDoc = null;
   s.originalOn = true;
   render(s);
   state = null;
+}
+
+// ---- Sending: a named submit input sends its own value ---------------------------------------------------------------
+// The browser builds a form's data after the submit event, and a page that sends the form itself builds it in its submit
+// handler; Distill's listener runs first (capture, on the document). It puts each named submit input's own value back
+// and shows the translation again on the next task, so the data sent is exactly the page's.
+
+function listenForSubmit(s: State, doc: Document): void {
+  if (s.submitDoc) return;
+  s.submitDoc = doc;
+  doc.addEventListener("submit", sending, true);
+}
+
+function sending(e: Event): void {
+  const s = state;
+  const form = e.target as Element | null;
+  if (!s || !form) return;
+  const back: AttrUnit[] = [];
+  write(s, () => {
+    for (const u of s.units.values()) {
+      if (u.kind !== "attr" || !u.sent || u.translation === undefined || (u.el as HTMLInputElement).form !== form) continue;
+      if (u.el.getAttribute("value") === u.translation) { u.el.setAttribute("value", u.source); back.push(u); }
+    }
+  });
+  if (!back.length) return;
+  setTimeout(() => {
+    const now = state;
+    if (!now) return;
+    write(now, () => { for (const u of back) if (shown(now, u) && u.el.getAttribute("value") === u.source) u.el.setAttribute("value", u.translation ?? u.source); });
+  }, 0);
 }
 
 // ---- Watching for new words and new errors ---------------------------------------------------------------------------

@@ -59,7 +59,7 @@ test("form translate: every word of the form in English and back; the same data 
   await page.setViewportSize({ width: 1280, height: 1000 });
   await fill(page);
   const before = await submit(page);
-  expect(before).toEqual(["jmeno=" + NAME, "email=zqx@example.cz", "druh=Díra v silnici", "nalehavost=hned", "popis=" + DESCRIPTION, "souhlas=ano"]);
+  expect(before).toEqual(["jmeno=" + NAME, "email=zqx@example.cz", "druh=Díra v silnici", "nalehavost=hned", "popis=" + DESCRIPTION, "souhlas=ano", "akce=Odeslat hlášení"]); // the named submit button sends its own value
   const form = await plainForm(page);
   const exact = await exactly(page);
   await fakeModel(distill.worker);

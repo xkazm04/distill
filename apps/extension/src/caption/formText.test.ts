@@ -74,7 +74,7 @@ describe("formText", () => {
   it("never a typed value, a textarea's words, an error, a live region, an output, a value sent with the form or a no-translate part", () => {
     const all = JSON.stringify(formText(document));
     for (const never of [TYPED, TYPED_MAIL, "Moje vlastní slova", "není platná",
-      "Formulář obsahuje chyby", "Napočítáno", "Uložit koncept", "Obec Lhota", "svetlo", "Hledat", "Váš e-mail"]) {
+      "Formulář obsahuje chyby", "Napočítáno", "Obec Lhota", "svetlo", "Hledat", "Váš e-mail"]) {
       expect(all).not.toContain(never);
     }
   });
@@ -110,7 +110,7 @@ describe("applyFormText, Keep <language>, Original and close", () => {
     expect($("#jmeno").getAttribute("aria-label")).toBe("[EN] Vaše jméno");
     expect($("optgroup").getAttribute("label")).toBe("[EN] Silnice");
     expect($("input[type=submit]:not([name])").getAttribute("value")).toBe("[EN] Odeslat");
-    expect($("input[name=akce]").getAttribute("value")).toBe("Uložit koncept");
+    expect($("input[name=akce]").getAttribute("value")).toBe("[EN] Uložit koncept");
     expect($("#email-err").textContent).toContain("není platná");
     expect($("legend").getAttribute("lang")).toBe("en");
     expect($("legend").hasAttribute(FORM_TRANSLATED)).toBe(true);
@@ -149,6 +149,26 @@ describe("applyFormText, Keep <language>, Original and close", () => {
     expect($("legend").textContent).toBe("Kdo to hlásí");
     const errs = formErrors(document);
     expect(applyFormText(document, en(errs))).toBe(0);
+  });
+});
+
+describe("a named submit input", () => {
+  it("shows its translation, and sends its own value: put back while the form is sent, shown again after", async () => {
+    const form = $<HTMLFormElement>("#f");
+    const button = $<HTMLInputElement>("input[name=akce]");
+    const sentWith = () => Array.from(new FormData(form, button).entries()).map(([k, v]) => `${k}=${String(v)}`);
+    const before = sentWith();
+    expect(before).toContain("akce=Uložit koncept");
+    applyFormText(document, en(formText(document)));
+    expect(button.value).toBe("[EN] Uložit koncept");
+    let during: string[] = [];
+    form.addEventListener("submit", (e) => { e.preventDefault(); during = sentWith(); });
+    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(during).toEqual(before);
+    await new Promise((r) => setTimeout(r, 5));
+    expect(button.value).toBe("[EN] Uložit koncept");
+    clearFormText();
+    expect(button.value).toBe("Uložit koncept");
   });
 });
 
