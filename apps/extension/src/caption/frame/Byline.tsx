@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { bylineAgo, bylineDay, bylineLine, type Byline } from "@distill/engine";
 import type { CleanReport } from "../../messages";
+import { Empty, FactRow, Facts, Note, Section, type IconKind } from "./kit";
 import { send } from "./send";
 import "./byline.css";
 
@@ -59,24 +60,21 @@ export function dateWords(iso: string, now = new Date()): string {
 export function BylineSection(props: { report: CleanReport; setReport: (r: CleanReport) => void }) {
   const b = useByline(props.report);
   if (!b) return null;
-  const rows: [string, string, string][] = [];
-  if (b.published) rows.push(["Published", dateWords(b.published), "published"]);
-  if (b.updated) rows.push(["Updated", dateWords(b.updated), "updated"]);
-  if (b.author) rows.push(["Author", b.author, "author"]);
-  if (b.publisher) rows.push(["Publisher", b.publisher, "publisher"]);
+  const rows: [string, string, string, IconKind][] = [];
+  if (b.published) rows.push(["Published", dateWords(b.published), "published", "published"]);
+  if (b.updated) rows.push(["Updated", dateWords(b.updated), "updated", "updated"]);
+  if (b.author) rows.push(["Author", b.author, "author", "author"]);
+  if (b.publisher) rows.push(["Publisher", b.publisher, "publisher", "author"]);
   const dated = !!(b.published || b.updated);
   return (
-    <section className="byline" aria-labelledby="cap-byline-h" data-testid="cap-byline" data-from={b.from}>
-      <h2 id="cap-byline-h">Who wrote this and when</h2>
+    <Section id="cap-byline-h" title="Who wrote this and when" testid="cap-byline" className="byline" attrs={{ "data-from": b.from }}>
       {rows.length > 0 && (
-        <dl className="byline-rows">
-          {rows.map(([k, v, id]) => (
-            <div key={id} data-testid={`cap-byline-${id}`}><dt>{k}</dt><dd>{v}</dd></div>
-          ))}
-        </dl>
+        <Facts className="byline-rows">
+          {rows.map(([k, v, id, icon]) => <FactRow key={id} testid={`cap-byline-${id}`} icon={icon} label={k} value={v} />)}
+        </Facts>
       )}
-      {!dated && <p className="note" data-testid="cap-byline-nodate">No date on this page.</p>}
-      {dated && <p className="note">{FROM[b.from]} Nothing was fetched.</p>}
-    </section>
+      {!dated && <Empty testid="cap-byline-nodate">No date on this page.</Empty>}
+      {dated && <Note>{FROM[b.from]} Nothing was fetched.</Note>}
+    </Section>
   );
 }

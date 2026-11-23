@@ -21,6 +21,12 @@ export async function e2eFake(): Promise<E2eFake | null> {
   } catch { return null; }
 }
 
+/** r5-09: whether trying the same run again can help (the service was busy, the answer was garbled), so a section
+ *  offers Try again; a missing model or an AI switched off is not helped by trying again. */
+export function retryHelps(e: unknown): boolean {
+  return toAiError(e).retry;
+}
+
 /** Whether a model can answer here at all. */
 export async function canRunTask(): Promise<boolean> {
   if (import.meta.env.MODE === "e2e" && (await e2eFake())) return true;

@@ -2,6 +2,7 @@
 // side reads whether each field is filled and answers numbers, never a value or a label (FormProgress).
 import { useEffect, useSyncExternalStore } from "react";
 import type { CleanReport, FormProgress } from "../../messages";
+import { Note, Section } from "./kit";
 import { send } from "./send";
 
 // One count for the row and the More section: undefined until the page answered, null when it has no form.
@@ -70,11 +71,11 @@ export function FormCheckSection(props: { report: CleanReport }) {
     : p.requiredLeft === 0 ? "All required fields are filled."
     : `${plural(p.requiredLeft, "required field is", "required fields are")} empty.`;
   return (
-    <section className="form-check" aria-labelledby="cap-form-h" data-testid="cap-form">
-      <h2 id="cap-form-h">Form</h2>
-      <p>{p.filled} of {plural(p.fields, "field", "fields")} filled.{required && <> {required}</>}</p>
-      {p.errors > 0 && <p className="form-errors">The page shows {plural(p.errors, "error", "errors")}.</p>}
+    <Section id="cap-form-h" title="Form" testid="cap-form" className="form-check">
+      <p className="k-line">{p.filled} of {plural(p.fields, "field", "fields")} filled.{required && <> {required}</>}</p>
+      {p.errors > 0 && <p className="k-line form-errors">The page shows {plural(p.errors, "error", "errors")}.</p>}
       {p.filled < p.fields && <button type="button" className="link" onClick={() => void next()}>Go to the next empty field</button>}
-    </section>
+      <Note>Counted on this device: whether each field is filled, never what is in it.</Note>
+    </Section>
   );
 }

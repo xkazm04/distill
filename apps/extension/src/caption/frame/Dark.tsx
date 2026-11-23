@@ -3,6 +3,7 @@
 // light; switching it off stops that. Kept on this device (chrome.storage.local). No AI.
 import { useEffect, useSyncExternalStore } from "react";
 import type { CleanReport } from "../../messages";
+import { Note, Section, Switch } from "./kit";
 import { send } from "./send";
 
 export const DARK_KEY = "distill:dark";
@@ -70,16 +71,13 @@ export function DarkSection(_props: { report: CleanReport; setReport: (r: CleanR
     await apply(on, false);
   };
   return (
-    <section aria-labelledby="cap-dark-h" data-testid="cap-dark-section">
-      <h2 id="cap-dark-h">Dark page</h2>
-      <label className="switch" title="The page's own colours darkened; photos, videos, maps and logos keep theirs.">
-        <input type="checkbox" role="switch" checked={s.dark} disabled={s.busy} onChange={(e) => void toggle(e.currentTarget.checked)}
-          data-testid="cap-dark" data-already-dark={s.alreadyDark ? "true" : undefined} />
-        <span>Dark page</span>
-      </label>
-      {s.alreadyDark && <p className="note" data-testid="cap-dark-note">This page is dark already, so Distill left its colours as they are.</p>}
-      {s.dark && s.byItself && <p className="note" data-testid="cap-dark-note">On by itself: Chrome is in dark mode.</p>}
-      {s.auto && !s.alreadyDark && <p className="note">Turns on by itself when Chrome is in dark mode. Kept on this device only.</p>}
-    </section>
+    <Section id="cap-dark-h" title="Dark page" testid="cap-dark-section" className="k-switches">
+      <Switch checked={s.dark} disabled={s.busy} onChange={(on) => void toggle(on)} label="Dark page" testid="cap-dark"
+        attrs={{ "data-already-dark": s.alreadyDark ? "true" : undefined }}
+        title="The page's own colours darkened; photos, videos, maps and logos keep theirs." />
+      {s.alreadyDark && <Note testid="cap-dark-note">This page is dark already, so Distill left its colours as they are.</Note>}
+      {s.dark && s.byItself && <Note testid="cap-dark-note">On by itself: Chrome is in dark mode.</Note>}
+      {s.auto && !s.alreadyDark && <Note>Turns on by itself when Chrome is in dark mode. Kept on this device only.</Note>}
+    </Section>
   );
 }

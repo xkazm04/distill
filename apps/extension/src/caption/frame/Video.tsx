@@ -5,6 +5,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { chapterAt, chapterEnd, chapterTime } from "@distill/engine";
 import type { CleanReport, VideoInfo } from "../../messages";
+import { Icon, Note, Section } from "./kit";
 import { send } from "./send";
 import "./video.css";
 
@@ -85,13 +86,13 @@ export function VideoSection(props: { report: CleanReport; setReport: (r: CleanR
   const now = v.currentTime === undefined ? -1 : chapterAt(v.chapters, v.currentTime);
   const sponsors = v.chapters.filter((c) => c.sponsor).length;
   return (
-    <section className="video" aria-labelledby="cap-video-h" data-testid="cap-video">
-      <h2 id="cap-video-h">Chapters ({v.chapters.length})</h2>
+    <Section id="cap-video-h" title="Chapters" count={v.chapters.length} testid="cap-video" className="video">
       <ol className="video-list">
         {v.chapters.map((c, i) => (
           <li key={`${c.start}-${i}`} data-testid="cap-chapter" data-start={c.start} data-sponsor={c.sponsor ? "" : undefined}
             aria-current={i === now ? "true" : undefined}>
             <button type="button" className="video-go" onClick={() => void seekTo(c.start)} aria-label={`Play from ${chapterTime(c.start)}: ${c.title}`}>
+              <Icon kind={c.sponsor ? "sponsor" : "chapter"} />
               <span className="video-time">{chapterTime(c.start)}</span>
               <span className="video-title">{c.title}</span>
             </button>
@@ -100,7 +101,7 @@ export function VideoSection(props: { report: CleanReport; setReport: (r: CleanR
           </li>
         ))}
       </ol>
-      <p className="note">From the video's description, no AI.{sponsors > 0 ? " A sponsor part offers Skip in the strip while it plays." : ""}</p>
-    </section>
+      <Note>From the video's description, no AI.{sponsors > 0 ? " A sponsor part offers Skip in the strip while it plays." : ""}</Note>
+    </Section>
   );
 }

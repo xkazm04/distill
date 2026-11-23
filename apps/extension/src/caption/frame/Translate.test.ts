@@ -99,7 +99,7 @@ describe("words", () => {
   it("a failure in a few plain words, never the SDK's text", () => {
     expect(shortReason(Object.assign(new Error("AI: Inference mode is ONLY_ON_DEVICE, but an on-device model is not available. (AI/unsupported)"), { code: "unsupported" })))
       .toBe("the AI model on this device is not ready");
-    expect(shortReason(new Error("[503 Service Unavailable] high demand"))).toBe("the AI is busy, try again later");
+    expect(shortReason(new Error("[503 Service Unavailable] high demand"))).toBe("the AI is busy right now");
     expect(shortReason(new SyntaxError("Unexpected token"))).toBe("something went wrong with the AI");
   });
 

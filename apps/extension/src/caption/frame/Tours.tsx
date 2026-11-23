@@ -13,6 +13,7 @@ import { useActions } from "./Actions";
 import { dateWords, useByline } from "./Byline";
 import type { ClaimsState } from "./Claims";
 import type { GistState } from "./Gist";
+import { ActionRow, Note, Rows, Section } from "./kit";
 import { send } from "./send";
 import "./tours.css";
 
@@ -186,21 +187,19 @@ export function ToursSection(props: { report: CleanReport; setReport: (r: CleanR
   const t = props.tours;
   if (!t?.tours.length) return null;
   return (
-    <section className="tours" aria-labelledby="cap-tours-h" data-testid="cap-tours">
-      <h2 id="cap-tours-h">Tours</h2>
-      <p className="note">Step through what Distill found on this page, one thing at a time. Nothing new is read and no AI runs.</p>
-      <ul className="tours-list">
+    <Section id="cap-tours-h" title="Tours" count={t.tours.length} testid="cap-tours" className="tours">
+      <Note>Step through what Distill found on this page, one thing at a time. Nothing new is read and no AI runs.</Note>
+      <Rows className="tours-list">
         {t.tours.map((tour) => (
-          <li key={tour.id} data-testid="cap-tour" data-tour={tour.id}>
-            <button type="button" className="btn sm" onClick={() => t.start(tour.id)} data-testid={`cap-tour-start-${tour.id}`}
+          <ActionRow key={tour.id} testid="cap-tour" attrs={{ "data-tour": tour.id }} className="tour-row"
+            text={<button type="button" className="btn sm" onClick={() => t.start(tour.id)} data-testid={`cap-tour-start-${tour.id}`}
               aria-label={`Start the tour ${tour.title}, ${tour.items.length} ${tour.items.length === 1 ? "step" : "steps"}`}>
               {tour.title}
-            </button>
-            <span className="note">{tour.what} {tour.items.length} {tour.items.length === 1 ? "step" : "steps"}.</span>
-          </li>
+            </button>}
+            sub={<span className="tour-what">{tour.what} {tour.items.length} {tour.items.length === 1 ? "step" : "steps"}.</span>} />
         ))}
-      </ul>
-    </section>
+      </Rows>
+    </Section>
   );
 }
 

@@ -1,6 +1,7 @@
 // #8 Calm the page: "Paused 1 video and 2 moving parts" with Play again, in More. Shown only when Calm held something.
 import { useState } from "react";
 import type { CleanReport } from "../../messages";
+import { Failed, Section } from "./kit";
 import { send } from "./send";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -27,11 +28,10 @@ export function CalmSection(props: { report: CleanReport; setReport: (r: CleanRe
     }
   };
   return (
-    <section aria-label="Motion" data-testid="cap-calm">
-      <h2>Motion</h2>
-      <p className="calm-line">{calmLine(report.calm)}</p>
+    <Section id="cap-calm-h" title="Motion" testid="cap-calm" className="k-switches">
+      <p className="k-line calm-line">{calmLine(report.calm)}</p>
       <button type="button" className="btn sm" onClick={() => void play()} data-testid="cap-play">Play again</button>
-      {problem && <p className="note" role="alert">{problem}</p>}
-    </section>
+      {problem && <Failed why={`Could not play again: ${problem.replace(/\.$/, "")}.`} />}
+    </Section>
   );
 }

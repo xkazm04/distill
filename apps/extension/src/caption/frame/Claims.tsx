@@ -4,12 +4,13 @@
 // (parseClaims). Without a model nothing is shown as a claim: the engine's candidates alone are not claims. Each kept
 // claim is underlined on the page (caption/claims.ts) and listed in More with Show me and its web check (ClaimCheck.tsx,
 // card 2).
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findClaimCandidates, parseClaims, prompts, schemas, type Claim, type ClaimWhy, type InferenceSource } from "@distill/engine";
 import type { CleanReport, TextBlock } from "../../messages";
 import { ClaimCheck, useChecks } from "./ClaimCheck";
+import { ActionRow, Empty, Failed, Note, Rows, Section, sentence, ShowMe, Waiting } from "./kit";
 import { articleLike, firstPart, useMainText } from "./mainText";
-import { canRunTask, runTask } from "./runTask";
+import { canRunTask, retryHelps, runTask } from "./runTask";
 import { send } from "./send";
 import { shortReason, type TranslateState } from "./Translate";
 
@@ -30,6 +31,8 @@ export interface ClaimsState {
   /** Once failed: why, in a few words. */
   problem?: string;
   via?: "offscreen";
+  /** r5-09: once failed, looks for the claims again (Try again). */
+  retry?: () => void;
 }
 
 /** The engine's candidate sentences in the first part of the main text (what the model is offered). */
@@ -48,6 +51,10 @@ export function useClaims(report: CleanReport | null, translate?: TranslateState
   const [state, setState] = useState<ClaimsState>({ phase: "idle", claims: [], dropped: 0 });
   const blocks = useMainText(report, translate);
   const started = useRef(false);
+  // r5-09: Try again after a failure starts the same run once more.
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => { started.current = false; setAttempt((n) => n + 1); }, []);
+  const retryable = useRef(false);
 
   useEffect(() => {
     if (!report || !blocks || started.current) return;
@@ -57,7 +64,7 @@ export function useClaims(report: CleanReport | null, translate?: TranslateState
       const candidates = claimCandidates(blocks);
       if (!candidates.length) { setState((s) => ({ ...s, phase: "none", candidates: 0 })); return; }
       if (!(await canRunTask())) { setState((s) => ({ ...s, phase: "none", noModel: true, candidates: candidates.length })); return; }
-      setState((s) => ({ ...s, phase: "finding", candidates: candidates.length }));
+      setState((s) => ({ ...s, phase: "finding", candidates: candidates.length, problem: undefined }));
       try {
         const { pick, r } = await pickClaims(candidates);
         const marked = pick.claims.length
@@ -69,12 +76,13 @@ export function useClaims(report: CleanReport | null, translate?: TranslateState
           candidates: candidates.length, marked, ...(r.via ? { via: r.via } : {}),
         });
       } catch (e) {
+        retryable.current = retryHelps(e);
         setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
       }
     })();
-  }, [report, blocks]);
+  }, [report, blocks, attempt]);
 
-  return state;
+  return useMemo(() => (state.phase === "failed" && retryable.current ? { ...state, retry } : state), [state, retry]);
 }
 
 const WHY: Record<ClaimWhy, string> = {
@@ -121,24 +129,32 @@ export function withPageTasks(chip: Chip, claims: ClaimsState, gist: { source?: 
   return { src, text: CHIP_TEXT[src], title: `${words} Clean used no AI.`, data };
 }
 
-/** The claims in More: each with Show me and its web check. */
+/** The claims in More: each with Show me and its web check. Waiting, failed and "no model" are the kit's (r5-09). */
 export function ClaimsSection(props: { report: CleanReport; claims: ClaimsState }) {
   const { claims: state } = props;
   const checks = useChecks(state.claims);
   const [gone, setGone] = useState<string | null>(null);
 
   if (state.phase === "finding") {
-    return <section className="claims" data-testid="cap-claims" data-phase="finding"><h2>Claims to check</h2><p className="note">Looking for claims to check...</p></section>;
+    return (
+      <Section id="cap-claims-h" title="Claims to check" testid="cap-claims" className="claims" attrs={{ "data-phase": "finding" }} waiting>
+        <Waiting label="Looking for claims to check..." rows={3} testid="cap-claims-waiting" />
+      </Section>
+    );
   }
   if (state.phase === "failed") {
-    return <section className="claims" data-testid="cap-claims" data-phase="failed"><h2>Claims to check</h2><p className="note">Not looked for: {state.problem}.</p></section>;
+    return (
+      <Section id="cap-claims-h" title="Claims to check" testid="cap-claims" className="claims" attrs={{ "data-phase": "failed" }}>
+        <Failed why={sentence("Not looked for", state.problem)} onRetry={state.retry} testid="cap-claims-failed" retryTestid="cap-claims-retry"
+          retryLabel="Try again: look for claims to check" />
+      </Section>
+    );
   }
   if (state.phase === "none" && state.noModel) {
     return (
-      <section className="claims" data-testid="cap-claims" data-phase="none">
-        <h2>Claims to check</h2>
-        <p className="note">Finding the claims worth checking needs an AI model, and none can run here.</p>
-      </section>
+      <Section id="cap-claims-h" title="Claims to check" testid="cap-claims" className="claims" attrs={{ "data-phase": "none" }}>
+        <Empty>Finding the claims worth checking needs an AI model, and none can run here.</Empty>
+      </Section>
     );
   }
   if (state.phase !== "ready") return null;
@@ -149,23 +165,20 @@ export function ClaimsSection(props: { report: CleanReport; claims: ClaimsState 
   };
 
   return (
-    <section className="claims" aria-labelledby="cap-claims-h" data-testid="cap-claims" data-phase="ready" data-src={state.source}>
-      <h2 id="cap-claims-h">Claims to check ({state.claims.length})</h2>
-      {state.source && <p className="note claims-where" data-testid="cap-claims-where">{whereWords(state.source)}. Underlined on the page.</p>}
-      <ol className="claims-list">
+    <Section id="cap-claims-h" title="Claims to check" count={state.claims.length} testid="cap-claims" className="claims"
+      attrs={{ "data-phase": "ready", "data-src": state.source }}>
+      {state.source && <Note className="claims-where" testid="cap-claims-where">{whereWords(state.source)}. Underlined on the page.</Note>}
+      <Rows ordered className="claims-list">
         {state.claims.map((c) => (
-          <li key={c.id} data-testid="cap-claim" data-why={c.why}>
-            <span className="claim-why">{WHY[c.why]}</span>
-            <span className="claim-text">{c.text}</span>
-            <span className="claim-acts">
-              <button type="button" className="btn sm quiet" onClick={() => void show(c)} aria-label={`Show me: ${c.text.slice(0, 60)}`} data-testid="cap-claim-show">Show me</button>
+          <ActionRow key={c.id} testid="cap-claim" attrs={{ "data-why": c.why }} icon="claim" kind={WHY[c.why]} text={c.text} textClass="claim-text"
+            acts={<>
+              <ShowMe onClick={() => void show(c)} label={`Show me: ${c.text.slice(0, 60)}`} testid="cap-claim-show" />
               <ClaimCheck claim={c} checks={checks} />
-            </span>
-            {gone === c.id && <span className="note">That sentence is no longer on the page.</span>}
-          </li>
+            </>}
+            after={gone === c.id ? <span className="note">That sentence is no longer on the page.</span> : undefined} />
         ))}
-      </ol>
-      {state.dropped > 0 && <p className="note" data-testid="cap-claims-dropped">{state.dropped === 1 ? "1 of the AI's answers was" : `${state.dropped} of the AI's answers were`} left out: not a sentence of this page it was given, or said twice.</p>}
-    </section>
+      </Rows>
+      {state.dropped > 0 && <Note testid="cap-claims-dropped">{state.dropped === 1 ? "1 of the AI's answers was" : `${state.dropped} of the AI's answers were`} left out: not a sentence of this page it was given, or said twice.</Note>}
+    </Section>
   );
 }
