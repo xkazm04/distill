@@ -132,7 +132,7 @@ picture committed in `caption-visual.spec.ts-snapshots/`, so a change to the loo
 ```sh
 cd apps/extension
 npm run build:e2e
-npx playwright test -c e2e/playwright.config.ts --update-snapshots caption-visual
+npx playwright test -c e2e/playwright.config.ts --update-snapshots=changed caption-visual
 git diff --stat e2e/caption-visual.spec.ts-snapshots   # then look at each changed picture before you commit it
 ```
 

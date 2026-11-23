@@ -70,7 +70,7 @@ figure{margin:0;flex:1 1 300px;max-width:100%}
 figcaption{color:var(--muted);font-size:13px;margin-top:4px}
 </style></head><body><main>
 <h1>Distill pictures</h1>
-<p class="lead">${total} approved pictures${failed ? `, <em>${failed} ${failed === 1 ? "differs" : "differ"} in the last run</em>` : ", all matching in the last run"}. Approve a change: <code>npx playwright test -c e2e/playwright.config.ts --update-snapshots caption-visual</code>, then review the pictures in git (e2e/README.md, "Pictures"). Written ${new Date().toISOString().slice(0, 16).replace("T", " ")}.</p>
+<p class="lead">${total} approved pictures${failed ? `, <em>${failed} ${failed === 1 ? "differs" : "differ"} in the last run</em>` : ", all matching in the last run"}. Approve a change: <code>npx playwright test -c e2e/playwright.config.ts --update-snapshots=changed caption-visual</code>, then review the pictures in git (e2e/README.md, "Pictures"). Written ${new Date().toISOString().slice(0, 16).replace("T", " ")}.</p>
 ${sections}
 </main></body></html>`;
   const file = join(GALLERY, "index.html");

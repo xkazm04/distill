@@ -8,7 +8,7 @@
 // fonts loaded, the mouse parked, the clock fixed (the byline's "3 years ago" and the deadlines are dates), the stand-in
 // model's deterministic answers, and the strip waited on until its line and its box hold. The real sites: live/visual.live.ts.
 import type { Frame, Locator, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, startCaption, showPart } from "./caption";
 import { type Distill, expect, test } from "./harness";
 import { writeGallery } from "./visual";
 
@@ -90,6 +90,7 @@ for (const scheme of ["light", "dark"] as const) {
 
       // A tour running: Just the facts, its second step (Back is live, the step's words highlighted on the page).
       await page.evaluate(() => scrollTo(0, 0));
+      await showPart(frame, "cap-tour-start-facts"); // r5-02: the tours are in the Do part
       await frame.getByTestId("cap-tour-start-facts").click();
       await expect(frame.getByTestId("cap-more")).toHaveCount(0);
       await expect(frame.getByTestId("cap-tour-status")).toHaveText(/^Step 1 of/);
