@@ -1,4 +1,4 @@
 /* Round 3, r3-09 What this page asks of you: the list in More, on the kit's rows (kit.css). Theme roles only. */
-.more-extra > .actions { grid-column: 1 / -1; }
+.more-part > .actions { grid-column: 1 / -1; }
 .actions-list { max-height: 240px; overflow: auto; }
 .action-text { font-weight: 600; }

@@ -1,0 +1,65 @@
+/* Round 5: the first line as a sentence plus chips (r5-03), More in parts behind a tab row (r5-02), and on a phone More
+   as a bottom sheet (r5-08). Theme roles only, and color-mix() of them: no colour literal here (npm run check-tokens). */
+
+/* ---- the first line (r5-03) ---- */
+.first-line { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; white-space: nowrap; overflow: hidden; }
+.fl-sentence { flex: 0 0 auto; white-space: nowrap; }
+.first-line[data-wrap] { white-space: normal; flex: 1 1 0; }
+.first-line[data-wrap] .fl-sentence { white-space: normal; flex: 1 1 auto; min-width: 0; }
+.fact { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0; margin: 0;
+  border: 0; background: none; cursor: pointer; }
+.fact-in { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: var(--k-fs-xs, 13px);
+  font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.fact:hover .fact-in { background: color-mix(in srgb, var(--fg) 15%, transparent); }
+.fact:focus-visible { outline: none; }
+.fact:focus-visible .fact-in { outline: 3px solid var(--focus); outline-offset: 1px; }
+.fact-more .fact-in { color: var(--muted); }
+/* the same pieces, unseen, to measure them */
+.fl-measure { position: absolute; left: 0; top: 0; display: flex; gap: 6px; white-space: nowrap; visibility: hidden; pointer-events: none; }
+
+/* ---- the tab row (r5-02) ---- */
+.more-tabs { display: flex; gap: var(--k-sp-1, 2px); margin: 0 0 var(--k-sp-4, 12px); border-bottom: 1px solid var(--k-quiet);
+  overflow-x: auto; scrollbar-width: none; }
+.more-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; margin-bottom: -1px; border: 0;
+  border-bottom: 2px solid transparent; background: none; cursor: pointer; white-space: nowrap; font-size: var(--k-fs, 15px); color: var(--muted); }
+.more-tab:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.more-tab[aria-selected="true"] { color: var(--fg); font-weight: 600; border-bottom-color: var(--accent); }
+.more-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.tab-short { display: none; }
+
+/* ---- the parts ---- */
+.more-part { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--k-sp-4, 12px) 32px; }
+.more-part[hidden] { display: none; }
+.more-part > .gist, .more-part > .ask, .more-part > .byline { grid-column: 1 / -1; }
+.part-removed { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+
+/* ---- the phone sheet (r5-08) ---- */
+.sheet-bar, .sheet-acts { display: none; }
+@media (max-width: 560px) {
+  .tab-long { display: none; }
+  .tab-short { display: inline; }
+  .more-tab { flex: 1 0 auto; justify-content: center; min-height: 44px; min-width: 44px; padding: 4px 8px; }
+  .part-removed { grid-template-columns: minmax(0, 1fr); }
+  .more-part { grid-template-columns: minmax(0, 1fr); }
+  .more-part > .contact { grid-column: 1 / -1; }
+  .fact { min-height: 44px; min-width: 44px; }
+  .fact-in { min-height: 28px; }
+
+  .cap[data-sheet] { height: 100vh; display: flex; flex-direction: column; }
+  .cap[data-sheet] .cap-in { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; }
+  .cap[data-sheet] .more { flex: 1 1 auto; min-height: 0; max-height: none; padding-top: 0; overflow: auto; }
+  .cap[data-sheet] .row { flex: 0 0 auto; }
+  .sheet-bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--k-sp-2, 4px); background: var(--card); }
+  .sheet-grip { order: 1; flex: 1 1 auto; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0; border: 0;
+    background: none; cursor: grab; touch-action: none; }
+  .sheet-grip:active { cursor: grabbing; }
+  .sheet-handle { width: 44px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--fg) 30%, transparent); }
+  .sheet-size { order: 0; }
+  .sheet-close { order: 2; }
+  .sheet-acts { display: flex; flex-wrap: wrap; gap: var(--k-sp-3, 8px); margin: 0 0 var(--k-sp-4, 12px); }
+  .sheet-acts:empty { display: none; }
+  .sheet-acts > .btn, .sheet-acts > .form-done { flex: 1 1 auto; }
+  .sheet-acts > .form-done { display: inline-flex; align-items: center; min-height: 44px; }
+  .more-tabs { position: sticky; top: 44px; z-index: 1; background: var(--card); }
+}

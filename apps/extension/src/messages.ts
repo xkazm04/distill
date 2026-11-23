@@ -32,8 +32,10 @@ export type ContentRequest =
   | { type: "distill:caption:restore"; id: string | "all" }
   /** From the caption: show the untouched original (true) or Distill's version again (false). */
   | { type: "distill:caption:original"; on: boolean }
-  /** From the caption: the strip's content is this tall now (px). The page side clamps it and reserves the space. */
-  | { type: "distill:caption:size"; height: number }
+  /** From the caption: the strip's content is this tall now (px). The page side clamps it and reserves the space.
+   *  r5-08: on a phone More is a bottom sheet: `sheet` is the share of the window it asks for (half, full, or where a
+   *  finger holds it; `drag` while the finger moves, so the frame follows without easing). */
+  | { type: "distill:caption:size"; height: number; sheet?: number; drag?: boolean }
   /** From the caption: close Distill on this page; everything it changed goes back. */
   | { type: "distill:caption:close" }
   // ---- spark universal-core, round 1 (docs/caption.md, "Round 1") ----
@@ -265,7 +267,8 @@ export interface ContentReplies {
   "distill:caption:clean": CleanReport;
   "distill:caption:restore": CleanReport;
   "distill:caption:original": { ok: true };
-  "distill:caption:size": { height: number };
+  /** r5-08: `win` is the window's height, so the phone sheet can follow a finger as a share of it. */
+  "distill:caption:size": { height: number; win: number };
   "distill:caption:close": { ok: true };
   "distill:caption:comfort": { comfort: number };
   "distill:caption:play": { ok: true };

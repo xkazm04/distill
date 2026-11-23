@@ -1,6 +1,6 @@
 /* Round 4, r4-06 video chapters, and r4-07 a product page's facts: sections at the top of More, on the kit (kit.css).
    Theme roles only. */
-.more > .video, .more > .product { padding-bottom: var(--k-sp-4); margin-bottom: var(--k-sp-2); border-bottom: 1px solid var(--k-quiet); }
+.more-part > .video, .more-part > .product { grid-column: 1 / -1; }
 .video-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 var(--k-sp-5); max-height: 200px; overflow: auto; }
 .video-list li { display: flex; align-items: center; gap: var(--k-sp-3); min-height: var(--k-row); border-radius: 7px; padding: 0 6px; }
 .video-list li[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); }

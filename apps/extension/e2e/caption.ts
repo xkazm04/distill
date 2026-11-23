@@ -192,3 +192,22 @@ export function shownAgain(page: Page): Promise<number> {
 export function stripFont(frame: Frame): Promise<string> {
   return frame.getByTestId("cap-status").evaluate((el) => getComputedStyle(el).fontFamily);
 }
+
+/** r5-02: More is in parts behind a tab row. Shows the part that holds the section `testid` (clicks its tab unless it
+ *  is the one showing), waiting for the section to be there. More must be open. */
+export async function showPart(frame: Frame, testid: string, timeout = 10_000): Promise<void> {
+  const panel = frame.locator(`[role="tabpanel"]:has([data-testid="${testid}"])`).first();
+  await panel.waitFor({ state: "attached", timeout });
+  const id = await panel.getAttribute("id");
+  const tab = frame.locator(`[role="tab"][aria-controls="${id}"]`);
+  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+  await frame.locator(`#${id}:not([hidden])`).waitFor({ timeout });
+}
+
+/** r5-02: opens More (if it is shut) on the part that holds the section `testid`. */
+export async function openMoreAt(frame: Frame, testid: string, timeout = 10_000): Promise<void> {
+  const btn = frame.getByTestId("cap-more-btn");
+  if ((await btn.getAttribute("aria-expanded")) !== "true") await btn.click();
+  await frame.getByTestId("cap-more").waitFor({ timeout });
+  await showPart(frame, testid, timeout);
+}

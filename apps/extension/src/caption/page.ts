@@ -43,6 +43,11 @@ export const OPEN = "data-distill-caption";
 export const STRIP_MIN = 46;
 /** The strip never takes more than this share of the window, whatever it holds. */
 export const STRIP_MAX_SHARE = 0.45;
+/** r5-08: on a phone (the window at most this wide) More is a bottom sheet, up to this share of the window when full;
+ *  the rest of the page stays in sight above it, so the page is never covered whole. */
+export const SHEET_MAX_WIDTH = 560;
+export const SHEET_MAX_SHARE = 0.92;
+const HOST_TRANSITION = "transform 240ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)";
 const FADE_MS = 180;
 /** r4-02: a page that took this long to read (ms) had the person wait already: what Clean hides fades faster. */
 const BUSY_READ_MS = 100;
@@ -122,7 +127,7 @@ export function open(doc: Document, tabId: number): void {
   important(host, {
     all: "initial", display: "block", position: "fixed", left: "0", right: "0", bottom: "0", height: `${STRIP_MIN}px`,
     "z-index": "2147483647", margin: "0", padding: "0", border: "0", contain: "strict",
-    transform: reducedMotion() ? "none" : "translateY(100%)", transition: "transform 240ms cubic-bezier(.2,.8,.2,1), height 220ms cubic-bezier(.2,.8,.2,1)",
+    transform: reducedMotion() ? "none" : "translateY(100%)", transition: HOST_TRANSITION,
   });
   const root = host.attachShadow({ mode: "closed" });
   const frame = doc.createElement("iframe");
@@ -198,10 +203,16 @@ export function close(doc: Document): void {
   sight = null;
 }
 
-/** The strip's content height, clamped; the spacer follows so nothing ends up under the strip. */
-export function resize(height: number, win: Window): number {
+/** The strip's content height, clamped; the spacer follows so nothing ends up under the strip.
+ *  r5-08: on a phone More is a bottom sheet that asks for a share of the window (`sheet`), half or full, at most
+ *  SHEET_MAX_SHARE so a strip of the page stays in sight. While a finger drags it (`drag`) the height follows without
+ *  easing; under reduced motion it never eases. */
+export function resize(height: number, win: Window, sheet?: number, drag?: boolean): number {
   if (!state) return 0;
-  const h = Math.round(Math.max(STRIP_MIN, Math.min(height, win.innerHeight * STRIP_MAX_SHARE)));
+  const h = Math.round(sheet !== undefined && win.innerWidth <= SHEET_MAX_WIDTH
+    ? Math.max(STRIP_MIN, Math.min(win.innerHeight * sheet, win.innerHeight * SHEET_MAX_SHARE))
+    : Math.max(STRIP_MIN, Math.min(height, win.innerHeight * STRIP_MAX_SHARE)));
+  state.host.style.setProperty("transition", drag || (sheet !== undefined && reducedMotion()) ? "none" : HOST_TRANSITION, "important");
   state.host.style.setProperty("height", `${h}px`, "important");
   state.spacer.style.setProperty("height", `${h}px`, "important");
   return h;
