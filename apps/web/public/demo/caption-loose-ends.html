@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Hlášení závad - Obec Horní Lhota</title>
+<style>
+body{margin:0;background:#fff;font:16px/1.5 Arial,sans-serif;color:#1d2a1d}
+header{background:#2f5d2f;color:#fff;padding:12px 20px}
+header a{color:#fff;margin-right:14px}
+.wrap{display:flex;gap:24px;max-width:1080px;margin:0 auto}
+aside{width:260px;flex:none;background:#eef3ee;padding:12px 16px}
+main{flex:1;max-width:680px;padding:8px 20px 40px}
+.bar{height:32px;background:#f5f5f5;border-radius:16px;margin:20px 0}
+.tip{background:#f5f5f5;border-radius:16px;padding:16px;margin:20px 0}
+.photo{display:block;width:320px;height:180px;background:#cfd8cf}
+.more-info{display:none;background:#fff8dc;color:#333;padding:12px;margin:10px 0}
+.more-info.open{display:block}
+label{display:block;margin-top:12px;font-weight:bold}
+input,textarea{width:100%;box-sizing:border-box;padding:6px;font:inherit}
+footer{max-width:1080px;margin:0 auto;padding:12px 20px;font-size:13px;color:#667}
+</style>
+</head>
+<body>
+<header><strong>Obec Horní Lhota</strong> &nbsp; <nav style="display:inline"><a href="#">Úvod</a><a href="#">Úřad</a><a href="#">Aktuality</a><a href="#">Kontakty</a></nav></header>
+<div class="wrap">
+<aside id="side" class="sidebar">
+  <h2>Obecní úřad</h2>
+  <p>Telefon: <a id="side-tel" href="tel:+420377912345">377 912 345</a></p>
+  <p>E-mail: <a href="mailto:podatelna@horni-lhota.example">podatelna@horni-lhota.example</a></p>
+  <ul><li><a href="#">Úřední deska</a></li><li><a href="#">Formuláře</a></li><li><a href="#">Odpady</a></li></ul>
+</aside>
+<main id="main">
+  <h1>Hlášení závad</h1>
+  <p id="p1">Tímto formulářem nahlásíte obecnímu úřadu závadu na osvětlení, komunikaci nebo mobiliáři.</p>
+  <div id="bar" class="bar"></div>
+  <p id="p2">Závadu, která ohrožuje zdraví, hlaste rovnou na tísňovou linku.</p>
+  <div id="tip" class="tip"><div class="related"><a href="#">Svoz velkoobjemového odpadu na jaře</a></div></div>
+  <img id="photo" class="photo" alt="Náves v Horní Lhotě" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23b8c8b8'/%3E%3C/svg%3E">
+  <p id="p3">Nářadí vám zapůjčí ve sběrném dvoře na této adrese:</p>
+  <h3 id="adresa">Sběrný dvůr <br>
+Rovná 235 <br>
+Jablonec nad Nisou - Kokonín<br>
+468 01 <br>
+Tel. 602 106 673<br>
+</h3>
+  <button id="more-btn" type="button" onclick="document.getElementById('more').classList.toggle('open')">Více informací</button>
+  <div id="more" class="more-info"><p id="more-p">Sběrný dvůr přijímá i elektroodpad, pneumatiky a stavební suť do jednoho metru krychlového.</p></div>
+  <form id="hlaseni" action="#" method="post">
+    <label for="jmeno">Jméno a příjmení</label><input id="jmeno" name="jmeno" type="text">
+    <label for="misto">Místo závady</label><input id="misto" name="misto" type="text">
+    <label for="email">E-mail, na který vám pošleme odpověď na hlášení</label><input id="email" name="email" type="email">
+    <label for="druh">Druh závady</label><select id="druh" name="druh"><option value="">-- vyberte druh závady --</option><option>Veřejné osvětlení a rozhlas</option><option>Místní komunikace a chodníky</option><option>Mobiliář, lavičky a dětská hřiště</option><option>Černá skládka a nepořádek</option><option>Jiná závada nebo podnět</option></select>
+    <label for="popis">Popis závady (co přesně se stalo, odkdy a kde přesně závadu najdeme)</label><textarea id="popis" name="popis"></textarea>
+    <label><input id="souhlas" name="souhlas" type="checkbox"> Souhlasím se zpracováním osobních údajů pro účely vyřízení tohoto hlášení podle zásad obce</label>
+    <button type="submit">Odeslat hlášení</button>
+  </form>
+</main>
+</div>
+<footer>© Obec Horní Lhota · <a href="#">Prohlášení o přístupnosti</a></footer>
+</body>
+</html>

@@ -7,7 +7,11 @@
 // - the site's own record after a reload without Distill: is the banner back, and the consent cookies as readable
 //   (Didomi's didomi_token decoded: purposes enabled / disabled; the IAB euconsent-v2 string's presence; YouTube SOCS).
 // Output: e2e/out/live/probes/consent/<site>/*.png and metrics.json, one metrics.json for all sites, JPGs for the spark
-// board in E2E_EVIDENCE_DIR (r3-04-<site>.jpg after the press, r3-04-<site>-reload.jpg after the reload).
+// board in E2E_EVIDENCE_DIR (r3-04-<site>.jpg after the press, r3-04-<site>-reload.jpg after the reload; a site that
+// showed Didomi: r4-01-didomi-<site>.jpg and r4-01-didomi-<site>-reload.jpg).
+// r4-01: the browser says it is Chrome, not HeadlessChrome (Deník's Didomi asks no headless browser), in Czech with a
+// Prague clock; Didomi's own record is read from localStorage too (didomi_token, euconsent-v2). A notice with no reject
+// button on its first layer is answered in two presses: its own choices ("Podrobné nastavení"), then their reject.
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -26,6 +30,27 @@ const DEFAULT = ["demo-article", "news-denik", "news-aktualne", "form-praslavice
 const only = (process.env.E2E_LIVE_SITES ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const SITES = ALL.filter((s) => (only.length ? only.includes(s.id) || only.includes(s.useCase) : DEFAULT.includes(s.id)));
 const DESKTOP = { width: 1440, height: 900 };
+/** The browser's own user agent without "Headless" in it (read once). */
+let userAgent: string | undefined;
+test.beforeAll(async () => {
+  const b = await chromium.launch({ channel: LAUNCH.channel, headless: LAUNCH.headless });
+  userAgent = (await (await b.newPage()).evaluate(() => navigator.userAgent)).replace("HeadlessChrome", "Chrome");
+  await b.close();
+});
+
+/** Didomi's record in the page's localStorage: the token's purposes, and whether an IAB string is there. */
+const didomiStorage = (page: Page) => page.evaluate(() => {
+  const raw = localStorage.getItem("didomi_token");
+  let token: unknown = null;
+  if (raw) {
+    try {
+      const t = JSON.parse(atob(raw)) as Record<string, { enabled?: string[]; disabled?: string[] }>;
+      token = { purposesEnabled: t.purposes?.enabled ?? [], purposesDisabled: (t.purposes?.disabled ?? []).length, vendorsEnabled: (t.vendors?.enabled ?? []).length, vendorsDisabled: (t.vendors?.disabled ?? []).length };
+    } catch { token = `unreadable (${raw.length} chars)`; }
+  }
+  const iab = localStorage.getItem("euconsent-v2");
+  return { didomi_token: token, euconsentV2: iab ? `${iab.length} chars` : null, didomiSeen: !!document.querySelector("#didomi-host") };
+}).catch(() => null);
 const short = (id: string) => id.replace(/^(news|form|video|company)-/, "");
 
 /** Consent systems' boxes and YouTube's consent dialog, shown on screen now. */
@@ -102,10 +127,11 @@ for (const site of SITES) {
     const ext = prepareExtension(true, false);
     const profile = mkdtempSync(join(tmpdir(), "distill-probe-"));
     const context = await chromium.launchPersistentContext(profile, {
-      channel: LAUNCH.channel, headless: LAUNCH.headless, viewport: DESKTOP, locale: "cs-CZ",
+      channel: LAUNCH.channel, headless: LAUNCH.headless, viewport: DESKTOP, locale: "cs-CZ", timezoneId: "Europe/Prague", userAgent,
       args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
     });
     const m: Record<string, unknown> = { site: site.id, url: site.url, at: new Date().toISOString() };
+    let tag = (end: string) => `r3-04-${short(site.id)}${end}`;
     try {
       const worker = context.serviceWorkers().find((w) => w.url().startsWith("chrome-extension://"))
         ?? await context.waitForEvent("serviceworker", { timeout: 15_000 });
@@ -121,6 +147,8 @@ for (const site of SITES) {
       await page.waitForLoadState("load", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(site.settleMs ?? 3000);
       m.bannerBefore = await bannerShown(page);
+      m.didomiNotice = await page.evaluate(() => !!document.querySelector("#didomi-notice, #didomi-popup")).catch(() => false);
+      if (m.didomiNotice) tag = (end: string) => `r4-01-didomi-${short(site.id)}${end}`;
       m.cookiesBefore = await consentCookies(context);
       await shot(page, dir, "before");
       await recordClicks(page);
@@ -143,7 +171,8 @@ for (const site of SITES) {
       await frame.getByTestId("cap-more-btn").click();
       await page.waitForTimeout(1500);
       m.cookiesAfterPress = await consentCookies(context);
-      await shot(page, dir, "pressed", `r3-04-${short(site.id)}`);
+      m.storageAfterPress = await didomiStorage(page);
+      await shot(page, dir, "pressed", tag(""));
       expect(await startCaption(worker, tabId)).toBe(false);
 
       // The site's own record: reload without Distill.
@@ -151,18 +180,22 @@ for (const site of SITES) {
       await page.waitForLoadState("load", { timeout: 20_000 }).catch(() => undefined);
       await page.waitForTimeout(site.settleMs ?? 3000);
       m.bannerAfterReload = await bannerShown(page);
+      // A "pay or consent" site (Aktuálně) asks again after a no: read for free with ads, or subscribe. Its own choice.
+      m.payOrConsentAfterReload = m.bannerAfterReload && await page.evaluate(() =>
+        /(předplatit|bez reklam za|subscribe|pay or|abonnieren)/i.test(document.body.innerText.slice(0, 20000))).catch(() => false);
       m.cookiesAfterReload = await consentCookies(context);
-      await shot(page, dir, "reload", `r3-04-${short(site.id)}-reload`);
+      m.storageAfterReload = await didomiStorage(page);
+      await shot(page, dir, "reload", tag("-reload"));
     } finally {
       writeFileSync(join(dir, "metrics.json"), JSON.stringify(m, null, 2));
       await context.close();
       rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
       rmSync(ext, { recursive: true, force: true, maxRetries: 3 });
     }
-    // Never a press whose words say yes, and at most one press.
-    const pressed = (m.clicks as { words: string }[] | null) ?? [];
+    // Never a press whose words say yes, and at most one press (two when the first opened the system's own choices).
+    const pressed = (m.clicks as { words: string; id: string }[] | null) ?? [];
     expect(pressed.filter((c) => ACCEPT_WORDS.test(c.words) && !/(do not|nesouhlas|odmítn|bez souhlasu|nezbytn|necessary|reject)/i.test(c.words))).toEqual([]);
-    expect(pressed.length).toBeLessThanOrEqual(1);
-    if (m.outcome === "rejected") expect(m.bannerAfterReload).toBe(false);
+    expect(pressed.length).toBeLessThanOrEqual(pressed[0]?.id === "didomi-notice-learn-more-button" ? 2 : 1);
+    if (m.outcome === "rejected" && !m.payOrConsentAfterReload) expect(m.bannerAfterReload).toBe(false);
   });
 }
