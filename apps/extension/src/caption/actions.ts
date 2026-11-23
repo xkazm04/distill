@@ -55,9 +55,13 @@ const hiddenByClean = (ctx: CleanContext, el: Element): boolean => {
   const part = el.closest(`[${HIDE}]`);
   return !!part && Array.from(ctx.removed.values()).includes(part);
 };
-/** Pages whose hidden parts' contacts are asked of the reader: a form to an office (a village's fault report), a letter.
- *  Elsewhere (an article, a company's page, a listing) a hidden footer's contacts are the publisher's (r3-09 kept them out). */
+/** Pages whose hidden parts' contacts are asked of the reader: a form to an office (a village's fault report: the page is
+ *  for its form, though its text may outweigh it), a letter. Elsewhere (an article, a company's page, a listing) a
+ *  hidden footer's contacts are the publisher's (r3-09 kept them out). */
 const FROM_HIDDEN = new Set<string>(["form", "letter"]);
+const NEVER_FROM_HIDDEN = new Set<string>(["article", "thread", "listing"]);
+const fromHiddenOn = (ctx: CleanContext): boolean => !!ctx.kind && (FROM_HIDDEN.has(ctx.kind)
+  || (!NEVER_FROM_HIDDEN.has(ctx.kind) && ctx.protect.some((p) => p.localName === "form")));
 
 /**
  * What this page asks of you, in reading order (ids `a0`, `a1`, ...): the main text's deadlines, sums, things to bring,
@@ -83,7 +87,7 @@ export function readActions(ctx: CleanContext): ActionItem[] {
   // r4-01: an office's page (a village's fault-report form) keeps its phone and e-mail in a side column or footer that
   // Clean hid. There those count too, marked "in a part Distill hid" (after the ones on screen); on an article, a
   // company's page or a listing they are the publisher's, not something the page asks of the reader.
-  const fromHidden = !!ctx.kind && FROM_HIDDEN.has(ctx.kind);
+  const fromHidden = fromHiddenOn(ctx);
   const later: { c: (typeof contacts)[number]; el: Element }[] = [];
   for (const c of contacts) {
     if (c.kind === "contactPage" || added >= MAX_CONTACTS) continue;

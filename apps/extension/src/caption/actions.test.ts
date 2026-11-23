@@ -47,7 +47,11 @@ describe("contacts in parts Clean hid (r4-01)", () => {
 
   it("do not count on an article or a company's page (the publisher's footer), nor in a part the page itself hides", () => {
     expect(readActions(village("article"))).toEqual([]);
-    expect(readActions(village("other"))).toEqual([]); // a company's page: its hidden footer stays out (r3-09)
+    // A company's page without a form to fill: its hidden footer stays out (r3-09); with one, the page is for the form.
+    const company = village("other");
+    company.protect = [];
+    expect(readActions(company)).toEqual([]);
+    expect(readActions(village("other")).map((i) => i.text)).toEqual(["Call 377 912 345", "Write to podatelna@obec.example"]);
     const ctx = village("form");
     // The side column hidden by the page, not by Clean: its phone is not counted.
     ctx.removed = new Map([["c1", document.getElementById("foot") as Element]]);
