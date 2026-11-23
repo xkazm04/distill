@@ -58,7 +58,12 @@ function locate(target: LocateTarget | null, color?: string): void {
   applyLocate(document, els, color, reducedMotion());
 }
 
+/** r4-02: what the strip reads once Clean answered, to add to the line later, waits for first sight (caption/page.ts
+ *  afterFirstSight), so it does not hold the page's thread while the strip appears. */
+const AFTER_FIRST_SIGHT = new Set<ContentRequest["type"]>(["distill:caption:mainText", "distill:caption:byline", "distill:caption:actions", "distill:caption:terms"]);
+
 async function handle(req: ContentRequest): Promise<unknown> {
+  if (AFTER_FIRST_SIGHT.has(req.type)) await caption.afterFirstSight();
   switch (req.type) {
     case "distill:ping": return { ready: true };
     case "distill:getPage": {

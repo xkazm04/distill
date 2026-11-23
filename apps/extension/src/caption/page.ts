@@ -17,7 +17,7 @@ import { clearActions } from "./actions";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
-import { clearConsent, consentAfterClean, setConsent } from "./consent";
+import { clearConsent, consentAfterClean, loadConsentPrefs, setConsent } from "./consent";
 import { clearDark } from "./dark";
 
 /** The consent switch for this site as Clean read it (r3-04): late banners are answered only while it is on. */
@@ -40,10 +40,14 @@ export const STRIP_MIN = 46;
 /** The strip never takes more than this share of the window, whatever it holds. */
 export const STRIP_MAX_SHARE = 0.45;
 const FADE_MS = 180;
+/** r4-02: a page that took this long to read (ms) had the person wait already: what Clean hides fades faster. */
+const BUSY_READ_MS = 100;
+const FADE_BUSY_MS = 90;
 
 const PAGE_CSS = `
 html:not([${ORIGINAL}]) [${HIDE}] { display: none !important; }
 html:not([${ORIGINAL}]) [${FADE}] { opacity: 0 !important; transition: opacity ${FADE_MS}ms ease-out !important; }
+html:not([${ORIGINAL}]) [${FADE}="busy"] { transition-duration: ${FADE_BUSY_MS}ms !important; }
 html[${UNLOCK}]:not([${ORIGINAL}]), html[${UNLOCK}]:not([${ORIGINAL}]) > body { overflow: auto !important; }
 `;
 
@@ -66,6 +70,38 @@ interface State {
 }
 
 let state: State | null = null;
+
+/**
+ * r4-02: the reads the strip makes once Clean answered, which add to it later (the main text for claims and the gist,
+ * the byline, what the page asks of you, prices and dates in your terms). On YouTube they hold the page's thread for
+ * 250-300 ms together, and they all arrived at once, right while the strip appeared: the page stuttered then. Now each
+ * waits for Clean to have answered, then takes its own turn in the page's idle time, one per idle period (at most
+ * IDLE_WAIT_MS each), so the page and the strip can draw between them.
+ */
+let sight: { win: Window; drawn: Promise<void>; done: () => void; queue: Promise<void>; pending: number; at: number } | null = null;
+const IDLE_WAIT_MS = 500;
+/** Once first sight is this long past (ms) and no turn waits, a read (Ask's, a switch in More) runs at once. */
+const SIGHT_PAST_MS = 2000;
+const idle = (win: Window): Promise<void> => new Promise((r) => {
+  if (typeof win.requestIdleCallback === "function") win.requestIdleCallback(() => r(), { timeout: IDLE_WAIT_MS });
+  else win.setTimeout(r, 0);
+});
+function newSight(win: Window): NonNullable<typeof sight> {
+  const s = { win, drawn: Promise.resolve(), done: () => undefined as void, queue: Promise.resolve(), pending: 0, at: 0 };
+  s.drawn = new Promise<void>((r) => { s.done = () => { if (!s.at) s.at = Date.now(); r(); }; });
+  s.queue = s.drawn;
+  return s;
+}
+/** Resolves on this caller's idle turn after Clean answered (at once while Distill is not on the page, or long after
+ *  first sight). The caller's work runs right after, before the next turn is asked for. */
+export function afterFirstSight(): Promise<void> {
+  const s = sight;
+  if (!s || (s.at && !s.pending && Date.now() - s.at > SIGHT_PAST_MS)) return Promise.resolve();
+  s.pending++;
+  const turn = s.queue.then(() => (sight === s ? idle(s.win) : undefined)).finally(() => { s.pending--; });
+  s.queue = turn;
+  return turn;
+}
 /** A Clean that is running: a second ask (the frame mounting twice) waits for it instead of cleaning again. */
 let cleaning: Promise<CleanReport> | null = null;
 
@@ -108,13 +144,21 @@ export function open(doc: Document, tabId: number): void {
 
   doc.documentElement.setAttribute(OPEN, "");
   state = { tabId, host, frame, spacer, style, report: null, removed: new Map(), ctx: null, unwatch: () => undefined, href: "", stale: false };
-  // Slide in on the next frame, so the transition runs from below the window.
-  requestAnimationFrame(() => requestAnimationFrame(() => host.style.setProperty("transform", "none", "important")));
+  sight = newSight(doc.defaultView ?? window);
   // Clean starts now, while the strip's frame loads, instead of when the frame asks for it: the frame's request then
   // gets the running (or finished) Clean. Measured on the live sites (round-1 gaps, GB): Deník 1.8 -> 1.0 s and YouTube
   // 2.4 -> 1.6 s from the click to the first-sight line.
+  // r4-02: but one frame later, once the strip's slide-in has started. Reading a large page holds the page's thread
+  // for 150-400 ms (YouTube), and a transition starts only when a frame is drawn: started first, the slide runs on the
+  // compositor while the page is judged and is over before the line shows, instead of starting after the reading.
   const win = doc.defaultView;
-  if (win) void clean(doc, win).catch(() => undefined);
+  const start = () => { if (win && state?.host === host) void clean(doc, win).catch(() => undefined); };
+  // No slide under reduced motion; no frame drawn in a tab in the background (a remembered site opening by itself).
+  if (reducedMotion() || doc.visibilityState === "hidden") { host.style.setProperty("transform", "none", "important"); start(); return; }
+  // The box's style from below the window, read now, so the change to "none" is a transition and not a jump.
+  void getComputedStyle(host).transform;
+  host.style.setProperty("transform", "none", "important");
+  requestAnimationFrame(() => setTimeout(start, 0));
 }
 
 /** Takes Distill off the page: every change goes back, and the strip goes. */
@@ -141,6 +185,8 @@ export function close(doc: Document): void {
   state.spacer.remove();
   state.style.remove();
   state = null;
+  sight?.done();
+  sight = null;
 }
 
 /** The strip's content height, clamped; the spacer follows so nothing ends up under the strip. */
@@ -458,7 +504,7 @@ export async function clean(doc: Document, win: Window): Promise<CleanReport> {
   // A Clean still running (its consent step reads the device's switch) answers with its finished report.
   if (cleaning) return cleaning;
   if (state.report) return current();
-  cleaning ??= cleanOnce(doc, win).finally(() => { cleaning = null; });
+  cleaning ??= cleanOnce(doc, win).finally(() => { cleaning = null; sight?.done(); });
   return cleaning;
 }
 
@@ -509,14 +555,18 @@ export function hideRemoved(removed: ReadonlyMap<string, Element>): void {
 
 async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   if (!state) throw new Error("Distill is not open on this page.");
+  // r4-02: the consent switch is read from the device's storage while the page is judged, not after it was cleaned.
+  const prefs = loadConsentPrefs();
 
+  const t0 = performance.now();
   const { page, keep, body, main, protect, items, removed, lang, langFrom } = readForClean(doc, win);
+  const busy = performance.now() - t0 >= BUSY_READ_MS;
   const unlockedScroll = scrollLocked(doc, win);
 
   const anchor = win.scrollY > 0 ? anchorOf(keep, win) : null;
   if (!reducedMotion() && removed.size) {
-    for (const el of removed.values()) el.setAttribute(FADE, "");
-    await new Promise((r) => setTimeout(r, FADE_MS));
+    for (const el of removed.values()) el.setAttribute(FADE, busy ? "busy" : "");
+    await new Promise((r) => setTimeout(r, busy ? FADE_BUSY_MS : FADE_MS));
   }
   hideRemoved(removed);
   if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
@@ -542,7 +592,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   linkNotes(ctx);
   // r3-04: after Clean, in the top frame, once per page load: a cookie banner's reject button pressed (never Accept).
   const s = state;
-  const answered = await consentAfterClean(doc, cookieBanners(items, removed));
+  const answered = await consentAfterClean(doc, cookieBanners(items, removed), prefs);
   if (state !== s || !s.report) return base; // closed meanwhile
   consentOn = answered.on;
   s.report = { ...s.report, consent: answered.outcome };
