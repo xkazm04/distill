@@ -603,6 +603,11 @@ export function restore(id: string): CleanReport {
   if (!state?.report) throw new Error("Nothing was removed on this page.");
   const els = id === "all" ? Array.from(state.removed.values()) : [state.removed.get(id)].filter((e): e is Element => !!e);
   if (!els.length) throw new Error("That part of the page is no longer there.");
+  // r4-01: an Empty space Clean took because what it held was hidden comes back with what it held.
+  for (const it of state.report.items) {
+    const box = it.kind === "space" ? state.removed.get(it.id) : undefined;
+    if (box && !els.includes(box) && els.some((el) => box.contains(el))) els.push(box);
+  }
   const back = els.filter((el) => el.hasAttribute(HIDE));
   for (const el of els) el.removeAttribute(HIDE);
   const ctx = state.ctx;

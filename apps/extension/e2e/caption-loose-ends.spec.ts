@@ -44,6 +44,11 @@ test("loose ends: hidden contacts count and Show me opens the original; empty bo
   await frame.getByTestId("cap-more-btn").click();
   const removed = await frame.getByTestId("cap-removed-item").allTextContents();
   expect(removed.filter((t) => t.startsWith("Empty space"))).toHaveLength(2);
+  // The "read also" link brought back comes back in its frame (the Empty space that held it comes back with it).
+  await frame.getByRole("button", { name: "Show Related links again" }).click();
+  await expect.poll(() => shown(page, "#tip .related")).toBe(true);
+  expect(await shown(page, "#bar")).toBe(false);
+  await expect(frame.getByTestId("cap-removed-item").filter({ hasText: "Back on the page" })).toHaveCount(2);
 
   // 1. The things to do: the address and phone on screen first, then the phone and e-mail of the hidden column, marked.
   const rows = frame.getByTestId("cap-action");
@@ -77,7 +82,10 @@ test("loose ends: hidden contacts count and Show me opens the original; empty bo
   await expect(frame.getByTestId("cap-dark")).toBeChecked();
   await frame.getByTestId("cap-more-btn").click();
   await expect(page.locator("#more")).not.toHaveAttribute("data-distill-dark");
-  await page.locator("#more-btn").click();
+  // The page's own button opens the box by its class (run as the page would: a click under the strip's closing More can
+  // land on the strip under load).
+  await page.evaluate(() => (document.getElementById("more-btn") as HTMLButtonElement).click());
+  await expect(page.locator("#more")).toHaveClass(/open/);
   await expect(page.locator("#more")).toHaveAttribute("data-distill-dark", /d\d+/);
   const colours = await page.locator("#more").evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, fg: getComputedStyle(el.querySelector("p") as Element).color }));
   const lum = (c: string) => {
