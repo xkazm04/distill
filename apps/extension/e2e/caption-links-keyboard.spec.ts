@@ -1,9 +1,13 @@
 // Spark round 3, r3-10 fix 3: a link note can be used with the keyboard alone, on the demo page caption-links.html.
 // A link focused with Tab shows its note; Tab moves to the note's Copy button; Enter copies; Esc closes the note and
 // focus is back on the link; Shift+Tab from Copy goes back to the link; Tab from Copy goes on to the next link.
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import type { Page } from "playwright/test";
 import { captionFrame, firstSight, startCaption } from "./caption";
-import { expect, test } from "./harness";
+import { expect, OUT, test } from "./harness";
+
+const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
 
 /** The note's text while it is up, or null. Runs in the page (the e2e build opens the note's shadow root). */
 const note = (page: Page) => page.evaluate(() => {
@@ -54,6 +58,8 @@ test("caption links by keyboard: Tab shows the note and reaches Copy, Enter copi
     const b = document.querySelector("distill-link-note")?.shadowRoot?.querySelector("button");
     return b ? b.matches(":focus-visible") && getComputedStyle(b).outlineStyle !== "none" : false;
   })).toBe(true);
+  mkdirSync(EVIDENCE, { recursive: true });
+  await page.screenshot({ path: join(EVIDENCE, "r3-10-link-note-keyboard.jpg"), type: "jpeg", quality: 80, clip: { x: 0, y: 0, width: 1440, height: 520 } });
 
   // Shift+Tab goes back to the link, and its note is still there.
   await page.keyboard.press("Shift+Tab");
