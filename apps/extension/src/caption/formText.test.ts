@@ -66,17 +66,24 @@ describe("formText", () => {
   it("labels, legends, cells, hints, options, optgroup labels, placeholders, aria-labels and unsent buttons", () => {
     const texts = formText(document).map((b) => b.text);
     for (const want of ["Kdo hlásí", "Jméno a příjmení *", "E-mail", "Druh závady", "-- vyberte --", "Nesvítí lampa", "Díra v silnici",
-      "Silnice", "Souhlasím se zpracováním", "Jan Novák", "Vaše jméno", "Popište závadu", "Odeslat", "Vymazat"]) {
+      "Silnice", "Souhlasím se zpracováním", "Jan Novák", "Vaše jméno", "Popište závadu", "Odeslat", "Vymazat", "Na tento e-mail odpovíme"]) {
       expect(texts).toContain(want);
     }
   });
 
   it("never a typed value, a textarea's words, an error, a live region, an output, a value sent with the form or a no-translate part", () => {
     const all = JSON.stringify(formText(document));
-    for (const never of [TYPED, TYPED_MAIL, "Moje vlastní slova", "není platná", "Na tento e-mail" /* named by an invalid field */,
+    for (const never of [TYPED, TYPED_MAIL, "Moje vlastní slova", "není platná",
       "Formulář obsahuje chyby", "Napočítáno", "Uložit koncept", "Obec Lhota", "svetlo", "Hledat", "Váš e-mail"]) {
       expect(all).not.toContain(never);
     }
+  });
+
+  it("what an invalid field's aria-describedby names is an error when nothing it names looks like one and it is not help text", () => {
+    document.body.innerHTML = `<main><form><label for="a">Ulice</label><input id="a" name="a" aria-invalid="true" aria-describedby="m">
+      <span id="m">Ulice ${TYPED} neexistuje</span><label for="b">Obec</label><input id="b" name="b"></form></main>`;
+    expect(JSON.stringify(formText(document))).not.toContain(TYPED);
+    expect(formErrors(document).map((e) => e.text)).toEqual([`Ulice ${TYPED} neexistuje`]);
   });
 
   it("ids are f0...; a second reading hands over only what is new", () => {

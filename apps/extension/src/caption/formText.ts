@@ -120,8 +120,8 @@ export function formScopes(doc: Document): Element[] {
 
 // ---- Errors: never among the form's words --------------------------------------------------------------------------
 
-/** The elements fields name as their error: aria-errormessage always; while invalid, everything aria-describedby names
- *  (a hint the page turns into an error while the field is invalid is treated as the error it may now be). */
+/** The elements fields name as their error: aria-errormessage always; while a field is invalid, what its
+ *  aria-describedby names that looks like an error, else everything it names that is not help text. */
 function linkedErrors(scope: Element): Set<Element> {
   const out = new Set<Element>();
   const doc = scope.ownerDocument;
@@ -129,10 +129,18 @@ function linkedErrors(scope: Element): Set<Element> {
     .map((id) => doc.getElementById(id)).filter((e): e is HTMLElement => !!e);
   for (const f of Array.from(scope.querySelectorAll("[aria-errormessage], [aria-invalid][aria-describedby]"))) {
     named(f, "aria-errormessage").forEach((e) => out.add(e));
-    if (isInvalid(f)) named(f, "aria-describedby").forEach((e) => out.add(e));
+    if (!isInvalid(f)) continue;
+    // The engine's reading (errors.ts linkedErrors): what looks like an error, else everything that is not help text.
+    const described = named(f, "aria-describedby");
+    const marked = described.filter(looksLikeError);
+    (marked.length ? marked : described.filter((d) => !hintLike(d))).forEach((e) => out.add(e));
   }
   return out;
 }
+
+/** Help text by its own markup (the engine's hintLike): a <small>, or a hint word in its class or id. */
+const hintLike = (el: Element): boolean =>
+  el.localName === "small" || /(^|[\s_-])(hint|help|helper|description|form-text|note)([\s_-]|$)/i.test(`${el.getAttribute("class") ?? ""} ${el.id}`);
 
 /** Inside an error message: the element or one of its ancestors up to the scope looks like one or is linked as one. */
 function inError(el: Element, scope: Element, linked: ReadonlySet<Element>): boolean {
@@ -234,14 +242,18 @@ export function formText(doc: Document): TextBlock[] {
   return readForms(doc, ensure());
 }
 
-/** The error elements the forms show now: outermost ones, shown, holding words. */
-function errorElements(doc: Document): Element[] {
+/** The error elements the forms show now: outermost ones, shown, holding words. A hint already read as the form's own
+ *  words (an invalid field's aria-describedby names its hint too) is not an error: it was the page's text when read, and
+ *  its translation shows already. */
+function errorElements(doc: Document, s: State): Element[] {
   const out: Element[] = [];
   for (const scope of formScopes(doc)) {
     const linked = linkedErrors(scope);
     for (const el of Array.from(scope.querySelectorAll("*"))) {
       if (!(linked.has(el) || looksLikeError(el)) || !drawn(el) || out.some((o) => o.contains(el))) continue;
       if (!hasWords(el.textContent ?? "")) continue;
+      const words = errorNodes(el).filter((n) => /\S/.test(n.nodeValue ?? ""));
+      if (!s.errorOf.has(el) && words.length && words.every((n) => s.seenNodes.has(n))) continue;
       out.push(el);
     }
   }
@@ -268,7 +280,7 @@ const nowText = (u: TextUnit): string => collapse(u.nodes.map((n) => (n.isConnec
 export function formErrors(doc: Document): TextBlock[] {
   const s = ensure();
   const out: TextBlock[] = [];
-  for (const el of errorElements(doc)) {
+  for (const el of errorElements(doc, s)) {
     const known = s.errorOf.get(el);
     if (known) {
       const now = nowText(known);
@@ -446,7 +458,7 @@ function waiting(doc: Document, s: State): number {
       if (Array.from(opt.childNodes).some((c) => c.nodeType === 3 && hasWords(c.nodeValue ?? "") && !s.seenNodes.has(c as Text))) n++;
     }
   }
-  for (const el of errorElements(doc)) {
+  for (const el of errorElements(doc, s)) {
     const known = s.errorOf.get(el);
     if (!known) { n++; continue; }
     const now = nowText(known);
