@@ -17,6 +17,7 @@ import { clearActions } from "./actions";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
+import { clearExplain, explainWords } from "./explain";
 import { clearConsent, consentAfterClean, setConsent } from "./consent";
 import { clearDark } from "./dark";
 
@@ -131,6 +132,7 @@ export function close(doc: Document): void {
   clearActions(doc);
   clearTables(doc);
   clearLinks(doc);
+  clearExplain(doc);
   clearDark(doc);
   clearConsent();
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
@@ -333,7 +335,8 @@ function follow(s: State, ctx: CleanContext): void {
   s.stale = false;
   const t0 = performance.now();
   s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx), tables: readableTables(ctx) };
-  linkNotes(ctx);
+  linkNotes(ctx); // r4-05: and the Explain button follows the new main text too
+  explainWords(ctx, s.tabId);
   spent(performance.now() - t0);
 }
 
@@ -540,6 +543,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     tables: readableTables(ctx),
   };
   linkNotes(ctx);
+  explainWords(ctx, state.tabId);
   // r3-04: after Clean, in the top frame, once per page load: a cookie banner's reject button pressed (never Accept).
   const s = state;
   const answered = await consentAfterClean(doc, cookieBanners(items, removed));
