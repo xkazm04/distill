@@ -36,6 +36,9 @@ interface Run {
   elements: number;
   /** Each removed box, in document order: "c3 div#masthead.style-scope". */
   removed: string[];
+  /** What else Clean changed, by name: the headers let scroll away (unstick) and the boxes widened (widen). */
+  unstuck: string[];
+  widened: string[];
   /** Per-phase times (ms) and call counts from a build with timing marks; null from a plain build. */
   timing: Record<string, number> | null;
   /** From a build that judged the page two ways at the same moment: whether both found the same, and both lists. */
@@ -102,9 +105,11 @@ for (const site of SITES) {
           const removed = Array.from(document.querySelectorAll("[data-distill-hide]")).map((el) => `${el.getAttribute("data-distill-hide")} ${name(el)}`);
           const raw = document.documentElement.getAttribute("data-distill-timing");
           const ab = document.documentElement.getAttribute("data-distill-ab");
-          return { removed, timing: raw ? JSON.parse(raw) as Record<string, number> : null, ab: ab ? JSON.parse(ab) as unknown : null };
+          const unstuck = Array.from(document.querySelectorAll("[data-distill-unstick]")).map((el) => `${el.getAttribute("data-distill-unstick")} ${name(el)}`);
+          const widened = Array.from(document.querySelectorAll("[data-distill-widen]")).map(name);
+          return { removed, unstuck, widened, timing: raw ? JSON.parse(raw) as Record<string, number> : null, ab: ab ? JSON.parse(ab) as unknown : null };
         });
-        runs.push({ openMs, frameMs, lineMs, firstMs, t0, status, elements, removed: read.removed, timing: read.timing, ab: read.ab, errors });
+        runs.push({ openMs, frameMs, lineMs, firstMs, t0, status, elements, removed: read.removed, unstuck: read.unstuck, widened: read.widened, timing: read.timing, ab: read.ab, errors });
       } finally {
         await context.close();
         rmSync(profile, { recursive: true, force: true, maxRetries: 3 });

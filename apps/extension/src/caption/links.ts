@@ -6,6 +6,8 @@
 // page.ts): the page's CSS cannot reach it and the page's scripts cannot read it. It never takes a click from the page
 // (pointer-events: none, except its one button), and it goes away on scroll, Escape, the pointer leaving, Original
 // and close. Not on mailto:, tel:, javascript: or #anchor links, nor on links outside the main text.
+// The keyboard reaches it too (r3-10): Tab on a link with a note moves to its button, Esc or Shift+Tab returns to the
+// link, Tab goes on to the page's next stop.
 import { describeLink, PROGRAM_FILE_TYPES, type LinkNote } from "@distill/engine";
 import type { CleanContext } from "./context";
 
@@ -56,6 +58,8 @@ interface State {
   press: { x: number; y: number; timer: number } | null;
   /** A long press showed the note: the click the lift may send is not a click on the link. */
   swallowUntil: number;
+  /** Focus goes back to this link from its note (Esc, Shift+Tab, Copy done): it must not bring the note up again. */
+  quiet: HTMLAnchorElement | null;
   observer: MutationObserver | null;
   off: () => void;
 }
@@ -185,10 +189,16 @@ function show(s: State, a: HTMLAnchorElement): void {
   s.shown = true;
 }
 
-/** Takes the note down (it stays in the page, hidden, for the next one). */
+/** Takes the note down (it stays in the page, hidden, for the next one). When the keyboard was in the note (on its
+ *  Copy button), focus goes back to the link first, so it is never lost to the page's start. */
 function hide(): void {
   const s = state;
   if (!s) return;
+  const link = s.link;
+  if (s.host && s.doc.activeElement === s.host && link?.isConnected) {
+    s.quiet = link;
+    link.focus({ preventScroll: true });
+  }
   s.win.clearTimeout(s.showTimer);
   s.win.clearTimeout(s.hideTimer);
   if (s.press) { s.win.clearTimeout(s.press.timer); s.press = null; }
@@ -233,6 +243,9 @@ function listen(s: State): () => void {
   };
   const focusIn = (e: FocusEvent) => {
     if (inNote(e.target)) { win.clearTimeout(s.hideTimer); return; }
+    const quiet = s.quiet;
+    s.quiet = null;
+    if (quiet && e.target === quiet) { win.clearTimeout(s.hideTimer); return; }
     const a = linkOf(s, e.target);
     // Keyboard focus only: a click focuses the link too, and the pointer has its own delay.
     if (!a || !a.matches(":focus-visible")) return;
@@ -241,7 +254,7 @@ function listen(s: State): () => void {
     show(s, a);
   };
   const focusOut = (e: FocusEvent) => {
-    if (!s.shown || inNote(e.relatedTarget)) return;
+    if (!s.shown || inNote(e.relatedTarget) || (inNote(e.target) && e.relatedTarget === s.link)) return;
     if (e.target === s.link || inNote(e.target)) { win.clearTimeout(s.hideTimer); s.hideTimer = later(() => hide(), 150); }
   };
   const down = (e: PointerEvent) => {
@@ -266,7 +279,36 @@ function listen(s: State): () => void {
     if (Date.now() < s.swallowUntil && linkOf(s, e.target) === s.link) { e.preventDefault(); e.stopPropagation(); }
     s.swallowUntil = 0;
   };
-  const key = (e: KeyboardEvent) => { if (e.key === "Escape" && s.shown) hide(); };
+  // The keyboard reaches the note's one button: Tab on the link moves to it (the note sits at the document's end, so
+  // the browser's own Tab order would skip it); Shift+Tab or Esc there goes back to the link; Tab there goes on to
+  // what follows the link in the page, as if the note were right after it.
+  const key = (e: KeyboardEvent) => {
+    if (!s.shown) return;
+    const link = s.link;
+    const fromNote = inNote(e.target);
+    if (e.key === "Escape") {
+      hide();
+      if (fromNote) { e.preventDefault(); e.stopPropagation(); }
+      return;
+    }
+    if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey || !link) return;
+    const button = s.box?.querySelector("button");
+    if (!button) return;
+    if (!fromNote) {
+      if (!e.shiftKey && e.target === link) { e.preventDefault(); button.focus({ preventScroll: true }); }
+      return;
+    }
+    if (e.shiftKey) {
+      // Back to the link, whose note stays up.
+      e.preventDefault();
+      s.quiet = link;
+      link.focus({ preventScroll: true });
+      return;
+    }
+    // On to the next stop after the link: focus the link now and let the browser's Tab move on from there.
+    s.quiet = link;
+    link.focus({ preventScroll: true });
+  };
   const gone = () => { if (s.shown || s.link) hide(); };
 
   const opts = { capture: true, passive: true } as const;
@@ -307,7 +349,7 @@ export function linkNotes(ctx: CleanContext): void {
   if (state) clearLinks(state.doc);
   const s: State = {
     doc: ctx.doc, win: ctx.win, ctx, on: wanted, host: null, box: null, link: null, shown: false, showTimer: 0, hideTimer: 0,
-    press: null, swallowUntil: 0, observer: null, off: () => undefined,
+    press: null, swallowUntil: 0, quiet: null, observer: null, off: () => undefined,
   };
   s.off = listen(s);
   // Original shows the untouched page: the note goes with it.

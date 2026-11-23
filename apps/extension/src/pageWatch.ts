@@ -39,8 +39,8 @@ const WATCHED_ATTRS = ["hidden", "aria-hidden", "style", "aria-invalid", "class"
 
 const shape = (el: Element): string => `${el.tagName}:${el.id || el.getAttribute("name") || ""}`;
 
-export function snapshot(doc: Document): PageSnapshot {
-  const trees = treesOf(doc);
+/** `trees`: the page's trees (treesOf), when the caller has just read them. */
+export function snapshot(doc: Document, trees: readonly (Document | ShadowRoot)[] = treesOf(doc)): PageSnapshot {
   const visible = trees.flatMap((tree) => Array.from(tree.querySelectorAll(CONTROLS))).filter((el) => !hiddenUp(el));
   const controls = visible
     .map((el) => `${el.tagName}:${el.getAttribute("type") ?? el.getAttribute("role") ?? ""}:${el.id || el.getAttribute("name") || ""}`)
@@ -77,7 +77,10 @@ export function watchPage(
   notify: (reason: "mutation" | "history") => void,
   delayMs = WATCH_DELAY_MS,
 ): () => void {
-  let base = snapshot(doc);
+  // The trees are read once for the first look and for what to observe (on a huge page each reading is tens of ms,
+  // and this runs as Distill's script is put in the page, before the strip can open).
+  const first = treesOf(doc);
+  let base = snapshot(doc, first);
   let timer: ReturnType<typeof setTimeout> | undefined;
   let history = false;
   /** A field failed the browser's own check (its `invalid` event) since the last quiet period. */
@@ -85,8 +88,9 @@ export function watchPage(
 
   const flush = () => {
     timer = undefined;
-    attach();
-    const next = snapshot(doc);
+    const trees = treesOf(doc);
+    attach(trees);
+    const next = snapshot(doc, trees);
     const changed = meaningfulChange(base, next);
     if (history || changed || rejected) {
       notify(history ? "history" : "mutation");
@@ -108,8 +112,8 @@ export function watchPage(
   /** The trees listening for `invalid`: it neither bubbles nor leaves a shadow root, so each tree listens itself. */
   const listening: (Document | ShadowRoot)[] = [];
   /** Observes every tree not yet observed: a new frame document, a new shadow root. */
-  const attach = (): void => {
-    for (const tree of treesOf(doc)) {
+  const attach = (trees: readonly (Document | ShadowRoot)[] = treesOf(doc)): void => {
+    for (const tree of trees) {
       const node = tree.nodeType === 9 ? (tree as Document).documentElement : tree;
       if (!node || watched.has(node)) continue;
       watched.add(node);
@@ -118,7 +122,7 @@ export function watchPage(
       listening.push(tree);
     }
   };
-  attach();
+  attach(first);
   // A frame's load does not bubble, but it passes the document on the way down: a capturing listener hears it.
   const onLoad = (e: Event): void => {
     const t = e.target as Element | null;

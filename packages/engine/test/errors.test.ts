@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractForm, prompts, readErrors, type FormStructure } from "../src/index.js";
+import { extractForm, looksLikeError, prompts, readErrors, type FormStructure } from "../src/index.js";
 import { live, parse } from "./helpers.js";
 
 const URL = "https://mv.example/zadost";
@@ -176,5 +176,30 @@ describe("prompts.explainError", () => {
     expect(p).not.toContain("<field>");
     expect(p.length).toBeLessThan(2000);
     expect(() => prompts.explainError(structure, "nope", "chyba")).toThrow(/no field/);
+  });
+});
+
+describe("looksLikeError: an error message by its markup", () => {
+  const el = (html: string) => parse(`<html><body>${html}</body></html>`).body.firstElementChild as Element;
+  it("finds the error word in a class, an id, camelCase or a tag, and role=alert (the cheap first look keeps them all)", () => {
+    for (const html of [
+      `<span class="govuk-error-message">Zadejte e-mail</span>`,
+      `<div id="emailErrorText">Zadejte e-mail</div>`,
+      `<div class="fieldInvalidHint">Neplatné</div>`,
+      `<mat-error>Povinné pole</mat-error>`,
+      `<p class="chyba">Chybí PSČ</p>`,
+      `<div class="CHYBY">Formulář má chyby</div>`,
+      `<div role="alert">Něco se nepovedlo</div>`,
+      `<span class="Err">x</span>`,
+    ]) expect(looksLikeError(el(html)), html).toBe(true);
+  });
+  it("the letters of an error word inside another word are not one", () => {
+    for (const html of [
+      `<div class="ferret-card">Fretka</div>`,
+      `<div class="terrain">Terén</div>`,
+      `<div id="invalidated2">x</div>`,
+      `<div class="message">Hotovo</div>`,
+      `<div class="has-error"><input name="x"></div>`,
+    ]) expect(looksLikeError(el(html)), html).toBe(false);
   });
 });
