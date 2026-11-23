@@ -42,8 +42,8 @@ const GAP = "[ \\u00a0\\u202f\\u2009]";
 const NUM = `(?:\\d{1,3}(?:(?:${GAP}|\\.|,)\\d{3})+|\\d+)(?:[.,]\\d{1,2})?(?:,[-\u2013\u2014]|\\.-)?`;
 /** Between a range's two numbers. */
 const RANGE = `(?:${GAP}*[-\u2013\u2014]${GAP}*|${GAP}+(?:až|do|to|bis)${GAP}+)`;
-/** A unit after a slash: "/den", "/měsíc", "/os.", "/hod.". */
-const UNIT = "(?:\\s?\\/\\s?\\p{L}{1,10}\\.?)?";
+/** Up to two units after slashes: "/den", "/měsíc", "/os.", "/ osoba / rok". */
+const UNIT = "(?:\\s?\\/\\s?\\p{L}{1,10}\\.?){0,2}";
 const NOT_WORD_BEFORE = "(?<![\\p{L}\\p{N}.,])";
 const NOT_WORD_AFTER = "(?![\\p{L}\\p{N}])";
 

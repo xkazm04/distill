@@ -23,6 +23,7 @@ describe("findPrices: the Czech ways of writing a price", () => {
     ["Vstupné 80,- Kč", 80, "80,- Kč"],
     ["Pes: 300 Kč/rok", 300, "300 Kč/rok"],
     ["od 500 Kč/den", 500, "500 Kč/den"],
+    ["ODPADY – 500 Kč / osoba / rok Poplatek", 500, "500 Kč / osoba / rok"],
     ["Stálo to 12 345 678 Kč.", 12345678, "12 345 678 Kč"],
     ["Ticket €48 only", 48, "€48"],
     ["Ticket 48 EUR only", 48, "48 EUR"],

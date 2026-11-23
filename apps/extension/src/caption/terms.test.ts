@@ -114,6 +114,12 @@ describe("tablePrices: bare numbers under a header that names the currency", () 
     const found = [...tablePrices([ctx.main!]).values()];
     expect(found.map((p) => [p.amount, p.currency])).toEqual([[300, "CZK"], [350, "CZK"], [1200, "CZK"]]);
   });
+  it("the live rental list: half its rows lack the last cell, so it is no data table, yet its header still names the currency", () => {
+    const row = (popis: boolean, price: number) => `<tr><th><img src="v.png" width="100" height="50"></th><th>2</th><th>1.2</th><th>bez plachty</th><th>400</th><th>${price}</th><th>1000</th>${popis ? '<th><a href="p.html">Popis</a></th>' : ""}`;
+    const ctx = page(`<table border="2"><tr><th>Typ</th><th>Délka m</th> <th>Šířka m</th><th>Výška m</th><th>Nosnost Kg</th><th>Cena s daní za 1 den Kč</th><th>Kauce</th><th>Foto</th>
+      ${[row(false, 300), row(true, 350), row(false, 400), row(true, 480), row(false, 680)].join("\n")}</table>`);
+    expect([...tablePrices([ctx.main!]).values()].map((p) => p.amount)).toEqual([300, 350, 400, 480, 680]);
+  });
   it("setTerms writes them, and takes them off", () => {
     const ctx = page(SMID);
     const before = document.body.innerHTML;

@@ -120,6 +120,25 @@ const CURRENCY_LABEL: [RegExp, string][] = [
 const BARE = /^\s*(\d{1,3}(?:[   .]\d{3})+|\d+)(?:,[-–]|,\d{1,2})?\s*$/u;
 
 /**
+ * A table readable tables leaves alone but whose first row is plainly a header of <th> cells over rows that never have
+ * more cells than it: the trailer rental's list, where half the rows lack their last "Popis" cell (so no single row
+ * width holds 80% of rows, which dataTable asks for). Only used to find a currency column; nothing about the table's
+ * layout changes. No nested table, no form fields.
+ */
+function headedTable(t: Element): { labels: string[]; rows: Element[]; cols: number } | null {
+  if (t.querySelector("table, input:not([type=hidden]), select, textarea")) return null;
+  const rows = Array.from(t.querySelectorAll("tr")).filter((r) => r.closest("table") === t);
+  const head = rows[0];
+  if (!head || rows.length < 3) return null;
+  const headCells = Array.from(head.children).filter((c) => c.localName === "td" || c.localName === "th");
+  if (headCells.length < 2 || headCells.some((c) => c.localName !== "th" || Number(c.getAttribute("colspan") ?? 1) > 1)) return null;
+  const body = rows.slice(1);
+  const cols = headCells.length;
+  if (body.some((r) => r.children.length > cols)) return null;
+  return { labels: headCells.map((c) => (c.textContent ?? "").replace(/\s+/g, " ").trim()), rows: body, cols };
+}
+
+/**
  * Prices a table gives as bare numbers under a header that names the currency (the trailer rental's "Cena s daní za 1
  * den Kč" over "400"): each such cell's number, by its text node. Only data tables (tables.ts dataTable).
  */
@@ -132,13 +151,15 @@ export function tablePrices(roots: readonly Element[]): Map<Text, FoundPrice> {
   }
   for (const t of tables) {
     if (t.closest(`[${HIDE}]`)) continue;
-    const shape = dataTable(t);
+    const shape = dataTable(t) ?? headedTable(t);
     if (!shape) continue;
     const currencies = shape.labels.map((l) => CURRENCY_LABEL.find(([re]) => re.test(l))?.[1] ?? null);
     if (!currencies.some(Boolean)) continue;
     for (const row of shape.rows) {
       const cells = Array.from(row.children).filter((c) => c.localName === "td" || c.localName === "th");
-      if (cells.length !== shape.cols) continue; // a row with spans: its cells do not line up with the header
+      // A row with spans does not line up with the header; one that only lacks its last cells (the trailer rental's
+      // rows without a "Popis" link) still does.
+      if (cells.length > shape.cols || cells.some((c) => Number(c.getAttribute("colspan") ?? 1) > 1)) continue;
       cells.forEach((cell, i) => {
         const currency = currencies[i];
         if (!currency) return;
