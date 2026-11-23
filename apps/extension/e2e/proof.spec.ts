@@ -33,7 +33,12 @@ test("proof: Run reports every task on every saved page; the report saves as JSO
     await expect(row("check")).toHaveAttribute("data-status", "ok");
     await expect(row("check")).toHaveAttribute("data-src", "in_cloud");
     await expect(row("check")).toContainText("suggestions");
+    // r4-03: the first check's Search Suggestions, in the strip's sealed frame (no scripts, no same origin).
+    const sugg = page.locator(`[data-fixture="${id}"] [data-testid="cap-check-suggestions-frame"]`);
+    await expect(sugg).toHaveCount(1);
+    await expect(sugg).toHaveAttribute("sandbox", "allow-popups allow-popups-to-escape-sandbox");
   }
+  await expect(page.locator(`[data-fixture="praslavice"] [data-testid="cap-check-suggestions-frame"]`)).toHaveCount(0);
   // The village office's form page is not an article: no claims, no gist, so no check; translated and plain words.
   const office = (t: string) => page.locator(`[data-fixture="praslavice"] [data-task="${t}"]`);
   await expect(office("translate")).toHaveAttribute("data-status", "ok");
