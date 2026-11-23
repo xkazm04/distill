@@ -136,10 +136,16 @@ test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date,
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-calm")).toContainText("Paused 1 video and 2 moving parts");
   await frame.getByTestId("cap-more-btn").click();
+  // More closes with a 220 ms slide: until the strip has settled it still covers the bottom of the window, and a click
+  // there lands in the strip, not on the page (Playwright's hit check does not see through the strip's closed shadow
+  // root and extension frame). This was the cause of G5's flake: the click on "Další zpráva" went to the strip about
+  // 1 run in 6, so the next story never came.
+  await settled(tab.page);
 
   // A single-page app shows the next story in small grey print: its advert goes, the reading layer covers its text,
   // its ticker stops.
   await tab.page.locator("#dalsi").click();
+  await expect(tab.page.locator("article.partner h1")).toHaveText("Zimní údržba chodníků začíná v pondělí");
   await expect(tab.page.locator("article.partner .reklama")).toBeHidden({ timeout: 5_000 });
   const size = () => tab.page.locator("article.partner p:not(.meta)").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   await expect.poll(size, { timeout: 5_000 }).toBeGreaterThanOrEqual(16);
@@ -155,6 +161,7 @@ test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date,
   await expect(sw).not.toBeChecked();
   await expect.poll(size).toBe(11);
   await frame.getByTestId("cap-more-btn").click();
+  await settled(tab.page);
   await tab.page.locator("#dalsi").click();
   await expect(tab.page.locator("article.partner h1")).toHaveText("Knihovna prodlouží otevírací dobu");
   await expect(tab.page.locator("article.partner .reklama")).toBeHidden({ timeout: 5_000 });
