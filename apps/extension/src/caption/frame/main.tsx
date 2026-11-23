@@ -203,7 +203,7 @@ function Caption() {
             </div>
             <div className="more-extra">
               <BylineSection report={report} setReport={setReport} />
-              <ActionsSection report={report} setReport={setReport} />
+              <ActionsSection report={report} setReport={setReport} showOriginal={toggleOriginal} />
               <ChecksControls checks={checks} claims={claims.claims} />
               <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />

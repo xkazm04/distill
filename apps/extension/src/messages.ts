@@ -148,7 +148,10 @@ export function isCaptionExplainAsk(m: unknown): m is CaptionExplainAsk {
 export type ConsentOutcome = "rejected" | "hidden" | "none" | "off";
 
 /** An action found on the page (r3-09): page words only. */
-export type ActionItem = FoundAction;
+export type ActionItem = FoundAction & {
+  /** r4-01: found in a part of the page Clean hid (an office page's footer); Show me shows the original there. */
+  hidden?: boolean;
+};
 
 /** Caption frame -> service worker (r3-07): the ECB's daily rates, fetched at most once a day and kept on the device.
  *  The request carries nothing about the page or the person. */

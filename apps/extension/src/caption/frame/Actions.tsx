@@ -46,7 +46,9 @@ export const ACTION_LABEL: Record<ActionKind, string> = {
   hours: "Hours",
 };
 
-export function ActionsSection(props: { report: CleanReport; setReport: (r: CleanReport) => void }) {
+/** `showOriginal`: switches the page to the original (the strip's Original), for Show me on an item that sits in a part
+ *  Distill hid (r4-01): the part is shown where it is, untouched, and Back to Distill hides it again. */
+export function ActionsSection(props: { report: CleanReport; setReport: (r: CleanReport) => void; showOriginal?: () => Promise<void> }) {
   const items = useActions(props.report);
   const [copied, setCopied] = useState<string | null>(null);
   const [gone, setGone] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export function ActionsSection(props: { report: CleanReport; setReport: (r: Clea
   if (!items?.length) return null;
 
   const show = async (it: ActionItem) => {
+    if (it.hidden && props.showOriginal) await props.showOriginal();
     const r = await send<"distill:caption:showAction">({ type: "distill:caption:showAction", id: it.id }).catch(() => ({ found: false }));
     setGone(r.found ? null : it.id);
   };
@@ -71,11 +74,12 @@ export function ActionsSection(props: { report: CleanReport; setReport: (r: Clea
       <p className="note">Found by patterns on this device, no AI. Highlighted on the page.</p>
       <ol className="actions-list">
         {items.map((it) => (
-          <li key={it.id} data-testid="cap-action" data-kind={it.kind}>
+          <li key={it.id} data-testid="cap-action" data-kind={it.kind} data-hidden={it.hidden ? "" : undefined}>
             <span className="action-kind">{ACTION_LABEL[it.kind]}</span>
             <span className="action-what">
               <span className="action-text" data-testid="cap-action-text">{it.text}</span>
               {!it.text.includes(it.quote) && <span className="action-quote" data-testid="cap-action-quote">{it.quote}</span>}
+              {it.hidden && <span className="action-quote" data-testid="cap-action-hidden">In a part Distill hid. Show me opens the original there.</span>}
             </span>
             <span className="action-acts">
               {it.href?.startsWith("tel:") && <a className="btn sm" href={it.href} target="_top" rel="noopener" data-testid="cap-action-call">Call</a>}
