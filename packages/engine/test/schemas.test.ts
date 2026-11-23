@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { prompts, schemas, validateAndRepair, type PageModel } from "../src/index.js";
 import { fileSchemas } from "../src/schemas.js";
 import guideJson from "../schemas/guide.json";
+import checkJson from "../schemas/check.json";
+import claimsJson from "../schemas/claims.json";
+import gistJson from "../schemas/gist.json";
 import classifyJson from "../schemas/classify.json";
 import letterJson from "../schemas/letter.json";
 import recastJson from "../schemas/recast.json";
@@ -13,6 +16,9 @@ import wizardJson from "../schemas/wizard.json";
 
 // The exported files the Android app reads. A schema added to src/schemas.ts must be exported and listed here.
 const EXPORTED: Record<string, unknown> = {
+  check: checkJson,
+  claims: claimsJson,
+  gist: gistJson,
   classify: classifyJson,
   letter: letterJson,
   recast: recastJson,

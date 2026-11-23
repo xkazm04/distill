@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "disputed",
+        "mixed",
+        "notFound"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "verdict",
+    "reason"
+  ]
+}

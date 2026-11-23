@@ -8,7 +8,7 @@ import { BATCH_BLOCKS, BATCH_CHARS, batches, overallSource, shortReason, sourceC
 
 const report = (lang: string): CleanReport => ({
   items: [], restored: [], lang, kind: "article", unlockedScroll: false, langFrom: "page", widened: 0, comfort: 0,
-  calm: { media: 0, motion: 0 }, unstuck: 0,
+  calm: { media: 0, motion: 0 }, unstuck: 0, tables: 0,
 });
 const idle: TranslateState = { phase: "idle", showingSource: false };
 const blocks = (n: number, len = 10): TextBlock[] => Array.from({ length: n }, (_, i) => ({ id: `t${i}`, text: "x".repeat(len) }));

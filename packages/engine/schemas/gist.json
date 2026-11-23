@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "blockId": {
+            "type": "string"
+          },
+          "sentence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "blockId",
+          "sentence"
+        ]
+      }
+    }
+  },
+  "required": [
+    "points"
+  ]
+}

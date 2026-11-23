@@ -230,4 +230,50 @@ export const prompts = {
       "</answers>",
     ].join("\n");
   },
+
+  // ---- Spark universal-core round 2 (contract; the builders refine the wording, not the shapes) ----
+
+  /** Card 1: which candidate sentences are worth checking. Page text only. */
+  findClaims: (candidates: readonly { id: string; text: string }[]): string =>
+    [
+      "Below are sentences from a news article or a web page. Keep only the ones that state a fact a reader could check with other sources: a number, a date, a quote attributed to someone, a study or report, or a claimed cause. Leave out opinions, questions, predictions and plain descriptions.",
+      "Answer with JSON only: {\"claims\": [{\"id\": \"<id>\", \"why\": \"number\" | \"date\" | \"quote\" | \"source\" | \"cause\"}]}, at most 12 entries, the most important first.",
+      GUARD,
+      "<sentences>",
+      ...candidates.map((c) => `[${c.id}] ${oneLine(c.text)}`),
+      "</sentences>",
+    ].join("\n"),
+
+  /** Card 2: one claim checked with web search (cloud, grounded). Only the sentence, the page's title and address. */
+  checkClaim: (claim: string, title: string, url: string, readerLang = "en"): string =>
+    [
+      "Check the claim below against current, reliable sources found with web search. Judge only the claim, not the article.",
+      `Answer with JSON only: {"verdict": "supported" | "disputed" | "mixed" | "notFound", "reason": "<one plain sentence in ${langName(readerLang)}>"}. Use notFound when the search finds nothing that confirms or contradicts it. No links in the reason, no HTML, no markdown.`,
+      GUARD,
+      `<claim source-title=${JSON.stringify(oneLine(title).slice(0, 200))} source-url=${JSON.stringify(url.slice(0, 300))}>`,
+      oneLine(claim),
+      "</claim>",
+    ].join("\n"),
+
+  /** Card 10: the gist in three points, each tied to the exact sentence it came from. */
+  gist: (blocks: readonly TranslateBlock[], readerLang = "en"): string =>
+    [
+      `Write the three most important points of this article in ${langName(readerLang)}, each one short plain sentence. For each point give the id of the block it came from and copy the one sentence of that block it rests on exactly as written.`,
+      "Answer with JSON only: {\"points\": [{\"text\": \"<point>\", \"blockId\": \"<id>\", \"sentence\": \"<exact sentence>\"}]}. Plain text only.",
+      GUARD,
+      "<blocks>",
+      ...blocks.map((b) => `[${b.id}] ${oneLine(b.text)}`),
+      "</blocks>",
+    ].join("\n"),
+
+  /** Card 4: plain words, in place. Same answer shape as translateBlocks (schemas.translate). */
+  plainBlocks: (blocks: readonly TranslateBlock[], lang = "und"): string =>
+    [
+      `Rewrite each block below in plain words${lang === "und" ? "" : `, in ${langName(lang)}`}: short sentences, common words, the same meaning. Keep every number, date, amount, name and address exactly as written. Do not add, explain or leave out anything.`,
+      "Answer with JSON only: {\"blocks\": [{\"id\": \"<id>\", \"text\": \"<rewrite>\"}]}, one entry per block. Plain text only: no HTML, no markdown.",
+      GUARD,
+      "<blocks>",
+      ...blocks.map((b) => `[${b.id}] ${oneLine(b.text)}`),
+      "</blocks>",
+    ].join("\n"),
 };

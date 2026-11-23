@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate" | "claims" | "check" | "gist", object> = {
   recast: {
     type: "object",
     properties: {
@@ -123,6 +123,35 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
       },
     },
     required: ["blocks"],
+  },
+  // Round 2: findClaims keeps candidates by id with a reason from a closed set (claims.ts CLAIM_WHY).
+  claims: {
+    type: "object",
+    properties: {
+      claims: {
+        type: "array",
+        items: { type: "object", properties: { id: str, why: { type: "string", enum: ["number", "date", "quote", "source", "cause"] } }, required: ["id", "why"] },
+      },
+    },
+    required: ["claims"],
+  },
+  // Round 2: checkClaim's verdict (check.ts CLAIM_VERDICTS). Sources are NOT in the schema: they come only from the
+  // service's grounding metadata.
+  check: {
+    type: "object",
+    properties: { verdict: { type: "string", enum: ["supported", "disputed", "mixed", "notFound"] }, reason: str },
+    required: ["verdict", "reason"],
+  },
+  // Round 2: the gist, each point with the block and the exact sentence it came from (gist.ts).
+  gist: {
+    type: "object",
+    properties: {
+      points: {
+        type: "array",
+        items: { type: "object", properties: { text: str, blockId: str, sentence: str }, required: ["text", "blockId", "sentence"] },
+      },
+    },
+    required: ["points"],
   },
 };
 

@@ -7,6 +7,9 @@ const CLASS_OF: Record<Task, PromptClass> = {
   readLetter: "page",
   buildReplyWizard: "page",
   translateBlocks: "page",
+  findClaims: "page",
+  checkClaim: "page",
+  gist: "page",
   buildWizard: "structure",
   explainField: "structure",
   suggestValue: "values",
@@ -36,6 +39,11 @@ export function route(task: Task, configuredMode?: string): RouteDecision {
       mode: "only_on_device",
       reason: "This uses your own details, so it runs only on this device and is never sent to the cloud.",
     };
+  }
+  // A web check needs Google Search, which only the cloud model has: it is never on the device, whatever is configured
+  // (the on-device-only build refuses it before routing; see apps/web/src/ai.ts).
+  if (task === "checkClaim") {
+    return { task, promptClass, mode: "only_in_cloud", reason: "Checked on the web in the cloud: only this sentence, the page's title and its address are sent." };
   }
   const mode: InferenceMode = isInferenceMode(configuredMode) ? configuredMode : "prefer_on_device";
   return { task, promptClass, mode, reason: REASONS[mode] };

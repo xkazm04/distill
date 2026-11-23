@@ -24,3 +24,9 @@ export { findContacts, type ContactKind, type ContactOptions, type FoundContact 
 export { parseTranslation, MAX_GROWTH, type TranslateBlock, type Translation } from "./translate.js";
 export { parseColor, composite, contrastRatio, luminance, readableOn, cssColor, type Rgba } from "./contrast.js";
 export { READING, columnWidth, dominantSize, isLargeText, lineHeightFor, measureFor, sizeScale } from "./reading.js";
+// Spark universal-core round 2.
+export { findClaimCandidates, parseClaims, CLAIM_WHY, type Claim, type ClaimPick, type ClaimWhy } from "./claims.js";
+export { parseCheck, CLAIM_VERDICTS, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
+export { parseGist, GIST_POINTS, type Gist, type GistPoint } from "./gist.js";
+export { keepsFacts, parsePlain, type PlainResult } from "./plain.js";
+export { describeLink, type LinkNote } from "./links.js";

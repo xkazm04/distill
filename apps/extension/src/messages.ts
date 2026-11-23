@@ -1,6 +1,6 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
-import type { ClutterItem, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
+import type { ClaimVerdict, ClutterItem, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
@@ -55,7 +55,28 @@ export type ContentRequest =
   | { type: "distill:caption:sourceText"; on: boolean }
   /** From the caption once a translation is on the page: watch for text the page adds or rewrites later, and tell this
    *  tab's frame how many blocks wait (CaptionMoreText) (#10). */
-  | { type: "distill:caption:watchText"; tabId: number };
+  | { type: "distill:caption:watchText"; tabId: number }
+  // ---- spark universal-core, round 2 ----
+  /** From the caption: the page's title, address and origin (the claim check sends title and address; Remember keys
+   *  on the origin). No page text. */
+  | { type: "distill:caption:pageInfo" }
+  /** From the caption: underline these claims in the main text (r2-01); sent again with a verdict once one is checked
+   *  (r2-02). Replaces the marks of the last call. */
+  | { type: "distill:caption:markClaims"; claims: ClaimMark[] }
+  /** From the caption: scroll to a sentence of a block and highlight it a moment (claims r2-01, gist r2-10). */
+  | { type: "distill:caption:showText"; blockId: string; sentence: string }
+  /** From the caption: take every claim mark off. */
+  | { type: "distill:caption:clearClaims" }
+  /** From the caption: readable tables on (true) or off (r2-05). */
+  | { type: "distill:caption:tables"; on: boolean }
+  /** From the caption: link notes on (true) or off (r2-07). */
+  | { type: "distill:caption:links"; on: boolean };
+
+/** A claim to mark on the page (r2-01): page text only. `verdict` once checked on the web (r2-02). */
+export interface ClaimMark { id: string; blockId: string; text: string; verdict?: ClaimVerdict }
+
+/** The page's title and address (r2-02, r2-08). */
+export interface PageInfo { title: string; url: string; origin: string }
 
 /** A block of the main text by its id (#10). `text` is page text or its translation: it never leaves the browser. */
 export interface TextBlock { id: string; text: string }
@@ -121,6 +142,8 @@ export interface CleanReport {
   calm: { media: number; motion: number };
   /** Sticky headers made to scroll with the page instead of covering it (#4). */
   unstuck: number;
+  /** Tables of the main text made readable: header kept in view, wide ones scroll inside themselves (r2-05). */
+  tables: number;
 }
 
 /** What distill:locate points at: a block of the PageModel or the fields of a form step (the shared UI's LocateTarget). */
@@ -156,6 +179,12 @@ export interface ContentReplies {
   "distill:caption:translated": { applied: number };
   "distill:caption:sourceText": { ok: true };
   "distill:caption:watchText": { ok: true };
+  "distill:caption:pageInfo": PageInfo;
+  "distill:caption:markClaims": { marked: number };
+  "distill:caption:showText": { found: boolean };
+  "distill:caption:clearClaims": { ok: true };
+  "distill:caption:tables": { tables: number };
+  "distill:caption:links": { ok: true };
 }
 
 /**

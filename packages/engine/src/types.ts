@@ -351,7 +351,10 @@ export type Task =
   | "readLetter"      // page (Envelope: OCR text of a letter the person chose to share)
   | "buildReplyWizard"  // page (Envelope: the same letter text; never the person's answers)
   | "draftReply"        // values (Envelope: carries the person's answers)
-  | "translateBlocks";  // page (the caption's Translate: the main text of the page, never a form's values)
+  | "translateBlocks"   // page (the caption's Translate: the main text of the page, never a form's values)
+  | "findClaims"        // page (round 2: which sentences of the main text are worth checking; on device first)
+  | "checkClaim"        // page (round 2: one sentence, the title and the address, checked with web search; cloud only)
+  | "gist";             // page (round 2: three points from the main text; on device first)
 
 export interface RouteDecision {
   task: Task;

@@ -20,6 +20,11 @@ import { ComfortSection } from "./Comfort";
 import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
+import { ClaimsSection, useClaims } from "./Claims";
+import { GistSection } from "./Gist";
+import { PlainRow } from "./Plain";
+import { TablesLinksSection } from "./Tables";
+import { RememberSection } from "./Remember";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -94,6 +99,7 @@ function Caption() {
     return () => chrome.runtime.onMessage.removeListener(onUpdate);
   }, []);
   const translate = useTranslate(report);
+  const claims = useClaims(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -166,10 +172,14 @@ function Caption() {
               </div>
             </div>
             <div className="more-extra">
+              <GistSection report={report} />
+              <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />
               <FormCheckSection report={report} />
               <ComfortSection report={report} setReport={setReport} />
               <CalmSection report={report} setReport={setReport} />
+              <TablesLinksSection report={report} setReport={setReport} />
+              <RememberSection report={report} />
             </div>
           </section>
         )}
@@ -191,6 +201,7 @@ function Caption() {
             <span className="sp" />
             {report && <FormCheckRow report={report} />}
             {report && <TranslateRow report={report} translate={translate} />}
+            {report && <PlainRow report={report} />}
             <button type="button" className="btn quiet" ref={moreBtn} aria-expanded={more} aria-controls="cap-more" disabled={!report}
               onClick={() => setMore((m) => !m)} data-testid="cap-more-btn">More <span className="car" aria-hidden="true">{more ? "▾" : "▴"}</span></button>
             <button type="button" className="btn quiet" onClick={() => void toggleOriginal()} disabled={!report} data-testid="cap-original">Original</button>

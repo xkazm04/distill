@@ -12,6 +12,9 @@ import { layoutOf, type Layout } from "./layout";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
+import { clearClaims } from "./claims";
+import { clearTables, readableTables } from "./tables";
+import { clearLinks, linkNotes } from "./links";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -113,6 +116,9 @@ export function close(doc: Document): void {
   clearCalm(doc);
   restick(doc);
   clearTranslation();
+  clearClaims(doc);
+  clearTables(doc);
+  clearLinks(doc);
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
   doc.documentElement.removeAttribute(ORIGINAL);
   doc.documentElement.removeAttribute(UNLOCK);
@@ -467,7 +473,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     const found = detectLang(text);
     if (found.lang !== "und") { lang = found.lang; langFrom = "text"; }
   }
-  const base: CleanReport = { items, restored: [], lang, kind: page.kind, unlockedScroll, langFrom, widened: 0, comfort: 0, calm: { media: 0, motion: 0 }, unstuck: 0 };
+  const base: CleanReport = { items, restored: [], lang, kind: page.kind, unlockedScroll, langFrom, widened: 0, comfort: 0, calm: { media: 0, motion: 0 }, unstuck: 0, tables: 0 };
   if (!state) return base; // closed meanwhile
 
   // Round 1 (spark universal-core): each module changes the page only through what it can take back.
@@ -481,7 +487,9 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     widened: widen(ctx),
     comfort: applyComfort(ctx),
     calm: calmPage(ctx),
+    tables: readableTables(ctx),
   };
+  linkNotes(ctx);
   state.unwatch = watchForClutter(doc, win, () => { void recheck(doc, win); });
   return state.report;
 }

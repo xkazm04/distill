@@ -12,6 +12,9 @@ import { setComfort } from "./caption/comfort";
 import { readContacts, showContact } from "./caption/contact";
 import { formProgress, nextField } from "./caption/formCheck";
 import { applyTranslation, showSource, textBlocks, watchText } from "./caption/translate";
+import { clearClaims, markClaims, showText } from "./caption/claims";
+import { setTables } from "./caption/tables";
+import { setLinks } from "./caption/links";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -88,6 +91,13 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:translated": return { applied: applyTranslation(req.blocks) };
     case "distill:caption:sourceText": showSource(req.on); return { ok: true };
     case "distill:caption:watchText": watchText(req.tabId, caption.context); return { ok: true };
+    // ---- round 2 ----
+    case "distill:caption:pageInfo": return { title: document.title, url: location.href, origin: location.origin };
+    case "distill:caption:markClaims": return { marked: markClaims(document, req.claims) };
+    case "distill:caption:showText": return { found: showText(document, req.blockId, req.sentence) };
+    case "distill:caption:clearClaims": clearClaims(document); return { ok: true };
+    case "distill:caption:tables": return { tables: setTables(document, req.on) };
+    case "distill:caption:links": setLinks(document, req.on); return { ok: true };
   }
 }
 
