@@ -47,7 +47,12 @@ export interface TranslateState {
   errors?: { phase: "translated"; count: number; source: InferenceSource } | { phase: "kept"; count: number; why: string };
 }
 
-export interface Translate { state: TranslateState; keepSource(on: boolean): Promise<void> }
+export interface Translate {
+  state: TranslateState;
+  keepSource(on: boolean): Promise<void>;
+  /** r5-09: set while the first translation failed in a way trying again can help; translates the page again. */
+  retry?: () => Promise<void>;
+}
 
 /** The reader's language: the browser's, primary subtag ("en" from "en-GB"). */
 export const readerLang = (): string => (navigator.language || "en").split("-")[0]?.toLowerCase() || "en";
@@ -79,7 +84,7 @@ export function batches(blocks: readonly TextBlock[]): TextBlock[][] {
 
 /** A failed run in a few words, for "Not translated: ...". The words are Translate's own (AI_WORDS speaks of forms). */
 const SHORT: Partial<Record<AiFailure, string>> = {
-  busy: "the AI is busy, try again later",
+  busy: "the AI is busy right now",
   "not-genuine": "Distill could not prove it is genuine to the AI service",
   "device-only": "the AI model on this device is not ready",
   "not-configured": "AI is off in this copy of Distill",
@@ -324,8 +329,12 @@ export function useTranslate(report: CleanReport | null): Translate {
     }
   }, []);
 
+  /** r5-09: whether the failed first translation is worth trying again (Try again in the row). */
+  const [retryable, setRetryable] = useState(false);
+
   /** The first translation of the page: the main text's blocks and the form's words, batch by batch, into the page. */
   const translatePage = useCallback(async (from: string, to: string) => {
+    setRetryable(false);
     const blocks = await readBlocks();
     if (!blocks.length) return; // nothing of the main text or a form to translate: the status keeps "Page in <language>"
     setState((s) => ({ ...s, phase: "translating", from, to, total: blocks.length }));
@@ -333,6 +342,7 @@ export function useTranslate(report: CleanReport | null): Translate {
       const r = await translateBlocks(blocks, from, to, runTranslate, put);
       if (!r.translated) {
         setState((s) => ({ ...s, phase: "failed", problem: "the AI's answer could not be used", dropped: r.dropped, total: r.total }));
+        setRetryable(true);
         return;
       }
       if (r.error) console.warn("[distill] Translate stopped part way:", r.error);
@@ -348,6 +358,7 @@ export function useTranslate(report: CleanReport | null): Translate {
       await translateErrors({ from, to });
     } catch (e) {
       setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
+      setRetryable(toAiError(e).retry);
     }
   }, [put, readBlocks, translateErrors]);
 
@@ -424,7 +435,13 @@ export function useTranslate(report: CleanReport | null): Translate {
     if (!on) void translateMore();
   }, [translatePage, translateMore]);
 
-  return { state, keepSource };
+  const retry = useCallback(async () => {
+    const s = now.current;
+    if (s.phase !== "failed") return;
+    await translatePage(s.from ?? primary(report?.lang ?? "und"), s.to ?? readerLang());
+  }, [translatePage, report?.lang]);
+
+  return state.phase === "failed" && retryable ? { state, keepSource, retry } : { state, keepSource };
 }
 
 /** Why the AI ran in Distill's offscreen document, for the chip's title. */
@@ -453,7 +470,12 @@ export function sourceChip(state: TranslateState): { src: "none" | InferenceSour
 }
 
 export function TranslateRow(props: { report: CleanReport; translate: Translate }) {
-  const { state, keepSource } = props.translate;
+  const { state, keepSource, retry } = props.translate;
+  // r5-09: the status line says why it was not translated; the row offers Try again where that can help.
+  if (state.phase === "failed" && retry) {
+    return <button type="button" className="btn quiet" data-testid="cap-translate-retry" onClick={() => void retry()}
+      aria-label={`Try again: translate from ${langName(state.from ?? props.report.lang)}`}>Try again</button>;
+  }
   if (state.phase !== "done" && !(state.held && state.phase === "idle")) return null;
   const label = state.showingSource ? `Show ${langName(state.to ?? readerLang())}` : `Keep ${langName(state.from ?? props.report.lang)}`;
   return (

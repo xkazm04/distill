@@ -2,6 +2,7 @@
 // person can turn it back on.
 import { useState } from "react";
 import type { CleanReport } from "../../messages";
+import { Note, Section, Switch } from "./kit";
 import { send } from "./send";
 
 /** How many parts of the page the layer changes when on. Kept for the frame's life: off, the report says 0. */
@@ -25,14 +26,9 @@ export function ComfortSection(props: { report: CleanReport; setReport: (r: Clea
     }
   };
   return (
-    <section aria-labelledby="cap-comfort-h" data-testid="cap-comfort-section">
-      <h2 id="cap-comfort-h">Reading</h2>
-      <p className="note">Easier-to-read text on {known === 1 ? "1 part" : `${known} parts`} of the page</p>
-      <label className="switch">
-        <input type="checkbox" role="switch" checked={on} disabled={busy} onChange={(e) => void toggle(e.currentTarget.checked)}
-          data-testid="cap-comfort" />
-        <span>Easier to read</span>
-      </label>
-    </section>
+    <Section id="cap-comfort-h" title="Reading" testid="cap-comfort-section" className="k-switches">
+      <Switch checked={on} disabled={busy} onChange={(next) => void toggle(next)} label="Easier to read" testid="cap-comfort" />
+      <Note>Easier-to-read text on {known === 1 ? "1 part" : `${known} parts`} of the page</Note>
+    </Section>
   );
 }

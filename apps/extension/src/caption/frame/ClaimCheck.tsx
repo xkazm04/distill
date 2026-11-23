@@ -14,6 +14,7 @@ import { readerLang } from "./Translate";
 import { bylineOnce, publishedDay } from "./Byline";
 import { canRunTask, e2eFake } from "./runTask";
 import { SearchSuggestions } from "./SearchSuggestions";
+import { Failed, Note, Section, Switch, Waiting } from "./kit";
 
 /** The verdicts so far, by claim id, and the switch "check the top claims by themselves". */
 export interface ChecksState {
@@ -321,13 +322,15 @@ export function ClaimCheck(props: { claim: Claim; checks: Checks }) {
     );
   }
   if (v === "checking") {
-    return <div className="ck" data-testid="cap-check" data-claim={claim.id} data-state="checking"><span className="ck-wait" role="status">Checking...</span></div>;
+    // r5-09: a quiet bar where the verdict will be, never a spinner.
+    return <div className="ck" data-testid="cap-check" data-claim={claim.id} data-state="checking"><Waiting label="Checking..." shape="inline" testid="cap-check-waiting" /></div>;
   }
   if (v === "failed") {
     return (
       <div className="ck" data-testid="cap-check" data-claim={claim.id} data-state="failed">
-        <span className="ck-fail" role="status">Not checked: {problem?.words ?? "something went wrong."}</span>
-        {(problem?.retry ?? true) && <button type="button" className="btn sm quiet" onClick={() => checks.check(claim)} data-testid="cap-check-retry">Try again</button>}
+        <Failed why={`Not checked: ${problem?.words ?? "something went wrong."}`} testid="cap-check-failed"
+          onRetry={(problem?.retry ?? true) ? () => checks.check(claim) : undefined} retryTestid="cap-check-retry"
+          retryLabel={`Try again: check on the web: ${claim.text.slice(0, 60)}`} />
         {!!meta?.dropped && <span className="ck-dropped" data-testid="cap-check-dropped">{refused(meta.dropped)}</span>}
       </div>
     );
@@ -363,30 +366,26 @@ const refused = (n: number) => `Distill left out ${n} part${n === 1 ? "" : "s"} 
 export function ChecksControls(props: { checks: Checks; claims: readonly Claim[] }) {
   const { checks, claims } = props;
   if (isOnDeviceOnlyBuild()) {
-    return claims.length ? <section data-testid="cap-checks"><h2>Check on the web</h2><p className="note">{AI_WORDS["needs-cloud"]}</p></section> : null;
+    return claims.length ? <Section id="cap-checks-h" title="Check on the web" testid="cap-checks" className="checks"><Note>{AI_WORDS["needs-cloud"]}</Note></Section> : null;
   }
   if (!claims.length || !checks.loaded) return null;
   const done = claims.filter((c) => typeof checks.checks[c.id] === "object").length;
   const busy = claims.some((c) => checks.checks[c.id] === "checking");
   const asking = checks.asking === "all" || (!checks.consent && !checks.declined && checks.asking === null);
   return (
-    <section className="checks" data-testid="cap-checks">
-      <h2>Check on the web</h2>
+    <Section id="cap-checks-h" title="Check on the web" testid="cap-checks" className="checks">
       {asking ? <Consent checks={checks} /> : checks.consent ? (
         <>
-          <p className="note" data-testid="cap-checks-count">{done ? `Checked ${done} of ${claims.length} claims in the cloud.` : "Only the sentence, the page's title, its address and, when the page says, the day it was published are sent."}</p>
+          <Note testid="cap-checks-count">{done ? `Checked ${done} of ${claims.length} claims in the cloud.` : "Only the sentence, the page's title, its address and, when the page says, the day it was published are sent."}</Note>
           <div className="ck-acts">
             <button type="button" className="btn sm" onClick={checks.checkAll} disabled={busy || done === claims.length} data-testid="cap-check-all">Check all</button>
           </div>
-          <label className="switch">
-            <input type="checkbox" checked={checks.auto} onChange={(e) => checks.setAuto(e.target.checked)} data-testid="cap-check-auto" />
-            Check the top claims by themselves
-          </label>
+          <Switch checked={checks.auto} onChange={checks.setAuto} label="Check the top claims by themselves" testid="cap-check-auto" />
         </>
       ) : (
-        <p className="note">Nothing is checked on the web unless you press Check.</p>
+        <Note>Nothing is checked on the web unless you press Check.</Note>
       )}
-      {!checks.available && <p className="note">{AI_WORDS["not-configured"]}</p>}
-    </section>
+      {!checks.available && <Note>{AI_WORDS["not-configured"]}</Note>}
+    </Section>
   );
 }

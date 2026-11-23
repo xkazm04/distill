@@ -5,11 +5,16 @@
 import { useEffect, useState } from "react";
 import type { ProductFact, ProductFactKind, ProductFacts } from "@distill/engine";
 import type { CleanReport } from "../../messages";
+import { FactRow, Facts, Note, Section, ShowMe, type IconKind } from "./kit";
 import { send } from "./send";
 import "./video.css";
 
 const KIND_WORDS: Record<ProductFactKind, string> = {
   price: "Price", oldPrice: "Before", stock: "Stock", delivery: "Delivery", warranty: "Warranty", returns: "Returns", spec: "",
+};
+
+const KIND_ICON: Record<ProductFactKind, IconKind> = {
+  price: "price", oldPrice: "price", stock: "stock", delivery: "delivery", warranty: "warranty", returns: "returns", spec: "spec",
 };
 
 /** Read once per strip (one page), when More first opens. */
@@ -40,28 +45,27 @@ export function ProductSection(_props: { report: CleanReport; setReport: (r: Cle
   const main = facts.facts.filter((f) => f.kind !== "spec");
   const specs = facts.facts.filter((f) => f.kind === "spec");
   const row = (f: ProductFact) => (
-    <div key={f.id} className={f.kind === "price" ? "product-price" : f.kind === "oldPrice" ? "product-old" : undefined}
-      data-testid="cap-product-fact" data-kind={f.kind} data-from={f.from}>
-      <dt title={f.label}>{labelOf(f)}</dt>
-      <dd data-testid="cap-product-value">{f.value}{gone === f.id && <span className="note"> That part of the page is no longer shown.</span>}</dd>
-      {f.from === "page"
-        ? <button type="button" className="btn sm quiet" onClick={() => void show(f)} aria-label={`Show me: ${labelOf(f)}`} data-testid="cap-product-show">Show me</button>
-        : <span className="note" title="Read from the shop's structured data: it has no place on the page to show.">From data</span>}
-    </div>
+    <FactRow key={f.id} className={f.kind === "price" ? "product-price" : f.kind === "oldPrice" ? "product-old" : undefined}
+      emphasis={f.kind === "price" ? "strong" : f.kind === "oldPrice" ? "old" : undefined}
+      testid="cap-product-fact" attrs={{ "data-kind": f.kind, "data-from": f.from }}
+      icon={KIND_ICON[f.kind]} label={labelOf(f)} labelTitle={f.label} valueTestid="cap-product-value"
+      value={<>{f.value}{gone === f.id && <span className="note"> That part of the page is no longer shown.</span>}</>}
+      from={f.from === "page"
+        ? <ShowMe onClick={() => void show(f)} label={`Show me: ${labelOf(f)}`} testid="cap-product-show" />
+        : <span title="Read from the shop's structured data: it has no place on the page to show.">From data</span>} />
   );
 
   return (
-    <section className="product" aria-labelledby="cap-product-h" data-testid="cap-product">
-      <h2 id="cap-product-h">This product</h2>
+    <Section id="cap-product-h" title="This product" testid="cap-product" className="product">
       {facts.name && <p className="product-name" data-testid="cap-product-name">{facts.name}</p>}
-      {main.length > 0 && <dl className="product-card">{main.map(row)}</dl>}
+      {main.length > 0 && <Facts className="product-card">{main.map(row)}</Facts>}
       {specs.length > 0 && (
         <details className="product-specs" open={main.length === 0}>
           <summary data-testid="cap-product-specs">Specifications ({specs.length})</summary>
-          <dl className="product-card">{specs.map(row)}</dl>
+          <Facts className="product-card">{specs.map(row)}</Facts>
         </details>
       )}
-      <p className="note">Read from the page on this device, no AI.</p>
-    </section>
+      <Note>Read from the page on this device, no AI.</Note>
+    </Section>
   );
 }

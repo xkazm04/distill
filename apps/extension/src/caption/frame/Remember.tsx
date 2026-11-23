@@ -9,6 +9,7 @@ import type { CleanReport } from "../../messages";
 import { hasSite, removeSite, requestSite } from "../sitePermission";
 import { describePrefs, idsToShow, loadSites, parseSites, prefsNow, samePrefs, siteName, siteOrigin, SITES_KEY, updateSite, type SiteEntry } from "../sites";
 import { knowComfort } from "./Comfort";
+import { Failed, Note, Section, Switch } from "./kit";
 import { send } from "./send";
 import { langName } from "./status";
 import type { Translate } from "./Translate";
@@ -158,23 +159,19 @@ export function RememberSection(props: { report: CleanReport; remember?: Remembe
   const on = !!r.entry;
   const kept = r.entry ? describePrefs(r.entry.prefs, langName, props.report.lang) : [];
   return (
-    <section aria-labelledby="cap-remember-h" data-testid="cap-remember">
-      <h2 id="cap-remember-h">This site</h2>
-      <label className="switch">
-        <input type="checkbox" role="switch" checked={on} disabled={r.busy} data-testid="cap-remember-switch"
-          onChange={(e) => { if (e.currentTarget.checked) r.turnOn(); else void r.forget(); }} />
-        <span>Always clean this site</span>
-      </label>
+    <Section id="cap-remember-h" title="This site" testid="cap-remember" className="k-switches">
+      <Switch checked={on} disabled={r.busy} testid="cap-remember-switch" label="Always clean this site"
+        onChange={(next) => { if (next) r.turnOn(); else void r.forget(); }} />
       {on ? (
         <>
-          <p className="note" data-testid="cap-remember-note">Distill opens by itself on {site}. Kept on this device only.</p>
-          {kept.length > 0 && <p className="note" data-testid="cap-remember-kept">Remembered here: {kept.join(" · ")}.</p>}
+          <Note testid="cap-remember-note">Distill opens by itself on {site}. Kept on this device only.</Note>
+          {kept.length > 0 && <Note testid="cap-remember-kept">Remembered here: {kept.join(" · ")}.</Note>}
           <button type="button" className="link" disabled={r.busy} onClick={() => void r.forget()} data-testid="cap-remember-forget">Forget this site</button>
         </>
       ) : (
-        <p className="note">Chrome will ask to let Distill open on {site} only.</p>
+        <Note>Chrome will ask to let Distill open on {site} only.</Note>
       )}
-      {r.problem && <p className="note" role="alert">{r.problem}</p>}
-    </section>
+      {r.problem && <Failed why={r.problem} />}
+    </Section>
   );
 }

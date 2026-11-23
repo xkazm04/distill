@@ -51,7 +51,7 @@ button { font: inherit; color: inherit; }
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--fg) 45%, transparent); }
 .link:hover { text-decoration-color: var(--fg); }
 .model { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
-.note { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.note { margin: 6px 0 0; font-size: var(--k-fs-sm, 14px); color: var(--muted); }
 
 /* Round 1: what Distill found on the page (contact, form, reading, calm), one section each, below the two columns */
 .more-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 32px; }
@@ -89,53 +89,40 @@ button { font: inherit; color: inherit; }
 /* Round 1, W3. #5 Contact: the page's ways to reach whoever runs it, in More, two columns wide (the form, reading and
    calm sections sit beside it, so More stays short). */
 .more-extra > .contact { grid-column: span 2; }
-.contact ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 2px 12px;
-  max-height: 146px; overflow: auto; }
-.contact li { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; min-height: 34px; }
-.contact-kind { font-size: 14px; color: var(--muted); }
-.contact-what { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
-.contact-text { font-weight: 600; user-select: text; overflow-wrap: anywhere; }
-.contact-note { font-size: 13px; color: var(--muted); }
-.contact-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.contact .k-rows { max-height: 180px; overflow: auto; }
+.contact-text { font-weight: 600; }
+/* Call, Write or Open in one slot, so Copy and Show on page line up row under row. */
+.contact .k-acts { justify-content: flex-start; }
 .contact-main { flex: 0 0 64px; display: inline-flex; }
 a.btn { text-decoration: none; }
 
 /* Round 1, W3. #9 Ready to send?: the form's count in the row, and its line in More. */
 .form-next { font-variant-numeric: tabular-nums; }
 .form-done { flex: 0 0 auto; font-size: 14px; color: var(--muted); white-space: nowrap; }
-.form-check p { margin: 0 0 4px; }
+.k-line { margin: 0 0 var(--k-sp-2); font-size: var(--k-fs); }
 .form-errors { font-weight: 600; }
 @media (max-width: 560px) {
   .form-word { display: none; }
   .more-extra > .contact { grid-column: 1 / -1; }
-  .contact ul { grid-template-columns: 72px minmax(0, 1fr); }
-  .contact li { padding: 4px 0; }
-  .contact-acts { grid-column: 1 / -1; }
 }
-/* #8 Calm the page: "Motion" in More, what Calm paused and Play again */
-.more-extra > section[data-testid="cap-calm"] { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.more-extra > section[data-testid="cap-calm"] h2 { margin-bottom: 0; }
-/* r2-05, r2-07: readable tables and link notes, one switch under the other. */
-.more-extra > section[data-testid="cap-tables-section"] { display: flex; flex-direction: column; align-items: flex-start; }
-.calm-line { margin: 0; font-size: 15px; color: var(--fg); }
+/* The switch sections (Reading, Motion, Tables and links, Prices and dates, Dark page, Cookie banners, This site): the
+   header, then one control under the other, then their notes (r5-04: one shape for all of them). */
+.k-switches { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-sp-1); }
+.k-switches > .k-head { margin-bottom: var(--k-sp-1); }
+.k-switches > .note, .k-switches > .k-failed { margin-top: var(--k-sp-1); }
+.calm-line { margin: 0; }
 /* Round 2, r2-10 The gist first: three points at the top of More, each with Show me. */
 .more > .gist { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
-.gist-list, .claims-list { margin: 0; padding: 0 0 0 1.4em; display: grid; gap: 2px; }
-.gist-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 34px; font-size: 15px; }
-.gist-text { flex: 1 1 260px; min-width: 0; }
+/* The points numbered, the number in the row's first column. */
+.gist-list { counter-reset: gist; }
+.gist-list > .k-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
+.gist-list > .k-row::before { counter-increment: gist; content: counter(gist) "."; align-self: center; font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--k-fs-sm); }
+.gist-list > .k-row > .note { grid-column: 2 / -1; }
 /* Round 2, r2-01 Claims to check: the sentences, full width, each with its reason, Show me and the web check. */
 .more-extra > .claims { grid-column: 1 / -1; }
-.claims-list { max-height: 220px; overflow: auto; padding-right: 4px; }
-.claims-list li { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; min-height: 36px; }
-.claims-list li > .note { grid-column: 2 / -1; margin: 0; }
-.claim-why { font-size: 13px; color: var(--muted); }
-.claim-text { font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
-.claim-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.claims-where { margin: 0 0 4px; }
-@media (max-width: 560px) {
-  .claims-list li { grid-template-columns: minmax(0, 1fr); padding: 4px 0; }
-  .claims-list li > .note { grid-column: 1; }
-}
+.claims-list { max-height: 220px; overflow: auto; }
+.claim-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.claims-where { margin: 0 0 var(--k-sp-2); }
 /* Round 5, r5-07: what the marks on the page mean, one small line. The samples are drawn as the page draws them: in the
    text's colour, and in the system's find-in-page colours (Mark/MarkText: CSS system colours, not colour literals). */
 .marks-key { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 0 0 4px; font-size: 13px; }
@@ -149,8 +136,7 @@ a.btn { text-decoration: none; }
 .ck { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; font-size: 14px; }
 .ck[data-state="none"], .ck[data-state="checking"], .ck[data-state="failed"] { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .ck-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-.ck-wait { color: var(--muted); }
-.ck-fail { color: var(--fg); }
+.ck .k-failed { margin: 0; }
 .ck-reason { margin: 0; color: var(--fg); }
 .ck-dropped { font-size: 13px; color: var(--muted); }
 .ck-sources { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 2px 14px; }
@@ -171,15 +157,15 @@ a.btn { text-decoration: none; }
 .verdict[data-verdict="mixed"] { color: var(--fg); background: var(--note-bg); border-color: color-mix(in srgb, var(--line) 70%, transparent); }
 .verdict[data-verdict="notFound"] { color: var(--muted); border-style: dashed; border-color: color-mix(in srgb, var(--line) 80%, transparent); }
 .chip.sm { min-height: 22px; font-size: 13px; padding: 0 8px; }
-.checks { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.checks h2 { margin-bottom: 0; }
+.checks { display: flex; flex-direction: column; align-items: flex-start; gap: var(--k-sp-2); }
+.checks > .k-head { margin-bottom: 0; }
 
 /* Round 3, r3-08 Ask this page: a question box under the gist, on this device only. */
 .more > .ask { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
 .ask-form { display: flex; gap: 8px; align-items: center; }
 .ask-input { flex: 1 1 auto; min-width: 0; min-height: 34px; padding: 4px 10px; font: inherit; color: var(--fg); background: var(--bg);
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 8px; }
-.ask-answer { margin-top: 8px; }
+.ask-answer, .ask-out > .k-wait, .ask-out > .k-failed { margin-top: var(--k-sp-3); }
 .ask-text { margin: 0; font-size: 15px; }
 .ask-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; }
 /* Round 3, r3-07: prices and dates in your terms, the currency in More. */

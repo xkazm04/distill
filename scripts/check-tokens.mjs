@@ -1,4 +1,4 @@
-// Fails when the web app holds a raw colour literal (hex, rgb(), hsl() and the other colour functions) outside the
+// Fails when the web app or the caption strip (apps/extension/src/caption/frame) holds a raw colour literal (hex, rgb(), hsl() and the other colour functions) outside the
 // theme binding files. Colours go through names: a theme role (apps/web/src/ui/theme/roles.ts, bound by
 // ui/theme/brand.ts) or a shell token (apps/web/src/brand/shell.ts). Runs in `npm run check`.
 //
@@ -11,6 +11,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = "apps/web/src";
+// r5-04: the caption strip (the extension's frame) holds itself to the same rule: theme roles only.
+const STRIP = "apps/extension/src/caption/frame";
 const THEME_FILES = ["apps/web/src/ui/theme/brand.ts", "apps/web/src/ui/theme/derive.ts", "apps/web/src/brand/shell.ts"];
 const KNOWN = [
   {
@@ -40,8 +42,9 @@ for (const s of MUST_PASS) if (literals(s).length) { console.error(`check-tokens
 for (const f of THEME_FILES) if (!existsSync(f)) { console.error(`check-tokens: theme file ${f} is gone - update THEME_FILES`); process.exit(1); }
 
 const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
-const files = walk(ROOT).map((f) => relative(".", f).replaceAll("\\", "/")).filter((f) => SCANNED.test(f) && !TEST.test(f));
+const files = [...walk(ROOT), ...walk(STRIP)].map((f) => relative(".", f).replaceAll("\\", "/")).filter((f) => SCANNED.test(f) && !TEST.test(f));
 if (!files.some((f) => f.endsWith("brand/brand.css"))) { console.error("check-tokens: brand.css was not scanned - the gate cannot see its target"); process.exit(1); }
+if (!files.some((f) => f.endsWith("frame/kit.css"))) { console.error("check-tokens: the strip's kit.css was not scanned - the gate cannot see the strip"); process.exit(1); }
 
 let bad = 0;
 const suppressed = [];

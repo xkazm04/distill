@@ -10,7 +10,8 @@ import { localModelState } from "@distill/web/ai";
 import type { CleanReport } from "../../messages";
 import { deviceModelBlocked } from "../../offscreen/client";
 import { firstPart } from "./mainText";
-import { canRunTask, e2eFake, runTask } from "./runTask";
+import { Failed, Note, Section, sentence, Waiting } from "./kit";
+import { canRunTask, e2eFake, retryHelps, runTask } from "./runTask";
 import { send } from "./send";
 import { readerLang, shortReason } from "./Translate";
 
@@ -51,7 +52,7 @@ type AskState =
   | { phase: "asking" }
   | { phase: "answer"; answer: PageAnswer; source: InferenceSource }
   | { phase: "refused"; why: "not-on-page" | "no-answer" | "invalid" | "no-text"; source?: InferenceSource }
-  | { phase: "failed"; problem: string };
+  | { phase: "failed"; problem: string; retry: boolean };
 
 export function AskSection(_props: { report: CleanReport; setReport: (r: CleanReport) => void }) {
   const [blocker, setBlocker] = useState<AskBlocker | null | "checking">("checking");
@@ -66,8 +67,8 @@ export function AskSection(_props: { report: CleanReport; setReport: (r: CleanRe
     return () => { live = false; };
   }, []);
 
-  const ask = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const ask = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     const q = cleanQuestion(question);
     if (!q || blocker !== null || state.phase === "asking") return;
     // Checked again right before the run: the question goes nowhere but a model on this device.
@@ -83,7 +84,7 @@ export function AskSection(_props: { report: CleanReport; setReport: (r: CleanRe
         ? { phase: "answer", answer: a.answer, source: r.source }
         : { phase: "refused", why: a.why, source: r.source });
     } catch (err) {
-      setState({ phase: "failed", problem: shortReason(err) });
+      setState({ phase: "failed", problem: shortReason(err), retry: retryHelps(err) });
     }
   };
 
@@ -95,10 +96,10 @@ export function AskSection(_props: { report: CleanReport; setReport: (r: CleanRe
   if (blocker === "checking") return null;
 
   return (
-    <section className="ask" aria-labelledby="cap-ask-h" data-testid="cap-ask" data-phase={blocker ? "unavailable" : state.phase}>
-      <h2 id="cap-ask-h">Ask this page</h2>
+    <Section id="cap-ask-h" title="Ask this page" testid="cap-ask" className="ask" attrs={{ "data-phase": blocker ? "unavailable" : state.phase }}
+      waiting={state.phase === "asking"}>
       {blocker ? (
-        <p className="note" data-testid="cap-ask-unavailable" data-why={blocker}>{BLOCKER_WORDS[blocker]}</p>
+        <Note testid="cap-ask-unavailable" attrs={{ "data-why": blocker }}>{BLOCKER_WORDS[blocker]}</Note>
       ) : (
         <>
           <form className="ask-form" onSubmit={(e) => void ask(e)}>
@@ -107,8 +108,8 @@ export function AskSection(_props: { report: CleanReport; setReport: (r: CleanRe
               spellCheck={false} placeholder="Ask about this page..." onChange={(e) => setQuestion(e.target.value)} data-testid="cap-ask-input" />
             <button type="submit" className="btn sm" disabled={!cleanQuestion(question) || state.phase === "asking"} data-testid="cap-ask-go">Ask</button>
           </form>
-          <div aria-live="polite">
-            {state.phase === "asking" && <p className="note">Reading the page on this device...</p>}
+          <div aria-live="polite" className="ask-out">
+            {state.phase === "asking" && <Waiting label="Reading the page on this device..." shape="lines" rows={2} testid="cap-ask-waiting" />}
             {state.phase === "answer" && (
               <div className="ask-answer" data-testid="cap-ask-answer" data-src={state.source}>
                 <p className="ask-text" data-testid="cap-ask-text">{state.answer.answer}</p>
@@ -116,25 +117,28 @@ export function AskSection(_props: { report: CleanReport; setReport: (r: CleanRe
                   <button type="button" className="btn sm quiet" onClick={() => void show(state.answer)} data-testid="cap-ask-show">Show me</button>
                   <span className="chip sm" data-src={state.source} data-testid="cap-ask-where">{WHERE[state.source]}</span>
                 </div>
-                {gone && <p className="note">That part is no longer on the page.</p>}
+                {gone && <Note>That part is no longer on the page.</Note>}
               </div>
             )}
             {state.phase === "refused" && (
               <div className="ask-answer" data-testid="cap-ask-refused" data-why={state.why}>
                 <p className="ask-text">{NOT_SAID}</p>
-                <p className="note">
+                <Note>
                   {state.why === "not-on-page" ? "The AI gave an answer that is not found on the page, so it is not shown. "
                     : state.why === "invalid" ? "The AI's answer could not be used, so it is not shown. "
                     : state.why === "no-text" ? "Distill found no main text on this page to answer from. " : ""}
                   {state.source ? `${WHERE[state.source]}.` : ""}
-                </p>
+                </Note>
               </div>
             )}
-            {state.phase === "failed" && <p className="note" data-testid="cap-ask-failed">No answer: {state.problem}.</p>}
+            {state.phase === "failed" && (
+              <Failed why={sentence("No answer", state.problem)} testid="cap-ask-failed" retryTestid="cap-ask-retry"
+                onRetry={state.retry && cleanQuestion(question) ? () => void ask() : undefined} retryLabel="Try again: ask the same question" />
+            )}
           </div>
-          <p className="note">Answers come only from this page's text, on this device. Your question is never sent to the cloud.</p>
+          <Note>Answers come only from this page's text, on this device. Your question is never sent to the cloud.</Note>
         </>
       )}
-    </section>
+    </Section>
   );
 }

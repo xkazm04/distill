@@ -662,6 +662,54 @@ Still open:
 - Verdict styles are checked in the style sheet and the key. No hermetic e2e paints a checked claim, because the web
   check is a cloud call.
 
+## Round 5, r5-04 and r5-09: one look for found data; waiting, empty and failed said calmly (2026-11-23)
+
+Every section of More is built from one small kit, `apps/extension/src/caption/frame/kit.tsx` (styles in `kit.css`).
+Its API is documented at the top of the file; wave B (More grouped, chips, the phone sheet) builds on it.
+
+- **Parts.** `Section` (a section with its `ListHeader`: the title and a count pill read as "(3)"), `Facts`/`FactRow`
+  (label, value, where it came from: a word such as "From data", or Show me), `Rows`/`ActionRow` (the kind, the words,
+  a quieter line, the buttons `ShowMe`, `CopyButton`, `ReachLink` for Call or Write), `Switch`, `Note`, and the three
+  states `Waiting`, `Empty`, `Failed`. `useCopy` holds a section's Copy state and its one refusal line.
+- **Scales.** Type 13 / 14 / 15 / 17 px (`--k-fs-xs`, `--k-fs-sm`, `--k-fs`, `--k-fs-lg`); space 2 / 4 / 8 / 12 / 16 /
+  24 px (`--k-sp-1..6`); a row is at least 34 px, a kind label 112 px.
+- **Icons.** 21 line icons, 16 px, stroked in `currentColor` (no colour of their own): deadline, payment, bring, phone,
+  e-mail, address, hours, contact page; price, stock, delivery, warranty, returns, spec; chapter, sponsor; published,
+  updated, author; claim; and `alert` for a failed line. Decorative (`aria-hidden`): the words beside them say what
+  they are.
+- **Colours.** Theme roles only. `npm run check-tokens` now scans the strip (`apps/extension/src/caption/frame`) as well
+  as the web app, and fails if `kit.css` drops out of its scan.
+- **Sections moved onto the kit.** Actions, Contact, Byline, Product, Video, Claims, ClaimCheck's controls, Gist, Ask,
+  Tours (the list in More), FormCheck, Comfort, Calm, Tables and links, Terms, Dark, Consent, Remember. Every data-testid
+  stayed; the old class names e2e and the live probes read (`.claim-text`, `.gist-text`, `.video-title`,
+  `.byline-rows > div`) stayed on the kit's elements. "What was removed" and the Distill column are left for wave B.
+
+r5-09, one way to wait, be empty and fail:
+
+- **Waiting** is a quiet placeholder in the shape of what is coming: grey bars (`color-mix` of `--fg`), three rows for
+  the gist and the claims, two lines for Ask's answer, one short bar beside "Checking..." for a web check. The words
+  are shown, small, and read once (`role=status`; the section is `aria-busy`). No spinner. The bars breathe (opacity)
+  only under `prefers-reduced-motion: no-preference`.
+- **Empty** is either nothing (the section is not shown) or one short line where it matters ("No date on this page.",
+  "Finding the claims worth checking needs an AI model, and none can run here.").
+- **Failed** is one line with a small alert icon that says why in plain words, and Try again where trying again can
+  help: when the AI error says so (`toAiError(e).retry`: busy, a garbled answer) or the door refused the whole answer.
+  A missing model or an AI switched off gets no Try again. Where: the gist (`cap-gist-retry`), the claims
+  (`cap-claims-retry`), Ask (`cap-ask-retry`, the same question again, still on this device only), each web check
+  (`cap-check-retry`, as before), Translate (`cap-translate-retry`, in the row; the status line says why) and the
+  rates download in Prices and dates. Plain's own button is its Try again. Translate's busy words are now "the AI is
+  busy right now" (no "try again later" beside a Try again button).
+- Explain's note on the page (`caption/explain.ts`) keeps its words ("Explaining on this device...", "Not explained:
+  ..."); its look belongs to r5-07 (notes in one shape).
+
+Tests: `frame/kit.test.ts` (the parts, the icons in `currentColor`, no colour literal in `kit.css`, motion only when
+welcome, the focus ring) and `e2e/caption-states.spec.ts` (each AI section's placeholder then its answer; the failed
+line and Try again working once the stand-in model answers again; Translate's Try again; reduced motion). Evidence:
+`e2e/caption-kit-shots.spec.ts` (opt-in, `E2E_KIT_SHOTS=before|after`) pictures each section in light and dark;
+`e2e/live/probes/kit.live.ts` does the same on Přáslavice and Aktuálně (run once on the round-4 strip, once on the
+kit). Its `E2E_KIT_SLOW=1` did not catch a placeholder live: on these Czech pages Translate runs first, so the gist and
+the claims have not started when the picture is taken; the waiting pictures are the hermetic ones.
+
 ## Code map
 
 | File | Role |
@@ -669,6 +717,7 @@ Still open:
 | `packages/engine/src/clutter.ts` | `findClutter`, `clutterSummary`, `CLUTTER_LABELS` (pure DOM reading, unit-tested) |
 | `apps/extension/src/caption/page.ts` | The page side: mount, spacer, Clean, restore, Original, resize, close |
 | `apps/extension/src/caption/frame/main.tsx`, `caption.css`, `caption.html` | The strip |
+| `apps/extension/src/caption/frame/kit.tsx`, `kit.css` | r5-04/r5-09 the strip's kit: sections, facts, rows, icons, switch, and waiting / empty / failed (API at the top of kit.tsx) |
 | `apps/extension/src/messages.ts` | `distill:caption:*`, `CleanReport` |
 | `apps/extension/src/background.ts` | `startCaption`, the `VITE_SURFACE` switch, the e2e hook |
 | `apps/extension/e2e/caption.ts` | `BAR` and the measurements shared by both runs |

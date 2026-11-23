@@ -2,11 +2,12 @@
 // page after Clean (and after Translate where it runs), only on an article with enough text (mainText.ts articleLike).
 // The model's answer passes ONE door (parseGist): a point whose sentence is not in its block is dropped and counted,
 // so the gist cannot say what the article does not. Without a model there is no gist (nothing pretends to be one).
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseGist, prompts, schemas, type GistPoint, type InferenceSource } from "@distill/engine";
 import type { CleanReport, TextBlock } from "../../messages";
 import { articleLike, firstPart, useMainText } from "./mainText";
-import { canRunTask, runTask } from "./runTask";
+import { ActionRow, Failed, Note, Rows, Section, sentence, ShowMe, Waiting } from "./kit";
+import { canRunTask, retryHelps, runTask } from "./runTask";
 import { send } from "./send";
 import { readerLang, shortReason, type TranslateState } from "./Translate";
 
@@ -18,6 +19,8 @@ export interface GistState {
   source?: InferenceSource;
   problem?: string;
   via?: "offscreen";
+  /** r5-09: once failed in a way trying again can help, writes the gist again (Try again). */
+  retry?: () => void;
 }
 
 /** The gist of `part` (the first part of the main text): the real prompt, runTask, and the door (parseGist). The strip
@@ -32,6 +35,10 @@ export function useGist(report: CleanReport | null, translate?: TranslateState):
   const [state, setState] = useState<GistState>({ phase: "idle", points: [], dropped: 0 });
   const blocks = useMainText(report, translate);
   const started = useRef(false);
+  // r5-09: Try again after a failure starts the same run once more.
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => { started.current = false; setAttempt((n) => n + 1); }, []);
+  const retryable = useRef(false);
 
   useEffect(() => {
     if (!report || !blocks || started.current) return;
@@ -39,18 +46,21 @@ export function useGist(report: CleanReport | null, translate?: TranslateState):
     void (async () => {
       if (!articleLike(report, blocks) || !(await canRunTask())) { setState((s) => ({ ...s, phase: "none" })); return; }
       const part = firstPart(blocks);
-      setState((s) => ({ ...s, phase: "finding" }));
+      setState((s) => ({ ...s, phase: "finding", problem: undefined }));
       try {
         const { g, r } = await gistOf(part);
+        // An answer the door refused in full is worth asking for again.
+        retryable.current = true;
         setState({ phase: g.points.length ? "ready" : "failed", points: g.points, dropped: g.dropped, source: r.source,
           ...(g.points.length ? {} : { problem: "the AI's answer could not be used" }), ...(r.via ? { via: r.via } : {}) });
       } catch (e) {
+        retryable.current = retryHelps(e);
         setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
       }
     })();
-  }, [report, blocks]);
+  }, [report, blocks, attempt]);
 
-  return state;
+  return useMemo(() => (state.phase === "failed" && retryable.current ? { ...state, retry } : state), [state, retry]);
 }
 
 const WHERE: Record<InferenceSource, string> = {
@@ -63,10 +73,19 @@ export function GistSection(props: { report: CleanReport; gist: GistState }) {
   const { gist } = props;
   const [gone, setGone] = useState<number | null>(null);
   if (gist.phase === "finding") {
-    return <section className="gist" data-testid="cap-gist" data-phase="finding"><h2>The gist</h2><p className="note">Reading the article for its main points...</p></section>;
+    return (
+      <Section id="cap-gist-h" title="The gist" testid="cap-gist" className="gist" attrs={{ "data-phase": "finding" }} waiting>
+        <Waiting label="Reading the article for its main points..." rows={3} testid="cap-gist-waiting" />
+      </Section>
+    );
   }
   if (gist.phase === "failed") {
-    return <section className="gist" data-testid="cap-gist" data-phase="failed"><h2>The gist</h2><p className="note">No gist: {gist.problem}.</p></section>;
+    return (
+      <Section id="cap-gist-h" title="The gist" testid="cap-gist" className="gist" attrs={{ "data-phase": "failed" }}>
+        <Failed why={sentence("No gist", gist.problem)} onRetry={gist.retry} testid="cap-gist-failed" retryTestid="cap-gist-retry"
+          retryLabel="Try again: write the gist" />
+      </Section>
+    );
   }
   if (gist.phase !== "ready") return null;
 
@@ -76,21 +95,18 @@ export function GistSection(props: { report: CleanReport; gist: GistState }) {
   };
 
   return (
-    <section className="gist" aria-labelledby="cap-gist-h" data-testid="cap-gist" data-phase="ready" data-src={gist.source}>
-      <h2 id="cap-gist-h">The gist</h2>
-      <ol className="gist-list">
+    <Section id="cap-gist-h" title="The gist" testid="cap-gist" className="gist" attrs={{ "data-phase": "ready", "data-src": gist.source }}>
+      <Rows ordered className="gist-list">
         {gist.points.map((p, i) => (
-          <li key={`${p.blockId}-${i}`} data-testid="cap-gist-point">
-            <span className="gist-text">{p.text}</span>
-            <button type="button" className="btn sm quiet" onClick={() => void show(p, i)} aria-label={`Show me where: ${p.text.slice(0, 60)}`} data-testid="cap-gist-show">Show me</button>
-            {gone === i && <span className="note">That part is no longer on the page.</span>}
-          </li>
+          <ActionRow key={`${p.blockId}-${i}`} testid="cap-gist-point" text={p.text} textClass="gist-text"
+            acts={<ShowMe onClick={() => void show(p, i)} label={`Show me where: ${p.text.slice(0, 60)}`} testid="cap-gist-show" />}
+            after={gone === i ? <span className="note">That part is no longer on the page.</span> : undefined} />
         ))}
-      </ol>
-      <p className="note" data-testid="cap-gist-where">
+      </Rows>
+      <Note testid="cap-gist-where">
         {gist.source ? `${WHERE[gist.source]}. ` : ""}Each point comes from a sentence of the article.
         {gist.dropped > 0 && ` ${gist.dropped === 1 ? "1 point was" : `${gist.dropped} points were`} left out: not found in the article.`}
-      </p>
-    </section>
+      </Note>
+    </Section>
   );
 }

@@ -1,7 +1,6 @@
-/* Round 4, r4-08: tours started by hand. Theme roles only. */
-.more > .tours { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
-.tours-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
-.tours-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-height: 34px; font-size: 15px; }
-.tours-list .note { margin: 0; }
+/* Round 4, r4-08: tours started by hand; the list in More on the kit's rows (kit.css). Theme roles only. */
+.more > .tours { padding-bottom: var(--k-sp-4); margin-bottom: var(--k-sp-2); border-bottom: 1px solid var(--k-quiet); }
+.tours-list .k-what { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--k-sp-1) var(--k-sp-4); }
+.tour-what { font-size: var(--k-fs-sm); color: var(--muted); }
 .btn[aria-disabled="true"] { opacity: .45; cursor: default; }
 .btn[aria-disabled="true"]:hover { background: transparent; }

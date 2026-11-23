@@ -2,6 +2,7 @@
 // from the start; the tables row shows only when the page has a data table in its main text.
 import { useState } from "react";
 import type { CleanReport } from "../../messages";
+import { Section, Switch } from "./kit";
 import { send } from "./send";
 
 /** Kept for the frame's life: how many tables the page has (off, the page answers 0), and each switch. */
@@ -40,20 +41,12 @@ export function TablesLinksSection(props: { report: CleanReport; setReport: (r: 
   };
 
   return (
-    <section aria-labelledby="cap-tables-h" data-testid="cap-tables-section">
-      <h2 id="cap-tables-h">Tables and links</h2>
+    <Section id="cap-tables-h" title="Tables and links" testid="cap-tables-section" className="k-switches">
       {known > 0 && (
-        <label className="switch">
-          <input type="checkbox" role="switch" checked={tables} disabled={busy} onChange={(e) => void toggleTables(e.currentTarget.checked)}
-            data-testid="cap-tables" />
-          <span>Readable tables ({known})</span>
-        </label>
+        <Switch checked={tables} disabled={busy} onChange={(on) => void toggleTables(on)} label={`Readable tables (${known})`} testid="cap-tables" />
       )}
-      <label className="switch" title="Point at a link of the text to see where it goes. Distill reads the address only: nothing is fetched.">
-        <input type="checkbox" role="switch" checked={links} disabled={busy} onChange={(e) => void toggleLinks(e.currentTarget.checked)}
-          data-testid="cap-links" />
-        <span>Link notes</span>
-      </label>
-    </section>
+      <Switch checked={links} disabled={busy} onChange={(on) => void toggleLinks(on)} label="Link notes" testid="cap-links"
+        title="Point at a link of the text to see where it goes. Distill reads the address only: nothing is fetched." />
+    </Section>
   );
 }

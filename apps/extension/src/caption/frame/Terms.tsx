@@ -10,6 +10,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { currencyOfLocale, READER_CURRENCIES, type Rates } from "@distill/engine";
 import type { CleanReport, RatesReply, RatesRequest } from "../../messages";
+import { Failed, Note, Section, Switch } from "./kit";
 import { send } from "./send";
 
 export const TERMS_KEY = "distill:terms";
@@ -110,13 +111,9 @@ export function TermsSection(_props: { report: CleanReport; setReport: (r: Clean
   else line = [s.rates ? `${plural(s.prices, "price")} in ${s.currency}` : "", s.dates ? `${plural(s.dates, "date")} written your way` : ""].filter(Boolean).join(", ") + ".";
 
   return (
-    <section aria-labelledby="cap-terms-h" data-testid="cap-terms-section">
-      <h2 id="cap-terms-h">Prices and dates</h2>
-      <label className="switch">
-        <input type="checkbox" role="switch" checked={s.on} disabled={busy} data-testid="cap-terms"
-          onChange={(e) => { set({ on: e.currentTarget.checked }); void keep(); void apply(); }} />
-        <span>In your terms</span>
-      </label>
+    <Section id="cap-terms-h" title="Prices and dates" testid="cap-terms-section" className="k-switches">
+      <Switch checked={s.on} disabled={busy} testid="cap-terms" label="In your terms"
+        onChange={(on) => { set({ on }); void keep(); void apply(); }} />
       <label className="field">
         <span>Your currency</span>{" "}
         <select value={s.currency} disabled={busy || !s.on} data-testid="cap-terms-currency"
@@ -124,16 +121,17 @@ export function TermsSection(_props: { report: CleanReport; setReport: (r: Clean
           {READER_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>
-      <p className="note" data-testid="cap-terms-line" data-prices={s.prices} data-dates={s.dates}>{line}</p>
+      <Note testid="cap-terms-line" attrs={{ "data-prices": String(s.prices), "data-dates": String(s.dates) }}>{line}</Note>
       {s.on && !s.allowed && (
         <p className="note">
           <button type="button" className="link" onClick={allowRates} data-testid="cap-terms-allow">Show prices in {s.currency} too</button>{" "}
           Distill downloads the European Central Bank's daily rates, once a day. Nothing about this page or you is sent.
         </p>
       )}
-      {s.on && s.allowed && s.rates && <p className="note" data-testid="cap-terms-rates">Rates of {rateDay(s.rates)} from the European Central Bank, kept on this device. Point at a price to see its rate.</p>}
-      {s.on && s.allowed && s.noRates && <p className="note">The rates could not be downloaded just now: only dates are written.</p>}
-      {s.problem && <p className="note" role="alert">{s.problem}</p>}
-    </section>
+      {s.on && s.allowed && s.rates && <Note testid="cap-terms-rates">Rates of {rateDay(s.rates)} from the European Central Bank, kept on this device. Point at a price to see its rate.</Note>}
+      {s.on && s.allowed && s.noRates && <Failed why="The rates could not be downloaded just now: only dates are written." onRetry={() => { set({ noRates: false }); void apply(); }}
+        retryTestid="cap-terms-retry" retryLabel="Try again: download the rates" />}
+      {s.problem && <Failed why={`Prices and dates were not written: ${s.problem.replace(/\.$/, "")}.`} />}
+    </Section>
   );
 }

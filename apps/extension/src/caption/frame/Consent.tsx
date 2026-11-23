@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { CleanReport, ConsentOutcome } from "../../messages";
 import { consentWanted, loadConsentPrefs, saveConsentPrefs, type ConsentPrefs } from "../consent";
 import { siteName, siteOrigin } from "../sites";
+import { Note, Section, Switch } from "./kit";
 import { send } from "./send";
 
 const WHAT: Record<ConsentOutcome, string> = {
@@ -61,22 +62,13 @@ export function ConsentSection(props: { report: CleanReport; setReport: (r: Clea
 
   const outcome = report.consent;
   return (
-    <section aria-labelledby="cap-consent-h" data-testid="cap-consent-section">
-      <h2 id="cap-consent-h">Cookie banners</h2>
-      <label className="switch" title="Distill presses the banner's own &quot;Reject all&quot; or &quot;Only necessary&quot;. Never Accept.">
-        <input type="checkbox" role="switch" checked={here} disabled={busy} onChange={(e) => void setHere(e.currentTarget.checked)}
-          data-testid="cap-consent" />
-        <span>Reject cookies for me{origin ? ` on ${siteName(origin)}` : ""}</span>
-      </label>
-      {origin && (
-        <label className="switch">
-          <input type="checkbox" role="switch" checked={everywhere} disabled={busy} onChange={(e) => void setEverywhere(e.currentTarget.checked)}
-            data-testid="cap-consent-all" />
-          <span>On every site</span>
-        </label>
-      )}
-      {outcome && <p className="note" data-testid="cap-consent-note" data-outcome={outcome}>{WHAT[outcome]}</p>}
-      <p className="note">Kept on this device only. Distill never presses Accept.</p>
-    </section>
+    <Section id="cap-consent-h" title="Cookie banners" testid="cap-consent-section" className="k-switches">
+      <Switch checked={here} disabled={busy} onChange={(on) => void setHere(on)} testid="cap-consent"
+        label={`Reject cookies for me${origin ? ` on ${siteName(origin)}` : ""}`}
+        title={'Distill presses the banner\'s own "Reject all" or "Only necessary". Never Accept.'} />
+      {origin && <Switch checked={everywhere} disabled={busy} onChange={(on) => void setEverywhere(on)} label="On every site" testid="cap-consent-all" />}
+      {outcome && <Note testid="cap-consent-note" attrs={{ "data-outcome": outcome }}>{WHAT[outcome]}</Note>}
+      <Note>Kept on this device only. Distill never presses Accept.</Note>
+    </Section>
   );
 }
