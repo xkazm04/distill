@@ -6,6 +6,7 @@ import {
 } from "@distill/engine";
 import type { CleanContext } from "./context";
 import { avgCharWidth } from "./reflow";
+import { typeset } from "./typeset";
 
 /** On a block the layer changes (the count the strip shows). */
 const BLOCK = "data-distill-comfort";
@@ -13,6 +14,8 @@ const BLOCK = "data-distill-comfort";
 const TEXT = "data-distill-comfort-text";
 /** On a block whose lines were too long: its rule id. */
 const MEASURE = "data-distill-comfort-measure";
+/** r5-05: on an element the typesetter's pass spaces (a heading, a paragraph, a list, a quote, a table cell): its rule id. */
+const TYPE = "data-distill-comfort-type";
 /** On <html> while the person has turned the layer off. */
 const OFF = "data-distill-comfort-off";
 const ORIGINAL = "data-distill-original";
@@ -193,6 +196,15 @@ export function applyComfort(ctx: CleanContext): number {
     if (fixRuns(runs, pageScale, false)) { h.setAttribute(BLOCK, ""); count++; }
   }
 
+  // r5-05: the typesetter's pass (heading rhythm, paragraph gaps, lists, quotes, numbers in tables), where it is needed.
+  typeset({
+    win, body, headings, scale: pageScale, text: dominantSize(bodyRuns.flatMap(({ runs }) => runs)) * pageScale,
+    mark: (el, decl, block) => {
+      el.setAttribute(TYPE, ruleFor(decl, TYPE, "s"));
+      if (!block.hasAttribute(BLOCK)) { block.setAttribute(BLOCK, ""); count++; }
+    },
+  });
+
   if (!count) return 0;
   const style = doc.createElement("style");
   style.setAttribute("data-distill", "comfort");
@@ -216,6 +228,6 @@ export function clearComfort(doc: Document): void {
   state?.style.remove();
   state = null;
   doc.querySelectorAll('style[data-distill="comfort"]').forEach((s) => s.remove());
-  for (const attr of [BLOCK, TEXT, MEASURE]) doc.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  for (const attr of [BLOCK, TEXT, MEASURE, TYPE]) doc.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   doc.documentElement.removeAttribute(OFF);
 }
