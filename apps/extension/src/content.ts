@@ -21,7 +21,7 @@ import { setConsent } from "./caption/consent";
 import { setDark } from "./caption/dark";
 import { setTerms, termsAside } from "./caption/terms";
 import { markActions, readActions, showAction } from "./caption/actions";
-import { applyFormErrors, applyFormText, formErrors, formSource, formText } from "./caption/formText";
+import { applyFormErrors, applyFormText, formErrors, formSource, formText, watchForm } from "./caption/formText";
 import { showExplanation } from "./caption/explain";
 import { readVideo, seek } from "./caption/video";
 import { readProductFacts, showProduct } from "./caption/product";
@@ -105,7 +105,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:caption:translated": return { applied: termsAside(caption.context, () => applyTranslation(req.blocks)) };
     case "distill:caption:sourceText": termsAside(caption.context, () => showSource(req.on)); return { ok: true };
-    case "distill:caption:watchText": watchText(req.tabId, caption.context); return { ok: true };
+    case "distill:caption:watchText": watchText(req.tabId, caption.context); watchForm(document, req.tabId); return { ok: true };
     // r3-07: Translate, Plain and Original change the main text's own text nodes; prices and dates in your terms step
     // aside while they do (caption/terms.ts termsAside).
     // ---- round 2 ----

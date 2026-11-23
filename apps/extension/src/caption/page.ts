@@ -11,6 +11,7 @@ import { restick, unstick } from "./float";
 import { layoutOf, type Layout } from "./layout";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
+import { clearFormText, formOriginal } from "./formText";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
 import { clearActions } from "./actions";
@@ -127,6 +128,7 @@ export function close(doc: Document): void {
   restick(doc);
   clearTerms(doc); // r3-07: before the translation goes, so its text nodes are whole again
   clearTranslation();
+  clearFormText(); // r4-04: the form's words, attributes and pinned option values
   clearClaims(doc);
   clearActions(doc);
   clearTables(doc);
@@ -156,6 +158,7 @@ export function showOriginal(doc: Document, on: boolean): void {
   if (!state) return;
   doc.documentElement.toggleAttribute(ORIGINAL, on);
   originalShown(on);
+  formOriginal(on); // r4-04
 }
 
 /** True while the person looks at the untouched original (round-1 modules leave the page alone then). */
