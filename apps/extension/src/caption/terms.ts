@@ -17,7 +17,7 @@ import { convert, currencyOfLocale, parseAmount, detectLang, findDates, findPric
 import type { ContentRequest } from "../messages";
 import type { CleanContext } from "./context";
 import { dataTable } from "./tables";
-import { quietly, TRANSLATED } from "./translate";
+import { quietly, setTextAside, TRANSLATED } from "./translate";
 
 type TermsRequest = Extract<ContentRequest, { type: "distill:caption:terms" }>;
 
@@ -32,7 +32,7 @@ const SKIP = "script, style, noscript, template, pre, code, textarea, select, op
 /** A text node longer than this is not a price or a line with dates (a script's text, a whole page in one node). */
 const NODE_MAX = 5000;
 
-const CSS = `html:not([${ORIGINAL}]) [${TERM_ADD}]::after { content: " " attr(${TERM_ADD}); opacity: .72; font-size: .92em; font-weight: normal; font-style: normal; white-space: nowrap; }`;
+const CSS = `html:not([${ORIGINAL}]) [${TERM_ADD}]::after { content: " " attr(${TERM_ADD}); opacity: .72; font-size: .92em; font-weight: normal; font-style: normal; }`;
 
 interface Split {
   /** The page's own text node: it keeps the first piece. */
@@ -41,7 +41,7 @@ interface Split {
   made: Node[];
 }
 
-let state: { doc: Document; req: TermsRequest; splits: Split[]; style: HTMLStyleElement | null } | null = null;
+let state: { doc: Document; ctx: CleanContext; req: TermsRequest; splits: Split[]; style: HTMLStyleElement | null } | null = null;
 
 const primary = (locale: string): string => (locale || "en").split(/[-_]/)[0]?.toLowerCase() || "en";
 const squash = (s: string): string => s.replace(/[\s   ]+/g, " ").trim();
@@ -244,8 +244,9 @@ function putIn(ctx: CleanContext): { prices: number; dates: number } {
 /** On (with the reader's currency, locale and the rates, when there are rates) or off. Returns what is written now. */
 export function setTerms(ctx: CleanContext, req: TermsRequest): { prices: number; dates: number } {
   takeOut();
-  if (!state || state.doc !== ctx.doc) state = { doc: ctx.doc, req, splits: [], style: state?.style ?? null };
+  if (!state || state.doc !== ctx.doc) state = { doc: ctx.doc, ctx, req, splits: [], style: state?.style ?? null };
   state.req = req;
+  state.ctx = ctx;
   return putIn(ctx);
 }
 
@@ -259,10 +260,13 @@ export function termsAside<T>(current: () => CleanContext | null, run: () => T):
   try {
     return run();
   } finally {
-    const ctx = current();
-    if (ctx && state) putIn(ctx);
+    const ctx = current() ?? state?.ctx ?? null;
+    if (ctx && state) { state.ctx = ctx; putIn(ctx); }
   }
 }
+
+// Translate's text watcher reads the page again by itself: it reads whole nodes too.
+setTextAside((read) => termsAside(() => state?.ctx ?? null, read));
 
 /** What the live probe and the e2e read: each addition now on the page. */
 export function termsReport(doc: Document): { kind: string; words: string; add: string; title: string }[] {

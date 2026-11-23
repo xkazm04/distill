@@ -739,7 +739,7 @@ function look(w: Watch): void {
   w.lastRun = Date.now();
   let count = 0;
   try {
-    count = quiet(() => reread(s, w));
+    count = quiet(() => textAside(() => reread(s, w)));
   } finally {
     w.gap = Math.max(MIN_GAP_MS, (performance.now() - t0) / LOOK_SHARE);
   }
@@ -789,4 +789,11 @@ function tell(w: Watch, count: number): void {
  *  text watcher never takes it for the page's own. */
 export function quietly<T>(write: () => T): T {
   return quiet(write);
+}
+
+/** Round 3 (r3-07): another module that splits the main text's text nodes (prices and dates in your terms) puts them
+ *  back whole while the watcher reads the page again, so a block is never read in pieces. */
+let textAside: <T>(read: () => T) => T = (read) => read();
+export function setTextAside(aside: <T>(read: () => T) => T): void {
+  textAside = aside;
 }

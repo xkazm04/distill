@@ -90,6 +90,12 @@ export function findDates(text: string, _lang: string): FoundDate[] {
     const year = m[4] ? Number(m[4]) : undefined;
     if (!validDay(day, month, year)) continue;
     const iso = year ? `${year}-${pad(month)}-${pad(day)}` : `--${pad(month)}-${pad(day)}`;
+    const word = m[3] as string;
+    // "do 15. ledna." ends a sentence: the full stop after a whole month name is the sentence's, not the date's.
+    if (!year && word.endsWith(".") && word.length - 1 >= 4) { // the short forms ("led.", "zář.") are three letters
+      add(m.index ?? 0, m[0].slice(0, m[0].indexOf(word) + word.length - 1), iso);
+      continue;
+    }
     add(m.index ?? 0, m[0], iso, timeOf(m[5], m[6], m[7]));
   }
   for (const m of text.matchAll(TIME_ONLY)) {

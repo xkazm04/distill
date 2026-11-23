@@ -22,6 +22,8 @@ describe("findDates: the Czech ways of writing a date", () => {
     ["Schůze 15. března v sále.", "15. března", "--03-15"],
     ["Uzávěrka 1. září 2026.", "1. září 2026", "2026-09-01"],
     ["Hody 29. 2. 2028", "29. 2. 2028", "2028-02-29"],
+    ["Pište do 15. ledna. Obec to projedná.", "do 15. ledna", "--01-15"], // the sentence's full stop is not the date's
+    ["Uzávěrka 15. zář. v sále.", "15. zář.", "--09-15"], // a short form keeps its dot
   ])("%s", (text, words, iso) => {
     const d = one(text);
     expect(d.text).toBe(words);
