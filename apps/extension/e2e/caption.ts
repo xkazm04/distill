@@ -1,7 +1,7 @@
 // The caption, measured: what the hermetic scenarios (caption.spec.ts, demo pages) and the live run (live/, real sites)
 // both check. The numbers are the quality bar the R2-B prototype met (docs/caption.md, "Quality bar"); a real page must
 // meet the same ones.
-import type { Frame, Page, Worker } from "playwright/test";
+import { expect, type Frame, type Page, type Worker } from "playwright/test";
 
 /** docs/caption.md, "Quality bar". Hard limits fail a run; `warn` limits only mark the report. */
 export const BAR = {
@@ -201,7 +201,12 @@ export async function showPart(frame: Frame, testid: string, timeout = 10_000): 
   const id = await panel.getAttribute("id");
   const tab = frame.locator(`[role="tab"][aria-controls="${id}"]`);
   if ((await tab.getAttribute("aria-selected")) !== "true") {
-    await tab.click();
+    // More just opened grows the strip upward: click the tab once it holds still, and again if a click missed.
+    await settled(frame.page()).catch(() => undefined);
+    await expect(async () => {
+      if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click({ timeout: 2_000 });
+      expect(await tab.getAttribute("aria-selected")).toBe("true");
+    }).toPass({ timeout });
     await frame.locator(`#${id}:not([hidden])`).waitFor({ timeout });
     // A taller part grows the strip upward: wait until it holds still, so the next click lands where it aims.
     await settled(frame.page()).catch(() => undefined);

@@ -102,8 +102,9 @@ test("product (Czech shop): one card first in More, the page's words over the da
   await showPart(frame, "cap-product"); // r5-02: its part of More
   const card = frame.getByTestId("cap-product");
   await expect(card).toBeVisible();
-  // First in More after Ask: nothing between them.
-  expect(await frame.getByTestId("cap-more").evaluate((m) => Array.from(m.children).map((c) => c.getAttribute("data-testid")).slice(0, 3))).toContain("cap-product");
+  // More opens on This page (r5-02), the card first after Ask: nothing between them.
+  await expect(frame.getByTestId("cap-tab-page")).toHaveAttribute("aria-selected", "true");
+  expect(await frame.getByTestId("cap-part-page").evaluate((m) => Array.from(m.children).map((c) => c.getAttribute("data-testid")).slice(0, 3))).toContain("cap-product");
   await expect(frame.getByTestId("cap-product-name")).toHaveText("Rychlovarná konvice Teplík 1,7 l");
   expect(await facts(frame)).toEqual([
     ["price", "1 299 Kč", "page"],

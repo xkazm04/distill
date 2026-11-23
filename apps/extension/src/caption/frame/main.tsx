@@ -215,9 +215,9 @@ function Caption() {
               page: <>
                 <GistSection report={report} gist={gist} />
                 <AskSection report={report} setReport={setReport} />
-                <BylineSection report={report} setReport={setReport} />
                 <ProductSection report={report} setReport={setReport} />
                 <VideoSection report={report} setReport={setReport} />
+                <BylineSection report={report} setReport={setReport} />
               </>,
               do: <>
                 <ActionsSection report={report} setReport={setReport} showOriginal={toggleOriginal} />

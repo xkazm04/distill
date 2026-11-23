@@ -53,6 +53,7 @@ test("loose ends: hidden contacts count and Show me opens the original; empty bo
   await expect(frame.getByTestId("cap-removed-item").filter({ hasText: "Back on the page" })).toHaveCount(2);
 
   // 1. The things to do: the address and phone on screen first, then the phone and e-mail of the hidden column, marked.
+  await showPart(frame, "cap-actions"); // r5-02: Do
   const rows = frame.getByTestId("cap-action");
   await expect(rows).toHaveCount(4);
   const texts = await frame.getByTestId("cap-action-text").allTextContents();

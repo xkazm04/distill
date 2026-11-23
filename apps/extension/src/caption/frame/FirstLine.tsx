@@ -6,23 +6,26 @@ import "./more.css";
 import { fit, type FactChip, type Sentence } from "./lineParts";
 import type { Part } from "./parts";
 
-/** The room the line has: the row's width less what else sits on the same visual line (the mark, the AI chip, and on
- *  a wide strip the buttons). */
+/** The room the line has: the row's width less what else shares its line: the mark and the AI chip always (they come
+ *  before the spacer), and the buttons after the spacer unless the spacer breaks the row in two (a phone). Read from
+ *  the DOM order, not from where things sit now, so a chip pushed to a line of its own is still counted. */
 function roomFor(line: HTMLElement): number {
   const row = line.parentElement;
   if (!row) return line.clientWidth;
   const cs = getComputedStyle(row);
   const gap = parseFloat(cs.columnGap) || 0;
-  const lr = line.getBoundingClientRect();
+  const inner = row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   let used = 0;
   let others = 0;
+  let afterBreak = false;
   for (const el of Array.from(row.children) as HTMLElement[]) {
-    if (el === line || el.classList.contains("sp") || el.classList.contains("fl-measure") || el.classList.contains("vh")) continue;
+    if (el.classList.contains("sp")) { afterBreak = el.getBoundingClientRect().width >= inner - 1; continue; }
+    if (afterBreak || el === line || el.classList.contains("fl-measure") || el.classList.contains("vh")) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0) continue;
-    if (r.top < lr.bottom - 2 && r.bottom > lr.top + 2) { used += r.width; others++; }
+    used += r.width; others++;
   }
-  return Math.floor(row.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - used - gap * others);
+  return Math.floor(inner - used - gap * others);
 }
 
 export function FirstLine(props: { sentence: Sentence; chips: FactChip[]; full: string; open: (part: Part) => void; wrap?: boolean }) {
