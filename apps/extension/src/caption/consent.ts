@@ -193,6 +193,9 @@ export const pressedVia = (doc: Document): string | undefined => pressed.get(doc
  * cookie notice (page.ts passes them; the frame's switch leaves it out and the last ones are used). A banner is answered
  * at most once per page load; a press already made stays "rejected" whatever the switch says now.
  */
+/** On a cookie banner whose reject button Distill pressed (r3-04). */
+export const ANSWERED = "data-distill-answered";
+
 export function setConsent(doc: Document, on: boolean, banners?: readonly Element[]): ConsentOutcome {
   if (banners) known = [...banners];
   if (pressed.has(doc)) return (last = "rejected");
@@ -202,6 +205,9 @@ export function setConsent(doc: Document, on: boolean, banners?: readonly Elemen
   const found = findReject(doc, known);
   if (found) {
     pressed.set(doc, found.via);
+    // The banner this answered: the site removes or hides it itself once told no, so Original cannot show it again
+    // (the press cannot be taken back). Marked so anyone checking Original knows why it stays away.
+    for (const b of known) if (b.contains(found.button) || known.length === 1) b.setAttribute(ANSWERED, "");
     found.button.click();
     return (last = "rejected");
   }
@@ -221,5 +227,6 @@ export async function consentAfterClean(doc: Document, banners: readonly Element
 
 /** Close: forget the banners (the press itself cannot be taken back, and is not made again on this page). */
 export function clearConsent(): void {
+  for (const b of known) b.removeAttribute(ANSWERED);
   known = [];
 }

@@ -2,7 +2,7 @@
 // each common banner system and for plain words; Accept and ambiguous buttons are never pressed; once per page load.
 // The real browser run is e2e/caption-consent.spec.ts.
 import { describe, expect, it } from "vitest";
-import { acceptsByWords, consentWanted, findReject, foldWords, parseConsentPrefs, rejectsByWords, setConsent } from "./consent";
+import { acceptsByWords, ANSWERED, clearConsent, consentWanted, findReject, foldWords, parseConsentPrefs, rejectsByWords, setConsent } from "./consent";
 
 /** A fresh document per test: a press is remembered per document (once per page load). Every button counts its clicks. */
 function page(html: string): { doc: Document; clicks: () => string[] } {
@@ -119,6 +119,10 @@ describe("plain banners, by their words", () => {
     const banner = doc.querySelector(".lista") as Element;
     expect(setConsent(doc, true, [banner])).toBe("rejected");
     expect(clicks()).toEqual(["r"]);
+    // Marked as answered (the site removes it once told no, so Original cannot show it again); close takes the mark off.
+    expect(banner.hasAttribute(ANSWERED)).toBe(true);
+    clearConsent();
+    expect(banner.hasAttribute(ANSWERED)).toBe(false);
   });
   it("a banner with only Accept and Settings is hidden, nothing pressed", () => {
     const { doc, clicks } = page(`<div class="lista"><button id="a">Accept</button><button id="s">Settings</button><a href="/privacy">Decline</a></div>`);

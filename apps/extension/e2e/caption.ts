@@ -178,10 +178,11 @@ export function measure(page: Page, base: Baseline): Promise<Measure> {
   }, base);
 }
 
-/** Share of the removed elements that are back on screen (Original on). Runs in the page. */
+/** Share of the removed elements that are back on screen (Original on). Runs in the page. A cookie banner Distill
+ *  answered (r3-04, data-distill-answered) is not counted: the site itself removes it once told no. */
 export function shownAgain(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const els = Array.from(document.querySelectorAll("[data-distill-hide]"));
+    const els = Array.from(document.querySelectorAll("[data-distill-hide]:not([data-distill-answered])"));
     if (!els.length) return 1;
     return els.filter((el) => getComputedStyle(el).display !== "none").length / els.length;
   });
