@@ -40,7 +40,8 @@ test("translate: a Czech page is translated in place on its own; Keep Czech, Ori
   await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
   await expect(frame.getByTestId("cap-keep-source")).toHaveCount(0); // while translating, the status says it; no button
   await expect(status).toContainText("Translated from Czech", { timeout: 15_000 });
-  expect(await firstSight(frame)).toMatch(/^Removed \d+ distractions · Translated from Czech$/);
+  // The claims to check (r2-01) follow the translation and may already be on the line.
+  expect(await firstSight(frame)).toMatch(/^Removed \d+ distractions · Translated from Czech( · \d+ claims? to check)?$/);
 
   // Where it ran, from the run's own answer; one quiet button; at most 5 controls.
   const chip = frame.getByTestId("cap-chip");
@@ -148,10 +149,12 @@ test("translate: a page in the reader's language and a copy with AI off do not s
   await fakeModel(distill.worker);
   await startCaption(distill.worker, en.id);
   const enFrame = await captionFrame(en.page);
-  expect(await firstSight(enFrame)).toBe("Removed 6 distractions");
+  // (The stand-in model is on, so the claims to check (r2-01) may join the line and the chip: Translate stays idle.)
+  expect(await firstSight(enFrame)).toMatch(/^Removed 6 distractions( · \d+ claims? to check)?$/);
   await en.page.waitForTimeout(500);
   await expect(en.page.locator("[data-distill-translated]")).toHaveCount(0);
-  await expect(enFrame.getByTestId("cap-chip")).toHaveText("No AI used");
+  await expect(enFrame.getByTestId("cap-chip")).toHaveAttribute("data-translate", "idle");
+  await expect(enFrame.getByTestId("cap-status")).not.toContainText("Translat");
 });
 
 /** Counts what the page side tells the frames (distill:caption:moreText reaches the service worker too). */
