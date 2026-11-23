@@ -32,7 +32,7 @@ const CSS = [
   `::highlight(${SHOW_HIGHLIGHT}) { background-color: Mark; color: MarkText; }`,
 ].join("\n");
 
-interface Where { el: Element; nodes: Text[] }
+export interface Where { el: Element; nodes: Text[] }
 interface Known { item: ActionItem; where: Where }
 
 /** The last readActions: id -> the item and where it was found. Never leaves the page. */
@@ -50,6 +50,18 @@ const CONTACT_LEAD: Record<string, string> = { phone: "Call", email: "Write to",
 
 /** Whether `el` is a part of the page the person sees now: not hidden by Clean, not inside a form control. */
 const visible = (el: Element): boolean => !el.closest(`[${HIDE}]`);
+/** In a part Clean itself hid (one of its removed items), not one the page hides. */
+const hiddenByClean = (ctx: CleanContext, el: Element): boolean => {
+  const part = el.closest(`[${HIDE}]`);
+  return !!part && Array.from(ctx.removed.values()).includes(part);
+};
+/** Pages whose hidden parts' contacts are asked of the reader: a form to an office (a village's fault report: the page is
+ *  for its form, though its text may outweigh it), a letter. Elsewhere (an article, a company's page, a listing) a
+ *  hidden footer's contacts are the publisher's (r3-09 kept them out). */
+const FROM_HIDDEN = new Set<string>(["form", "letter"]);
+const NEVER_FROM_HIDDEN = new Set<string>(["article", "thread", "listing"]);
+const fromHiddenOn = (ctx: CleanContext): boolean => !!ctx.kind && (FROM_HIDDEN.has(ctx.kind)
+  || (!NEVER_FROM_HIDDEN.has(ctx.kind) && ctx.protect.some((p) => p.localName === "form")));
 
 /**
  * What this page asks of you, in reading order (ids `a0`, `a1`, ...): the main text's deadlines, sums, things to bring,
@@ -72,10 +84,17 @@ export function readActions(ctx: CleanContext): ActionItem[] {
   const contacts = findContacts(doc, { url: doc.location?.href ?? "", onElement: (id, el) => els.set(id, el) });
   const have = new Set(found.map((f) => keyOf(f.item)));
   let added = 0;
+  // r4-01: an office's page (a village's fault-report form) keeps its phone and e-mail in a side column or footer that
+  // Clean hid. There those count too, marked "in a part Distill hid" (after the ones on screen); on an article, a
+  // company's page or a listing they are the publisher's, not something the page asks of the reader.
+  const fromHidden = fromHiddenOn(ctx);
+  const later: { c: (typeof contacts)[number]; el: Element }[] = [];
   for (const c of contacts) {
     if (c.kind === "contactPage" || added >= MAX_CONTACTS) continue;
     const el = els.get(c.id);
-    if (!el || !visible(el) || !nearMain(ctx, el)) continue;
+    if (!el) continue;
+    if (!visible(el)) { if (fromHidden && hiddenByClean(ctx, el)) later.push({ c, el }); continue; }
+    if (!nearMain(ctx, el)) continue;
     const item: FoundAction = {
       id: "", kind: c.kind === "hours" ? "hours" : "contact", text: `${CONTACT_LEAD[c.kind] ?? ""} ${c.text}`.trim(),
       blockId: "", quote: c.text, value: c.text,
@@ -100,8 +119,25 @@ export function readActions(ctx: CleanContext): ActionItem[] {
     added++;
     found.push({ item, where: { el, nodes: [] }, at: 0 });
   }
+  const hidden = new Set<FoundAction>();
+  for (const { c, el } of later) {
+    if (added >= MAX_CONTACTS) break;
+    const item: FoundAction = {
+      id: "", kind: c.kind === "hours" ? "hours" : "contact", text: `${CONTACT_LEAD[c.kind] ?? ""} ${c.text}`.trim(),
+      blockId: "", quote: c.text, value: c.text,
+    };
+    if (c.href) item.href = c.href;
+    const k = keyOf(item);
+    if (have.has(k)) continue;
+    have.add(k);
+    added++;
+    hidden.add(item);
+    found.push({ item, where: { el, nodes: [] }, at: 0 });
+  }
 
-  found.sort((a, b) => (a.where.el === b.where.el ? a.at - b.at : a.where.el.compareDocumentPosition(b.where.el) & 4 /* FOLLOWING */ ? -1 : 1));
+  // Reading order; what sits in a part Distill hid comes after what is on screen.
+  found.sort((a, b) => Number(hidden.has(a.item)) - Number(hidden.has(b.item))
+    || (a.where.el === b.where.el ? a.at - b.at : a.where.el.compareDocumentPosition(b.where.el) & 4 /* FOLLOWING */ ? -1 : 1));
   known = new Map();
   // Block ids name the element each was found in ("w0", "w1", ...), so two items of one block share one.
   const blockIds = new Map<Element, string>();
@@ -110,6 +146,7 @@ export function readActions(ctx: CleanContext): ActionItem[] {
     let blockId = blockIds.get(f.where.el);
     if (!blockId) { blockId = `w${blockIds.size}`; blockIds.set(f.where.el, blockId); }
     const item: ActionItem = { ...f.item, id, blockId };
+    if (hidden.has(f.item)) item.hidden = true;
     known.set(id, { item, where: f.where });
     return item;
   });
@@ -142,13 +179,15 @@ function nodesOf(w: Where): Text[] {
 
 /** A range over the exact words `quote` (any run of spaces matching any other) in `w` as its text stands now, or null.
  *  Short words too ("377 912 345"): claims' rangeOf looks for sentences only. */
-function rangeOfQuote(doc: Document, w: Where, quote: string): Range | null {
+export function rangeOfQuote(doc: Document, w: Where, quote: string): Range | null {
   let flat = "";
   const at: { node: Text; offset: number }[] = [];
   let prev: Text | null = null;
   for (const node of nodesOf(w)) {
     const value = node.nodeValue ?? "";
-    if (prev && prev.nextSibling !== node && node.previousSibling?.nodeName === "BR" && !/\s$/.test(flat)) {
+    // A line break or another block between two text nodes is a space between their words.
+    if (prev && flat && !/\s$/.test(flat)
+      && ((prev.nextSibling !== node && node.previousSibling?.nodeName === "BR") || blockOf(prev, w.el) !== blockOf(node, w.el))) {
       flat += " ";
       at.push({ node, offset: 0 });
     }
@@ -161,14 +200,56 @@ function rangeOfQuote(doc: Document, w: Where, quote: string): Range | null {
     prev = node;
   }
   const want = quote.replace(/\s+/g, " ").trim();
-  const start = want ? flat.indexOf(want) : -1;
+  let start = want ? flat.indexOf(want) : -1;
+  let end = start + want.length;
+  // r4-01: an address written over several lines ("Rovná 235<br>Jablonec nad Nisou - Kokonín<br>468 01") is listed
+  // as one line in another order ("Rovná 235, 468 01 Jablonec nad Nisou - Kokonín"): its words, close together.
+  if (start < 0) [start, end] = spanOfWords(flat, want) ?? [-1, -1];
   const first = at[start];
-  const last = at[start + want.length - 1];
+  const last = at[end - 1];
   if (start < 0 || !first || !last) return null;
   const range = doc.createRange();
   range.setStart(first.node, first.offset);
   range.setEnd(last.node, last.offset + 1);
   return range;
+}
+
+const BLOCK = /^(p|div|li|h[1-6]|td|th|tr|dd|dt|section|article|address|blockquote|header|footer|ul|ol|dl|table|figure|figcaption|pre)$/;
+/** The nearest block element around a text node, up to `top`. */
+function blockOf(n: Node, top: Element): Element {
+  for (let e = n.parentElement; e && e !== top; e = e.parentElement) if (BLOCK.test(e.localName)) return e;
+  return top;
+}
+
+/**
+ * Where every word of `want` (split at spaces and commas) stands in `flat`, in any order, within a short stretch: the
+ * shortest such stretch, as [start, end), or null. The stretch is at most twice the quote's length (plus a line's
+ * slack), so words found far apart (a postcode in another paragraph) never make one highlight.
+ */
+export function spanOfWords(flat: string, want: string): [number, number] | null {
+  const words = want.split(/[\s,;]+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
+  if (words.length < 2) return null;
+  const [lead, ...rest] = [...words].sort((a, b) => b.length - a.length) as [string, ...string[]];
+  const limit = want.length * 2 + 20;
+  let best: [number, number] | null = null;
+  for (let at = flat.indexOf(lead); at >= 0; at = flat.indexOf(lead, at + 1)) {
+    let lo = at;
+    let hi = at + lead.length;
+    let ok = true;
+    for (const w of rest) {
+      // The nearest place of this word to the lead word, before or after it.
+      const from = Math.max(0, at - limit);
+      let pick = -1;
+      for (let i = flat.indexOf(w, from); i >= 0 && i <= at + limit; i = flat.indexOf(w, i + 1)) {
+        if (pick < 0 || Math.abs(i - at) < Math.abs(pick - at)) pick = i;
+      }
+      if (pick < 0) { ok = false; break; }
+      lo = Math.min(lo, pick);
+      hi = Math.max(hi, pick + w.length);
+    }
+    if (ok && hi - lo <= limit && (!best || hi - lo < best[1] - best[0])) best = [lo, hi];
+  }
+  return best;
 }
 
 function ensureStyle(doc: Document): void {

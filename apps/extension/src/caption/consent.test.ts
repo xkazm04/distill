@@ -2,7 +2,8 @@
 // each common banner system and for plain words; Accept and ambiguous buttons are never pressed; once per page load.
 // The real browser run is e2e/caption-consent.spec.ts.
 import { describe, expect, it } from "vitest";
-import { acceptsByWords, ANSWERED, clearConsent, consentWanted, findReject, foldWords, parseConsentPrefs, rejectsByWords, setConsent } from "./consent";
+import { Window } from "happy-dom";
+import { acceptsByWords, ANSWERED, clearConsent, consentWanted, findReject, foldWords, onConsentLater, parseConsentPrefs, pressedVia, rejectsByWords, setConsent } from "./consent";
 
 /** A fresh document per test: a press is remembered per document (once per page load). Every button counts its clicks. */
 function page(html: string): { doc: Document; clicks: () => string[] } {
@@ -19,7 +20,7 @@ describe("the words of a button", () => {
   it.each([
     "Reject all", "REJECT ALL", "Reject All Cookies", "Decline", "Deny", "Refuse all", "I do not accept", "Only necessary",
     "Necessary only", "Use necessary cookies only", "Allow only necessary cookies", "Accept only necessary", "Continue without accepting",
-    "Odmítnout vše", "Odmítnout", "Nesouhlasím", "Pouze nezbytné", "Jen nezbytné", "Povolit pouze nezbytné", "Pokračovat bez souhlasu",
+    "Odmítnout vše", "Odmítnout", "Zamítnout vše", "Nesouhlasím", "Pouze nezbytné", "Jen nezbytné", "Povolit pouze nezbytné", "Pokračovat bez souhlasu",
     "Odmietnuť všetko", "Alle ablehnen", "Nur notwendige", "Tout refuser", "Continuer sans accepter", "Odrzuć wszystkie",
   ])("%s rejects", (w) => {
     expect(rejectsByWords(foldWords(w))).toBe(true);
@@ -134,6 +135,70 @@ describe("plain banners, by their words", () => {
     expect(findReject(doc, [])).toBeNull();
     expect(setConsent(doc, true, [])).toBe("none");
     expect(clicks()).toEqual([]);
+  });
+});
+
+describe("Didomi without a reject button on its notice (r4-01, Deník)", () => {
+  /** In a live window (a timer runs): the notice offers only Podrobné nastavení and Souhlasím; the first opens the
+   *  choices a moment later, with Zamítnout vše and Povolit vše. */
+  async function didomi(choices: string): Promise<{ doc: Document; clicks: string[]; close: () => Promise<void> }> {
+    const w = new Window({ url: "https://www.denik.example/clanek/" });
+    const doc = w.document as unknown as Document;
+    doc.body.innerHTML = `<p>Článek.</p><div id="didomi-host"><div id="didomi-popup"><div id="didomi-notice">
+      <button id="didomi-notice-learn-more-button">Podrobné nastavení</button><button id="didomi-notice-agree-button">Souhlasím</button></div></div></div>`;
+    const clicks: string[] = [];
+    doc.addEventListener("click", (e) => { const b = e.target as Element; clicks.push(b.id); }, true);
+    doc.getElementById("didomi-notice-learn-more-button")?.addEventListener("click", () => {
+      w.setTimeout(() => {
+        const host = doc.getElementById("didomi-host") as Element;
+        host.innerHTML = `<div class="didomi-consent-popup-preferences">${choices}</div>`;
+      }, 250);
+    });
+    return { doc, clicks, close: () => w.happyDOM.close() };
+  }
+
+  it("opens its own choices, then presses Zamítnout vše there; the strip hears it", async () => {
+    const { doc, clicks, close } = await didomi(`<button id="btn-toggle-disagree" aria-label="Zamítnout vše: Nesouhlasit s naším zpracováním údajů a zavřít">Zamítnout vše</button>
+      <button id="btn-toggle-agree">Povolit vše</button>`);
+    try {
+      const heard: string[] = [];
+      onConsentLater((o) => heard.push(o));
+      expect(setConsent(doc, true, [doc.getElementById("didomi-host") as Element])).toBe("hidden");
+      expect(clicks).toEqual(["didomi-notice-learn-more-button"]);
+      // Asked again while the choices open (Stay clean): nothing more is pressed.
+      expect(setConsent(doc, true)).toBe("hidden");
+      await new Promise((r) => setTimeout(r, 700));
+      expect(clicks).toEqual(["didomi-notice-learn-more-button", "btn-toggle-disagree"]);
+      expect(heard).toEqual(["rejected"]);
+      expect(setConsent(doc, true)).toBe("rejected");
+      expect(pressedVia(doc)).toBe("Didomi (choices)");
+    } finally {
+      onConsentLater(null);
+      await close();
+    }
+  });
+
+  it("choices without a reject button: nothing else is pressed, the notice stays hidden", async () => {
+    const { doc, clicks, close } = await didomi(`<button id="btn-toggle-agree">Povolit vše</button><button id="btn-toggle-disagree">Souhlasím se vším</button>`);
+    try {
+      expect(setConsent(doc, true, [doc.getElementById("didomi-host") as Element])).toBe("hidden");
+      await new Promise((r) => setTimeout(r, 700));
+      expect(clicks).toEqual(["didomi-notice-learn-more-button"]);
+    } finally {
+      await close();
+    }
+  }, 10_000);
+
+  it("never opens the choices from a button whose words say yes", async () => {
+    const { doc, clicks, close } = await didomi("");
+    try {
+      const b = doc.getElementById("didomi-notice-learn-more-button") as Element;
+      b.textContent = "Souhlasím a zavřít";
+      expect(setConsent(doc, true, [doc.getElementById("didomi-host") as Element])).toBe("hidden");
+      expect(clicks).toEqual([]);
+    } finally {
+      await close();
+    }
   });
 });
 

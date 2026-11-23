@@ -252,24 +252,81 @@ function darken(doc: Document, win: Window): void {
   if (doc.body) visit(s, win, doc.body, root, budget);
   html.setAttribute(ON, "");
 
-  // New parts of the page, darkened as they come in (batched).
+  // New parts of the page, and parts that change later (a menu that opens, a box whose class or style changes), are
+  // darkened as they come in or change (batched).
   const pending = new Set<Element>();
   s.observer = new MutationObserver((records) => {
-    for (const r of records) for (const n of Array.from(r.addedNodes)) if (n.nodeType === 1) pending.add(n as Element);
+    for (const r of records) {
+      if (r.type === "attributes") { if (r.target.nodeType === 1) pending.add(r.target as Element); continue; }
+      for (const n of Array.from(r.addedNodes)) if (n.nodeType === 1) pending.add(n as Element);
+    }
     if (!pending.size || s.timer) return;
     s.timer = win.setTimeout(() => {
       s.timer = 0;
       if (state !== s) return;
-      const b = { n: MAX_ELEMENTS };
-      for (const el of pending) {
-        if (!el.isConnected || s.seen.has(el)) continue;
-        const above = seenAbove(s, el);
-        if (above) visit(s, win, el, above, b);
-      }
+      const list = Array.from(pending);
       pending.clear();
+      lookAgain(s, win, list);
     }, 200);
   });
-  if (doc.body) s.observer.observe(doc.body, { childList: true, subtree: true });
+  if (doc.body) s.observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: FOLLOW });
+}
+
+/** The attributes whose change can change an element's colours or whether it shows. */
+const FOLLOW = ["class", "style", "hidden", "open"];
+/** A changed part with at most this many elements inside is looked at again whole; a bigger one (the body taking a
+ *  class on scroll) only itself and the parts inside it that were never looked at (they were hidden then). */
+const WHOLE_AGAIN = 400;
+
+/**
+ * Looks again at parts that came in or changed (r4-01). A part never looked at starts from the highest part above it
+ * that was not looked at either (a link inside a menu that was closed starts from the menu). A changed part that was
+ * looked at loses its marks first, so its colours are read as the page now makes them.
+ */
+function lookAgain(s: State, win: Window, els: readonly Element[]): void {
+  const roots = new Set<Element>();
+  for (const el of els) {
+    if (!el.isConnected || el.closest("distill-caption") || KEEP.has(el.localName)) continue;
+    let top = el;
+    while (top.parentElement && !s.seen.has(top) && !s.seen.has(top.parentElement)) top = top.parentElement;
+    if (!top.parentElement || !s.seen.has(top.parentElement)) continue; // outside what was looked at (a detached tree)
+    roots.add(top);
+  }
+  // A part inside another that is looked at again goes with it.
+  const all = Array.from(roots);
+  const list = all.filter((el) => !all.some((o) => o !== el && o.contains(el)));
+  const budget = { n: MAX_ELEMENTS };
+  for (const el of list) {
+    const above = seenAbove(s, el);
+    if (!above) continue;
+    if (!s.seen.has(el) || el.getElementsByTagName("*").length <= WHOLE_AGAIN) {
+      unmark(s, el, true);
+      visit(s, win, el, above, budget);
+      continue;
+    }
+    // A big part: itself again, its children as they were, and inside it what shows now but was never looked at.
+    unmark(s, el, false);
+    visit(s, win, el, above, { n: 1 });
+    if (!s.seen.has(el)) continue; // it no longer shows
+    const walk = (p: Element) => {
+      for (let c = p.firstElementChild; c; c = c.nextElementSibling) {
+        if (budget.n <= 0) return;
+        if (s.seen.has(c)) walk(c);
+        else { const up = seenAbove(s, c); if (up) visit(s, win, c, up, budget); }
+      }
+    };
+    walk(el);
+  }
+}
+
+/** Takes Distill's mark off `el` (and below when `deep`) and forgets what was seen there. */
+function unmark(s: State, el: Element, deep: boolean): void {
+  const all = deep ? [el, ...Array.from(el.querySelectorAll(`[${MARK}]`))] : [el];
+  for (const e of all) {
+    e.removeAttribute(MARK);
+    s.marked.delete(e);
+    s.seen.delete(e);
+  }
 }
 
 /** The canvas colour: the root's background, else body's (CSS propagates it), else white. */

@@ -75,6 +75,44 @@ describe("the page", () => {
     expect(document.documentElement.outerHTML).toBe(before);
   });
 
+  it("follows parts that change later: a menu that opens by its class, a box whose style turns light (r4-01)", async () => {
+    const sheet = document.createElement("style");
+    sheet.id = "t-sheet";
+    sheet.textContent = ".menu { display: none; background-color: rgb(255, 255, 255); color: rgb(34, 34, 34); } .menu.open { display: block; }"
+      + " .nav.on .sub { display: block; } .sub { display: none; background-color: rgb(250, 250, 250); }";
+    document.head.append(sheet);
+    document.body.setAttribute("style", "background-color: rgb(255, 255, 255); color: rgb(17, 17, 17)");
+    document.body.innerHTML = `<p>Text</p><div id="menu" class="menu"><a id="link" href="#">Item</a></div><div id="box">Box</div>
+      <nav id="nav" class="nav"><ul id="sub" class="sub"><li>Sub</li></ul></nav>`;
+    try {
+      setDark(document, window, true);
+      expect(document.getElementById("menu")?.hasAttribute("data-distill-dark")).toBe(false); // hidden: not looked at yet
+      const ruleOf = (id: string) => {
+        const css = document.querySelector('style[data-distill="dark"]')?.textContent ?? "";
+        const mark = document.getElementById(id)?.getAttribute("data-distill-dark");
+        return mark ? css.split("\n").find((l) => l.includes(`"${mark}"`)) ?? "" : "";
+      };
+      expect(ruleOf("box")).not.toContain("background-color"); // no background of its own yet
+      document.getElementById("menu")?.classList.add("open");
+      document.getElementById("box")?.setAttribute("style", "background-color: rgb(255, 248, 220)");
+      document.getElementById("nav")?.classList.add("on");
+      await new Promise((r) => setTimeout(r, 300));
+      for (const id of ["menu", "box", "sub"]) expect(document.getElementById(id)?.getAttribute("data-distill-dark"), id).toBeTruthy();
+      const css = document.querySelector('style[data-distill="dark"]')?.textContent ?? "";
+      const rule = css.split("\n").find((l) => l.includes(`"${document.getElementById("box")?.getAttribute("data-distill-dark")}"`)) ?? "";
+      expect(luminance(parseColor(/background-color: ([^!]+) !important/.exec(rule)?.[1]) as Rgba)).toBeLessThan(0.05);
+      // The box changes back to no background: its mark goes, as the page made it.
+      document.getElementById("box")?.removeAttribute("style");
+      await new Promise((r) => setTimeout(r, 300));
+      expect(document.getElementById("box")?.hasAttribute("data-distill-dark")).toBe(false);
+      // Off takes the later marks away too.
+      setDark(document, window, false);
+      expect(document.querySelectorAll("[data-distill-dark]").length).toBe(0);
+    } finally {
+      sheet.remove();
+    }
+  });
+
   it("a page that is dark already is left alone", () => {
     document.body.setAttribute("style", "background-color: rgb(18, 18, 18); color: rgb(230, 230, 230)");
     document.body.innerHTML = `<p>Dark text page</p>`;

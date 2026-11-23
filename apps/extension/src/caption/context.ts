@@ -12,6 +12,8 @@ export interface CleanContext {
   protect: readonly Element[];
   /** Item id -> the element Clean hid. */
   removed: ReadonlyMap<string, Element>;
+  /** What the page is (the page reader's PageKind: article, form, ...), when Clean read it (r4-01). */
+  kind?: string;
 }
 
 /** The smallest element holding both. */

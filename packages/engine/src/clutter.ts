@@ -11,7 +11,9 @@ export type ClutterKind =
   // Things that float over the page (#4): small widgets docked to an edge or a corner of the window.
   | "chat" | "feedback" | "player" | "appBanner" | "backToTop"
   // Round 3 (r3-01): a "follow us on Google News" box, the site promoting itself inside the article.
-  | "promo";
+  | "promo"
+  // Round 4 (r4-01): an empty box inside the main text that only holds space (findEmptySpace).
+  | "space";
 
 export interface ClutterItem {
   /** `c0`, `c1`, ... in document order. Stable within one call. */
@@ -40,6 +42,7 @@ export const CLUTTER_LABELS: Record<ClutterKind, string> = {
   appBanner: "App banner",
   backToTop: "Back to top button",
   promo: "Site promotion",
+  space: "Empty space",
 };
 
 /** Where a box sits in the window, in CSS px (getBoundingClientRect plus the window's size). */
@@ -483,6 +486,81 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
     opts.onElement?.(id, el);
     return { id, kind, label: CLUTTER_LABELS[kind] };
   });
+}
+
+/** An empty box between paragraphs is this tall (CSS px), or it is something else (a rule, a large placeholder). */
+export const EMPTY_SPACE_MIN = 20;
+export const EMPTY_SPACE_MAX = 120;
+/** Never an empty space: table parts (hiding one breaks the table), list items, rules, media, form controls. */
+const NOT_SPACE = new Set(["td", "th", "tr", "tbody", "thead", "tfoot", "col", "colgroup", "caption", "li", "dt", "dd", "hr", "br",
+  "img", "picture", "video", "audio", "iframe", "canvas", "svg", "object", "embed", "input", "select", "textarea", "button", "label", "form",
+  "fieldset", "option", "map", "area", "math", "script", "style", "noscript", "template"]);
+const DRAWS = "img, picture, video, audio, iframe, canvas, svg, object, embed, input, select, textarea, button, math";
+/** Displays of a box that holds space in the flow (not inline text, not a table part). */
+const BOX_DISPLAY = /^(block|flex|grid|flow-root|list-item)$/;
+
+export interface EmptySpaceOptions {
+  /** Content and what holds it: never an empty space, looked into. */
+  keep: readonly Element[];
+  /** A part already hidden (by Clean): neither looked into nor counted as something the box holds. */
+  hidden: (el: Element) => boolean;
+  /** Its size as laid out now, after what Clean hid. */
+  size: (el: Element) => { width: number; height: number };
+  /** Its CSS display; whether it has a background picture (url); the words CSS draws in it (::before, ::after). */
+  display: (el: Element) => string;
+  /** Its CSS position: a box taken out of the flow (absolute, fixed) floats over something and holds no space. */
+  position?: (el: Element) => string;
+  picture: (el: Element) => boolean;
+  label: (el: Element) => string;
+}
+
+/**
+ * Empty boxes inside the main column whose only job now is to hold space (r4-01): a grey placeholder bar between two
+ * paragraphs, the padded frame left of a "read also" box Clean hid. Each has no text, no picture or media (an element
+ * or a background picture), no form control and no words drawn by CSS, once what Clean hid is left out; it is a box in
+ * the flow (block, flex, grid), wider than tall, and EMPTY_SPACE_MIN-EMPTY_SPACE_MAX px high. Outermost first, in
+ * document order. Pure reading: layout comes from the caller.
+ */
+export function findEmptySpace(main: Element, opts: EmptySpaceOptions): Element[] {
+  // Content inside a hidden part (a "read also" title Clean hid with its box) holds nothing open any more.
+  const shownUp = (k: Element): boolean => {
+    for (let e: Element | null = k; e && e !== main; e = e.parentElement) if (opts.hidden(e)) return false;
+    return true;
+  };
+  const keep = opts.keep.filter((k) => main.contains(k) || k.contains(main)).filter(shownUp);
+  const chain = new Set<Element>();
+  for (const k of keep) for (let e: Element | null = k; e && !chain.has(e); e = e.parentElement) chain.add(e);
+  const insideKeep = (el: Element): boolean => keep.some((k) => k.contains(el));
+  /** What the box holds that a person would see, leaving out what is hidden. */
+  const holds = (el: Element): boolean => {
+    if (collapse(opts.label(el))) return true;
+    if (el.matches(DRAWS) || opts.picture(el)) return true;
+    for (let n = el.firstChild; n; n = n.nextSibling) {
+      if (n.nodeType === 3 && /\S/.test(n.nodeValue ?? "")) return true;
+      if (n.nodeType !== 1) continue;
+      const c = n as Element;
+      if (/^(script|style|noscript|template|link|meta|br|wbr|head)$/.test(tag(c))) continue;
+      if (opts.hidden(c)) continue;
+      if (holds(c)) return true;
+    }
+    return false;
+  };
+  const out: Element[] = [];
+  const visit = (el: Element): void => {
+    for (const c of Array.from(el.children)) {
+      const t = tag(c);
+      if (opts.hidden(c) || SKIP_TAGS.has(t) || t === "distill-caption") continue;
+      if (chain.has(c)) { visit(c); continue; }
+      if (insideKeep(c)) continue; // a paragraph's own inline parts
+      if (holds(c)) { visit(c); continue; }
+      if (NOT_SPACE.has(t) || Array.from(c.attributes).some((a) => a.name.startsWith("data-distill"))) continue;
+      if (!BOX_DISPLAY.test(opts.display(c)) || /^(absolute|fixed)$/.test(opts.position?.(c) ?? "static")) continue;
+      const { width, height } = opts.size(c);
+      if (height >= EMPTY_SPACE_MIN && height <= EMPTY_SPACE_MAX && width > height) out.push(c);
+    }
+  };
+  visit(main);
+  return out;
 }
 
 /** "17 distractions" in plain words, for the caption's status line. */

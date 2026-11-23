@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clutterSummary, extractPage, findClutter } from "../src/index.js";
+import { CLUTTER_LABELS, clutterSummary, extractPage, findClutter, findEmptySpace } from "../src/index.js";
 import { parse } from "./helpers.js";
 import news from "./fixtures/news-article.html?raw";
 import czech from "./fixtures/czech-residence-form.html?raw";
@@ -351,5 +351,60 @@ describe("a Subscribe button is not a newsletter sign-up", () => {
     const names = kinds.map(([n]) => n);
     expect(names).not.toContain("subscribe-button");
     expect(names).toContain("subscribe");
+  });
+});
+
+describe("findEmptySpace: empty boxes inside the main text (r4-01)", () => {
+  // Layout in a test document comes from data-* attributes: data-h (height), data-w (width, default 640), data-d
+  // (display, default block), data-pic (a background picture), data-label (words CSS draws).
+  const opts = (keep: Element[]) => ({
+    keep,
+    hidden: (el: Element) => el.hasAttribute("data-distill-hide"),
+    size: (el: Element) => ({ width: Number(el.getAttribute("data-w") ?? 640), height: Number(el.getAttribute("data-h") ?? 200) }),
+    display: (el: Element) => el.getAttribute("data-d") ?? "block",
+    position: (el: Element) => el.getAttribute("data-pos") ?? "static",
+    picture: (el: Element) => el.hasAttribute("data-pic"),
+    label: (el: Element) => el.getAttribute("data-label") ?? "",
+  });
+  const page = `<main id="main">
+      <p id="p1">First paragraph of the article, a real one.</p>
+      <div id="bar" data-h="24"></div>
+      <article id="related" data-h="32"><div><article class="js-related-article" data-distill-hide="c3"><a id="ra" href="/x">Read also</a><img src="a.jpg"></article></div></article>
+      <div id="overlay" data-h="60" data-pos="absolute"></div>
+      <p id="empty-p" data-h="22">&nbsp;</p>
+      <figure id="fig" data-h="300"><img src="photo.jpg"></figure>
+      <div id="pic" data-h="60" data-pic></div>
+      <div id="label" data-h="40" data-label="Reklama"></div>
+      <div id="tall" data-h="300"></div>
+      <div id="thin" data-h="8"></div>
+      <div id="narrow" data-h="60" data-w="40"></div>
+      <span id="inline" data-h="24" data-d="inline"></span>
+      <hr id="rule" data-h="24">
+      <div id="field" data-h="40"><input name="q"></div>
+      <table><tbody><tr><td id="cell" data-h="24"></td></tr></tbody></table>
+      <p id="p2">Second paragraph of the article, a real one too.</p>
+    </main>`;
+
+  it("finds the empty bar and the frame left of a hidden box; keeps every paragraph, picture, field and table part", () => {
+    const doc = parse(page);
+    // The page reader read the hidden box's title too: it holds nothing open now.
+    const keep = [doc.getElementById("p1"), doc.getElementById("p2"), doc.getElementById("fig"), doc.getElementById("ra")] as Element[];
+    const found = findEmptySpace(doc.getElementById("main") as Element, opts(keep)).map((el) => el.id);
+    expect(found).toEqual(["bar", "related", "empty-p"]);
+    expect(CLUTTER_LABELS.space).toBe("Empty space");
+  });
+
+  it("a box whose hidden part comes back holds something again", () => {
+    const doc = parse(page);
+    doc.querySelector(".js-related-article")?.removeAttribute("data-distill-hide");
+    const keep = [doc.getElementById("p1"), doc.getElementById("p2")] as Element[];
+    expect(findEmptySpace(doc.getElementById("main") as Element, opts(keep)).map((el) => el.id)).not.toContain("related");
+  });
+
+  it("looks inside a box that holds content, never into content itself", () => {
+    const doc = parse(`<main id="main"><section id="s"><p id="p">A paragraph inside a section of the article.</p><div id="gap" data-h="30"></div></section>
+      <p id="q">Another paragraph <span id="sp" data-h="24" data-d="block"></span> with an empty span inside.</p></main>`);
+    const keep = [doc.getElementById("p"), doc.getElementById("q")] as Element[];
+    expect(findEmptySpace(doc.getElementById("main") as Element, opts(keep)).map((el) => el.id)).toEqual(["gap"]);
   });
 });
