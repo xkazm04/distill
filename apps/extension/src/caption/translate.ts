@@ -210,6 +210,25 @@ export function textBlocks(ctx: CleanContext): TextBlock[] {
   return pending(s);
 }
 
+/** A block of the main text with its element and text nodes (round 2: claims, gist, Show me). */
+export interface MainBlock { el: Element; nodes: Text[]; text: string }
+
+/**
+ * Round 2 (claims r2-01, gist r2-10): every block of the main text as the page shows it now, in document order, the
+ * same blocks Translate reads but whatever their language (textBlocks leaves out what is already in the reader's
+ * language) and without changing Translate's state. Contact-only blocks and blocks without letters are left out.
+ */
+export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">): MainBlock[] {
+  const roots = rootsOf(ctx).filter((el) => el.isConnected && !el.closest(SKIP)).sort(docOrder);
+  const top = roots.filter((el) => !roots.some((o) => o !== el && o.contains(el)));
+  const out: MainBlock[] = [];
+  for (const [el, nodes] of owned(top, new Set())) {
+    const text = wordsOf(nodes);
+    if (/\p{L}/u.test(text) && !contactOnly(text)) out.push({ el, nodes, text });
+  }
+  return out.sort((a, b) => docOrder(a.el, b.el));
+}
+
 function pending(s: State): TextBlock[] {
   return Array.from(s.units.values()).filter((u) => !s.done.has(u.el) && u.el.isConnected).map((u) => ({ id: u.id, text: u.source }));
 }

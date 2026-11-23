@@ -67,6 +67,9 @@ export type ContentRequest =
   | { type: "distill:caption:showText"; blockId: string; sentence: string }
   /** From the caption: take every claim mark off. */
   | { type: "distill:caption:clearClaims" }
+  /** From the caption: every block of the main text as the page shows it now, whatever its language (claims r2-01,
+   *  gist r2-10; their ids are what markClaims and showText name). Page text, kept inside the browser. */
+  | { type: "distill:caption:mainText" }
   /** From the caption: readable tables on (true) or off (r2-05). */
   | { type: "distill:caption:tables"; on: boolean }
   /** From the caption: link notes on (true) or off (r2-07). */
@@ -183,6 +186,7 @@ export interface ContentReplies {
   "distill:caption:markClaims": { marked: number };
   "distill:caption:showText": { found: boolean };
   "distill:caption:clearClaims": { ok: true };
+  "distill:caption:mainText": TextBlock[];
   "distill:caption:tables": { tables: number };
   "distill:caption:links": { ok: true };
 }

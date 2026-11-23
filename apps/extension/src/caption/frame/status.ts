@@ -9,14 +9,16 @@ export const langName = (code: string): string => {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** "Removed 6 distractions · 1 back · Paused 1 video · Page in Czech". */
-export function statusLine(report: CleanReport, translate: TranslateState): string {
+/** "Removed 6 distractions · 1 back · Paused 1 video · Page in Czech · 6 claims to check". */
+export function statusLine(report: CleanReport, translate: TranslateState, claims = 0): string {
   const parts = [clutterSummary(report.items)];
   if (report.restored.length) parts.push(`${report.restored.length} back`);
   if (report.calm.media) parts.push(`Paused ${plural(report.calm.media, "video", "videos")}`);
   // Translate (#10) words the language part while it runs and once it is done.
   const lang = languagePart(report, translate);
   if (lang) parts.push(lang);
+  // Claims to check (r2-01): only what the model kept, never the engine's candidates alone.
+  if (claims > 0) parts.push(`${plural(claims, "claim", "claims")} to check`);
   return parts.join(" · ");
 }
 
