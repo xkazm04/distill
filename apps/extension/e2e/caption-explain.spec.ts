@@ -71,9 +71,12 @@ test("explain: select words, press Explain, the answer on this device; Esc close
   await page.waitForTimeout(200);
   await shot(page, "r4-05-explain");
 
-  // The words are a person's choice: kept in no storage the extension has.
-  const stored = await distill.worker.evaluate(async () => JSON.stringify([
-    await chrome.storage.local.get(null), await chrome.storage.session.get(null), await chrome.storage.sync.get(null)]));
+  // The words are a person's choice: kept in no storage the extension has. (The e2e build's own keys are left out:
+  // r4-04's log of what went to the stand-in translator holds the page's text, which has these words in it too.)
+  const stored = await distill.worker.evaluate(async () => {
+    const own = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !k.startsWith("distill:e2e:")));
+    return JSON.stringify([own(await chrome.storage.local.get(null)), own(await chrome.storage.session.get(null)), own(await chrome.storage.sync.get(null))]);
+  });
   expect(stored).not.toContain("kontrolní");
 
   await page.keyboard.press("Escape");
