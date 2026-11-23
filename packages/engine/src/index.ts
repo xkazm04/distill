@@ -29,4 +29,4 @@ export { findClaimCandidates, parseClaims, CLAIM_WHY, type Claim, type ClaimPick
 export { parseCheck, CLAIM_VERDICTS, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
 export { parseGist, GIST_POINTS, type Gist, type GistPoint } from "./gist.js";
 export { keepsFacts, parsePlain, type PlainResult } from "./plain.js";
-export { describeLink, type LinkNote } from "./links.js";
+export { describeLink, readableHost, registrableDomain, PROGRAM_FILE_TYPES, TRACKING_PARAMS, type LinkNote } from "./links.js";
