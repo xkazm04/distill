@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string"
+    },
+    "blockId": {
+      "type": "string"
+    },
+    "sentence": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "answer",
+    "blockId",
+    "sentence"
+  ]
+}

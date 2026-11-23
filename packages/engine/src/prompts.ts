@@ -266,6 +266,22 @@ export const prompts = {
       "</blocks>",
     ].join("\n"),
 
+  /** Round 3 (r3-08): the person's own question about the page. A VALUES prompt (the question is typed): task askPage
+   *  routes only_on_device and never has a cloud model. The answer must rest on one sentence copied from the blocks. */
+  askPage: (question: string, blocks: readonly TranslateBlock[], readerLang = "en"): string =>
+    [
+      `Answer the question below using ONLY the blocks of the page that follow, in ${langName(readerLang)}, in one or two short plain sentences. Give the id of the block the answer comes from and copy the one sentence of that block it rests on exactly as written.`,
+      "If the blocks do not answer the question, answer with an empty answer: {\"answer\": \"\", \"blockId\": \"\", \"sentence\": \"\"}. Never guess and never use anything you know from elsewhere.",
+      "Answer with JSON only: {\"answer\": \"<answer>\", \"blockId\": \"<id>\", \"sentence\": \"<exact sentence>\"}. Plain text only: no HTML, no markdown.",
+      GUARD,
+      "<question>",
+      oneLine(question),
+      "</question>",
+      "<blocks>",
+      ...blocks.map((b) => `[${b.id}] ${oneLine(b.text)}`),
+      "</blocks>",
+    ].join("\n"),
+
   /** Card 4: plain words, in place. Same answer shape as translateBlocks (schemas.translate). */
   plainBlocks: (blocks: readonly TranslateBlock[], lang = "und"): string =>
     [
