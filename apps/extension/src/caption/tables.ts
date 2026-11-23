@@ -37,7 +37,11 @@ const WIDE_TALL_MAX = "70vh";
 const ON = `html:not([${ORIGINAL}]):not([${OFF}])`;
 
 interface Table { el: HTMLTableElement; id: string; head: Element; cards: boolean; bg: string | null }
-let state: { doc: Document; win: Window; tables: Table[]; style: HTMLStyleElement; onResize: () => void; timer: number } | null = null;
+let state: {
+  doc: Document; win: Window; tables: Table[]; style: HTMLStyleElement; onResize: () => void; onScroll: () => void; timer: number;
+  /** Where the headers stick now (px from the window's top), and a scroll's check of it waiting for the next frame. */
+  top: number; frame: number;
+} | null = null;
 
 // ---- Which tables hold data (pure DOM reading: no layout, unit-tested) ----
 
@@ -178,6 +182,7 @@ function stuckAtTop(doc: Document, win: Window): number {
   const seen = new Set<Element>();
   for (const x of [0.1, 0.5, 0.9].map((f) => Math.round(win.innerWidth * f))) {
     for (const hit of doc.elementsFromPoint(x, 1)) {
+      if (hit.closest(`[${MARK}]`)) continue; // never a table's own sticky header
       for (let e: Element | null = hit; e && e !== doc.body && e !== doc.documentElement; e = e.parentElement) {
         if (seen.has(e)) break;
         seen.add(e);
@@ -249,7 +254,22 @@ function measure(): void {
     if (s.wide && !carded) t.el.setAttribute(WIDE, "");
     if (s.tall && !carded) t.el.setAttribute(TALL, "");
   });
-  style.textContent = css(tables, stuckAtTop(doc, win));
+  state.top = stuckAtTop(doc, win);
+  style.textContent = css(tables, state.top);
+}
+
+/** A header that shows itself only once the page scrolls (many sites do that): while a table keeps its header in
+ *  view, each scroll looks again, once a frame, at what sticks at the top, so the table's header stays below it. */
+function recheckTop(): void {
+  if (!state || state.frame) return;
+  const s = state;
+  if (!s.tables.some((t) => t.el.hasAttribute(TALL)) || s.doc.documentElement.hasAttribute(OFF) || s.doc.documentElement.hasAttribute(ORIGINAL)) return;
+  s.frame = s.win.requestAnimationFrame(() => {
+    s.frame = 0;
+    if (state !== s) return;
+    const top = stuckAtTop(s.doc, s.win);
+    if (top !== s.top) { s.top = top; s.style.textContent = css(s.tables, top); }
+  });
 }
 
 /** Makes the main text's data tables readable; returns how many. Run again (Stay clean after the page changed), it
@@ -284,8 +304,10 @@ export function readableTables(ctx: CleanContext): number {
     win.clearTimeout(state.timer);
     state.timer = win.setTimeout(measure, 120);
   };
-  state = { doc, win, tables, style, onResize, timer: 0 };
+  const onScroll = () => recheckTop();
+  state = { doc, win, tables, style, onResize, onScroll, timer: 0, top: 0, frame: 0 };
   win.addEventListener("resize", onResize);
+  win.addEventListener("scroll", onScroll, { passive: true });
   measure();
   return tables.length;
 }
@@ -313,7 +335,9 @@ export function tableReport(): { id: string; cols: number; cards: boolean; wide:
 export function clearTables(doc: Document): void {
   if (state) {
     state.win.removeEventListener("resize", state.onResize);
+    state.win.removeEventListener("scroll", state.onScroll);
     state.win.clearTimeout(state.timer);
+    if (state.frame) state.win.cancelAnimationFrame(state.frame);
     state.style.remove();
     state = null;
   }
