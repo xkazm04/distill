@@ -3,6 +3,7 @@ import { publicUrl } from "./url.js";
 import { BLOCKISH, SKIP_TAGS, attr, blocked, collapse, isHidden, isNoise, pageLang, tag, textOf } from "./dom.js";
 import { buildBindings, listForms } from "./form.js";
 import { errorElements } from "./errors.js";
+import { boilerKind, inFigure, isCredit } from "./boiler.js";
 
 const SEMANTIC_ROOT = "main, article, [role=main]";
 
@@ -152,6 +153,8 @@ function collectBlocks(root: Element, url: string, formPage: boolean, isError: (
   const blocks: Block[] = [];
   const sources: Element[] = [];
   const push: Push = (b, el) => {
+    // A photo's credit is not a sentence of the page (r3-01).
+    if (b.kind === "paragraph" && isCredit(b.text, inFigure(el))) return;
     const last = blocks[blocks.length - 1];
     if (last && last.kind === b.kind && last.text === b.text && b.kind !== "image") return;
     blocks.push({ id: `b${blocks.length}`, ...b });
@@ -163,8 +166,9 @@ function collectBlocks(root: Element, url: string, formPage: boolean, isError: (
   // A control (input, textarea, select, a contenteditable editor) holds what a PERSON typed, never page content. It is
   // skipped everywhere, not only inside a <form>: an email draft in a contenteditable region is a value, and page
   // models feed cloud-eligible prompts (CLAUDE.md law: values never leave the device).
+  // A "read also" box, a "follow us on Google" promo and an ad slot's bare label are not the page's text (r3-01).
   const skipped = (el: Element): boolean =>
-    SKIP_TAGS.has(tag(el)) || isControl(el) || isHidden(el) || isError(el) || (isNoise(el) && !pageHeader(el));
+    SKIP_TAGS.has(tag(el)) || isControl(el) || isHidden(el) || isError(el) || (isNoise(el) && !pageHeader(el)) || boilerKind(el) !== null;
 
   const visit = (el: Element, isRoot: boolean): void => {
     const t = tag(el);
