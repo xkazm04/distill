@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Příspěvek na bydlení: kdo na něj má nárok – Krajský deník</title>
+<!-- Spark round 3 (r3-01): a Czech news article built like Deník's (2026-11-23): a photo with an agency credit, a
+     "Chcete upřednostnit v Google naše články?" promo between the photo and the lead, ad slots that draw their REKLAMA
+     label with CSS (one holds an ad frame, one is empty because no ad came), a "Čtěte také" box and a related list.
+     The main text must start with the lead and hold every paragraph; Clean takes the promo, the boxes and the slots. -->
+<style>
+body { margin: 0; font: 18px/1.6 Georgia, serif; color: #1c1c1c; background: #fff; }
+header.site { background: #b00020; color: #fff; padding: 12px 24px; font: 700 20px Arial, sans-serif; }
+header.site nav a { color: #fff; margin-left: 16px; font-weight: 400; font-size: 15px; }
+.wrap { display: flex; gap: 32px; max-width: 1100px; margin: 0 auto; padding: 24px; }
+main { flex: 1; min-width: 0; }
+aside.rail { width: 300px; font: 15px Arial, sans-serif; }
+h1 { font: 700 34px/1.2 Arial, sans-serif; margin: 0 0 12px; }
+.byline { font: 14px Arial, sans-serif; color: #555; margin-bottom: 16px; }
+figure { margin: 0 0 12px; position: relative; }
+figure .photo { width: 100%; height: 280px; background: linear-gradient(135deg, #c9b79c, #8aa1b1); }
+figure .source { position: absolute; left: 8px; bottom: 44px; font: 12px Arial, sans-serif; background: rgba(0,0,0,.6); color: #fff; padding: 2px 6px; }
+figcaption { font: 14px Arial, sans-serif; color: #555; }
+.prefer { display: flex; justify-content: space-between; align-items: center; background: #f2f2f2; border-radius: 12px; padding: 12px 16px; margin: 12px 0; font: 600 15px Arial, sans-serif; }
+.prefer a { background: #1a73e8; color: #fff; padding: 6px 14px; border-radius: 16px; text-decoration: none; }
+.perex { font-weight: 700; font-size: 20px; }
+.slot { position: relative; margin: 20px 0; min-height: 250px; background: #fafafa; }
+.slot::before { content: "Reklama"; display: block; font: 11px Arial, sans-serif; text-transform: uppercase; color: #888; text-align: center; }
+.slot iframe { display: block; width: 300px; height: 250px; border: 0; margin: 0 auto; background: #ddd; }
+.also { border-left: 4px solid #b00020; padding: 4px 12px; margin: 16px 0; font: 15px Arial, sans-serif; }
+.links { border-top: 1px solid #ddd; margin-top: 24px; padding-top: 8px; font: 15px Arial, sans-serif; }
+.tags a { display: inline-block; margin-right: 8px; font: 13px Arial, sans-serif; }
+</style>
+</head>
+<body>
+<header class="site">Krajský deník <nav><a href="/">Zprávy</a><a href="/">Ekonomika</a><a href="/">Sport</a></nav></header>
+<div class="wrap">
+<main>
+  <h1 id="headline">Příspěvek na bydlení: kdo na něj má nárok a jak o něj požádat</h1>
+  <div class="byline"><a href="/autor">Vilém Janouš</a> · 17. 1. 2024</div>
+  <figure id="photo">
+    <div class="photo" role="img" aria-label="Nové bytové domy na okraji města"></div>
+    <div class="source" id="credit">Deník/Jakub Dostál</div>
+    <figcaption id="caption">Požádat o příspěvek na bydlení není ostuda. Kdo na něj má nárok? Čtěte v článku</figcaption>
+  </figure>
+  <div class="prefer" id="prefer"><div>Chcete upřednostnit v Google naše články?</div><a href="https://www.google.com/preferences/source?q=example">Upřednostnit</a></div>
+  <p class="perex" id="lead">Řada lidí nechává peníze ležet na ulici. Jde například o příspěvek na bydlení, který může dosáhnout i několik tisíc korun měsíčně.</p>
+  <section class="article-body">
+    <p id="p1">Požádat o příspěvek na bydlení není ostuda, tvrdí ministr práce a sociálních věcí. Nejvíce se zdražování dotkne jednočlenných a dvoučlenných domácností.</p>
+    <div class="slot" id="slot-ad"><iframe title="Video Reklama" src="about:blank"></iframe></div>
+    <p id="p2">Příspěvek mohou získat ti, jejichž náklady na bydlení přesáhnou třicet procent čistých příjmů domácnosti, v Praze pětatřicet procent.</p>
+    <div class="also" id="also"><strong>Čtěte také:</strong> <a href="/dan-z-nemovitosti">Daň z nemovitosti v roce 2024: kdo musí nově platit</a></div>
+    <h2>Co potřebuji k žádosti</h2>
+    <p id="p3">Žadatel musí příjmy a náklady na bydlení dokládat dvakrát ročně, vždy za předchozí čtvrtletí, a k tomu potřebuje několik dokumentů.</p>
+    <div class="slot" id="slot-empty"></div>
+    <p id="p4">Žádost lze vyplnit ručně a donést ji na úřad práce, nebo ji podat elektronicky přes portál Jenda s bankovní identitou.</p>
+  </section>
+  <div class="links" id="related"><h3>Související články</h3><ul>
+    <li><a href="/mapa-najmu">Stát si vytváří vlastní cenovou mapu nájmů</a></li>
+    <li><a href="/dokumenty">Příspěvek na bydlení? Potřeba je nespočet dokumentů</a></li>
+  </ul></div>
+  <div class="tags" id="tags"><a href="/t/1">Ministerstvo práce</a><a href="/t/2">Bydlení</a><a href="/t/3">Úřad práce</a><a href="/t/4">Energie</a></div>
+</main>
+<aside class="rail"><div class="slot"><iframe title="Reklama" src="about:blank"></iframe></div></aside>
+</div>
+</body>
+</html>
