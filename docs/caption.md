@@ -269,6 +269,27 @@ Still open:
   `sites.json` sends a policy that blocks the model in frames (proven on a demo page only).
 - Content appended after the article (an infinite scroll's next article) is not translated (main-column rule).
 
+## Round 2, r2-04: plain words in place (2026-11-23)
+
+**Plain / As written** in the strip rewrites each main-text block of 8 words or more in short sentences (task
+`simplifyBlocks`, prompt `plainBlocks`, on the device first), with Translate's in-place swap. Never by itself.
+
+- **One swap, three texts.** `caption/translate.ts` keeps, per block, the page's values of the text nodes it writes,
+  the translation's, and plain words of either. What shows follows from Original, Keep <language>, Plain and whether
+  the block was translated (`viewOf`). Plain rewrites the page as shown: a translated block's translation, else the
+  page's words. Keep <language> turns Plain off (the page's words as written); Original and close bring every word back.
+- **The door** (`parsePlain`): the translation door, then `keepsFacts`: every number (Czech and English digit groups),
+  date (numeric, ISO or with a Czech or English month), time, amount (Kč/CZK, €, $, £), percentage, link and
+  capitalised name that does not start a sentence must survive, compared normalised (a Czech case ending of a name
+  counts as the name). A rewrite that loses one is refused, the block stays as written, and the strip says "N parts
+  kept as written: a number would have changed". Refused words are not sent again when Plain is pressed again.
+- **Text added later**: handled as Translate handles it. While Plain is on, the page side watches the main column;
+  new or rewritten blocks get plain words (on a translated page, once their translation is in); a block the page
+  rewrites shows the page's new words.
+- The chip says where the plain words ran (and the translation, when one shows). With no model the control is hidden.
+- Open: real rewrite quality with Gemini Nano; a name whose Czech case changes its stem ("Praha" / "v Praze") is
+  refused (safe, but a lost rewrite); an ambiguous group like "12,500" accepts either reading (12500 or 12.500).
+
 ## Code map
 
 | File | Role |
