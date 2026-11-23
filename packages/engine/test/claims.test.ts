@@ -74,6 +74,12 @@ describe("findClaimCandidates (English)", () => {
     expect(found.some((c) => c.text === "The authors were cautious.")).toBe(false);
     expect(found.some((c) => c.blockId === "t4" || c.blockId === "t5")).toBe(false);
   });
+  it("leaves out a headline (no full stop) and a picture's credit", () => {
+    expect(claimWhy("Příspěvek na bydlení 2024: Jak podat žádost, kdo na něj má nárok, jaká je výše")).toBeNull();
+    expect(claimWhy("Ilustrační foto | Foto: ČTK / Švancara Petr, pořízeno v Praze 12. března 2024.")).toBeNull();
+    expect(claimWhy("Photo: Reuters, taken at the summit in Brussels on 12 March 2024.")).toBeNull();
+    expect(claimWhy("„Je to rekord, jaký jsme tu ještě nezažili ani v roce 2002,“")).toBe("quote"); // ends with a closing quote
+  });
   it("reads a cause on its own", () => {
     expect(claimWhy("The flights were cancelled because of a strike by the air traffic controllers union.")).toBe("cause");
     expect(claimWhy("Lety byly zrušeny kvůli stávce řídících letového provozu na celém letišti.")).toBe("cause");

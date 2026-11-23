@@ -99,13 +99,18 @@ const SIGNALS: { why: ClaimWhy; re: RegExp }[] = [
 /** Contact lines ("Tel.: 549 211 296, info@obec.cz") are not claims. */
 const CONTACT = words(String.raw`[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}|<B>(?:tel|telefon|fax|e-mail|email|phone)\.?:?\s*\+?\d`);
 
+/** A picture's credit ("Ilustrační foto | Foto: ČTK / Petr Novák", "Photo: Reuters"). */
+const CREDIT = words(String.raw`<B>(?:foto|photo|zdroj|source|ilustrační foto|illustration|video)\s*:|\s\|\s`);
+
 /** Why `sentence` is checkable, or null: the first signal it carries, in SIGNALS' order (a source before a number). */
 export function claimWhy(sentence: string): ClaimWhy | null {
   const s = sentence.trim();
   if (s.length < MIN_CHARS || s.length > MAX_CHARS) return null;
   if ((s.match(/[\p{L}\p{N}]+/gu) ?? []).length < MIN_WORDS) return null;
   if (/\?["“”»]?$/.test(s)) return null; // a question claims nothing
-  if (CONTACT.test(s)) return null;
+  // A headline, a label or a cut-off line: no full stop at its end.
+  if (!/[.!…]["'“”»)]*$|["“”»]$/u.test(s)) return null;
+  if (CONTACT.test(s) || CREDIT.test(s)) return null;
   // Mostly figures (a score line, a timetable row): not a sentence of the article.
   const letters = (s.match(/\p{L}/gu) ?? []).length;
   if (letters < s.length * 0.5) return null;

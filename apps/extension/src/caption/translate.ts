@@ -216,7 +216,8 @@ export interface MainBlock { el: Element; nodes: Text[]; text: string }
 /**
  * Round 2 (claims r2-01, gist r2-10): every block of the main text as the page shows it now, in document order, the
  * same blocks Translate reads but whatever their language (textBlocks leaves out what is already in the reader's
- * language) and without changing Translate's state. Contact-only blocks and blocks without letters are left out.
+ * language) and without changing Translate's state. Left out: contact-only blocks, captions (a photo's credit is not
+ * the article) and blocks of fewer than three words (a byline, a section name with the date).
  */
 export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">): MainBlock[] {
   const roots = rootsOf(ctx).filter((el) => el.isConnected && !el.closest(SKIP)).sort(docOrder);
@@ -224,7 +225,8 @@ export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">
   const out: MainBlock[] = [];
   for (const [el, nodes] of owned(top, new Set())) {
     const text = wordsOf(nodes);
-    if (/\p{L}/u.test(text) && !contactOnly(text)) out.push({ el, nodes, text });
+    if ((text.match(/\p{L}+/gu) ?? []).length < 3 || contactOnly(text) || el.closest("figcaption, caption")) continue;
+    out.push({ el, nodes, text });
   }
   return out.sort((a, b) => docOrder(a.el, b.el));
 }
