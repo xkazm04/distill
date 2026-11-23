@@ -499,6 +499,53 @@ Live, 2026-11-23:
   - cs.wikipedia does not switch to its own dark mode under a dark scheme for an anonymous reader, so Distill darkens
     it.
 
+## Round 4, r4-02: first sight sooner (2026-11-23)
+
+The order of work changed, never what is found (the removed, unstuck and widened lists are the same on all 9 sites).
+
+- **The consent switch is read while the page is judged** (`page.ts` `cleanOnce`, `consent.ts` `consentAfterClean(...,
+  prefs)`). It used to be read from chrome.storage after the page was cleaned: 20-350 ms on YouTube, where the
+  answer queued behind YouTube's own tasks.
+- **The strip slides in before the reading** (`page.ts` `open`). Reading a large page holds its thread for 150-400 ms,
+  and a transition starts only when a frame is drawn. Clean now starts one frame later, so the slide runs on the
+  compositor during the reading and ends before the line shows. (Skipping the frame wait on small pages was tried and
+  was slower on the demo article and Půjčovna Šmíd, so every page waits the one frame.)
+- **A page that took 100 ms or more to read fades in 90 ms instead of 180** (`data-distill-fade="busy"`).
+- **The strip's later reads wait their turn** (`page.ts` `afterFirstSight`, `content.ts` `AFTER_FIRST_SIGHT`). These
+  are the main text for claims and the gist, the byline, things to do, and prices and dates in your terms. On YouTube
+  they hold the page's thread for 250-300 ms together, and all of them arrived as the line appeared. Now each waits
+  until Clean has answered, then runs in its own idle period (at most 500 ms each). Two seconds after first sight they
+  run at once again. Translate and the form check are not delayed.
+
+The probe `e2e/live/probes/speed.live.ts` can now time two builds side by side (`E2E_SPEED_BUILDS`, the order
+swapped each round, because other browsers on the machine make sequential runs noisy). It also has an opt-in trace
+(`E2E_SPEED_TRACE`). `settled()` and the timing itself did not change.
+
+Live, 9 sites, 11 runs per build, interleaved, medians in ms, click to first sight (evidence `r4-02-speed-*.json`):
+
+| Site | Before | After |
+| --- | --- | --- |
+| demo article | 862 | 928 |
+| Deník | 1307 | 1016 |
+| Aktuálně | 1317 | 1051 |
+| Štáhlavy | 1118 | 937 |
+| Přáslavice | 1430 | 1103 |
+| YouTube, Pohlreich | 2212 | 1769 |
+| YouTube, Kubíček | 2180 | 1908 |
+| Dymáček | 1126 | 1064 |
+| Půjčovna Šmíd | 1110 | 1037 |
+
+Timing on this machine was noisy: other builders ran browsers at the same time. In a separate run, the same YouTube
+code gave medians of 2007 and 1382 ms in two interleaved groups of 7 runs. A second YouTube-only run of 11 runs per
+build, on a busier machine, gave Pohlreich 2429 -> 2355 and Kubíček 2300 -> 1851 (`r4-02-speed-yt-*.json`). Pooled
+over both runs (22 per build): Pohlreich 2262 -> 2029 and Kubíček 2262 -> 1908.
+
+Still open: YouTube is above 1.5 s in the main run. Its status line now shows at about 0.9-1.1 s (it was 1.5-1.6 s).
+From the line to first sight takes 500-600 ms there, against 350-400 ms on the other sites. That time is
+`settled()`'s 300 ms of quiet, measured from inside a page whose own thread is busy: YouTube's own long tasks took
+0.9-1.3 s of the 2 s before the click, when nothing of Distill runs (trace field `busyBefore2s`). On the other traced
+sites (Deník, the demo article, Dymáček, Půjčovna Šmíd) that figure was 0.
+
 ## Code map
 
 | File | Role |

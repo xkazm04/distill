@@ -144,6 +144,8 @@ async function once(site: Site, label: string, dir: string | null, n: number): P
         host: rel(p.host), fade: rel(p.fade), hide: rel(p.hide),
         moves: p.moves.map(([t, top, h]) => [rel(t), top, h]),
         long: p.long.filter(([t]) => t >= t0 - 50).map(([t, d]) => [rel(t), d]),
+        // The page's own load before the click: ms of long tasks in the 2 s before it (nothing of Distill runs then).
+        busyBefore2s: p.long.filter(([t, d]) => t + d > t0 - 2000 && t < t0).reduce((n, [t, d]) => n + Math.min(t + d, t0) - Math.max(t, t0 - 2000), 0),
         frameStart: rel(f.origin), frameDcl: rel(f.dcl), framePaint: f.paint.map(([name, t]) => [name, rel(t)]),
         frameMarks: f.marks.map(([name, t]) => [name, rel(t)]),
         roundTrip, ...(reqs.length ? { reqs } : {}),
@@ -177,7 +179,7 @@ function installTrace(): void {
   (window as unknown as { __speedTrace: Trace }).__speedTrace = tr;
   try {
     new PerformanceObserver((l) => { for (const e of l.getEntries()) tr.long.push([Math.round(performance.timeOrigin + e.startTime), Math.round(e.duration)]); })
-      .observe({ type: "longtask" });
+      .observe({ type: "longtask", buffered: true });
   } catch { /* no long-task timing here */ }
   new MutationObserver(() => {
     if (!tr.host && document.querySelector("distill-caption")) tr.host = now();
