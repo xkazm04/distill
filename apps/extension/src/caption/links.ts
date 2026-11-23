@@ -245,11 +245,14 @@ function listen(s: State): () => void {
     show(s, a);
   };
   const focusOut = (e: FocusEvent) => {
+    // Esc kept the note away from the link it returned focus to; once focus leaves that link, the next visit shows it.
+    if (s.quiet && e.target === s.quiet) s.quiet = null;
     if (!s.shown || inNote(e.relatedTarget) || (inNote(e.target) && e.relatedTarget === s.link)) return;
     if (e.target === s.link || inNote(e.target)) { win.clearTimeout(s.hideTimer); s.hideTimer = later(() => hide(), 150); }
   };
   const down = (e: PointerEvent) => {
     if (inNote(e.target)) return;
+    s.quiet = null;
     if (s.shown) hide();
     if (e.pointerType !== "touch") return;
     const a = linkOf(s, e.target);

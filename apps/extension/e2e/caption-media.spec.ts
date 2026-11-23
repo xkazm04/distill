@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, startCaption, openMoreAt } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -124,7 +124,7 @@ test("caption media + typeset: the column is typeset, its pictures fit, the gall
   await shot(tab.page, "r5-06-demo-gallery-open");
 
   // The Reading switch takes the typesetting off (not the pictures: they are not reading).
-  await frame.getByTestId("cap-more-btn").click();
+  await openMoreAt(frame, "cap-comfort"); // r5-02: the Reading switch is in Settings
   const sw = frame.getByTestId("cap-comfort");
   await sw.click();
   await expect.poll(async () => (await look(tab.page)).list).toBe(0);
