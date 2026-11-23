@@ -98,12 +98,14 @@ export function useRemember(report: CleanReport | null, setReport: (r: CleanRepo
   // click away, "Show English"), so the reader never sees the page flip.
   const { state: tstate, keepSource } = translate;
   useEffect(() => {
+    // Translate itself held back on this load (r3-10: nothing sent); a translation that starts later is the person's.
+    if (tstate.held) keptSource.current = true;
     if (keptSource.current || entry?.prefs.translate !== "source") return;
     if ((tstate.phase === "translating" || tstate.phase === "done") && !tstate.showingSource) {
       keptSource.current = true;
       void keepSource(true).catch(() => undefined);
     }
-  }, [entry, tstate.phase, tstate.showingSource, keepSource]);
+  }, [entry, tstate.held, tstate.phase, tstate.showingSource, keepSource]);
 
   // Keep what the person changes while the site is remembered.
   useEffect(() => {

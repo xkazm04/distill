@@ -40,7 +40,8 @@ export function useMainText(report: CleanReport | null, translate: TranslateStat
   const [blocks, setBlocks] = useState<TextBlock[] | null>(null);
   const started = useRef(false);
   const [graceOver, setGraceOver] = useState(false);
-  const waitsForTranslation = !!report && wantsTranslation(report) && !!translate;
+  // A site kept in its own language (r3-10) has no translation coming: the page's words are the main text.
+  const waitsForTranslation = !!report && wantsTranslation(report) && !!translate && !translate.held;
   const phase = translate?.phase;
 
   useEffect(() => {
