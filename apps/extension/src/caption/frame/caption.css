@@ -91,6 +91,9 @@ button { font: inherit; color: inherit; }
 .more-extra > .contact { grid-column: span 2; }
 .contact .k-rows { max-height: 180px; overflow: auto; }
 .contact-text { font-weight: 600; }
+/* Call, Write or Open in one slot, so Copy and Show on page line up row under row. */
+.contact .k-acts { justify-content: flex-start; }
+.contact-main { flex: 0 0 64px; display: inline-flex; }
 a.btn { text-decoration: none; }
 
 /* Round 1, W3. #9 Ready to send?: the form's count in the row, and its line in More. */

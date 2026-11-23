@@ -50,10 +50,12 @@ export function ContactSection(props: { report: CleanReport }) {
             text={it.text} textClass="contact-text"
             sub={it.hidden ? <Sub>In a part Distill hid. Original shows it.</Sub> : undefined}
             acts={<>
-              <ReachLink href={it.kind === "phone" || it.kind === "email" ? it.href : undefined} />
-              {it.kind === "contactPage" && it.href && (
-                <button type="button" className="btn sm" onClick={() => { void chrome.tabs.update(tabId, { url: it.href as string }); }}>Open</button>
-              )}
+              <span className="contact-main">
+                <ReachLink href={it.kind === "phone" || it.kind === "email" ? it.href : undefined} />
+                {it.kind === "contactPage" && it.href && (
+                  <button type="button" className="btn sm" onClick={() => { void chrome.tabs.update(tabId, { url: it.href as string }); }}>Open</button>
+                )}
+              </span>
               <CopyButton copied={copier.copied(it.id)} onClick={() => void copier.copy(it.id, it.kind === "contactPage" && it.href ? it.href : it.text)}
                 label={`Copy ${LABEL[it.kind].toLowerCase()}`} />
               {!it.hidden && <button type="button" className="btn sm quiet" onClick={() => void show(it.id)}>Show on page</button>}

@@ -14,6 +14,10 @@
 .video-tag, .video-now { flex: 0 0 auto; font-size: var(--k-fs-xs); padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); color: var(--muted); }
 .video-now { color: var(--fg); }
 
+/* The page's own label beside the English kind ("Delivery · Doprava"): a wider label column, wrapped, never cut. */
+.product-card { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.product-card .k-fact { grid-template-columns: 150px minmax(0, 1fr) auto; }
+.product-card .k-label-text { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .product-name { margin: 0 0 var(--k-sp-2); font-weight: 600; }
 .product-specs { margin-top: 6px; }
 .product-specs > summary { cursor: pointer; font-size: var(--k-fs); min-height: 32px; display: flex; align-items: center; }
