@@ -288,6 +288,23 @@ export const prompts = {
       "</blocks>",
     ].join("\n"),
 
+  /** Round 4 (r4-05): what the words the person selected mean in their sentence. A VALUES prompt (which words the
+   *  person chose says something about them): task explainTerm routes only_on_device and never has a cloud model. The
+   *  words and the sentence are page text, untrusted, inside markers. Answer: schemas.explain. */
+  explainTerm: (term: string, sentence: string, readerLang = "en"): string =>
+    [
+      `Explain in ${langName(readerLang)}, in one or two short plain sentences, what the words between the term markers mean in the sentence between the sentence markers. If they are an abbreviation, say what it stands for first. Do not repeat the sentence.`,
+      "If you do not know what they mean, answer with an empty text: {\"text\": \"\"}. Never guess.",
+      "Answer with JSON only: {\"text\": \"<explanation>\"}. Plain text only: no HTML, no markdown, no links.",
+      GUARD,
+      "<term>",
+      oneLine(term).slice(0, 80),
+      "</term>",
+      "<sentence>",
+      oneLine(sentence).slice(0, 600),
+      "</sentence>",
+    ].join("\n"),
+
   /** Card 4: plain words, in place. Same answer shape as translateBlocks (schemas.translate). */
   plainBlocks: (blocks: readonly TranslateBlock[], lang = "und"): string =>
     [

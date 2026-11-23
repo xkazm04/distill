@@ -16,6 +16,9 @@ export interface FakeContext {
   claim?: string;
   /** askPage: the person's question (round 3; a typed value, device only). */
   question?: string;
+  /** explainTerm: the words the person selected and their sentence (round 4; device only). */
+  term?: string;
+  sentence?: string;
 }
 
 export type FakeFailure = "busy" | "genuine" | "device" | "other" | "empty";
@@ -193,6 +196,9 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
       // schemas.ask: the sentence of the main text sharing the most words with the question, quoted as its own answer;
       // no shared word -> an empty answer (the page does not say).
       return empty ? { answer: "", blockId: "", sentence: "" } : fakeAsk(ctx.question ?? "", ctx.blocks ?? []);
+    case "explainTerm":
+      // schemas.explain: built from the selected words, so a test sees it was the model that answered (and for what).
+      return empty ? { text: "" } : { text: `[EXPLAIN] "${(ctx.term ?? "").slice(0, 80)}" is explained here by the stand-in model. It is not a real explanation.` };
     case "draftReply":
       // schemas.replyDraft
       return empty ? { reply: "" } : { reply: "(dev fake AI) Dobrý den, dokument pošlu do [datum]. S pozdravem", translation: "(dev fake AI) Hello, I will send the document by [date]. Kind regards" };
