@@ -5,6 +5,8 @@
 import { HANDRAIL_NATIVE_HOST, HANDRAIL_PORT, type ContentRequest } from "./messages";
 import { offscreenPort } from "./offscreen/host";
 import { forgetTab } from "./sidepanel/guideStore";
+import { onPermissionsRemoved, registerAutoOpen } from "./caption/autoOpen";
+import { e2eFakeSites } from "./caption/sitePermission";
 
 const CAPTION = import.meta.env.VITE_SURFACE === "caption";
 void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !CAPTION });
@@ -27,6 +29,9 @@ if (CAPTION) {
   });
 }
 
+// r2-08 Remember this site: a remembered site opens the caption by itself when it loads (caption/autoOpen.ts).
+registerAutoOpen();
+
 /** How long the native host must stay up before the panel hears "connected": Chrome reports a missing or broken
  *  helper program as a disconnect a moment after connectNative, and the panel should not flash "Connected" first. */
 export const CONNECTED_AFTER_MS = 300;
@@ -42,6 +47,15 @@ const fakeHelper: FakeHelper | null = import.meta.env.MODE === "e2e" ? { on: fal
 if (import.meta.env.MODE === "e2e") {
   // E2E ONLY, like the fake helper: the tests cannot click the toolbar icon, so they start the caption the same way.
   (globalThis as { __distillCaption?: unknown }).__distillCaption = { start: startCaption };
+  // E2E ONLY: the stand-in for Chrome's site permissions (caption/sitePermission.ts). `use()` switches it on with
+  // nothing granted; `revoke()` plays the person removing the site in Chrome's settings (chrome.permissions.onRemoved).
+  (globalThis as { __distillRemember?: unknown }).__distillRemember = {
+    async use(granted: string[] = []) { await e2eFakeSites.set(granted); },
+    async revoke(origin: string) {
+      await e2eFakeSites.set(((await e2eFakeSites.get()) ?? []).filter((o) => o !== origin));
+      await onPermissionsRemoved([`${origin}/*`]);
+    },
+  };
 }
 if (fakeHelper) {
   (globalThis as { __distillFakeHelper?: unknown }).__distillFakeHelper = {

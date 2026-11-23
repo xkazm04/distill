@@ -23,7 +23,9 @@ export type ContentRequest =
   | { type: "distill:doAction"; actionId: string }
   // ---- the caption: Distill on the page itself (docs/caption.md) ----
   /** From the service worker after the toolbar click: put the caption strip on the page (or take it off, `toggle`). */
-  | { type: "distill:caption:open"; tabId: number; toggle?: boolean }
+  /** `auto` (r2-08): the service worker opens it by itself on a remembered site; the page refuses in a frame, and after
+   *  the person closed Distill on this document (until the next load). */
+  | { type: "distill:caption:open"; tabId: number; toggle?: boolean; auto?: boolean }
   /** From the caption: hide what is not content. Runs once per page; a second call answers the same report. */
   | { type: "distill:caption:clean" }
   /** From the caption: bring one removed item back, or all of them. */
