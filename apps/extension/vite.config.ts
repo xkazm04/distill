@@ -55,6 +55,14 @@ function publicStubs(): Plugin {
   };
 }
 
+/** The build's pages. The proof page (r3-03: the page tasks with the real models on saved copies of real pages, for
+ *  the owner) is in the developer's own build and its e2e build only, never in the public one; check-dist fails a
+ *  public build that carries it. */
+export const inputsOf = (v: Variant): Record<string, string> => ({
+  sidepanel: "sidepanel.html", caption: "caption.html", offscreen: "offscreen.html", background: "src/background.ts",
+  ...(v === "own" ? { proof: "proof.html" } : {}),
+});
+
 // Side panel and caption strip (React) and the background worker are one multi-entry build. The content script is a second build
 // (vite.content.config.ts) because a content script must be a single classic script with no imports.
 export default defineConfig(({ mode }) => {
@@ -75,7 +83,7 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: false,
       rollupOptions: {
-        input: { sidepanel: "sidepanel.html", caption: "caption.html", offscreen: "offscreen.html", background: "src/background.ts" },
+        input: inputsOf(variant),
         output: {
           entryFileNames: (chunk) => (chunk.name === "background" ? "background.js" : "assets/[name]-[hash].js"),
         },

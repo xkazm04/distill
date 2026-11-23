@@ -362,7 +362,60 @@ Checking it for real (owner, own build; e2e and unit tests use a stand-in model 
    and address.
 5. Unverified until then: that the configured cloud model (`cloud_model` in Remote Config) supports the search tool
    through Firebase AI Logic, and the wording of its verdicts. Google's terms for grounded results ask apps to show the
-   search suggestions (`searchEntryPoint`, an HTML snippet); the strip renders no model HTML, so this is open.
+   search suggestions (`searchEntryPoint`, an HTML snippet); the strip renders no model HTML. Closed in round 3
+   (r3-02, below): the suggestions show in a sealed-off frame, never in the strip's own document.
+
+## Round 3, r3-02: Google's search suggestions, sealed off (2026-11-23)
+
+- **What it is.** Under a claim checked on the web, a small "Search on Google" area shows the answer's
+  `groundingMetadata.searchEntryPoint.renderedContent`, unchanged, as Google's grounding terms ask.
+- **The door.** `entryPointOf` in `@distill/web/ai`: only a non-empty string of at most 32,000 characters
+  (`ENTRY_POINT_MAX`) passes. Anything else there is refused and counted in "Distill left out N parts". An answer
+  without suggestions shows no frame.
+- **The seal** (`frame/SearchSuggestions.tsx`):
+  - an iframe with `sandbox="allow-popups allow-popups-to-escape-sandbox"`: no scripts, no same origin, no top
+    navigation, no forms;
+  - the snippet arrives as `srcdoc`, behind its own `Content-Security-Policy` (`default-src 'none'`, inline CSS and
+    https images only);
+  - `<base target="_blank">`, so Google's links open in a new tab.
+  It cannot run code in the strip, read the page or reach `chrome.*`. The strip's document still holds no HTML from
+  an AI answer.
+- **Proof.** `ClaimCheck.test.ts` (the frame's attributes, the door's count) and `e2e/caption-suggestions.spec.ts`:
+  - a hostile stand-in snippet (a script, an `onerror`, a `javascript:` link, a `target=_top` link, a meta refresh)
+    changes neither the strip nor the page and does not move the tab;
+  - Chromium's own console lines say it refused each one;
+  - the frame's origin is `null` and it has no `chrome.runtime`;
+  - a chip opens in a new tab.
+  Screenshot: `r3-02-suggestions.jpg` (stand-in snippet).
+- **Not yet seen with the real service:** the real snippet's height. The frame is one row high (52 px) and cannot size
+  itself without scripts; Google's chips scroll sideways inside it.
+
+## Round 3, r3-03: the proof page (developer build only)
+
+One click in your own Chrome runs Translate, the claims, the gist, plain words and the web check with the REAL models
+on saved copies of three real pages:
+- a Deník article;
+- an Aktuálně article;
+- Přáslavice's fault-report page (a form: no claims, no gist, so no check).
+
+It runs them through the strip's own code (`src/proof/run.ts`): Clean's reading (`readForClean`), `runTranslate`,
+`runTask` (claims, gist, plain words) and `checkClaim` (`runGrounded`), with the real prompts and doors. For each task
+the report records the answer, where it ran (`inferenceSource`), how long it took, what the door left out and any
+error. The copies are in `apps/extension/proof/fixtures/` (trimmed to the main HTML; no scripts, images, ads, form
+values or private persons' data). The page is in the developer ("own") build only: `vite.config.ts` `inputsOf`
+leaves it out of the public build, and `check-dist` fails a public build that carries `proof.html` or its report
+marker.
+
+**Steps for the owner:**
+1. Build your own copy: `npm run build -w @distill/extension`. It reads Firebase from the root `.env`, as always.
+2. In `chrome://extensions`, reload Distill (loaded unpacked from `apps/extension/dist`).
+3. Open `chrome-extension://pbmfhppffaiedhljpgpigancfhknohol/proof.html` (the id is fixed by the manifest key).
+4. Press **Run**. It takes a minute or two with the device model. The web check sends three claims per article, with
+   each page's title and address, to Google.
+5. Press **Save report (JSON)** and **Save report (Markdown)**, and send both files back.
+
+In e2e (`e2e/proof.spec.ts`) the page runs with the stand-in model. That proves the page and the report work, not the
+models: screenshot `r3-03-proof.jpg`.
 
 ## Code map
 
@@ -377,3 +430,5 @@ Checking it for real (owner, own build; e2e and unit tests use a stand-in model 
 | `apps/extension/e2e/caption.spec.ts` | Hermetic scenarios on the demo pages |
 | `apps/extension/e2e/live/` | The live run: `sites.json`, `caption.live.ts`, `report.ts`, `README.md` |
 | `apps/extension/src/caption/sites.ts`, `sitePermission.ts`, `autoOpen.ts`, `frame/Remember.tsx` | r2-08 Remember this site: `distill:sites` in chrome.storage.local, the one `<origin>/*` permission asked from the strip's frame, the service worker's automatic open (tabs.onUpdated, no new permission; top frame only; not after Close until the next load; dropped on `permissions.onRemoved`) |
+| `apps/extension/src/caption/frame/SearchSuggestions.tsx`, `apps/web/src/ai.ts` `entryPointOf` | r3-02 Google's search suggestions: the door (string, at most 32,000 characters) and the sealed-off frame (sandbox without scripts or same origin, srcdoc behind its own CSP, links to a new tab) |
+| `apps/extension/proof.html`, `src/proof/`, `proof/fixtures/` | r3-03 the proof page (own build only): the page tasks with the real models on saved copies of three real pages, through the strip's code; the report as JSON and Markdown |
