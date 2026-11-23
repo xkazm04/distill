@@ -13,6 +13,7 @@ import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
+import { clearActions } from "./actions";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearLinks, linkNotes } from "./links";
 
@@ -117,6 +118,7 @@ export function close(doc: Document): void {
   restick(doc);
   clearTranslation();
   clearClaims(doc);
+  clearActions(doc);
   clearTables(doc);
   clearLinks(doc);
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }

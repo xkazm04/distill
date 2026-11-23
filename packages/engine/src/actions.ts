@@ -30,7 +30,7 @@ const QUOTE_MAX = 240;
 
 const MONTHS = String.raw`(?:${[...CZ_MONTHS, ...EN_MONTHS].join("|")}|brezna|kvetna|cervna|cervence|zari|rijna|unora|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?`;
 /** A day with its month (the year optional): "31. 3.", "31.3.2025", "15. března", "15. března 2024", "March 15", "15 March 2025". */
-const DATE = String.raw`(?:\d{1,2}\.\s?\d{1,2}\.(?:\s?\d{4})?(?!\d)|\d{1,2}\.?\s+${MONTHS}(?:\s+\d{4})?|${MONTHS}\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{4}-\d{2}-\d{2})`;
+const DATE = String.raw`(?:\d{1,2}\.\s?\d{1,2}\.(?:\s?\d{4})?(?!\d)|\d{1,2}\.?\s+${MONTHS}(?:\s+\d{4})?|${MONTHS}\s+\d{1,2}(?!\d)(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{4}-\d{2}-\d{2})`;
 /** A span of time: "do 15 dnů", "within 30 days", "do konce března". */
 const SPAN = String.raw`(?:\d{1,3}\s+(?:dn[ůuí]|dní|pracovních dn[ůu]|days|business days|working days|týdn[ůu]|tydnu|weeks|měsíc[ůu]|mesicu|months)|konce\s+${MONTHS}|the end of\s+${MONTHS})`;
 

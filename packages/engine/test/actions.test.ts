@@ -115,6 +115,8 @@ describe("findActions: reading order and limits", () => {
       "Podle statistiků se ceny energií v březnu meziročně zvýšily o 12 procent.",
     ]);
     expect(items).toEqual([]);
+    // "due to start in March 2027" is no deadline of the reader's, and "March 20" is not in it.
+    expect(find(["Construction is due to start in March 2027 and the first trams should run by the end of 2030."], "en")).toEqual([]);
   });
 
   it("sentences: a date's dots never end one", () => {

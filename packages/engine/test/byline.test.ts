@@ -78,6 +78,11 @@ describe("readByline: the visible byline", () => {
     expect(b).toMatchObject({ from: "text", published: "2024-03-15T10:30" });
   });
 
+  it("never takes a date inside a sentence of the text for the published date", () => {
+    const b = readByline(page("", `<article><h1>Tram line approved</h1><p>The council meets in January.</p><p>Residents can comment on the route until 15 February 2027.</p></article>`));
+    expect(b).toEqual({ from: "none" });
+  });
+
   it("reads <time datetime> and tells an updated one by its label", () => {
     const b = readByline(page("", `<article><h1>X</h1><p>Posted <time datetime="2023-01-10">Jan 10</time>, updated <time datetime="2023-02-20">Feb 20</time></p></article>`));
     expect(b).toMatchObject({ from: "text", published: "2023-01-10", updated: "2023-02-20" });

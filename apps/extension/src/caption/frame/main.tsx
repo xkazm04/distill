@@ -27,8 +27,8 @@ import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
 import { RememberSection, useRemember } from "./Remember";
 import { AskSection } from "./Ask";
-import { BylineSection } from "./Byline";
-import { ActionsSection } from "./Actions";
+import { BylineSection, useByline, withByline } from "./Byline";
+import { ActionsSection, useActions, withActions } from "./Actions";
 import { TermsSection } from "./Terms";
 import { DarkSection } from "./Dark";
 import { ConsentSection } from "./Consent";
@@ -112,6 +112,9 @@ function Caption() {
   // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
   const checks = useChecks(claims.claims);
   const remember = useRemember(report, setReport, translate);
+  // Round 3: who wrote this and when (r3-05), what this page asks of you (r3-09); both parts of the status line.
+  const byline = useByline(report);
+  const actions = useActions(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -145,7 +148,7 @@ function Caption() {
   }, [more, original, toggleOriginal]);
 
   const removed = report ? report.items.length - report.restored.length : 0;
-  const status = problem ?? (!report ? "Cleaning the page..." : withPlain(statusLine(report, translate.state, claims.phase === "ready" ? claims.claims.length : 0), plain.state));
+  const status = problem ?? (!report ? "Cleaning the page..." : withActions(withByline(withPlain(statusLine(report, translate.state, claims.phase === "ready" ? claims.claims.length : 0), plain.state), byline), actions));
 
   return (
     <div className="cap" ref={root} data-testid="caption">

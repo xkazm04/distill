@@ -44,7 +44,7 @@ export function route(task: Task, configuredMode?: string): RouteDecision {
   // A web check needs Google Search, which only the cloud model has: it is never on the device, whatever is configured
   // (the on-device-only build refuses it before routing; see apps/web/src/ai.ts).
   if (task === "checkClaim") {
-    return { task, promptClass, mode: "only_in_cloud", reason: "Checked on the web in the cloud: only this sentence, the page's title and its address are sent." };
+    return { task, promptClass, mode: "only_in_cloud", reason: "Checked on the web in the cloud: only this sentence, the page's title and its address are sent (and the day the page was published, when it says)." };
   }
   const mode: InferenceMode = isInferenceMode(configuredMode) ? configuredMode : "prefer_on_device";
   return { task, promptClass, mode, reason: REASONS[mode] };

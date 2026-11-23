@@ -206,12 +206,14 @@ function fromText(doc: Document): Found {
     const a = AUTHOR_RE.exec(line);
     if (a?.[1] && !out.author) out.author = a[1];
   }
-  // No label at all: the first full date in the first lines of an article's header (a byline line with a date).
+  // No label at all: a short byline line under the headline that is mostly its date ("Petr Malý | 15. 3. 2024 10:30"),
+  // never a date inside a sentence of the text ("comment until 15 February 2027").
   if (!out.published && doc.querySelector("article, h1")) {
-    const head = lines.slice(0, 12).filter((l) => l.length <= 160);
-    for (const line of head) {
+    for (const line of lines.slice(0, 12)) {
       const d = datesIn(line)[0];
-      if (d && !UPDATED_WORD.test(line.slice(Math.max(0, d.at - 40), d.at))) { out.published = d.iso; break; }
+      if (!d || line.length > 80) continue;
+      const rest = (line.slice(0, d.at) + line.slice(d.at + d.len)).match(/\p{L}+/gu) ?? [];
+      if (rest.length <= 4 && !UPDATED_WORD.test(line.slice(Math.max(0, d.at - 40), d.at))) { out.published = d.iso; break; }
     }
   }
   return out;

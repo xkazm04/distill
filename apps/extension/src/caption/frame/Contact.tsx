@@ -21,7 +21,7 @@ function clipboardAllowed(): boolean {
 }
 
 /** Copies `text`: the Clipboard API where the page lets the frame use it, else the older copy command. */
-async function copy(text: string): Promise<boolean> {
+export async function copy(text: string): Promise<boolean> {
   try {
     if (!clipboardAllowed()) throw new Error("not allowed here");
     await navigator.clipboard.writeText(text);
