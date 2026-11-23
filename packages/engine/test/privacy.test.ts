@@ -231,7 +231,7 @@ describe("payload privacy", () => {
     expect(lines.filter((l, i) => l !== base.split("\n")[i])).toEqual(['<claim source-title="Title" source-url="https://news.example/a" source-published="2023-03-15">']);
     for (const junk of ["Zqxvlenka Wbrtnovsky", "15. 3. 2023", '2023-03-15" onload="x', ""]) {
       const p = prompts.checkClaim("A claim.", "Title", "https://news.example/a", "en", junk);
-      expect(p.replace('source-published="2023-03-15"', "")).toBe(base);
+      expect(p.replace(' source-published="2023-03-15"', "")).toBe(base);
       expect(p).not.toContain("Zqxvlenka");
       expect(p).not.toContain("onload");
     }

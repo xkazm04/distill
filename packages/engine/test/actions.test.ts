@@ -27,6 +27,15 @@ describe("findActions: deadlines", () => {
     expect(brief(find(["Splatnost faktury: 14. 4. 2025."]))).toEqual([["deadline", "By 14. 4. 2025"]]);
   });
 
+  it("a tax guide (Aktuálně): the sentence's dot is not the date's, and the same deadline twice is listed once", () => {
+    const items = find([
+      "Daňové přiznání je nutné odeslat nejpozději do čtvrtka 2. května. Termín je do příštího čtvrtka 2. května.",
+      "Přehled musí OSVČ odevzdat do 30 dnů od podání daňového přiznání.",
+    ]);
+    expect(brief(items)).toEqual([["deadline", "By 2. května"], ["deadline", "Within 30 dnů"]]);
+    expect(items[0]?.quote).toBe("Daňové přiznání je nutné odeslat nejpozději do čtvrtka 2. května.");
+  });
+
   it("reads English deadlines", () => {
     expect(brief(find(["Please submit the form by 15 March 2025.", "The deadline is April 30."], "en"))).toEqual([
       ["deadline", "By 15 March 2025"], ["deadline", "By April 30"],

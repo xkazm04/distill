@@ -115,7 +115,7 @@ export function findActions(blocks: readonly { id: string; text: string }[], lan
     const hits: Hit[] = [];
     for (const s of sentencesOf(b.text)) {
       const h = sentenceHit(s.text);
-      if (h) hits.push({ ...h, at: s.at + s.text.indexOf(h.quote), key: `${h.kind}:${h.quote.toLowerCase()}` });
+      if (h) hits.push({ ...h, at: s.at + s.text.indexOf(h.quote), key: h.kind === "deadline" ? `deadline:${h.text}` : `${h.kind}:${h.quote.toLowerCase()}` });
     }
     // Hours written one day-range after another ("Po - Pá: 7.00 - 16.30 So: 8.00 - 11.00") are one item.
     const contacts: TextContact[] = [];
@@ -187,7 +187,8 @@ function deadlineIn(s: string): { words: string; date: string; at: number; len: 
   for (const m of s.matchAll(DEADLINE_RE)) {
     const strong = !!m[1];
     if (!strong && !ASKS.test(s)) continue;
-    const date = (m[3] ?? "").replace(/\s+/g, " ").trim();
+    // "do 2. května." : the last dot ends the sentence, not the date (a numeric "31. 3." keeps its dot).
+    const date = (m[3] ?? "").replace(/\s+/g, " ").trim().replace(/(\p{L})\.$/u, "$1");
     if (!date) continue;
     const span = new RegExp(`^${SPAN}$`, "iu").test(date);
     const words = span ? (/^\d/.test(date) ? `within ${date}` : `by ${date.replace(/^konce\s+/iu, "the end of ")}`) : `by ${date}`;
