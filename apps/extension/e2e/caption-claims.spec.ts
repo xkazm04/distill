@@ -84,7 +84,9 @@ test("claims and gist: an English article gets its claims underlined, counted, l
   const gist = frame.getByTestId("cap-gist");
   await expect(gist).toHaveAttribute("data-phase", "ready");
   await expect(frame.getByTestId("cap-gist-point")).toHaveCount(3);
-  await expect(frame.getByTestId("cap-gist-point").first()).toContainText("[GIST] Riverside tram line approved");
+  // r3-01: the gist starts from the article's first paragraph; the headline is the page's title, not a paragraph.
+  await expect(frame.getByTestId("cap-gist-point").first()).toContainText("[GIST] The city council voted on Tuesday to build a tram line");
+  await expect(gist).not.toContainText("Riverside tram line approved");
   await expect(frame.getByTestId("cap-gist-where")).toContainText("Written on this device");
   // The gist is the first thing in More.
   expect(await frame.locator("#cap-more > *").first().getAttribute("data-testid")).toBe("cap-gist");
