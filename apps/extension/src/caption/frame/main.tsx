@@ -29,7 +29,7 @@ import { RememberSection, useRemember } from "./Remember";
 import { AskSection } from "./Ask";
 import { BylineSection } from "./Byline";
 import { ActionsSection } from "./Actions";
-import { TermsSection } from "./Terms";
+import { TermsSection, useTerms } from "./Terms";
 import { DarkSection, useDark } from "./Dark";
 import { ConsentSection } from "./Consent";
 
@@ -114,6 +114,8 @@ function Caption() {
   const remember = useRemember(report, setReport, translate);
   // Dark page (r3-06) turns on by itself in dark mode once chosen, More open or not.
   useDark(report);
+  // r3-07: prices and dates in your terms go in once Clean answered, More open or not.
+  useTerms(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;

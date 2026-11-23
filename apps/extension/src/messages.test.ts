@@ -13,7 +13,8 @@ describe("extension manifest", () => {
   it("declares no standing host access: every site is asked for when it is needed", () => {
     expect(m.host_permissions).toBeUndefined();
     expect(m.content_scripts).toBeUndefined();
-    expect(m.optional_host_permissions).toEqual(["<all_urls>"]);
+    // r3-07: the ECB for the daily rates, asked for only when the person turns prices in their currency on.
+    expect(m.optional_host_permissions).toEqual(["<all_urls>", "https://www.ecb.europa.eu/*"]);
   });
   it("asks for nativeMessaging (Handrail) only when it is needed", () => {
     expect(m.permissions).toEqual(["sidePanel", "activeTab", "scripting", "storage", "offscreen"]);

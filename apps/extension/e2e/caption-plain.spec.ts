@@ -16,7 +16,9 @@ async function fakeModel(worker: Worker, opts: { fail?: string; source?: "on_dev
 }
 
 const exactly = (page: Page) => page.locator("article").evaluate((el) => el.innerHTML.replace(/ style=""/g, ""));
-const article = async (page: Page) => (await exactly(page)).replace(/\s(data-distill-[a-z-]+|data-e2e-[a-z0-9-]+)(="[^"]*")?/g, "");
+// r3-07: a price's or date's words wrapped by "in your terms" (its addition is ::after, never text) read as the page's own.
+const unwrapTerms = (html: string) => html.replace(/<span data-distill-term="[a-z]+" data-distill-term-add="[^"]*" title="[^"]*">([^<]*)<\/span>/g, "$1");
+const article = async (page: Page) => unwrapTerms(await exactly(page)).replace(/\s(data-distill-[a-z-]+|data-e2e-[a-z0-9-]+)(="[^"]*")?/g, "");
 
 const evidence = async (page: Page, name: string) => {
   try {

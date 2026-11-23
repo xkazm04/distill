@@ -7,6 +7,7 @@ import { offscreenPort } from "./offscreen/host";
 import { forgetTab } from "./sidepanel/guideStore";
 import { onPermissionsRemoved, onTabUpdated, registerAutoOpen } from "./caption/autoOpen";
 import { e2eFakeSites } from "./caption/sitePermission";
+import { registerRates } from "./rates";
 
 const CAPTION = import.meta.env.VITE_SURFACE === "caption";
 void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: !CAPTION });
@@ -31,6 +32,9 @@ if (CAPTION) {
 
 // r2-08 Remember this site: a remembered site opens the caption by itself when it loads (caption/autoOpen.ts).
 registerAutoOpen();
+
+// r3-07 prices in your terms: the ECB's daily rates, at most one download a day, kept on this device (rates.ts).
+registerRates();
 
 /** How long the native host must stay up before the panel hears "connected": Chrome reports a missing or broken
  *  helper program as a disconnect a moment after connectNative, and the panel should not flash "Connected" first. */

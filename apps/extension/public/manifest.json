@@ -29,7 +29,8 @@
     "nativeMessaging"
   ],
   "optional_host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://www.ecb.europa.eu/*"
   ],
   "web_accessible_resources": [
     {

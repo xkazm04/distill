@@ -72,7 +72,8 @@ export function readMainText(ctx: CleanContext): TextBlock[] {
 /** A block's text nodes now: the ones read, while they are in it; else every text node in it. */
 function nodesOf(k: Known): Text[] {
   const live = k.nodes.filter((n) => n.isConnected && k.el.contains(n));
-  if (live.length) return live;
+  // r3-07: prices and dates in your terms split a node into pieces (data-distill-term): read the block's nodes as they are.
+  if (live.length && !k.el.querySelector("[data-distill-term]")) return live;
   const walker = k.el.ownerDocument.createTreeWalker(k.el, 4 /* SHOW_TEXT */);
   const out: Text[] = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!n.parentElement?.closest("script, style, noscript")) out.push(n as Text);
