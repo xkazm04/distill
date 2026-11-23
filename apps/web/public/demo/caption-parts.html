@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harbour ferry timetable doubles after 18% rise in riders | Harbour City Herald</title>
+<!-- Round 5 (r5-02, r5-03, r5-08): an article with something for every chip of the first line - clutter to remove, a
+     cookie banner with its own reject button, claims with numbers, a byline updated long after it was published, and a
+     muted video that plays by itself - so the first line has a sentence and several chips, and More has several parts. -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"NewsArticle","headline":"Harbour ferry timetable doubles after 18% rise in riders",
+ "datePublished":"2023-03-14T08:00:00+01:00","dateModified":"2026-11-02T09:30:00+01:00",
+ "author":{"@type":"Person","name":"Mara Lindqvist"}}
+</script>
+<style>
+body{font:18px/1.6 Georgia,serif;max-width:920px;margin:0 auto;padding:0 1rem;color:#1f1f1f}
+header.site,nav,aside,footer{font-family:Arial,sans-serif;font-size:.9rem;background:#eef0f4;padding:.6rem;margin:.5rem 0}
+.banner{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#fff3c4;border-top:1px solid #ccc;padding:14px;font:15px/1.4 Arial,sans-serif;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner p{margin:0;flex:1 1 300px}
+video{display:block;max-width:100%;background:#000}
+</style>
+</head>
+<body>
+<div class="banner" id="cookie-banner" role="dialog" aria-label="Cookies"><p>We use cookies to improve your experience and to show you adverts.</p>
+<button type="button" id="accept">Accept all</button> <button type="button" id="reject">Reject all</button></div>
+<header class="site"><strong>Harbour City Herald</strong> · Local news since 1898</header>
+<nav><a href="#">Home</a> | <a href="#">City</a> | <a href="#">Business</a> | <a href="#">Sport</a> | <a href="#">Opinion</a></nav>
+<aside class="ad">ADVERTISEMENT: New windows at 30% off this weekend only! Call today.</aside>
+<main>
+<article>
+<h1>Harbour ferry timetable doubles after 18% rise in riders</h1>
+<p class="byline">By Mara Lindqvist · Published 14 March 2023 · Updated 2 November 2026</p>
+<p class="lead">The harbour ferry will run every ten minutes at rush hour from January, twice as often as now, the transport authority said on Monday.</p>
+<p>Ridership on the three ferry lines rose by 18 percent last year to 4.2 million trips, according to the authority's annual report. The busiest crossing, from Old Quay to the university, now carries 9,000 passengers on a weekday.</p>
+<p>The extra sailings will cost about $14 million a year, of which the city will pay two thirds. Two new electric boats ordered in 2024 arrive in December and will cut the fleet's fuel use by 30 percent.</p>
+<figure><video id="main-video" autoplay muted loop playsinline width="640" height="360"></video><figcaption>The new boats on their first trip.</figcaption></figure>
+<blockquote>"People have voted with their feet," said the authority's director, Tomas Berg, after the board meeting.</blockquote>
+<p>Critics say the money would be better spent on the bus network, where delays have grown by 12% since 2022. The authority says buses and ferries serve different trips and both will get more money next year.</p>
+<h2>What changes for riders</h2>
+<p>Tickets stay at the same price until at least the summer. Monthly passes bought before 31 December are valid on all three lines without a surcharge.</p>
+</article>
+</main>
+<aside class="promo"><video id="harbour-video" autoplay muted loop playsinline width="280" height="158"></video> Also on the Herald: the week in pictures.</aside>
+<aside class="ad">Most read: Fire brigade celebrates 120 years. Hazardous waste collection on Saturday. Football results.</aside>
+<footer>© Harbour City Herald. Privacy. Terms.</footer>
+<script>
+  // A banner that records what was pressed and goes away, as a site's own does.
+  window.__consentLog = [];
+  for (const id of ["accept", "reject"]) document.getElementById(id).addEventListener("click", () => {
+    window.__consentLog.push(id);
+    document.getElementById("cookie-banner").remove();
+  });
+  // A tiny moving picture for the video, made here (no file to fetch).
+  for (const v of [document.getElementById("main-video"), document.getElementById("harbour-video")]) try {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 36;
+    const g = c.getContext("2d"); let t = 0;
+    setInterval(() => { t++; g.fillStyle = `hsl(${(t * 7) % 360} 60% 40%)`; g.fillRect(0, 0, 64, 36); }, 100);
+    v.srcObject = c.captureStream(10); v.play().catch(() => {});
+  } catch (e) { /* no canvas stream: the video stays black */ }
+</script>
+</body>
+</html>
