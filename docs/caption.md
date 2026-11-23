@@ -269,6 +269,40 @@ Still open:
   `sites.json` sends a policy that blocks the model in frames (proven on a demo page only).
 - Content appended after the article (an infinite scroll's next article) is not translated (main-column rule).
 
+## Round 2, card 2: Check a claim on the web (the strip's first cloud call)
+
+Each claim (card 1) gets a web check: task `checkClaim`, routed `only_in_cloud` by the Sieve, run by `runGrounded`
+(`apps/web/src/ai.ts`) with the Google Search tool on the cloud model. What is sent: the claim's sentence, the page's
+title and its address without query or fragment (a form sent by GET puts what was typed in the query). Nothing else.
+
+- **Asked once.** Before anything is sent, More asks: "Checking facts sends sentences of this page to Google. Check
+  facts?" [Check facts] [Not now]. The answer stays in `chrome.storage.local` (`distill:checks`). "Not now" is not asked
+  again by itself; a Check on a claim asks again in its row.
+- **After yes.** The first three claims of an article are checked by themselves (once per page) while More may be
+  shut; every other claim on its Check, or Check all. The switch "Check the top claims by themselves" in More stops
+  the automatic part. The strip's chip says "In the cloud" once a check is done (not "No AI used").
+- **One door.** `parseCheck` (`packages/engine/src/check.ts`): a verdict from the closed set, else refused; the reason
+  as plain text without links, at most 240 characters; sources only from the response's grounding metadata, https,
+  deduped, at most 5. A link the model wrote is never shown. What was refused is counted under the verdict.
+- **No JSON schema with search.** The search tool and a response schema do not combine on every model, so the prompt
+  asks for JSON in words and the reply is parsed leniently; the door handles the rest.
+- **The public build** (on the device only) shows no Check: "Checking on the web needs the cloud; this version of
+  Distill uses only the AI on this device."
+
+Checking it for real (owner, own build; e2e and unit tests use a stand-in model and stand-in search results):
+
+1. `.env` with the Firebase config and the App Check debug token (as for the side panel), `VITE_SURFACE=caption`.
+2. `npm run build -w @distill/extension`, load `apps/extension/dist` unpacked in Chrome.
+3. Open a news article in English, click the Distill icon, open More, answer Check facts.
+4. Expect: three verdicts appear without a click, each with "In the cloud" and one to five source links that open the
+   article the search found (links go through `vertexaisearch.cloud.google.com/grounding-api-redirect/...`; the text
+   shows the page's title or domain). Check a fourth claim. In DevTools (the strip's frame), the network request to
+   `firebasevertexai.googleapis.com` carries `tools: [{googleSearch: {}}]` and a prompt with only the sentence, title
+   and address.
+5. Unverified until then: that the configured cloud model (`cloud_model` in Remote Config) supports the search tool
+   through Firebase AI Logic, and the wording of its verdicts. Google's terms for grounded results ask apps to show the
+   search suggestions (`searchEntryPoint`, an HTML snippet); the strip renders no model HTML, so this is open.
+
 ## Code map
 
 | File | Role |

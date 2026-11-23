@@ -236,6 +236,22 @@ export function resetChecksForTest(): void {
   claimsNow = []; autoDone = false; started = false; pending = []; queue = Promise.resolve(); pageInfo = null;
 }
 
+/**
+ * The strip's source chip once claims were checked: it must not say "No AI used" after a sentence went to the cloud.
+ * `chip` is Translate's (sourceChip); the checks add to it, and the cloud wins the chip's word when either ran there.
+ */
+export function chipWithChecks<C extends { src: string; text: string; title: string; data: Record<string, string> }>(chip: C, checks: Pick<ChecksStore, "checks" | "meta">): C {
+  const done = Object.keys(checks.checks).filter((id) => typeof checks.checks[id] === "object" && checks.meta[id]);
+  if (!done.length) return chip;
+  const cloud = done.some((id) => checks.meta[id]?.source === "in_cloud");
+  const words = `${done.length} claim${done.length === 1 ? "" : "s"} checked on the web ${cloud ? "in the cloud" : "here"}: only each sentence, the page's title and its address were sent.`;
+  const data = { ...chip.data, "data-checks": String(done.length) };
+  if (chip.src === "none") {
+    return { ...chip, data, src: cloud ? "in_cloud" : chip.src, text: cloud ? "In the cloud" : chip.text, title: `${words} Clean used no AI.` };
+  }
+  return { ...chip, data, ...(cloud ? { src: "in_cloud", text: "In the cloud" } : {}), title: `${chip.title} ${words}` };
+}
+
 // ---- the UI ------------------------------------------------------------------------------------------------------
 
 function Consent(props: { checks: Checks }) {

@@ -37,7 +37,7 @@ let local: Record<string, unknown> = {};
   },
 };
 
-const { ClaimCheck, ChecksControls, useChecks, resetChecksForTest, addressOnly, CHECKS_KEY } = await import("./ClaimCheck");
+const { ClaimCheck, ChecksControls, useChecks, resetChecksForTest, addressOnly, chipWithChecks, CHECKS_KEY } = await import("./ClaimCheck");
 
 const claims: Claim[] = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}`, blockId: `t${i}`, text: `Claim number ${i} says 4${i}% of people agree.`, why: "number" }));
 const grounding = [{ title: "Example News", url: "https://example.com/a" }, { title: "Plain", url: "http://example.net/x" }];
@@ -193,6 +193,25 @@ describe("a verdict", () => {
     await click(row("c0").querySelector('[data-testid="cap-check-btn"]'));
     expect(row("c0").textContent).toContain("Not checked: Distill could not prove it is genuine to the AI service.");
     expect(row("c0").querySelector('[data-testid="cap-check-retry"]')).toBeNull();
+  });
+});
+
+describe("the strip's source chip", () => {
+  const none = { src: "none", text: "No AI used", title: "Clean reads the page's own structure on this device. No AI is used and nothing is sent anywhere.", data: { "data-translate": "idle" } };
+  const check = { claimId: "c0", verdict: "supported" as const, reason: "", sources: [] };
+  it("stays as it is until a check is done", () => {
+    expect(chipWithChecks(none, { checks: { c0: "checking" }, meta: {} })).toBe(none);
+  });
+  it("no longer says No AI used once a sentence was checked in the cloud", () => {
+    const c = chipWithChecks(none, { checks: { c0: check, c1: check }, meta: { c0: { source: "in_cloud", why: "", dropped: 0 }, c1: { source: "in_cloud", why: "", dropped: 0 } } });
+    expect(c).toMatchObject({ src: "in_cloud", text: "In the cloud", data: { "data-checks": "2" } });
+    expect(c.title).toBe("2 claims checked on the web in the cloud: only each sentence, the page's title and its address were sent. Clean used no AI.");
+  });
+  it("a translation on the device plus a cloud check says In the cloud, and both on hover", () => {
+    const device = { src: "on_device", text: "On this device", title: "The translation from Czech ran on this device.", data: {} };
+    const c = chipWithChecks(device, { checks: { c0: check }, meta: { c0: { source: "in_cloud", why: "", dropped: 0 } } });
+    expect(c.src).toBe("in_cloud");
+    expect(c.title).toMatch(/^The translation from Czech ran on this device\. 1 claim checked on the web in the cloud/);
   });
 });
 

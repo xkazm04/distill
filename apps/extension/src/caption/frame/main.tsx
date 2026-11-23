@@ -21,7 +21,7 @@ import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 import { ClaimsSection, useClaims } from "./Claims";
-import { ChecksControls, useChecks } from "./ClaimCheck";
+import { chipWithChecks, ChecksControls, useChecks } from "./ClaimCheck";
 import { GistSection } from "./Gist";
 import { PlainRow } from "./Plain";
 import { TablesLinksSection } from "./Tables";
@@ -176,8 +176,8 @@ function Caption() {
             </div>
             <div className="more-extra">
               <GistSection report={report} />
-              <ClaimsSection report={report} claims={claims} />
               <ChecksControls checks={checks} claims={claims.claims} />
+              <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />
               <FormCheckSection report={report} />
               <ComfortSection report={report} setReport={setReport} />
@@ -199,7 +199,7 @@ function Caption() {
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
             <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
             {report && (() => {
-              const chip = sourceChip(translate.state);
+              const chip = chipWithChecks(sourceChip(translate.state), checks);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />
