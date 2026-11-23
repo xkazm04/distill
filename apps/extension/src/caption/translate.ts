@@ -8,6 +8,12 @@
 // element holding its own words (a paragraph, a list item, a table cell), so a list stays a list and a table a table.
 // Only text nodes' values change: every element, link and attribute stays, and every original value is kept to be put
 // back exactly. Nothing read here leaves the browser: the blocks go to the caption frame only.
+//
+// Round 2 (r2-04, plain words): the same swap shows plain words too. Each block keeps, for the text nodes Distill
+// writes, the page's own values, the translation's and the plain words of either; which one shows follows from four
+// switches the frame sets: Original, Keep <language>, Plain, and whether the block was translated (viewOf). Plain
+// rewrites the page as it is shown: a translated block's translation, else the page's own words. Keep <language> turns
+// Plain off (the page's own words, as written); Original and close bring back every word.
 import { detectLang, extractPage } from "@distill/engine";
 import type { CaptionMoreText, TextBlock } from "../messages";
 import { commonAncestor, type CleanContext } from "./context";
@@ -23,14 +29,37 @@ const BLOCKISH = "p, div, section, article, ul, ol, dl, table, figure, blockquot
 /** Text here is never sent or changed: code, scripts, form parts, a person's own text, what the page keeps as it is. */
 const SKIP = "script, style, noscript, template, pre, textarea, select, option, input, button, svg, math, form, [contenteditable]:not([contenteditable=false]), [translate=no], .notranslate, [data-distill-hide], [aria-hidden=true]";
 
+/** On each block that shows plain words now (r2-04). */
+export const PLAIN = "data-distill-plain";
+/** A block gets plain words only from this many words up: a heading or a short line is plain enough. */
+export const PLAIN_MIN_WORDS = 8;
+
+/** What a block shows: the page's words, the translation, or plain words of either (r2-04). */
+type View = "source" | "translation" | "plainSource" | "plainTranslation";
+type Base = "source" | "translation";
+const TRANSLATED_VIEWS: ReadonlySet<View> = new Set<View>(["translation", "plainTranslation"]);
+const PLAIN_VIEWS: ReadonlySet<View> = new Set<View>(["plainSource", "plainTranslation"]);
+const plainOf = (base: Base): View => (base === "source" ? "plainSource" : "plainTranslation");
+
 interface Unit {
   id: string;
   el: Element;
   /** Its text nodes, in order (blank ones too). */
   nodes: Text[];
   source: string;
-  /** Once translated: the nodes the translation went into. */
+  /** Not in the reader's language: Translate sends it. A block already in the reader's language is a unit too (plain
+   *  words may rewrite it) but is never sent for a translation. */
+  foreign: boolean;
+  /** Once Distill wrote into the block: the text nodes it writes, and each view's values for them in the same order
+   *  (`values.source`: the page's own). */
   slots?: Text[];
+  values?: Partial<Record<View, string[]>>;
+  /** The translation as one text, once translated. */
+  translation?: string;
+  /** What the block shows now. */
+  view: View;
+  /** Its lang attribute as the page had it (null: none), once Distill wrote into it. */
+  lang?: string | null;
 }
 
 interface State {
@@ -39,20 +68,27 @@ interface State {
   roots: Element[];
   units: Map<string, Unit>;
   byEl: Map<Element, Unit>;
-  /** Every text node changed: its value as the page had it, and its translation. */
-  original: Map<Text, string>;
-  translated: Map<Text, string>;
-  /** Blocks with a translation, and the lang attribute each had (null: none). */
-  done: Map<Element, string | null>;
+  /** Every text node Distill writes into: its block and its place among the block's slots. */
+  slotOf: Map<Text, { u: Unit; i: number }>;
   target: string;
+  /** Some block holds a translation (Translate ran here). */
+  translatedAny: boolean;
   /** The person chose "Keep <language>". */
   keepSource: boolean;
   /** Original is on. */
   originalOn: boolean;
+  /** Plain words are on (r2-04; only ever the person's choice). */
+  plainOn: boolean;
   /** The next block id ("t<n>"): an id once given never names another block. */
   next: number;
+  /** The same for a block already in the reader's language ("p<n>"). */
+  nextPlain: number;
   /** Translations by the page's words: a block that comes back as it was (a view shown again) needs no model. */
   memo: Map<string, string>;
+  /** Plain words by the words they rewrite (the page's or a translation's). */
+  plainMemo: Map<string, string>;
+  /** The words each block was handed over with for plain words: a rewrite of other words is not put in. */
+  asked: Map<string, string>;
   /** Watching for text the page adds later, once the frame asked (watchText). */
   watch: Watch | null;
   /** The main column the translation started with (a single-page app's next view replaces it). */
@@ -187,31 +223,109 @@ function owned(top: readonly Element[], leafy: ReadonlySet<Element>): Map<Elemen
   return byOwner;
 }
 
-/** Whether a block to translate: words of its own, not contact details only, not already in the reader's language. */
-const worthSending = (source: string, target: string): boolean =>
-  // Numbers only, contact details only ("tel.: 549 211 296"), or already in the reader's language: nothing to send.
-  /\p{L}/u.test(source) && !contactOnly(source) && !inLang(source, target);
+/** Whether a block is a block at all: words of its own, not contact details only ("tel.: 549 211 296"). */
+const hasWords = (source: string): boolean => /\p{L}/u.test(source) && !contactOnly(source);
+
+/** The state for `ctx`'s page: the one there is, or a new one read from the page. */
+function ensure(ctx: CleanContext): State {
+  if (state && state.ctx.doc === ctx.doc) {
+    state.ctx = ctx; // Stay clean may have read the page again: the same caption, the latest knowledge
+    return state;
+  }
+  clearTranslation();
+  const s: State = {
+    ctx, roots: [], units: new Map(), byEl: new Map(), slotOf: new Map(), target: readerLang(ctx.win.navigator),
+    translatedAny: false, keepSource: false, originalOn: false, plainOn: false, next: 0, nextPlain: 0, memo: new Map(),
+    plainMemo: new Map(), asked: new Map(), watch: null, rewrites: new WeakMap(), main: ctx.main,
+  };
+  state = s;
+  reconcile(s, rootsOf(ctx), new Set());
+  return s;
+}
 
 /** The blocks of the main text still to translate, by id: on the first ask all of them; later, what the page added or
  *  rewrote since (and anything a run did not manage). Nothing read here leaves the browser. */
 export function textBlocks(ctx: CleanContext): TextBlock[] {
-  if (state && state.ctx.doc === ctx.doc) {
-    state.ctx = ctx; // Stay clean may have read the page again: the same caption, the latest knowledge
-    return pending(state);
-  }
-  clearTranslation();
-  const s: State = {
-    ctx, roots: [], units: new Map(), byEl: new Map(), original: new Map(), translated: new Map(), done: new Map(),
-    target: readerLang(ctx.win.navigator), keepSource: false, originalOn: false, next: 0, memo: new Map(), watch: null,
-    rewrites: new WeakMap(), main: ctx.main,
-  };
-  state = s;
-  reconcile(s, rootsOf(ctx), new Set());
-  return pending(s);
+  return pending(ensure(ctx));
 }
 
+const translated = (u: Unit): boolean => u.values?.translation !== undefined;
+
 function pending(s: State): TextBlock[] {
-  return Array.from(s.units.values()).filter((u) => !s.done.has(u.el) && u.el.isConnected).map((u) => ({ id: u.id, text: u.source }));
+  return Array.from(s.units.values()).filter((u) => u.foreign && !translated(u) && u.el.isConnected).map((u) => ({ id: u.id, text: u.source }));
+}
+
+/** A translation shows on the page (or will, once the blocks waiting for it have it). */
+const translationLive = (s: State): boolean => s.translatedAny && !s.keepSource;
+/** What plain words of a block rewrite now: its translation while that shows, else the page's words. */
+const baseOf = (s: State, u: Unit): Base => (translated(u) && !s.keepSource ? "translation" : "source");
+const baseText = (u: Unit, base: Base): string => (base === "translation" ? u.translation ?? u.source : u.source);
+const wordCount = (text: string): number => (text.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+
+/** Whether a block waits for plain words: long enough, not rewritten yet for what it shows, and not a foreign block
+ *  still waiting for its translation (its plain words are the translation's, once it has one). */
+function wantsPlain(s: State, u: Unit): boolean {
+  if (!u.el.isConnected) return false;
+  const base = baseOf(s, u);
+  if (base === "source" && u.foreign && translationLive(s)) return false;
+  if (u.values?.[plainOf(base)] !== undefined) return false;
+  return wordCount(baseText(u, base)) >= PLAIN_MIN_WORDS;
+}
+
+/** Puts plain words a block had before for the same words (no model needed). True: it has them now. */
+function plainFromMemo(s: State, u: Unit): boolean {
+  const base = baseOf(s, u);
+  const before = s.plainMemo.get(baseText(u, base));
+  return before !== undefined && putPlain(s, u, base, before);
+}
+
+/**
+ * Plain words (r2-04): the blocks of the main text to rewrite, as the page shows them now (a translated block's
+ * translation, else the page's words), by id. Only blocks with no plain words yet for those words; a block rewritten
+ * before for the same words gets them again without the model. Nothing read here leaves the browser.
+ */
+export function plainBlocks(ctx: CleanContext): TextBlock[] {
+  const s = ensure(ctx);
+  const out: TextBlock[] = [];
+  quiet(() => {
+    for (const u of s.units.values()) {
+      if (!wantsPlain(s, u) || plainFromMemo(s, u)) continue;
+      const text = baseText(u, baseOf(s, u));
+      s.asked.set(u.id, text);
+      out.push({ id: u.id, text });
+    }
+  });
+  return out;
+}
+
+/** Plain words on (true) or off ("As written"). Returns how many blocks show plain words now. */
+export function plainShown(on: boolean): number {
+  const s = state;
+  if (!s) return 0;
+  s.plainOn = on;
+  render();
+  return Array.from(s.units.values()).filter((u) => PLAIN_VIEWS.has(u.view)).length;
+}
+
+/** Puts plain words into the page; returns how many blocks changed. A rewrite of words the block no longer shows (the
+ *  person chose Keep <language> meanwhile, or the page rewrote it) is left out. */
+export function applyPlain(blocks: readonly TextBlock[]): number {
+  const s = state;
+  if (!s) return 0;
+  return quiet(() => {
+    let changed = 0;
+    for (const b of blocks) {
+      const u = s.units.get(b.id);
+      const text = typeof b.text === "string" ? collapse(b.text) : "";
+      const asked = s.asked.get(b.id);
+      if (!u || !text || asked === undefined || !u.el.isConnected) continue;
+      const base = baseOf(s, u);
+      if (baseText(u, base) !== asked || u.values?.[plainOf(base)] !== undefined) continue;
+      if (u.slots ? rewritten(s, u, u.nodes) : wordsOf(u.nodes) !== u.source) { if (s.watch) schedule(s.watch); continue; }
+      if (putPlain(s, u, base, text)) changed++;
+    }
+    return changed;
+  });
 }
 
 /**
@@ -231,7 +345,7 @@ function reconcile(s: State, roots: readonly Element[], leafy: ReadonlySet<Eleme
     const source = wordsOf(nodes);
     let renewed = false;
     if (known) {
-      if (s.done.has(el)) {
+      if (known.slots) {
         if (!rewritten(s, known, nodes)) continue;
         undo(s, known);
         renewed = true;
@@ -242,8 +356,9 @@ function reconcile(s: State, roots: readonly Element[], leafy: ReadonlySet<Eleme
         forget(s, known);
       }
     }
-    if (!worthSending(source, s.target)) continue;
-    const before = s.memo.get(source);
+    if (!hasWords(source)) continue;
+    const foreign = !inLang(source, s.target);
+    const before = foreign ? s.memo.get(source) : undefined;
     if (before === undefined) {
       // A block the page keeps rewriting with new words (a clock, a live counter) stays in the page's words after a few
       // rounds: each one would be another call to the model.
@@ -251,34 +366,40 @@ function reconcile(s: State, roots: readonly Element[], leafy: ReadonlySet<Eleme
       if (renewed) s.rewrites.set(el, rounds);
       if (rounds > MAX_REWRITES) continue;
     }
-    const unit: Unit = { id: `t${s.next++}`, el, nodes, source };
+    // Ids: "t<n>" for a block to translate (as before plain words came), "p<n>" for one already in the reader's language.
+    const unit: Unit = { id: foreign ? `t${s.next++}` : `p${s.nextPlain++}`, el, nodes, source, foreign, view: "source" };
     s.units.set(unit.id, unit);
     s.byEl.set(el, unit);
-    if (before !== undefined && put(s, unit, before)) continue;
-    waiting++;
+    const hasTranslation = before !== undefined && putTranslation(s, unit, before);
+    // What waits for the model: a translation while one shows, plain words while they are on.
+    if (foreign && !hasTranslation && translationLive(s)) waiting++;
+    else if (s.plainOn && wantsPlain(s, unit) && !plainFromMemo(s, unit)) waiting++;
   }
   return waiting;
 }
 
-/** A translated block the page changed since (read only while the translation shows): a new text node of words, one
- *  of its nodes gone, or a node that no longer holds its translation (the page wrote it again, even its old words). */
-function rewritten(s: State, u: Unit, nodes: readonly Text[]): boolean {
+/** The value Distill shows in slot `i` of a block now. */
+const shownValue = (u: Unit, i: number): string | undefined => u.values?.[u.view]?.[i];
+
+/** A block Distill wrote into that the page changed since: a new text node of words, one of its nodes gone, or a node
+ *  that no longer holds what Distill shows there (the page wrote it again, even its old words). */
+function rewritten(_s: State, u: Unit, nodes: readonly Text[]): boolean {
   const slots = u.slots ?? [];
   const ours = new Set(slots);
   if (nodes.some((n) => !ours.has(n) && /\S/.test(n.nodeValue ?? ""))) return true;
-  return slots.some((n) => !n.isConnected || !u.el.contains(n) || n.nodeValue !== s.translated.get(n));
+  return slots.some((n, i) => !n.isConnected || !u.el.contains(n) || n.nodeValue !== shownValue(u, i));
 }
 
-/** Shows the page's words again where the translation still stands, and forgets the block. */
+/** Shows the page's words again where Distill's still stand, and forgets the block. */
 function undo(s: State, u: Unit): void {
-  show(u.el, u.slots ?? [], false);
+  setView(s, u, "source");
   forget(s, u);
 }
 
 function forget(s: State, u: Unit): void {
-  for (const n of u.slots ?? []) { s.original.delete(n); s.translated.delete(n); }
-  s.done.delete(u.el);
+  for (const n of u.slots ?? []) s.slotOf.delete(n);
   s.units.delete(u.id);
+  s.asked.delete(u.id);
   if (s.byEl.get(u.el) === u) s.byEl.delete(u.el);
 }
 
@@ -343,42 +464,79 @@ function share(text: string, idx: readonly number[], slots: readonly string[], o
   });
 }
 
-/** Writes the translation of one block (true) or its original words (false). A node the page changed since is left alone. */
-function show(el: Element, nodes: readonly Text[], translated: boolean): void {
-  if (!state) return;
-  for (const node of nodes) {
-    const from = translated ? state.original.get(node) : state.translated.get(node);
-    const to = translated ? state.translated.get(node) : state.original.get(node);
-    if (from === undefined || to === undefined || !node.isConnected) continue;
-    if (node.nodeValue === from) node.nodeValue = to;
+/** What a block should show now: Original and close show the page's words; Keep <language> shows them too (plain
+ *  words included only of the page's words); Plain shows plain words where the block has them for what it shows. */
+function viewOf(s: State, u: Unit): View {
+  if (!u.values || s.originalOn) return "source";
+  const tr = translated(u) && !s.keepSource;
+  if (s.plainOn) {
+    if (tr && u.values.plainTranslation) return "plainTranslation";
+    if (!tr && u.values.plainSource) return "plainSource";
   }
-  if (translated) {
-    el.setAttribute(TRANSLATED, "");
-    el.setAttribute("lang", state.target);
-  } else {
-    el.removeAttribute(TRANSLATED);
-    const lang = state.done.get(el);
-    if (lang === null || lang === undefined) el.removeAttribute("lang");
-    else el.setAttribute("lang", lang);
-  }
+  return tr ? "translation" : "source";
 }
 
-const showsTranslation = (): boolean => !!state && !state.keepSource && !state.originalOn;
+/** Writes view `to` into a block. A node the page changed since (it no longer holds what Distill showed) is left alone. */
+function setView(s: State, u: Unit, to: View): void {
+  const from = u.view;
+  const was = u.values?.[from];
+  const next = u.values?.[to];
+  if (from !== to && u.slots && was && next) {
+    u.slots.forEach((node, i) => {
+      if (node.isConnected && node.nodeValue === was[i]) node.nodeValue = next[i] ?? "";
+    });
+  }
+  u.view = to;
+  const el = u.el;
+  if (TRANSLATED_VIEWS.has(to)) {
+    el.setAttribute(TRANSLATED, "");
+    el.setAttribute("lang", s.target);
+  } else if (TRANSLATED_VIEWS.has(from)) {
+    el.removeAttribute(TRANSLATED);
+    if (u.lang === null || u.lang === undefined) el.removeAttribute("lang");
+    else el.setAttribute("lang", u.lang);
+  }
+  if (PLAIN_VIEWS.has(to)) el.setAttribute(PLAIN, "");
+  else if (PLAIN_VIEWS.has(from)) el.removeAttribute(PLAIN);
+}
+
+const show = (s: State, u: Unit): void => setView(s, u, viewOf(s, u));
+
+/** Takes a block's text nodes to write into (once): the ones with words, their values as the page has them now. False:
+ *  nothing to write into. */
+function claim(s: State, u: Unit): boolean {
+  if (u.slots) return true;
+  const slots = u.nodes.filter((n) => /\S/.test(n.nodeValue ?? "") && n.isConnected);
+  if (!slots.length) return false;
+  u.slots = slots;
+  u.values = { source: slots.map((n) => n.nodeValue ?? "") };
+  u.lang = u.el.getAttribute("lang");
+  u.view = "source";
+  slots.forEach((n, i) => s.slotOf.set(n, { u, i }));
+  return true;
+}
 
 /** Puts one block's translation in (its text nodes keep the page's words to go back to). False: nothing to put it in. */
-function put(s: State, unit: Unit, text: string): boolean {
-  const slots = unit.nodes.filter((n) => /\S/.test(n.nodeValue ?? "") && n.isConnected);
-  if (!slots.length) return false;
-  const parts = spread(text, slots.map((n) => n.nodeValue ?? ""));
-  slots.forEach((n, i) => {
-    s.original.set(n, n.nodeValue ?? "");
-    s.translated.set(n, parts[i] ?? "");
-  });
-  unit.slots = slots;
-  s.done.set(unit.el, unit.el.getAttribute("lang"));
+function putTranslation(s: State, unit: Unit, text: string): boolean {
+  if (!claim(s, unit) || !unit.values) return false;
+  unit.values.translation = spread(text, unit.values.source ?? []);
+  unit.translation = text;
+  s.translatedAny = true;
   if (s.memo.size >= MEMO_MAX) s.memo.delete(s.memo.keys().next().value as string);
   s.memo.set(unit.source, text);
-  if (showsTranslation()) show(unit.el, slots, true);
+  show(s, unit);
+  return true;
+}
+
+/** Puts one block's plain words of `base` in, spread over the same text nodes. False: nothing to put them in. */
+function putPlain(s: State, unit: Unit, base: Base, text: string): boolean {
+  if (!claim(s, unit) || !unit.values) return false;
+  const over = unit.values[base];
+  if (!over) return false;
+  unit.values[plainOf(base)] = spread(text, over);
+  if (s.plainMemo.size >= MEMO_MAX) s.plainMemo.delete(s.plainMemo.keys().next().value as string);
+  s.plainMemo.set(baseText(unit, base), text);
+  show(s, unit);
   return true;
 }
 
@@ -387,32 +545,39 @@ function put(s: State, unit: Unit, text: string): boolean {
 export function applyTranslation(blocks: readonly TextBlock[]): number {
   const s = state;
   if (!s) return 0;
-  return quiet(() => {
-    let changed = 0;
+  const changed = quiet(() => {
+    let n = 0;
     for (const b of blocks) {
       const unit = s.units.get(b.id);
       const text = typeof b.text === "string" ? collapse(b.text) : "";
-      if (!unit || !text || s.done.has(unit.el)) continue;
-      if (wordsOf(unit.nodes) !== unit.source) { if (s.watch) schedule(s.watch); continue; }
-      if (put(s, unit, text)) changed++;
+      if (!unit || !text || translated(unit)) continue;
+      if (unit.slots ? rewritten(s, unit, unit.nodes) : wordsOf(unit.nodes) !== unit.source) { if (s.watch) schedule(s.watch); continue; }
+      if (putTranslation(s, unit, text)) n++;
     }
-    return changed;
+    return n;
   });
+  // Plain words are on: the blocks just translated wait for plain words of their translation (the frame asks).
+  if (changed && s.plainOn && s.watch) tell(s.watch, changed);
+  return changed;
 }
+
+/** Distill's switches are on (true) or the page shows its own words everywhere (false): only then is text the page
+ *  adds later handed over. */
+const active = (s: State): boolean => !s.originalOn && (translationLive(s) || s.plainOn);
 
 function render(): void {
   const s = state;
   if (!s) return;
-  const on = showsTranslation();
-  quiet(() => { for (const unit of s.units.values()) if (s.done.has(unit.el)) show(unit.el, unit.slots ?? unit.nodes, on); });
-  // The translation is back on the page: what the page added meanwhile is translated now.
-  if (on && s.watch?.waiting) schedule(s.watch);
+  quiet(() => { for (const unit of s.units.values()) if (unit.values) show(s, unit); });
+  // A translation or plain words are back on the page: what the page added meanwhile is handed over now.
+  if (active(s) && s.watch?.waiting) schedule(s.watch);
 }
 
-/** The page's own words (true) or the translation (false). */
+/** The page's own words (true) or the translation (false). The page's own words are as written: plain words go off. */
 export function showSource(on: boolean): void {
   if (!state) return;
   state.keepSource = on;
+  if (on) state.plainOn = false;
   render();
 }
 
@@ -420,7 +585,7 @@ export function showSource(on: boolean): void {
 export function clearTranslation(): void {
   if (!state) return;
   stopWatching(state);
-  state.keepSource = true;
+  state.originalOn = true;
   render();
   state = null;
 }
@@ -520,8 +685,9 @@ function noticed(w: Watch, records: readonly MutationRecord[]): void {
       if (r.oldValue !== null && !(r.target as Element).hasAttribute(HIDE)) wake = true;
     } else if (r.type === "characterData") {
       const node = r.target as Text;
-      // A node of a translated block that holds what Distill shows there: nothing changed.
-      if (s.original.has(node) && node.nodeValue === (showsTranslation() ? s.translated : s.original).get(node)) continue;
+      // A node of a block Distill wrote into that holds what Distill shows there: nothing changed.
+      const at = s.slotOf.get(node);
+      if (at && node.nodeValue === shownValue(at.u, at.i)) continue;
       if (near(node)) wake = true;
     } else if ((Array.from(r.addedNodes).some(words) || Array.from(r.removedNodes).some(words)) && near(r.target)) {
       wake = true;
@@ -546,7 +712,7 @@ function look(w: Watch): void {
   w.firstChange = 0;
   const s = state;
   if (!s || s.watch !== w) return;
-  if (!showsTranslation()) { w.waiting = true; return; }
+  if (!active(s)) { w.waiting = true; return; }
   w.waiting = false;
   const t0 = performance.now();
   w.lastRun = Date.now();
