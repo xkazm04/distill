@@ -42,6 +42,14 @@ describe("the offscreen document's door", () => {
     }
   });
 
+  it("refuses translateErrors (r4-04: a form's errors can repeat what was typed) before anything runs", async () => {
+    const run = vi.fn(async () => ok());
+    const fake = vi.fn(async () => ok());
+    expect(await answer(ask("translateErrors", { fake: {} }), { run, fake, kindOf: () => "other" })).toEqual({ ok: false, kind: "other", refused: "values" });
+    expect(run).not.toHaveBeenCalled();
+    expect(fake).not.toHaveBeenCalled();
+  });
+
   it("a failed run answers its kind; the stand-in model runs only when the ask carries its switch", async () => {
     const run = vi.fn(async () => { throw new Error("boom"); });
     expect(await answer(ask("translateBlocks"), { run, kindOf: () => "busy" })).toEqual({ ok: false, kind: "busy" });

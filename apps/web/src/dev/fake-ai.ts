@@ -175,6 +175,10 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
       // schemas.translate: {blocks: [{id, text}]}. Not a translation: the source marked "[EN]", so a screen shows which
       // blocks were replaced (names, numbers and links stay exactly where they were).
       return { blocks: empty ? [] : (ctx.blocks ?? []).map((b) => ({ id: b.id, text: `[EN] ${b.text}` })) };
+    case "translateErrors":
+      // r4-04, a form's error messages (values: device only). Same shape as translateBlocks, marked "[EN-ERR] " so a
+      // test sees they came from this task and not from the form words' translation.
+      return { blocks: empty ? [] : (ctx.blocks ?? []).map((b) => ({ id: b.id, text: `[EN-ERR] ${b.text}` })) };
     case "findClaims":
       // schemas.claims: the first six candidates, each with the engine's own reason (or "number").
       return { claims: empty ? [] : (ctx.claims ?? []).slice(0, 6).map((c) => ({ id: c.id, why: c.why ?? "number" })) };
