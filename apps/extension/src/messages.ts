@@ -1,6 +1,6 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
-import type { Byline, ClaimVerdict, ClutterItem, FoundAction, Rates, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
+import type { Byline, Chapter, ClaimVerdict, ProductFacts, ClutterItem, FoundAction, Rates, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
@@ -99,7 +99,50 @@ export type ContentRequest =
   /** From the caption: the light highlight on every action's exact words on (true) or off (r3-09). */
   | { type: "distill:caption:markActions"; on: boolean }
   /** From the caption: scroll to one action's words and flash them (r3-09). */
-  | { type: "distill:caption:showAction"; id: string };
+  | { type: "distill:caption:showAction"; id: string }
+  // ---- spark universal-core, round 4 ----
+  /** From the caption: a form's own words to translate (labels, hints, placeholders, options, buttons), never a value
+   *  and never an error message (r4-04). Ids `f0...`. */
+  | { type: "distill:caption:formText" }
+  /** From the caption: put these translations of the form's words in place (r4-04). */
+  | { type: "distill:caption:formTranslated"; blocks: TextBlock[] }
+  /** From the caption: the error messages the form shows now, for an on-device translation only (r4-04; values). */
+  | { type: "distill:caption:formErrors" }
+  /** From the caption: put these on-device translations of the errors in place (r4-04). */
+  | { type: "distill:caption:formErrorsTranslated"; blocks: TextBlock[] }
+  /** From the caption: the form's own words (true, Keep <language>) or the translation again (false) (r4-04). */
+  | { type: "distill:caption:formSource"; on: boolean }
+  /** From the caption: show the explanation of the selected words beside them (r4-05). */
+  | { type: "distill:caption:explainShow"; id: string; text: string; source: "page" | "on_device" | "refused" }
+  /** From the caption: the video's chapters and sponsor parts from its description, or null (r4-06). */
+  | { type: "distill:caption:video" }
+  /** From the caption: move the page's main video to this second (r4-06). */
+  | { type: "distill:caption:seek"; seconds: number }
+  /** From the caption: the product page's facts, or null (r4-07). */
+  | { type: "distill:caption:product" }
+  /** From the caption: scroll to where a product fact was read and flash it (r4-07). */
+  | { type: "distill:caption:showProduct"; id: string }
+  /** From the caption: one step of a tour, highlighted and scrolled to; null ends the tour (r4-08). */
+  | { type: "distill:caption:tour"; step: TourStep | null };
+
+/** A tour step (r4-08): something Distill already found on the page, by its own id. */
+export type TourStep =
+  | { kind: "text"; blockId: string; sentence: string }
+  | { kind: "action"; id: string }
+  | { kind: "contact"; id: string }
+  | { kind: "product"; id: string };
+
+/** The video's chapters (r4-06): the description's words and times only. */
+export interface VideoInfo { chapters: Chapter[]; duration?: number }
+
+/** Content script -> this tab's caption frame (r4-05): the person selected words in the main text and pressed Explain.
+ *  The words and their sentence are page text; the frame runs the on-device model (explainTerm, values) or answers
+ *  from the page, then sends distill:caption:explainShow. */
+export interface CaptionExplainAsk { type: "distill:caption:explainAsk"; tabId: number; id: string; term: string; sentence: string; spelled?: string }
+export function isCaptionExplainAsk(m: unknown): m is CaptionExplainAsk {
+  const x = m as Partial<CaptionExplainAsk> | null;
+  return !!x && x.type === "distill:caption:explainAsk" && typeof x.tabId === "number" && typeof x.id === "string" && typeof x.term === "string";
+}
 
 /** What happened to a cookie banner (r3-04): its reject button pressed, only hidden, none on the page, or the switch off. */
 export type ConsentOutcome = "rejected" | "hidden" | "none" | "off";
@@ -246,6 +289,18 @@ export interface ContentReplies {
   "distill:caption:actions": ActionItem[];
   "distill:caption:markActions": { marked: number };
   "distill:caption:showAction": { found: boolean };
+  // round 4
+  "distill:caption:formText": TextBlock[];
+  "distill:caption:formTranslated": { applied: number };
+  "distill:caption:formErrors": TextBlock[];
+  "distill:caption:formErrorsTranslated": { applied: number };
+  "distill:caption:formSource": { ok: true };
+  "distill:caption:explainShow": { ok: true };
+  "distill:caption:video": VideoInfo | null;
+  "distill:caption:seek": { ok: boolean };
+  "distill:caption:product": ProductFacts | null;
+  "distill:caption:showProduct": { found: boolean };
+  "distill:caption:tour": { found: boolean };
 }
 
 /**

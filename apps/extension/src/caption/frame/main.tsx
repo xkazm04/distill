@@ -32,6 +32,10 @@ import { ActionsSection, useActions, withActions } from "./Actions";
 import { TermsSection, useTerms } from "./Terms";
 import { DarkSection, useDark } from "./Dark";
 import { ConsentSection } from "./Consent";
+import { ProductSection } from "./Product";
+import { VideoSection } from "./Video";
+import { ToursSection } from "./Tours";
+import { useExplain } from "./Explain";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -119,6 +123,8 @@ function Caption() {
   // Round 3: who wrote this and when (r3-05), what this page asks of you (r3-09); both parts of the status line.
   const byline = useByline(report);
   const actions = useActions(report);
+  // Round 4: explain this word (r4-05) answers the page's Explain button, More open or not.
+  useExplain(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -161,6 +167,9 @@ function Caption() {
           <section className="more" id="cap-more" aria-label="More" data-testid="cap-more">
             <GistSection report={report} gist={gist} />
             <AskSection report={report} setReport={setReport} />
+            <ProductSection report={report} setReport={setReport} />
+            <VideoSection report={report} setReport={setReport} />
+            <ToursSection report={report} setReport={setReport} />
             <div className="more-cols">
               <div>
                 <h2>What was removed ({removed} of {report.items.length})</h2>

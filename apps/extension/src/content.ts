@@ -21,6 +21,11 @@ import { setConsent } from "./caption/consent";
 import { setDark } from "./caption/dark";
 import { setTerms, termsAside } from "./caption/terms";
 import { markActions, readActions, showAction } from "./caption/actions";
+import { applyFormErrors, applyFormText, formErrors, formSource, formText } from "./caption/formText";
+import { showExplanation } from "./caption/explain";
+import { readVideo, seek } from "./caption/video";
+import { readProductFacts, showProduct } from "./caption/product";
+import { tourStep } from "./caption/tour";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -136,6 +141,18 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:caption:markActions": return { marked: markActions(document, req.on) };
     case "distill:caption:showAction": return { found: showAction(document, req.id) };
+    // ---- round 4 ----
+    case "distill:caption:formText": return formText(document);
+    case "distill:caption:formTranslated": return { applied: applyFormText(document, req.blocks) };
+    case "distill:caption:formErrors": return formErrors(document);
+    case "distill:caption:formErrorsTranslated": return { applied: applyFormErrors(document, req.blocks) };
+    case "distill:caption:formSource": formSource(document, req.on); return { ok: true };
+    case "distill:caption:explainShow": showExplanation(document, req.id, req.text, req.source); return { ok: true };
+    case "distill:caption:video": return readVideo(document);
+    case "distill:caption:seek": return { ok: seek(document, req.seconds) };
+    case "distill:caption:product": return readProductFacts(document);
+    case "distill:caption:showProduct": return { found: showProduct(document, req.id) };
+    case "distill:caption:tour": return { found: tourStep(document, req.step) };
   }
 }
 

@@ -7,7 +7,7 @@ import type { Task } from "@distill/engine";
 const ALL_TASKS = [
   "classifyPage", "simplifyBlocks", "recast", "readLetter", "buildReplyWizard",
   "buildWizard", "explainField", "suggestValue", "checkValue", "explainError", "draftReply", "translateBlocks",
-  "findClaims", "gist", "askPage",
+  "findClaims", "gist", "askPage", "explainTerm", "translateErrors",
 ] as const satisfies readonly Task[];
 /** Tasks the Sieve keeps in the cloud whatever is configured: this build refuses them in plain words. */
 const CLOUD_ONLY = ["checkClaim"] as const satisfies readonly Task[];

@@ -355,7 +355,9 @@ export type Task =
   | "findClaims"        // page (round 2: which sentences of the main text are worth checking; on device first)
   | "checkClaim"        // page (round 2: one sentence, the title and the address, checked with web search; cloud only)
   | "gist"              // page (round 2: three points from the main text; on device first)
-  | "askPage";          // values (round 3: the person's typed question about the page; device only, no fallback)
+  | "askPage"           // values (round 3: the person's typed question about the page; device only, no fallback)
+  | "explainTerm"       // values (round 4: a word the person selected; which word says something about them)
+  | "translateErrors";  // values (round 4: a form's error messages, which can repeat what the person typed)
 
 export interface RouteDecision {
   task: Task;

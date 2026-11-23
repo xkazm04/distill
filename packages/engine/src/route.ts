@@ -11,6 +11,8 @@ const CLASS_OF: Record<Task, PromptClass> = {
   checkClaim: "page",
   gist: "page",
   askPage: "values",
+  explainTerm: "values",
+  translateErrors: "values",
   buildWizard: "structure",
   explainField: "structure",
   suggestValue: "values",
