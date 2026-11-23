@@ -31,7 +31,7 @@ export { parseGist, findSentence, GIST_POINTS, GIST_POINT_MAX, type Gist, type G
 export { keepsFacts, missingFacts, parsePlain, type Fact, type FactKind, type PlainResult } from "./plain.js";
 export { describeLink, readableHost, registrableDomain, PROGRAM_FILE_TYPES, TRACKING_PARAMS, type LinkNote } from "./links.js";
 // Spark universal-core round 3 (contract; each module is filled by its card's builder).
-export { readByline, bylineLine, type Byline } from "./byline.js";
+export { readByline, bylineLine, ago as bylineAgo, dayOf as bylineDay, type Byline } from "./byline.js";
 export { findActions, ACTION_KINDS, type ActionKind, type FoundAction } from "./actions.js";
 export { findPrices, convert, formatMoney, parseEcbRates, parseAmount, currencyOfLocale, READER_CURRENCIES, type FoundPrice, type Rates } from "./money.js";
 export { findDates, formatDate, type FoundDate } from "./dates.js";

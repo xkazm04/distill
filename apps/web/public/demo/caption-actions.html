@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Místní poplatek za odpad na rok 2027 - Obec Lipová Lhota</title>
+<meta property="og:site_name" content="Obec Lipová Lhota">
+<meta name="author" content="Jana Meta-Autorová">
+<meta property="article:published_time" content="2001-01-01">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+  {"@type":"WebSite","name":"Obec Lipová Lhota","url":"https://lipova-lhota.example/"},
+  {"@type":"NewsArticle","headline":"Místní poplatek za odpad na rok 2027","datePublished":"2023-01-10T09:00:00+01:00","dateModified":"__UPDATED__",
+   "author":[{"@type":"Person","name":"Marie Svobodová"}],"publisher":{"@type":"GovernmentOrganization","name":"Obecní úřad Lipová Lhota"}}
+]}
+</script>
+<script>
+// The demo's "updated" date is yesterday whenever the test runs (the JSON-LD above is filled before the page is read).
+(function () {
+  var s = document.querySelector('script[type="application/ld+json"]');
+  var d = new Date(Date.now() - 86400000);
+  var iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "T08:00:00+01:00";
+  s.textContent = s.textContent.replace("__UPDATED__", iso);
+})();
+</script>
+<style>
+body{margin:0;background:#f3f5f1;font:16px/1.5 Arial,sans-serif;color:#1d2a1d}
+header{background:#2f5d2f;color:#fff;padding:12px 20px}
+header a{color:#fff;margin-right:14px}
+.wrap{display:flex;gap:24px;max-width:1000px;margin:0 auto}
+main{flex:1;max-width:680px;padding:8px 20px 40px;background:#fff}
+aside{width:240px;padding:12px;font-size:14px}
+.newsletter{border:1px solid #9aa89a;padding:10px;margin-top:20px}
+footer{max-width:1000px;margin:0 auto;padding:12px 20px;font-size:13px;color:#667}
+input{font:inherit}
+</style>
+</head>
+<body>
+<header><strong>Obec Lipová Lhota</strong> &nbsp; <nav style="display:inline"><a href="#">Úvod</a><a href="#">Úřad</a><a href="#">Aktuality</a><a href="#">Kontakty</a></nav></header>
+<div class="wrap">
+<main>
+  <article>
+    <h1>Místní poplatek za odpad na rok 2027</h1>
+    <p>Vážení občané, zastupitelstvo obce schválilo výši místního poplatku za obecní systém odpadového hospodářství na rok 2027. Sazba zůstává stejná jako v loňském roce.</p>
+    <p id="pay">Poplatek ve výši 800 Kč za osobu uhraďte převodem na účet 123456789/0100, variabilní symbol je číslo popisné, nejpozději do 31. 3. 2027.</p>
+    <p id="cash">Hotově lze platit v pokladně obecního úřadu. S sebou si vezměte občanský průkaz a doklad o zaplacení za loňský rok.</p>
+    <p id="relief">Kdo žádá o osvobození od poplatku, musí žádost podat do 28. 2. 2027. K žádosti doložte potvrzení o studiu nebo o pobytu mimo obec.</p>
+    <p id="office">Úřední hodiny: Po, St 8:00 - 17:00. Informace podá paní Novotná na tel. 377 912 345 nebo e-mailem poplatky@lipova-lhota.example.</p>
+    <p id="history">Obec třídí odpad už od roku 1998 a v roce 2024 vytřídila 312 tun papíru, plastu a skla.</p>
+    <form id="dotaz" action="#" onsubmit="return false">
+      <label for="tel">Váš telefon pro zpětný dotaz</label> <input id="tel" name="tel" type="tel">
+    </form>
+  </article>
+</main>
+<aside>
+  <h2>Rychlé odkazy</h2>
+  <ul><li><a href="#">Úřední deska</a></li><li><a href="#">Odpady</a></li><li><a href="#">Zpravodaj</a></li></ul>
+  <div class="newsletter"><strong>Odběr novinek</strong><p>Zadejte e-mail a dostávejte newsletter obce.</p><input type="email" placeholder="váš e-mail"></div>
+</aside>
+</div>
+<footer>Obecní úřad Lipová Lhota, Hlavní 1, 330 11 Lipová Lhota · IČO: 12345678 · Bankovní spojení: 987654321/0800</footer>
+</body>
+</html>

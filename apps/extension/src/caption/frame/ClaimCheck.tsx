@@ -3,7 +3,7 @@
 // all and the "by themselves" switch are ChecksControls, in More (main.tsx).
 //
 // What is sent: the claim's sentence, the page's title and its address without query or fragment (a form sent by GET
-// puts what was typed in the query). Never a form's content, never other text of the page. Before the first check the
+// puts what was typed in the query), and the day the page was published when it says (r3-05, from Byline). Never a form's content, never other text of the page. Before the first check the
 // person is asked once; the answer stays on this device (chrome.storage.local). After yes, the first three claims of
 // an article are checked by themselves (once per page) unless the switch in More is off; every other claim on a click.
 import { useEffect, useSyncExternalStore } from "react";
@@ -11,6 +11,7 @@ import { parseCheck, prompts, route, type Claim, type ClaimCheck as Check, type 
 import { entryPointOf, isOnDeviceOnlyBuild, runGrounded, toAiError, AI_WORDS, type AiFailure, type GroundedResult } from "@distill/web/ai";
 import { send } from "./send";
 import { readerLang } from "./Translate";
+import { bylineOnce, publishedDay } from "./Byline";
 import { canRunTask, e2eFake } from "./runTask";
 import { SearchSuggestions } from "./SearchSuggestions";
 
@@ -78,7 +79,7 @@ let started = false;
 let pending: Claim[] = [];
 /** One check at a time: kinder to the service's rate limits, and the verdicts arrive in order. */
 let queue: Promise<void> = Promise.resolve();
-let pageInfo: Promise<{ title: string; url: string }> | null = null;
+let pageInfo: Promise<{ title: string; url: string; published?: string }> | null = null;
 
 function set(patch: Partial<ChecksStore> | ((s: ChecksStore) => Partial<ChecksStore>)): void {
   state = { ...state, ...(typeof patch === "function" ? patch(state) : patch) };
@@ -106,10 +107,12 @@ export function addressOnly(url: string): string {
   try { const u = new URL(url); return `${u.origin}${u.pathname}`; } catch { return ""; }
 }
 
-function info(): Promise<{ title: string; url: string }> {
-  pageInfo ??= send<"distill:caption:pageInfo">({ type: "distill:caption:pageInfo" })
-    .then((p) => ({ title: p.title, url: addressOnly(p.url) }))
-    .catch(() => ({ title: "", url: "" }));
+function info(): Promise<{ title: string; url: string; published?: string }> {
+  pageInfo ??= Promise.all([
+    send<"distill:caption:pageInfo">({ type: "distill:caption:pageInfo" }).then((p) => ({ title: p.title, url: addressOnly(p.url) }), () => ({ title: "", url: "" })),
+    // The published date only (r3-05): it tells an old claim from a new one. Nothing else of the byline is sent.
+    bylineOnce().then((b) => publishedDay(b), () => undefined),
+  ]).then(([p, published]) => (published ? { ...p, published } : p));
   return pageInfo;
 }
 
@@ -164,8 +167,8 @@ export interface CheckRun {
   /** Google's Search Suggestions markup, when the answer had one the door accepted (shown only in a sealed frame). */
   entry?: string;
 }
-export async function checkClaim(claim: Claim, page: { title: string; url: string }): Promise<CheckRun> {
-  const r = await grounded(prompts.checkClaim(claim.text, page.title, page.url, readerLang()), claim);
+export async function checkClaim(claim: Claim, page: { title: string; url: string; published?: string }): Promise<CheckRun> {
+  const r = await grounded(prompts.checkClaim(claim.text, page.title, page.url, readerLang(), page.published), claim);
   const out = parseCheck(r.data, r.grounding, claim.id);
   return {
     check: out.check ?? null, dropped: out.dropped + (r.entryRefused ? 1 : 0), source: r.source, reason: r.reason, ms: r.ms,
@@ -274,7 +277,7 @@ export function chipWithChecks<C extends { src: string; text: string; title: str
   const done = Object.keys(checks.checks).filter((id) => typeof checks.checks[id] === "object" && checks.meta[id]);
   if (!done.length) return chip;
   const cloud = done.some((id) => checks.meta[id]?.source === "in_cloud");
-  const words = `${done.length} claim${done.length === 1 ? "" : "s"} checked on the web ${cloud ? "in the cloud" : "here"}: only each sentence, the page's title and its address were sent.`;
+  const words = `${done.length} claim${done.length === 1 ? "" : "s"} checked on the web ${cloud ? "in the cloud" : "here"}: only each sentence, the page's title and its address were sent (and the day the page was published, when it says).`;
   const data = { ...chip.data, "data-checks": String(done.length) };
   if (chip.src === "none") {
     return { ...chip, data, src: cloud ? "in_cloud" : chip.src, text: cloud ? "In the cloud" : chip.text, title: `${words} Clean used no AI.` };
@@ -371,7 +374,7 @@ export function ChecksControls(props: { checks: Checks; claims: readonly Claim[]
       <h2>Check on the web</h2>
       {asking ? <Consent checks={checks} /> : checks.consent ? (
         <>
-          <p className="note" data-testid="cap-checks-count">{done ? `Checked ${done} of ${claims.length} claims in the cloud.` : "Only the sentence, the page's title and its address are sent."}</p>
+          <p className="note" data-testid="cap-checks-count">{done ? `Checked ${done} of ${claims.length} claims in the cloud.` : "Only the sentence, the page's title, its address and, when the page says, the day it was published are sent."}</p>
           <div className="ck-acts">
             <button type="button" className="btn sm" onClick={checks.checkAll} disabled={busy || done === claims.length} data-testid="cap-check-all">Check all</button>
           </div>

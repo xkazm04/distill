@@ -1,0 +1,14 @@
+/* Round 3, r3-09 What this page asks of you: the list in More. Theme roles only. */
+.more-extra > .actions { grid-column: 1 / -1; }
+.actions-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; max-height: 240px; overflow: auto; padding-right: 4px; }
+.actions-list li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; min-height: 36px; }
+.actions-list li > .note { grid-column: 2 / -1; margin: 0; }
+.action-kind { font-size: 13px; color: var(--muted); }
+.action-what { min-width: 0; display: flex; flex-direction: column; }
+.action-text { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; user-select: text; }
+.action-quote { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.action-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+@media (max-width: 560px) {
+  .actions-list li { grid-template-columns: minmax(0, 1fr); padding: 4px 0; }
+  .actions-list li > .note { grid-column: 1; }
+}

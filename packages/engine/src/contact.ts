@@ -45,6 +45,7 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
     found.push(f);
   };
   const order = docOrder(root);
+  const isCz = (): boolean => czech(opts.url, doc);
   const lines = readLines(root);
   /** The lines that hold a phone: an address without a postcode is trusted next to one (see streetAddresses). */
   const phoneLines = new Set<number>();
@@ -70,7 +71,7 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
     if (scheme.startsWith("tel:")) {
       const raw = safeDecode(href.slice(4)).replace(/[^\d+]/g, "");
       const shown = collapse(a.textContent ?? "");
-      const p = phoneOf(digits(shown).length >= 7 ? shown : raw, "tel", opts.url, doc);
+      const p = phoneOf(digits(shown).length >= 7 ? shown : raw, "tel", isCz);
       if (p) {
         add({ ...p, el: a, at: order(a) });
         phoneLines.add(lineOf(a));
@@ -84,8 +85,8 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
   for (const [li, line] of lines.entries()) {
     for (const m of line.text.matchAll(PHONE_RE)) {
       // Two numbers written as one run ("377 912 345 / 777 123 456"): when the whole is no number, try its pieces.
-      for (const [piece, at] of pieces(m[0], m.index ?? 0, (t, i) => !!phoneOf(t, phoneContext(line.text, i, t.length), opts.url, doc))) {
-        const p = phoneOf(piece, phoneContext(line.text, at, piece.length), opts.url, doc);
+      for (const [piece, at] of pieces(m[0], m.index ?? 0, (t, i) => !!phoneOf(t, phoneContext(line.text, i, t.length), isCz))) {
+        const p = phoneOf(piece, phoneContext(line.text, at, piece.length), isCz);
         if (p) {
           add({ ...p, ...placeOf(line, at, piece.length, order) });
           phoneLines.add(li);
@@ -104,7 +105,7 @@ export function findContacts(doc: Document, opts: ContactOptions): FoundContact[
   for (const s of Array.from(doc.querySelectorAll('script[type="application/ld+json"]'))) {
     const json = s.textContent ?? "";
     for (const t of jsonLd(json, "telephone").flat()) {
-      const p = typeof t === "string" ? phoneOf(t, "tel", opts.url, doc) : null;
+      const p = typeof t === "string" ? phoneOf(t, "tel", isCz) : null;
       if (p) add({ ...p, el: null, at: Number.MAX_SAFE_INTEGER });
     }
     for (const e of jsonLd(json, "email").flat()) {
@@ -259,7 +260,7 @@ function phoneContext(text: string, at: number, len: number): { before: string; 
   return { before: text.slice(Math.max(0, at - 32), at), after: text.slice(at + len, at + len + 12) };
 }
 
-function phoneOf(raw: string, ctx: "tel" | { before: string; after: string }, url: string, doc: Document): Omit<Found, "el" | "at"> | null {
+function phoneOf(raw: string, ctx: "tel" | { before: string; after: string }, cz: () => boolean): Omit<Found, "el" | "at"> | null {
   const text = collapse(raw).replace(/[\s./(–-]+$/, "");
   const d = digits(text);
   const intl = /^\s*(\+|00)/.test(text);
@@ -293,7 +294,7 @@ function phoneOf(raw: string, ctx: "tel" | { before: string; after: string }, ur
   }
   // tel: href: the number as dialled. A Czech page's 9-digit number gets its country code, so it works from abroad too.
   let dial = intl ? `+${national}` : d;
-  if (!intl && d.length === 9 && /^[2-9]/.test(d) && czech(url, doc)) dial = `+420${d}`;
+  if (!intl && d.length === 9 && /^[2-9]/.test(d) && cz()) dial = `+420${d}`;
   const shown = text.length >= 3 ? text : d;
   return { kind: "phone", text: shown, href: `tel:${dial}`, key: phoneKey(intl ? national : d) };
 }
@@ -674,4 +675,38 @@ function jsonLd(text: string, key: string): unknown[] {
   };
   walk(data, 0);
   return out;
+}
+
+// ---- one piece of text (round 3, r3-09: what this page asks of you) ----
+
+/** A phone, an e-mail address or opening hours written in a piece of text: where it starts and its exact words. */
+export interface TextContact { kind: "phone" | "email" | "hours"; at: number; quote: string; text: string; href?: string }
+
+/**
+ * Phones, e-mail addresses and opening hours in one piece of text, by the same rules as findContacts (a bank account, a
+ * price, a date or a company id is no phone). `czech`: a 9-digit number dials with +420. In order, never overlapping.
+ */
+export function contactsInText(text: string, czech: boolean): TextContact[] {
+  const out: TextContact[] = [];
+  const cz = () => czech;
+  const free = (at: number, len: number) => !out.some((o) => at < o.at + o.quote.length && o.at < at + len);
+  for (const m of text.matchAll(HOURS_RE)) {
+    const at = m.index ?? 0;
+    const quote = m[0].trim();
+    if (free(at, quote.length)) out.push({ kind: "hours", at, quote, text: collapse(quote) });
+  }
+  for (const m of text.matchAll(EMAIL_RE)) {
+    const at = m.index ?? 0;
+    const addr = `${m[1]}@${(m[2] ?? "").replace(DOT_WORD, ".")}`.replace(/\s+/g, "");
+    if (EMAIL_ONLY.test(addr) && free(at, m[0].length)) out.push({ kind: "email", at, quote: m[0], text: addr, href: `mailto:${addr}` });
+  }
+  for (const m of text.matchAll(PHONE_RE)) {
+    for (const [piece, at] of pieces(m[0], m.index ?? 0, (t, i) => !!phoneOf(t, phoneContext(text, i, t.length), cz))) {
+      const p = phoneOf(piece, phoneContext(text, at, piece.length), cz);
+      const quote = piece.replace(/[\s./(–-]+$/, "").trim();
+      const start = at + piece.indexOf(quote);
+      if (p?.href && free(start, quote.length)) out.push({ kind: "phone", at: start, quote, text: p.text, href: p.href });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
 }

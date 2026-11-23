@@ -1,0 +1,5 @@
+/* Round 3, r3-05 Who wrote this and when: the rows in More. Theme roles only. */
+.byline-rows { margin: 0; display: grid; gap: 2px; }
+.byline-rows > div { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 0 12px; align-items: baseline; }
+.byline-rows dt { font-size: 14px; color: var(--muted); }
+.byline-rows dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }

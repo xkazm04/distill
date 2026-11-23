@@ -13,6 +13,7 @@ import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
+import { clearActions } from "./actions";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
@@ -127,6 +128,7 @@ export function close(doc: Document): void {
   clearTerms(doc); // r3-07: before the translation goes, so its text nodes are whole again
   clearTranslation();
   clearClaims(doc);
+  clearActions(doc);
   clearTables(doc);
   clearLinks(doc);
   clearDark(doc);

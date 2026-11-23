@@ -222,6 +222,21 @@ describe("payload privacy", () => {
     expect(differ).toEqual([`<claim source-title=${JSON.stringify(title)} source-url=${JSON.stringify(url)}>`, claim]);
   });
 
+  // Round 3, r3-05: the page's published day rides along, so an old claim is told from a new one. Only the day.
+  it("a checkClaim prompt adds only the published day, and nothing that is not a date", () => {
+    const base = prompts.checkClaim("A claim.", "Title", "https://news.example/a", "en");
+    const dated = prompts.checkClaim("A claim.", "Title", "https://news.example/a", "en", "2023-03-15T10:30:00+01:00");
+    const lines = dated.split("\n");
+    expect(lines).toHaveLength(base.split("\n").length);
+    expect(lines.filter((l, i) => l !== base.split("\n")[i])).toEqual(['<claim source-title="Title" source-url="https://news.example/a" source-published="2023-03-15">']);
+    for (const junk of ["Zqxvlenka Wbrtnovsky", "15. 3. 2023", '2023-03-15" onload="x', ""]) {
+      const p = prompts.checkClaim("A claim.", "Title", "https://news.example/a", "en", junk);
+      expect(p.replace(' source-published="2023-03-15"', "")).toBe(base);
+      expect(p).not.toContain("Zqxvlenka");
+      expect(p).not.toContain("onload");
+    }
+  });
+
   it("only the values-class prompts carry a person's details, and they route on device only", async () => {
     const structure = await extractForm(parse(czech), "https://mv.example/zadost");
     expect(prompts.suggestValue(structure, "jmeno", { name: "Zqxvlenka" })).toContain("Zqxvlenka");

@@ -59,6 +59,11 @@ function findField(s: FormStructure, fieldId: string): FieldStructure {
 
 /** One line of text: newlines become " / ", so a value cannot open a new section of the prompt. */
 const oneLine = (t: string): string => t.trim().replace(/\r?\n/g, " / ");
+/** checkClaim's published date (r3-05): only a calendar day (YYYY-MM-DD), nothing else of the page; else nothing. */
+const publishedAttr = (published?: string): string => {
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(published ?? "")?.[0];
+  return day ? ` source-published="${day}"` : "";
+};
 
 /** A read letter, by known keys only (extra properties never reach a prompt). */
 function describeLetter(l: Letter): string[] {
@@ -245,12 +250,13 @@ export const prompts = {
     ].join("\n"),
 
   /** Card 2: one claim checked with web search (cloud, grounded). Only the sentence, the page's title and address. */
-  checkClaim: (claim: string, title: string, url: string, readerLang = "en"): string =>
+  checkClaim: (claim: string, title: string, url: string, readerLang = "en", published?: string): string =>
     [
       "Check the claim below against current, reliable sources found with web search. Judge only the claim, not the article.",
+      "When the claim has a source-published date, judge it as of that date, and say in the reason when it was true then but is out of date now.",
       `Answer with JSON only: {"verdict": "supported" | "disputed" | "mixed" | "notFound", "reason": "<one plain sentence in ${langName(readerLang)}>"}. Use notFound when the search finds nothing that confirms or contradicts it. No links in the reason, no HTML, no markdown.`,
       GUARD,
-      `<claim source-title=${JSON.stringify(oneLine(title).slice(0, 200))} source-url=${JSON.stringify(url.slice(0, 300))}>`,
+      `<claim source-title=${JSON.stringify(oneLine(title).slice(0, 200))} source-url=${JSON.stringify(url.slice(0, 300))}${publishedAttr(published)}>`,
       oneLine(claim),
       "</claim>",
     ].join("\n"),

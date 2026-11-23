@@ -12,7 +12,9 @@ test("caption: the icon cleans the article in place, says what it did, and every
   const frame = await captionFrame(tab.page);
   // First sight: one line saying what Distill did, where it ran, More and Original. No next step is suggested: tours
   // start only when the person asks for one.
-  expect(await firstSight(frame)).toBe("Removed 6 distractions");
+  expect(await firstSight(frame)).toMatch(/^Removed 6 distractions(?: · 1 thing to do)?$/);
+  // r3-09: the article asks riders to send comments until 15 January: one thing to do.
+  await expect(frame.getByTestId("cap-status")).toHaveText("Removed 6 distractions · 1 thing to do");
   await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
   await expect(frame.getByRole("button")).toHaveCount(2); // More, Original
   expect(await stripFont(frame)).toContain("Atkinson Hyperlegible Next");
@@ -37,7 +39,7 @@ test("caption: the icon cleans the article in place, says what it did, and every
   await expect(frame.getByTestId("cap-model")).toHaveAttribute("data-state", /^(available|downloadable|downloading|unavailable)$/);
   await frame.getByRole("button", { name: "Show Cookie notice again" }).click();
   await expect(tab.page.locator(".banner")).toBeVisible();
-  await expect(frame.getByTestId("cap-status")).toHaveText("Removed 6 distractions · 1 back");
+  await expect(frame.getByTestId("cap-status")).toHaveText("Removed 6 distractions · 1 back · 1 thing to do");
   await settled(tab.page);
   const grown = await tab.page.locator("distill-caption").boundingBox();
   expect(grown?.height ?? 0).toBeGreaterThan(m.strip.height);

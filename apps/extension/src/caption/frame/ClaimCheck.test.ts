@@ -242,7 +242,7 @@ describe("the strip's source chip", () => {
   it("no longer says No AI used once a sentence was checked in the cloud", () => {
     const c = chipWithChecks(none, { checks: { c0: check, c1: check }, meta: { c0: { source: "in_cloud", why: "", dropped: 0 }, c1: { source: "in_cloud", why: "", dropped: 0 } } });
     expect(c).toMatchObject({ src: "in_cloud", text: "In the cloud", data: { "data-checks": "2" } });
-    expect(c.title).toBe("2 claims checked on the web in the cloud: only each sentence, the page's title and its address were sent. Clean used no AI.");
+    expect(c.title).toBe("2 claims checked on the web in the cloud: only each sentence, the page's title and its address were sent (and the day the page was published, when it says). Clean used no AI.");
   });
   it("a translation on the device plus a cloud check says In the cloud, and both on hover", () => {
     const device = { src: "on_device", text: "On this device", title: "The translation from Czech ran on this device.", data: {} };
