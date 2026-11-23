@@ -11,5 +11,6 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [["list"]],
+  // The HTML report (e2e/out/report/index.html) shows a failed picture test's expected, actual and diff side by side.
+  reporter: [["list"], ["html", { outputFolder: "out/report", open: "never" }]],
 });

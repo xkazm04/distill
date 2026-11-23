@@ -96,6 +96,57 @@ none today.
 Without host access Chrome hides every tab's URL from the extension, so `tabIdOf` takes the newly opened (active) tab
 whose URL is hidden.
 
+## Pictures (the look, r5-01)
+
+`caption-visual.spec.ts` guards how Distill looks. It takes fixed screenshots and compares each with an approved
+picture committed in `caption-visual.spec.ts-snapshots/`, so a change to the look is a change someone reviews in git.
+
+- **What it takes (25 pictures).**
+  - The strip, as an element screenshot of `distill-caption`, in each state: the first line, More open, a tour running
+    (Just the facts, step 2) and Original. Each in light and dark, at 1440x900 and 390x844. These run on the claims demo
+    with the stand-in model, so the claims, the gist and the tour are the same every run.
+  - Nine cleaned demo pages, the whole window: claims (1440 and 390), actions, comfort, shop (1440 and 390), consent,
+    reflow, video.
+- **Threshold.** Tight: at most 0.2% of the pixels may differ (`maxDiffPixelRatio: 0.002`, per-pixel `threshold: 0.2`).
+- **What keeps the pictures still.**
+  - `deviceScaleFactor: 1`.
+  - Reduced motion, and `animations: "disabled"`.
+  - The caret hidden.
+  - Fonts awaited (`document.fonts.ready`, in the page and in the strip).
+  - The mouse parked in a corner, and focus taken off the last button clicked.
+  - The clock fixed at 2026-11-23 (`context.clock.setFixedTime`). The byline's "3 years ago" and the deadlines are
+    dates, and the fixed clock reaches the strip's frame too.
+  - The strip awaited until its AI phases are past "finding" and its line and box have held.
+  - Videos and embeds masked.
+- **Platform.** The pictures carry Playwright's platform suffix (`-win32`): they are approved on the owner's Windows
+  machine. Another OS renders fonts differently and needs its own approved set (`--update-snapshots` there).
+
+**When a picture differs** the test fails and Playwright writes the expected, actual and diff pictures to
+`e2e/out/test-results/`. They are shown side by side in:
+- the HTML report, **`e2e/out/report/index.html`** (open it with `npx playwright show-report e2e/out/report`);
+- the gallery, **`e2e/out/visual/index.html`**. It shows every approved picture, and next to any picture that differed
+  in the last run it adds that run's actual and diff.
+
+**Approve a change in the look:**
+
+```sh
+cd apps/extension
+npm run build:e2e
+npx playwright test -c e2e/playwright.config.ts --update-snapshots caption-visual
+git diff --stat e2e/caption-visual.spec.ts-snapshots   # then look at each changed picture before you commit it
+```
+
+**The live sites** (`live/visual.live.ts`) are opt-in, and never part of `npm run e2e` or a plain `npm run e2e:live`.
+Run them with `npx playwright test -c e2e/playwright.live.config.ts visual` (add `E2E_LIVE_SITES=<ids>` to run only
+some sites).
+- **The picture.** One per site after Clean, at 1440x900, compared at a loose threshold (25% of pixels,
+  `E2E_VISUAL_RATIO`). Every picture, video and embed on the page is masked, and so are the strip's status line and
+  chip. This catches a broken look (the strip missing, covered or unstyled, a blank page), not today's headline.
+- **The structure check, exact.** The strip's line holds its parts in order, the strip is in Distill's fonts with the
+  theme roles bound, and it is on top and within the size bar.
+- **Approve.** The approved pictures are in `live/visual.live.ts-snapshots/`; renew them with `--update-snapshots`, the
+  same way as above.
+
 ## What it cannot prove
 
 - **Gemini Nano.** The on-device model needs a real Chrome profile with the model downloaded; the owner checks it by
