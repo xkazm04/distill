@@ -298,11 +298,14 @@ let generation = 0;
 /** What happened last on this page (the report carries it). */
 export const consentNow = (): ConsentOutcome => last;
 
-/** Clean ran (page.ts): read the switch for this site, then answer. `banners`: what Clean hid as a cookie notice. */
-export async function consentAfterClean(doc: Document, banners: readonly Element[]): Promise<{ outcome: ConsentOutcome; on: boolean }> {
+/** Clean ran (page.ts): read the switch for this site, then answer. `banners`: what Clean hid as a cookie notice.
+ *  `prefs`: the switch, already being read (r4-02: Clean starts reading it when it starts, so the answer does not wait
+ *  for the device's storage after the page was cleaned); read now when not given. */
+export async function consentAfterClean(doc: Document, banners: readonly Element[],
+  prefs: Promise<ConsentPrefs> = loadConsentPrefs()): Promise<{ outcome: ConsentOutcome; on: boolean }> {
   known = [...banners];
   const origin = doc.defaultView?.location.origin ?? null;
-  const on = consentWanted(await loadConsentPrefs(), origin && origin !== "null" ? origin : null);
+  const on = consentWanted(await prefs, origin && origin !== "null" ? origin : null);
   return { outcome: setConsent(doc, on, banners), on };
 }
 

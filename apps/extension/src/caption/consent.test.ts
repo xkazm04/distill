@@ -3,7 +3,7 @@
 // The real browser run is e2e/caption-consent.spec.ts.
 import { describe, expect, it } from "vitest";
 import { Window } from "happy-dom";
-import { acceptsByWords, ANSWERED, clearConsent, consentWanted, findReject, foldWords, onConsentLater, parseConsentPrefs, pressedVia, rejectsByWords, setConsent } from "./consent";
+import { acceptsByWords, ANSWERED, clearConsent, consentAfterClean, consentWanted, findReject, foldWords, onConsentLater, parseConsentPrefs, pressedVia, rejectsByWords, setConsent } from "./consent";
 
 /** A fresh document per test: a press is remembered per document (once per page load). Every button counts its clicks. */
 function page(html: string): { doc: Document; clicks: () => string[] } {
@@ -222,5 +222,16 @@ describe("the switch and once per page", () => {
     expect(consentWanted(p, "https://b.cz")).toBe(false);
     expect(consentWanted(parseConsentPrefs(null), "https://b.cz")).toBe(true);
     expect(consentWanted(parseConsentPrefs({ sites: { "https://b.cz": false } }), "https://b.cz")).toBe(false);
+  });
+  it("r4-02: the switch read while Clean judged the page is the one that counts", async () => {
+    const off = page(`<div id="onetrust-banner-sdk"><button id="onetrust-reject-all-handler">Reject All</button></div>`);
+    const banner = off.doc.getElementById("onetrust-banner-sdk") as Element;
+    expect(await consentAfterClean(off.doc, [banner], Promise.resolve(parseConsentPrefs({ on: false })))).toEqual({ outcome: "off", on: false });
+    expect(off.clicks()).toEqual([]);
+    const on = page(`<div id="onetrust-banner-sdk"><button id="onetrust-reject-all-handler">Reject All</button></div>`);
+    expect(await consentAfterClean(on.doc, [on.doc.getElementById("onetrust-banner-sdk") as Element], Promise.resolve(parseConsentPrefs(null))))
+      .toEqual({ outcome: "rejected", on: true });
+    expect(on.clicks()).toEqual(["onetrust-reject-all-handler"]);
+    clearConsent();
   });
 });
