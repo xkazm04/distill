@@ -131,7 +131,8 @@ function nearMain(ctx: CleanContext, el: Element): boolean {
 /** A block's text nodes now: the ones read, while they are in it; else every text node in it. */
 function nodesOf(w: Where): Text[] {
   const live = w.nodes.filter((n) => n.isConnected && w.el.contains(n));
-  if (live.length) return live;
+  // r3-07: prices and dates in your terms split a node into pieces (data-distill-term): read the block's nodes as they are.
+  if (live.length && !w.el.querySelector("[data-distill-term]")) return live;
   const walker = w.el.ownerDocument.createTreeWalker(w.el, 4 /* SHOW_TEXT */);
   const out: Text[] = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) if (!n.parentElement?.closest("script, style, noscript")) out.push(n as Text);

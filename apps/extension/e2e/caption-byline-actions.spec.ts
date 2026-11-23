@@ -21,7 +21,11 @@ const highlights = (page: Page) => page.evaluate(() => {
   const h = reg?.get("distill-action");
   return { ranges: h ? h.size : 0, texts: h ? Array.from(h).map((r) => r.toString()) : [], show: reg?.has("distill-action-show") ?? false };
 });
-const article = (page: Page) => page.locator("article").evaluate((el) => el.innerHTML.replace(/\s(data-distill-[a-z-]+)(="[^"]*")?/g, "").replace(/ style=""/g, ""));
+// r3-07 (prices and dates in your terms) wraps a date in a span of its own, with its addition drawn after it: the page's
+// words are unchanged, so it is unwrapped here before comparing (as caption-plain and caption-translate do).
+const unwrapTerms = (html: string) => html.replace(/<span data-distill-term="[a-z]+" data-distill-term-add="[^"]*" title="[^"]*">([^<]*)<\/span>/g, "$1");
+const article = (page: Page) => page.locator("article").evaluate((el) => el.innerHTML)
+  .then((html) => unwrapTerms(html).replace(/\s(data-distill-[a-z-]+)(="[^"]*")?/g, "").replace(/ style=""/g, ""));
 
 const TYPED = "602 999 888";
 
