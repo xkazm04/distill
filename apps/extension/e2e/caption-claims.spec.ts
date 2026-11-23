@@ -150,7 +150,15 @@ test("claims: the marks follow a translation in and out (Keep Czech, Show Englis
   const n = Number(/(\d+) claims? to check/.exec((await status.textContent()) ?? "")?.[1]);
   expect(n).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => (await marks(page)).ranges).toBe(n);
-  const translated = (await marks(page)).texts;
+  // r3-07 writes the page's dates your way just after the translation lands: splitting a text node moves a mark's
+  // range for a moment, and the marks are found again 120 ms later (caption/textSplit.ts). Read them once they hold.
+  let translated = (await marks(page)).texts;
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(400);
+    const now = (await marks(page)).texts;
+    if (now.join("|") === translated.join("|")) break;
+    translated = now;
+  }
   // The chip still says where the translation ran, and names the claims in its title.
   await expect(frame.getByTestId("cap-chip")).toHaveAttribute("title", /translation from Czech ran on this device.*claims to check ran on this device/);
 

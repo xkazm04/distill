@@ -18,6 +18,7 @@ import type { ContentRequest } from "../messages";
 import type { CleanContext } from "./context";
 import { dataTable } from "./tables";
 import { quietly, setTextAside, TRANSLATED } from "./translate";
+import { textSplitDone } from "./textSplit";
 
 type TermsRequest = Extract<ContentRequest, { type: "distill:caption:terms" }>;
 
@@ -268,7 +269,9 @@ export function setTerms(ctx: CleanContext, req: TermsRequest): { prices: number
   if (!state || state.doc !== ctx.doc) state = { doc: ctx.doc, ctx, req, splits: [], style: state?.style ?? null };
   state.req = req;
   state.ctx = ctx;
-  return putIn(ctx);
+  const done = putIn(ctx);
+  textSplitDone(ctx.doc);
+  return done;
 }
 
 /**
@@ -282,7 +285,7 @@ export function termsAside<T>(current: () => CleanContext | null, run: () => T):
     return run();
   } finally {
     const ctx = current() ?? state?.ctx ?? null;
-    if (ctx && state) { state.ctx = ctx; putIn(ctx); }
+    if (ctx && state) { state.ctx = ctx; putIn(ctx); textSplitDone(ctx.doc); }
   }
 }
 

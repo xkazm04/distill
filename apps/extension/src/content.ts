@@ -110,7 +110,8 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:clearClaims": clearClaims(document); return { ok: true };
     case "distill:caption:mainText": {
       const ctx = caption.context();
-      return ctx ? readMainText(ctx) : [];
+      // r3-07: read whole text nodes, never the pieces a price or a date written your way split them into.
+      return ctx ? termsAside(caption.context, () => readMainText(ctx)) : [];
     }
     case "distill:caption:tables": return { tables: setTables(document, req.on) };
     case "distill:caption:links": setLinks(document, req.on); return { ok: true };
@@ -131,7 +132,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:caption:actions": {
       const ctx = caption.context();
-      return ctx ? readActions(ctx) : [];
+      return ctx ? termsAside(caption.context, () => readActions(ctx)) : [];
     }
     case "distill:caption:markActions": return { marked: markActions(document, req.on) };
     case "distill:caption:showAction": return { found: showAction(document, req.id) };

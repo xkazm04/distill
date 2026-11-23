@@ -10,6 +10,7 @@ import { findSentence } from "@distill/engine";
 import type { ClaimMark, TextBlock } from "../messages";
 import type { CleanContext } from "./context";
 import { markOnPage } from "./contact";
+import { TEXT_SPLIT_EVENT } from "./textSplit";
 import { mainTextBlocks } from "./translate";
 
 /** On each block with a mark: the ids of its claims, space-separated. */
@@ -161,9 +162,15 @@ function watch(doc: Document): void {
       (r.type === "attributes" && r.target === doc.documentElement && r.attributeName === ORIGINAL)
       || (r.type !== "attributes" && els.some((el) => el.contains(r.target))));
     if (!touched) return;
+    again();
+  });
+  // r3-07: a price or date written your way split or rejoined a text node under a mark (caption/textSplit.ts).
+  const again = () => {
+    if (marks !== m) { doc.removeEventListener(TEXT_SPLIT_EVENT, again); return; }
     if (m.timer) clearTimeout(m.timer);
     m.timer = setTimeout(() => { m.timer = null; if (marks === m) paint(doc); }, REMARK_MS);
-  });
+  };
+  doc.addEventListener(TEXT_SPLIT_EVENT, again);
   observer.observe(doc.documentElement, { attributes: true, attributeFilter: [ORIGINAL] });
   if (doc.body) observer.observe(doc.body, { characterData: true, childList: true, subtree: true });
   m.observer = observer;
