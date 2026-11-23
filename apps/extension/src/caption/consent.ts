@@ -143,7 +143,9 @@ function roots(scope: ParentNode, depth = 0): ParentNode[] {
 function bannersOf(doc: Document, hidden: readonly Element[]): { el: Element; cmp?: Cmp }[] {
   const out: { el: Element; cmp?: Cmp }[] = hidden.filter((el) => el.isConnected).map((el) => ({ el }));
   for (const cmp of CMPS) for (const el of Array.from(doc.querySelectorAll(cmp.banner))) {
-    if (!out.some((b) => b.el === el || b.el.contains(el))) out.push({ el, cmp });
+    // A system's empty container (Didomi keeps #didomi-host on the page before and after it asks) is no banner.
+    const asks = !!el.shadowRoot || el.localName === "iframe" || !!el.querySelector(`${BUTTONS}, iframe`);
+    if (asks && !out.some((b) => b.el === el || b.el.contains(el))) out.push({ el, cmp });
   }
   return out;
 }

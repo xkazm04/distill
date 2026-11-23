@@ -76,14 +76,16 @@ export function textContrast(page: Page): Promise<TextContrast> {
         fg: `rgb(${Math.round(solid.r)},${Math.round(solid.g)},${Math.round(solid.b)})`, bg: `rgb(${Math.round(bg.r)},${Math.round(bg.g)},${Math.round(bg.b)})` });
     }
     const ratios = out.map((o) => o.ratio).sort((a, b) => a - b);
-    const mid = document.elementFromPoint(innerWidth / 2, innerHeight / 3);
-    const pageBg = (mid && behind(mid)) ?? canvas();
+    // The page under its text: the median luminance of what is behind the measured text (not the middle of the window,
+    // which can be a photo or a video player).
+    const lums = els.map(behind).filter((c): c is C => !!c).map(lum).sort((a, b) => a - b);
+    const pageLum = lums.length ? (lums[Math.floor(lums.length / 2)] as number) : lum(canvas());
     return {
       measured: out.length, overPicture: pictures,
       min: ratios[0] ?? 0, median: ratios[Math.floor(ratios.length / 2)] ?? 0,
       below: ratios.filter((r) => r < 4.5).length,
       worst: [...out].sort((a, b) => a.ratio - b.ratio).slice(0, 5),
-      pageLuminance: Math.round(lum(pageBg) * 1000) / 1000,
+      pageLuminance: Math.round(pageLum * 1000) / 1000,
     };
   });
 }

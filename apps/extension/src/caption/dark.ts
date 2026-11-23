@@ -95,22 +95,39 @@ interface State {
 }
 let state: State | null = null;
 
-/** The page's background under its main text, as the person sees it (the element at the middle of the window's upper
- *  part, its backgrounds composited up to the canvas, which is white unless the page colours it). */
-export function pageBackground(doc: Document, win: Window): Rgba {
-  let el: Element | null = null;
-  try { el = doc.elementFromPoint?.(win.innerWidth / 2, win.innerHeight / 3) ?? null; } catch { el = null; }
-  if (!el || el.closest("distill-caption")) el = doc.body ?? doc.documentElement;
+/** What is behind `el` as the person sees it: its own and its ancestors' backgrounds composited over the canvas (white,
+ *  unless the page asked for a dark scheme only and set no colour: the browser's dark). Null over a picture. */
+function behind(doc: Document, win: Window, el: Element): Rgba | null {
   const layers: Rgba[] = [];
   for (let e: Element | null = el; e; e = e.parentElement) {
-    const c = parseColor(win.getComputedStyle(e).backgroundColor);
+    const cs = win.getComputedStyle(e);
+    const c = parseColor(cs.backgroundColor);
     if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
+    if (/url\(/i.test(cs.backgroundImage ?? "")) return null;
   }
-  // Under them the canvas: white, unless the page asked for a dark scheme only and set no colour (the browser's dark).
   const scheme = win.getComputedStyle(doc.documentElement).colorScheme ?? "";
   let bg: Rgba = /dark/.test(scheme) && !/light/.test(scheme) ? { r: 18, g: 18, b: 18, a: 1 } : WHITE;
   for (let i = layers.length - 1; i >= 0; i--) bg = composite(layers[i] as Rgba, bg);
   return bg;
+}
+
+/**
+ * The page's background under its main text: the median (by luminance) of what is behind its text blocks (paragraphs,
+ * list items, cells, headings with 30+ characters, up to 40 of them). Never the point at the middle of the window, which
+ * on a video page is the black player. Without text: the body's.
+ */
+export function pageBackground(doc: Document, win: Window): Rgba {
+  const found: Rgba[] = [];
+  for (const el of Array.from(doc.querySelectorAll("p, li, td, dd, blockquote, h1, h2, h3"))) {
+    if (found.length >= 40) break;
+    if ((el.textContent ?? "").trim().length < 30 || el.closest("distill-caption, [data-distill-hide]")) continue;
+    if (win.getComputedStyle(el).display === "none" || !el.getClientRects().length) continue;
+    const bg = behind(doc, win, el);
+    if (bg) found.push(bg);
+  }
+  if (!found.length) return behind(doc, win, doc.body ?? doc.documentElement) ?? WHITE;
+  found.sort((a, b) => luminance(a) - luminance(b));
+  return found[Math.floor(found.length / 2)] as Rgba;
 }
 
 /** The page is dark already: the background under its main text is dark. */

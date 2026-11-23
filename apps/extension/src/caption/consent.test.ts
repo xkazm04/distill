@@ -87,10 +87,14 @@ describe("the banner systems: their own reject button, never Accept", () => {
     expect(setConsent(doc, true)).toBe("rejected");
     expect(log).toEqual(["uc-deny-all-button"]);
   });
-  it("Sourcepoint whose buttons are out of reach (a frame from elsewhere): only hidden", () => {
-    const { doc, clicks } = page(`<div id="sp_message_container_123"><div class="frame-from-elsewhere"></div></div>`);
+  it("Sourcepoint showing only its Options button (Reject sits in a frame from elsewhere): only hidden", () => {
+    const { doc, clicks } = page(`<div id="sp_message_container_123"><button class="sp_choice_type_12" id="opt">Options</button></div>`);
     expect(setConsent(doc, true)).toBe("hidden");
     expect(clicks()).toEqual([]);
+  });
+  it("an empty consent container (Didomi keeps #didomi-host on the page) is no banner", () => {
+    const { doc } = page(`<div id="didomi-host" aria-hidden="true"></div>`);
+    expect(setConsent(doc, true)).toBe("none");
   });
   it("Sourcepoint drawn in the page: its REJECT_ALL choice", () => {
     const { doc, clicks } = page(`<div id="sp_message_container_9"><button class="sp_choice_type_11" id="acc">Accept</button><button class="sp_choice_type_13" id="rej">Reject</button></div>`);
