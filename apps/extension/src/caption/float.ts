@@ -18,6 +18,8 @@ html:not([data-distill-original]) [${UNSTICK}="fixed"] { position: absolute !imp
 
 interface Bar { el: HTMLElement; pos: "fixed" | "sticky"; top: number; bottom: number; width: number }
 
+const SVG = "http://www.w3.org/2000/svg";
+
 /** Where a box is in the page (not the window), so a change that moves it can be seen whatever the scroll. */
 const pageTop = (el: Element, win: Window): number => el.getBoundingClientRect().top + win.scrollY;
 
@@ -32,16 +34,26 @@ export function unstick(ctx: CleanContext): number {
   // Bars across the top of the window that stay there: fixed or sticky, wide, shown, not taken out by Clean, and not
   // holding the running text (a sticky layout column is not a header).
   const bars: Bar[] = [];
-  // What Clean hid is skipped whole (on a large page that is most of it); a bar found is not searched inside.
+  // What Clean hid is skipped whole (on a large page that is most of it), and so is what draws nothing (display: none:
+  // nothing inside it takes space); a bar found is not searched inside. The shapes inside an svg drawing are passed
+  // over (their children are still looked at, for HTML in a foreignObject): CSS position does nothing on them. On a
+  // huge page (YouTube: thousands of hidden parts and icon shapes) that is most of it.
+  let seen: CSSStyleDeclaration | null = null;
   const walker = doc.createTreeWalker(doc.body, 1 /* NodeFilter.SHOW_ELEMENT */, {
-    acceptNode: (n) => ((n as Element).hasAttribute("data-distill-hide") || (n as Element).localName === "distill-caption" ? 2 /* REJECT */ : 1 /* ACCEPT */),
+    acceptNode: (n) => {
+      const e = n as Element;
+      if (e.hasAttribute("data-distill-hide") || e.localName === "distill-caption") return 2 /* REJECT */;
+      if (e.namespaceURI === SVG && e.parentElement?.namespaceURI === SVG) return 3 /* SKIP */;
+      seen = win.getComputedStyle(e);
+      return seen.display === "none" ? 2 /* REJECT */ : 1 /* ACCEPT */;
+    },
   });
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const el = node as HTMLElement;
     if (bars.some((b) => b.el.contains(el))) continue;
-    const cs = win.getComputedStyle(el);
+    const cs = seen as unknown as CSSStyleDeclaration; // the accepted node's, read by acceptNode
     if (cs.position !== "fixed" && cs.position !== "sticky") continue;
-    if (cs.display === "none" || cs.visibility === "hidden") continue;
+    if (cs.visibility === "hidden") continue;
     const r = el.getBoundingClientRect();
     if (r.width < vw * 0.5 || r.height < 8 || r.height > vh * 0.6) continue;
     if (r.top > vh * 0.25 || r.bottom <= 0) continue; // near the top of the window now
