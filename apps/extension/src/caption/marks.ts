@@ -127,19 +127,43 @@ export function markContrast(bg: Rgba, text: Rgba, mark: Rgba = CHROMIUM_MARK, m
 const WHITE: Rgba = { r: 255, g: 255, b: 255, a: 1 };
 
 /** What is behind `el`: its own and its ancestors' backgrounds over the canvas (white, or the browser's dark when the
- *  page asks only for a dark scheme). */
-export function backgroundBehind(el: Element): Rgba {
+ *  page asks only for a dark scheme). Null over a picture (a background image): no one colour is behind the words. */
+export function backgroundBehind(el: Element): Rgba | null {
   const win = el.ownerDocument.defaultView;
   if (!win) return WHITE;
+  if (onPicture(el)) return null;
   const layers: Rgba[] = [];
   for (let e: Element | null = el; e; e = e.parentElement) {
-    const c = parseColor(win.getComputedStyle(e).backgroundColor);
+    const cs = win.getComputedStyle(e);
+    const c = parseColor(cs.backgroundColor);
+    if (/url\(|gradient\(/i.test(cs.backgroundImage ?? "")) return null;
     if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
   }
   const scheme = win.getComputedStyle(el.ownerDocument.documentElement).colorScheme ?? "";
   let bg: Rgba = /dark/.test(scheme) && !/light/.test(scheme) ? { r: 18, g: 18, b: 18, a: 1 } : WHITE;
   for (let i = layers.length - 1; i >= 0; i--) bg = composite(layers[i] as Rgba, bg);
   return bg;
+}
+
+const PICTURES = new Set(["img", "picture", "video", "canvas", "svg", "iframe"]);
+/** Words laid over a picture that is not their background (text positioned over an <img>, as on Dymáček's front page):
+ *  what is under the element's first line, looked up at that point. */
+function onPicture(el: Element): boolean {
+  const doc = el.ownerDocument;
+  const r = el.getClientRects()[0];
+  if (!r || typeof doc.elementsFromPoint !== "function") return false;
+  const win = doc.defaultView;
+  for (const under of doc.elementsFromPoint(r.left + Math.min(4, r.width / 2), r.top + r.height / 2)) {
+    if (under === el || el.contains(under)) continue;
+    if (under.contains(el)) {
+      // One of its own boxes: an opaque background there is what the words sit on.
+      const c = win ? parseColor(win.getComputedStyle(under).backgroundColor) : null;
+      if (c && c.a >= 1) return false;
+      continue;
+    }
+    if (PICTURES.has(under.localName)) return true;
+  }
+  return false;
 }
 
 /** The wash for these elements as the page shows them now: the faintest any of them needs (washFor). */
@@ -153,6 +177,7 @@ export function washOn(els: readonly Element[]): number {
     const text = parseColor(win.getComputedStyle(el).color);
     if (!text) continue;
     const bg = backgroundBehind(el);
+    if (!bg) continue; // over a picture: the text there was made to read on it, the wash stays as it is
     pct = Math.min(pct, washFor(bg, text.a < 1 ? composite(text, bg) : text, mark));
   }
   return pct;

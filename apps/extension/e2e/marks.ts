@@ -24,7 +24,8 @@ export const marksNow = (page: Page): Promise<MarksNow> => page.evaluate(() => {
   return { ranges, priority, wash: m ? Number(m[1]) : null };
 });
 
-export interface MarkColours { bg: string; text: string; mark: string; markText: string; where: string }
+/** `overPicture`: a background image is behind the words, so `bg` is only the colour under it (not in the table). */
+export interface MarkColours { bg: string; text: string; mark: string; markText: string; where: string; overPicture: boolean }
 
 /** The colours under the first element matching `selector` (a marked block), as computed now. */
 export const markColours = (page: Page, selector: string): Promise<MarkColours | null> => page.evaluate((sel) => {
@@ -38,9 +39,22 @@ export const markColours = (page: Page, selector: string): Promise<MarkColours |
   };
   // Behind the element: its own and its ancestors' backgrounds over the canvas.
   const layers: { r: number; g: number; b: number; a: number }[] = [];
+  let overPicture = false;
   for (let e: Element | null = el; e; e = e.parentElement) {
-    const c = parse(getComputedStyle(e).backgroundColor);
+    const cs = getComputedStyle(e);
+    const c = parse(cs.backgroundColor);
+    if (/url\(|gradient\(/i.test(cs.backgroundImage)) overPicture = true;
     if (c && c.a > 0) { layers.push(c); if (c.a >= 1) break; }
+  }
+  // Laid over a picture that is not its background (positioned over an <img>): under its first line, before an opaque
+  // box of its own.
+  const first = el.getClientRects()[0];
+  if (first) {
+    for (const under of document.elementsFromPoint(first.left + Math.min(4, first.width / 2), first.top + first.height / 2)) {
+      if (under === el || el.contains(under)) continue;
+      if (under.contains(el)) { if ((parse(getComputedStyle(under).backgroundColor)?.a ?? 0) >= 1) break; continue; }
+      if (["img", "picture", "video", "canvas", "svg", "iframe"].includes(under.localName)) { overPicture = true; break; }
+    }
   }
   const scheme = getComputedStyle(document.documentElement).colorScheme ?? "";
   let bg = /dark/.test(scheme) && !/light/.test(scheme) ? { r: 18, g: 18, b: 18, a: 1 } : { r: 255, g: 255, b: 255, a: 1 };
@@ -62,6 +76,7 @@ export const markColours = (page: Page, selector: string): Promise<MarkColours |
     mark: sys("Mark"),
     markText: sys("MarkText"),
     where: `${el.localName}${el.id ? `#${el.id}` : ""}`,
+    overPicture,
   };
 }, selector);
 

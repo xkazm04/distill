@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { Rgba } from "@distill/engine";
 import {
-  activeCss, CLAIM_LINE, markContrast, NOTE_CSS, ringCss, underlineCss, WASH_MAX, WASH_MIN, WASH_TEXT_MIN, washCss, washFor,
+  activeCss, backgroundBehind, CLAIM_LINE, markContrast, NOTE_CSS, ringCss, underlineCss, WASH_MAX, WASH_MIN, WASH_TEXT_MIN, washCss, washFor, washOn,
 } from "./marks";
 
 const rgb = (r: number, g: number, b: number): Rgba => ({ r, g, b, a: 1 });
@@ -46,6 +46,20 @@ describe("washFor", () => {
       const c = markContrast(p.bg, p.text);
       if (c.text >= WASH_TEXT_MIN) expect(c.textOnWash, name).toBeGreaterThanOrEqual(WASH_TEXT_MIN);
     }
+  });
+});
+
+describe("washOn (the page as it looks)", () => {
+  it("weighs the wash on the colours behind the words, and leaves words over a picture out", () => {
+    document.body.innerHTML = `<div id="d" style="background-color: rgb(30, 30, 30)"><p id="g" style="color: rgb(150, 150, 150)">grey</p></div>
+      <div style="background-image: url(x.png)"><p id="pic" style="color: rgb(0, 0, 0)">on a picture</p></div>
+      <p id="w" style="color: rgb(34, 34, 34)">light</p>`;
+    const el = (id: string) => document.getElementById(id) as Element;
+    expect(backgroundBehind(el("pic"))).toBeNull();
+    expect(washOn([el("w")])).toBe(WASH_MAX);
+    expect(washOn([el("pic")])).toBe(WASH_MAX);
+    expect(washOn([el("w"), el("g"), el("pic")])).toBe(washFor(PAGES.darkGrey!.bg, PAGES.darkGrey!.text));
+    document.body.innerHTML = "";
   });
 });
 

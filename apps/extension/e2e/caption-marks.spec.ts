@@ -195,6 +195,11 @@ test("marks: claims are underlined quietly with one line style per verdict, the 
   await shot(page, "r5-07-demo-claims");
 
   // The link note and the explain note: one shape (the same base style sheet in their shadow roots).
+  // More closed and the link in the upper part of the window (not under the strip); a scroll takes a note down.
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(frame.getByTestId("cap-more")).toBeHidden();
+  await page.evaluate(() => { const r = document.querySelector("#budget-link")!.getBoundingClientRect(); scrollTo(0, Math.max(0, r.top + scrollY - 200)); });
+  await page.waitForTimeout(300);
   await page.mouse.move(0, 0);
   await page.hover("#budget-link");
   await expect.poll(() => page.evaluate(() => (document.querySelector("distill-link-note")?.shadowRoot?.querySelector(".note")?.textContent ?? "").length)).toBeGreaterThan(0);
@@ -223,21 +228,23 @@ test("marks: the explain note has the link note's shape", async ({ distill }) =>
   await fakeModel(distill.worker);
   expect(await startCaption(distill.worker, tab.id)).toBe(true);
   await firstSight(await captionFrame(page));
-  // Select the first longish word of the main text.
-  const ok = await page.evaluate(() => {
-    const p = Array.from(document.querySelectorAll("main p, article p")).find((e) => (e.textContent ?? "").length > 60);
-    const t = p ? document.createTreeWalker(p, NodeFilter.SHOW_TEXT).nextNode() as Text | null : null;
-    const m = t ? /\p{L}{5,}/u.exec(t.data) : null;
-    if (!t || !m) return false;
+  // Select words of the main text as a drag would (again, until the offer comes: the notes start right after Clean).
+  const select = () => page.evaluate(() => {
+    const t = document.querySelector("#dph")?.firstChild as Text | null;
+    const at = t?.data.indexOf("kontrolní hlášení") ?? -1;
+    if (!t || at < 0) return false;
     const r = document.createRange();
-    r.setStart(t, m.index);
-    r.setEnd(t, m.index + m[0].length);
+    r.setStart(t, at);
+    r.setEnd(t, at + "kontrolní hlášení".length);
     getSelection()?.removeAllRanges();
     getSelection()?.addRange(r);
     return true;
   });
-  expect(ok).toBe(true);
-  await expect(page.locator("distill-explain-note button", { hasText: "Explain" })).toBeVisible();
+  await expect.poll(async () => {
+    if (!(await select())) return false;
+    await page.waitForTimeout(600);
+    return page.locator("distill-explain-note button", { hasText: "Explain" }).isVisible();
+  }, { timeout: 10_000 }).toBe(true);
   await page.locator("distill-explain-note button", { hasText: "Explain" }).click();
   await expect(page.locator("distill-explain-note .note")).toHaveAttribute("data-phase", "shown", { timeout: 10_000 });
   const box = await page.evaluate(() => {
