@@ -35,6 +35,15 @@ function useProgress(): FormProgress | null | undefined {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** r5-02: the page's form fields once counted (0: no form, or not counted yet), for the part More opens on. Counts
+ *  once the report is in, also on a phone, where the row's form check waits in the sheet. */
+export function useFormFields(report: CleanReport | null): number {
+  const p = useProgress();
+  const ready = report !== null;
+  useEffect(() => { if (ready && latest === undefined) void refresh(); }, [ready]);
+  return p?.fields ?? 0;
+}
+
 /** Below this many fields, a form on a page that is not a form page shows its progress in More only. */
 export const ROW_MIN_FIELDS = 4;
 

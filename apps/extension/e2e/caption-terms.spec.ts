@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page, Request } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -105,6 +105,7 @@ test("caption terms: prices in the reader's currency and dates their way beside 
 
   // More: the section says what was written; another currency uses the kept rates (no second download).
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-terms-line"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-terms-line")).toHaveText("8 prices in USD, 2 dates written your way.");
   await expect(frame.getByTestId("cap-terms-rates")).toContainText("European Central Bank");
   await frame.getByTestId("cap-terms-currency").selectOption("EUR");
@@ -122,13 +123,16 @@ test("caption terms: prices in the reader's currency and dates their way beside 
 
   // Off: exactly the page's own markup again. On: back.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-terms"); // r5-02: its part of More
   await frame.getByTestId("cap-terms").click();
   await expect(frame.getByTestId("cap-terms-line")).toHaveText("Off: the page's prices and dates as written.");
   expect(await markup(page)).toBe(untouched);
+  await showPart(frame, "cap-terms"); // r5-02: its part of More
   await frame.getByTestId("cap-terms").click();
   await expect.poll(async () => (await terms(page)).length).toBe(10);
 
   // Close: every addition and Distill's style go.
+  await showPart(frame, "cap-close"); // r5-02: What was removed
   await frame.getByTestId("cap-close").click();
   await expect.poll(() => page.evaluate(() => !!document.querySelector("distill-caption"))).toBe(false);
   expect(await page.evaluate(() => (document.querySelector("main") as Element).innerHTML)).toBe(untouched);
@@ -142,5 +146,6 @@ test("caption terms: without rates (the ECB unreachable) only dates are written"
   await firstSight(frame);
   await expect.poll(async () => (await terms(tab.page)).map((t) => t.kind), { timeout: 10_000 }).toEqual(["date", "date"]);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-terms-line"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-terms-line")).toHaveText("2 dates written your way.");
 });

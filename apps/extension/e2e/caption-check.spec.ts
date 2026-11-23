@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const QUESTION = "Checking facts sends sentences of this page to Google. Check facts?";
@@ -44,9 +44,11 @@ async function openArticle(distill: { openTab(n: string): Promise<{ page: Page; 
   return { tab, frame };
 }
 
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 
 const check = (frame: Frame, i: number) => frame.getByTestId("cap-claim").nth(i).getByTestId("cap-check");
@@ -127,6 +129,7 @@ test("check: asked once, then the top three are checked by themselves with sourc
 test("check: Not now sends nothing; after yes with the switch off nothing starts by itself, Check all checks every claim", async ({ distill }) => {
   const one = await openArticle(distill);
   await openMore(one.frame);
+  await showPart(one.frame, "cap-check-notnow"); // r5-02: its part of More
   await one.frame.getByTestId("cap-check-notnow").click();
   await expect(one.frame.getByTestId("cap-check-consent")).toHaveCount(0);
   await expect(one.frame.getByTestId("cap-checks")).toContainText("Nothing is checked on the web unless you press Check.");
@@ -159,6 +162,7 @@ test("check: Not now sends nothing; after yes with the switch off nothing starts
   await showInMore(two.frame, "cap-checks");
   await shot(two.tab.page, "switch-off");
 
+  await showPart(two.frame, "cap-check-all"); // r5-02: its part of More
   await two.frame.getByTestId("cap-check-all").click();
   for (let i = 0; i < 6; i++) await expect(check(two.frame, i)).toHaveAttribute("data-state", "done", { timeout: 10_000 });
   await expect(two.frame.getByTestId("cap-check-all")).toBeDisabled();

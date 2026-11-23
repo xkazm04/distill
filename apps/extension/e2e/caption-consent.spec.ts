@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test, type Distill } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -45,6 +45,7 @@ test("caption consent: each banner system's own reject button is pressed after C
     expect(now.cookie, cmp).toBe("rejected");
     // More says what happened.
     await frame.getByTestId("cap-more-btn").click();
+    await showPart(frame, "cap-consent-note"); // r5-02: its part of More
     await expect(frame.getByTestId("cap-consent-note"), cmp).toHaveAttribute("data-outcome", "rejected");
     if (cmp === "onetrust") await shot(tab.page, "r3-04-demo-onetrust");
     // The site's own record holds: after a reload the banner does not come back.
@@ -69,6 +70,7 @@ test("caption consent: a banner with no reject button is only hidden; nothing is
   // Clean hid it, as before round 3.
   expect(await tab.page.locator(".cookie-bar[data-distill-hide]").count()).toBe(1);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-consent-note"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-consent-note")).toHaveAttribute("data-outcome", "hidden");
 });
 
@@ -89,6 +91,7 @@ test("caption consent: the switch in More turns it off for the site (kept on the
   let frame = await captionFrame(first.page);
   await firstSight(frame);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-consent"); // r5-02: its part of More
   const sw = frame.getByTestId("cap-consent");
   await expect(sw).toBeChecked();
   await sw.click();
@@ -105,10 +108,12 @@ test("caption consent: the switch in More turns it off for the site (kept on the
   expect(status).not.toContain("Cookies");
   expect((await record(tab.page, "onetrust")).log).toEqual([]);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-consent-note"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-consent-note")).toHaveAttribute("data-outcome", "off");
   expect(await tab.page.locator("#onetrust-consent-sdk[data-distill-hide], #onetrust-consent-sdk [data-distill-hide]").count()).toBeGreaterThan(0);
 
   // On again: the banner still waiting is answered now, with its reject button.
+  await showPart(frame, "cap-consent"); // r5-02: its part of More
   await frame.getByTestId("cap-consent").click();
   await expect(frame.getByTestId("cap-consent-note")).toHaveAttribute("data-outcome", "rejected");
   await expect(frame.getByTestId("cap-status")).toContainText("Cookies: rejected");

@@ -5,7 +5,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { textContrast } from "./dark";
 import { expect, OUT, test } from "./harness";
 
@@ -79,6 +79,7 @@ test("caption dark: text reads at 4.5:1 or better, pictures keep their colours, 
   expect(await bodyBg(page)).toBe("rgb(255, 255, 255)");
 
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   const sw = frame.getByTestId("cap-dark");
   await sw.click();
   await expect(sw).toBeChecked();
@@ -114,6 +115,7 @@ test("caption dark: text reads at 4.5:1 or better, pictures keep their colours, 
 
   // Off: every mark and the stylesheet go; the page is as it was.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   await frame.getByTestId("cap-dark").click();
   await expect(frame.getByTestId("cap-dark")).not.toBeChecked();
   expect(await marks(page)).toEqual({ marked: 0, style: false, on: false });
@@ -125,6 +127,7 @@ test("caption dark: text reads at 4.5:1 or better, pictures keep their colours, 
   expect(await distill.worker.evaluate(async () => (await chrome.storage.local.get("distill:dark"))["distill:dark"] as unknown)).toEqual({ auto: false });
 
   // On, then close: everything goes with the strip.
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   await frame.getByTestId("cap-dark").click();
   await expect.poll(async () => (await marks(page)).on).toBe(true);
   expect(await distill.worker.evaluate(async () => (await chrome.storage.local.get("distill:dark"))["distill:dark"] as unknown)).toEqual({ auto: true });
@@ -140,6 +143,7 @@ test("caption dark: a page that is dark already is left alone", async ({ distill
   await firstSight(frame);
   const main = await page.evaluate(() => (document.querySelector("main") as Element).outerHTML);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   await frame.getByTestId("cap-dark").click();
   await expect(frame.getByTestId("cap-dark-note")).toContainText("dark already");
   await expect(frame.getByTestId("cap-dark")).not.toBeChecked();
@@ -159,6 +163,7 @@ test("caption dark: once chosen, it turns on by itself when Chrome is in dark mo
   await firstSight(frame);
   await expect.poll(async () => (await marks(page)).on, { timeout: 5_000 }).toBe(true);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-dark")).toBeChecked();
   await expect(frame.getByTestId("cap-dark-note")).toContainText("by itself");
 });

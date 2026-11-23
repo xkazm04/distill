@@ -2,7 +2,7 @@
 // Things that float over the page, #8 Calm the page. Hermetic, on the demo pages caption-motion.html and
 // caption-sticky.html; the same features on real sites are measured by live/probes/motion.live.ts.
 import type { Page } from "playwright/test";
-import { BAR, baseline, captionFrame, firstSight, measure, settled, startCaption } from "./caption";
+import { BAR, baseline, captionFrame, firstSight, measure, settled, showPart, startCaption } from "./caption";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, OUT, test } from "./harness";
@@ -51,6 +51,7 @@ test("caption-motion: floating widgets go with Clean, Calm pauses what started b
   // #4: each floating widget is gone, under its own name.
   for (const sel of [".smartbanner", ".sticky-player-wrap", ".back-to-top", "#w-4f2a", ".tab-fb"]) await expect(tab.page.locator(sel)).toBeHidden();
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   const labels = await frame.getByTestId("cap-removed-item").locator("span:first-child").allTextContents();
   for (const l of ["App banner", "Floating video", "Back to top button", "Chat button", "Feedback tab"]) expect(labels).toContain(l);
 
@@ -74,6 +75,7 @@ test("caption-motion: floating widgets go with Clean, Calm pauses what started b
   expect(m.overlaysLeft).toEqual([]);
 
   // Play again: the paused video plays (still muted), the carousel moves, the animation style goes.
+  await showPart(frame, "cap-play"); // r5-02: its part of More
   await frame.getByTestId("cap-play").click();
   await expect(frame.getByTestId("cap-calm")).toHaveCount(0);
   expect(await playing(tab.page, "#side-video")).toBe(true);
@@ -123,6 +125,7 @@ test("caption-motion: stays clean while the page keeps changing, rests during Or
   expect(await tab.page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).not.toBe("hidden");
   // What was removed lists each once, with ids that never collide.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-removed-item")).toHaveCount(first + 3);
   expect(await frame.getByTestId("cap-removed-item").filter({ hasText: "Newsletter sign-up" }).count()).toBe(1);
   const ids = await tab.page.evaluate(() => Array.from(document.querySelectorAll("[data-distill-hide]")).map((e) => e.getAttribute("data-distill-hide")));

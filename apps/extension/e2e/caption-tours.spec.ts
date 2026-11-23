@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -30,9 +30,11 @@ const article = (page: Page) => page.locator("article").evaluate((el) => el.inne
   .then((html) => unwrapTerms(html).replace(/\s(data-distill-[a-z-]+)(="[^"]*")?/g, "").replace(/ style=""/g, ""));
 
 const step = (frame: Frame) => frame.getByTestId("cap-tour-status");
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 
 test("tours: Before you go and Call or write step through the things to do, highlight each one, Next/Back/Esc/End", async ({ distill }) => {
@@ -51,7 +53,7 @@ test("tours: Before you go and Call or write step through the things to do, high
   expect(await tourWords(page)).toBeNull();
 
   // More offers the two tours this page has; no facts tour (no model: no gist, no claims).
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
   await expect(frame.getByTestId("cap-tour")).toHaveCount(2);
   expect(await frame.getByTestId("cap-tour").evaluateAll((els) => els.map((e) => e.getAttribute("data-tour")))).toEqual(["call", "before"]);
   await expect(frame.getByTestId("cap-tour-start-facts")).toHaveCount(0);
@@ -61,6 +63,7 @@ test("tours: Before you go and Call or write step through the things to do, high
 
   // Before you go: More closes, the first step is highlighted and named, Next has the focus.
   await page.evaluate(() => scrollTo(0, 0));
+  await showPart(frame, "cap-tour-start-before"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-before").click();
   await expect(frame.getByTestId("cap-more")).toHaveCount(0);
   await expect(step(frame)).toHaveText("Step 1 of 4 · Pay 800 Kč to 123456789/0100 by 31. 3. 2027");
@@ -105,7 +108,8 @@ test("tours: Before you go and Call or write step through the things to do, high
   await expect(frame.getByTestId("cap-more-btn")).toBeFocused();
 
   // Call or write: hours, the phone, the e-mail; the last step's Next says Done and ends it.
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
+  await showPart(frame, "cap-tour-start-call"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-call").click();
   await expect(step(frame)).toHaveText("Step 1 of 3 · Hours: Po, St 8:00 - 17:00");
   await expect.poll(() => tourWords(page)).toBe("Po, St 8:00 - 17:00");
@@ -122,13 +126,15 @@ test("tours: Before you go and Call or write step through the things to do, high
   expect(await tourWords(page)).toBeNull();
 
   // The End key ends one too; and End.
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
+  await showPart(frame, "cap-tour-start-call"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-call").click();
   await expect(step(frame)).toHaveText(/^Step 1 of 3/);
   await page.keyboard.press("End");
   await expect(step(frame)).toHaveCount(0);
   expect(await tourWords(page)).toBeNull();
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
+  await showPart(frame, "cap-tour-start-before"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-before").click();
   await expect(step(frame)).toHaveText(/^Step 1 of 4/);
   await frame.getByTestId("cap-tour-end").click();
@@ -136,7 +142,8 @@ test("tours: Before you go and Call or write step through the things to do, high
   expect(await tourWords(page)).toBeNull();
 
   // Original ends a tour that runs: the page as it was, nothing of the tour.
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
+  await showPart(frame, "cap-tour-start-before"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-before").click();
   await expect.poll(() => tourWords(page)).not.toBeNull();
   await frame.getByTestId("cap-original").click();
@@ -147,7 +154,8 @@ test("tours: Before you go and Call or write step through the things to do, high
   expect(await tourWords(page)).toBeNull();
 
   // Close in the middle of a tour: nothing of it is left.
-  await openMore(frame);
+  await openMore(frame, "cap-tours");
+  await showPart(frame, "cap-tour-start-call"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-call").click();
   await expect.poll(() => tourWords(page)).not.toBeNull();
   expect(await startCaption(distill.worker, tab.id)).toBe(false);
@@ -169,7 +177,7 @@ test("tours: Just the facts steps through the gist's points, then the claims, wi
   await expect(step(frame)).toHaveCount(0);
   expect(await tourWords(page)).toBeNull();
 
-  await openMore(frame);
+  await openMore(frame, "cap-gist");
   await expect(frame.getByTestId("cap-gist")).toHaveAttribute("data-phase", "ready");
   const points = await frame.getByTestId("cap-gist-point").locator(".gist-text").allTextContents();
   expect(points).toHaveLength(3);
@@ -177,7 +185,9 @@ test("tours: Just the facts steps through the gist's points, then the claims, wi
   const claims = await page.evaluate(() => Array.from((CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get("distill-claim") ?? [], (r) => r.toString().replace(/\s+/g, " ").trim()));
   expect(claims).toHaveLength(6);
 
+  await showPart(frame, "cap-tours"); // r5-02: the tours are in Do
   await expect(frame.getByTestId("cap-tour-start-facts")).toBeVisible();
+  await showPart(frame, "cap-tour-start-facts"); // r5-02: its part of More
   await frame.getByTestId("cap-tour-start-facts").click();
   const first = (await step(frame).textContent()) ?? "";
   const total = Number(/^Step 1 of (\d+) · /.exec(first)?.[1]);

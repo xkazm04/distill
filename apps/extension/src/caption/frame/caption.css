@@ -41,11 +41,12 @@ button { font: inherit; color: inherit; }
 .more { padding: 12px 0 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
   max-height: var(--more-max, none); overflow: auto; overscroll-behavior: contain; }
 .more h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 600; font-size: 17px; }
-.more-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 8px 32px; }
-.removed { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 16px;
-  max-height: 210px; overflow: auto; }
-.removed li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; font-size: 15px; }
-.removed li.back { color: var(--muted); }
+/* What was removed (r5-02: its own part, on the kit's rows) */
+.k-rows.removed { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; max-height: 210px; overflow: auto; }
+.removed > .k-row { min-height: var(--k-row); }
+.removed > .k-row.back .k-text { color: var(--muted); }
+.removed > .k-row > .removed-back { justify-self: end; }
+.removed-back { margin: 0; white-space: nowrap; }
 .links { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .link { background: none; border: 0; padding: 4px 0; min-height: 32px; cursor: pointer; font-size: 15px; text-align: left;
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--fg) 45%, transparent); }
@@ -53,19 +54,23 @@ button { font: inherit; color: inherit; }
 .model { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
 .note { margin: 6px 0 0; font-size: var(--k-fs-sm, 14px); color: var(--muted); }
 
-/* Round 1: what Distill found on the page (contact, form, reading, calm), one section each, below the two columns */
-.more-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 32px; }
-.more-extra:empty { display: none; }
-.more-extra > section { padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
 
-/* A phone: two rows. What Distill did and where it ran on top; the actions below, the next step widest. */
+/* A phone: two rows. The first line (what Distill did, its chips) and where it ran on top; More and Original below,
+   each half the width. r5-08: every control is at least 44 px to touch; the row's other controls are in the sheet. */
 @media (max-width: 560px) {
-  .row { flex-wrap: wrap; row-gap: 2px; gap: 8px; }
-  .status { flex: 1 1 0; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  .row { flex-wrap: wrap; row-gap: 0; gap: 8px; padding: 2px 0 4px; }
+  .row > .status:not(.vh) { flex: 1 1 0; white-space: normal; }
   .row .sp { flex: 0 0 100%; height: 0; }
   .row .btn.primary { flex: 1 1 auto; }
-  .btn { padding: 4px 10px; }
-  .more-cols { grid-template-columns: 1fr; }
+  .row > .more-btn, .row > [data-testid="cap-original"] { flex: 1 1 0; }
+  .btn { padding: 4px 10px; min-height: 44px; }
+  .btn.sm { min-height: 44px; }
+  .link { min-height: 44px; }
+  .switch, .field { min-height: 44px; }
+  .field select, .more .ask-input { min-height: 44px; }
+  /* where it ran: 44 px tall to touch, the pill drawn inside (a transparent border, the outline as an inset shadow) */
+  .row .chip[data-src] { min-height: 44px; border-width: 9px 0; border-color: transparent; background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 40%, transparent); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .more { animation: grow 200ms cubic-bezier(.2,.8,.2,1); }
@@ -88,7 +93,7 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: no-preference) { .switch input::before { transition: left 120ms ease-out; } }
 /* Round 1, W3. #5 Contact: the page's ways to reach whoever runs it, in More, two columns wide (the form, reading and
    calm sections sit beside it, so More stays short). */
-.more-extra > .contact { grid-column: span 2; }
+.more-part > .contact { grid-column: span 2; }
 .contact .k-rows { max-height: 180px; overflow: auto; }
 .contact-text { font-weight: 600; }
 /* Call, Write or Open in one slot, so Copy and Show on page line up row under row. */
@@ -103,7 +108,7 @@ a.btn { text-decoration: none; }
 .form-errors { font-weight: 600; }
 @media (max-width: 560px) {
   .form-word { display: none; }
-  .more-extra > .contact { grid-column: 1 / -1; }
+  .more-part > .contact { grid-column: 1 / -1; }
 }
 /* The switch sections (Reading, Motion, Tables and links, Prices and dates, Dark page, Cookie banners, This site): the
    header, then one control under the other, then their notes (r5-04: one shape for all of them). */
@@ -112,14 +117,14 @@ a.btn { text-decoration: none; }
 .k-switches > .note, .k-switches > .k-failed { margin-top: var(--k-sp-1); }
 .calm-line { margin: 0; }
 /* Round 2, r2-10 The gist first: three points at the top of More, each with Show me. */
-.more > .gist { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+
 /* The points numbered, the number in the row's first column. */
 .gist-list { counter-reset: gist; }
 .gist-list > .k-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
 .gist-list > .k-row::before { counter-increment: gist; content: counter(gist) "."; align-self: center; font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--k-fs-sm); }
 .gist-list > .k-row > .note { grid-column: 2 / -1; }
 /* Round 2, r2-01 Claims to check: the sentences, full width, each with its reason, Show me and the web check. */
-.more-extra > .claims { grid-column: 1 / -1; }
+.more-part > .claims { grid-column: 1 / -1; }
 .claims-list { max-height: 220px; overflow: auto; }
 .claim-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .claims-where { margin: 0 0 var(--k-sp-2); }
@@ -161,7 +166,7 @@ a.btn { text-decoration: none; }
 .checks > .k-head { margin-bottom: 0; }
 
 /* Round 3, r3-08 Ask this page: a question box under the gist, on this device only. */
-.more > .ask { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+
 .ask-form { display: flex; gap: 8px; align-items: center; }
 .ask-input { flex: 1 1 auto; min-width: 0; min-height: 34px; padding: 4px 10px; font: inherit; color: var(--fg); background: var(--bg);
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 8px; }

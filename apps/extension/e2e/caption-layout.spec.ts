@@ -2,7 +2,7 @@
 // rest of this folder; the same features on real sites: live/probes/layout.live.ts.
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** A picture of the moment for the review (e2e/out, git-ignored). */
@@ -73,6 +73,7 @@ for (const layout of ["grid", "flex", "float"] as const) {
 
     // The person brings the sidebar back: the column takes its own width again, the sidebar beside it.
     await frame.getByTestId("cap-more-btn").click();
+    await showPart(frame, "cap-removed"); // r5-02: What was removed
     await frame.getByRole("button", { name: "Show Sidebar again" }).click();
     await expect(tab.page.locator("aside.sidebar")).toBeVisible();
     expect(await column(tab.page)).toMatchObject({ left: before.left, width: before.width });
@@ -158,6 +159,7 @@ test("caption comfort: tiny grey text on long lines becomes 16 px, AA contrast a
 
   // More: "Reading", what it did, and the switch, on.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-comfort-section"); // r5-02: its part of More
   const section = frame.getByTestId("cap-comfort-section");
   await expect(section).toContainText("Reading");
   await expect(section).toContainText(`Easier-to-read text on ${after.marked} parts of the page`);

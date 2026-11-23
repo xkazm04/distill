@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, startCaption } from "./caption";
+import { captionFrame, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** Screenshots for the spark board, outside the repo on purpose. */
@@ -33,13 +33,17 @@ const shown = (page: Page) => page.evaluate(() => {
   return { text: range.toString(), top: box.top, bottom: box.bottom, h: innerHeight };
 });
 
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 
 async function ask(frame: Frame, question: string) {
+  await showPart(frame, "cap-ask-input"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-input").fill(question);
+  await showPart(frame, "cap-ask-go"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-go").click();
 }
 
@@ -52,7 +56,7 @@ test("ask: an answer from the page, on this device, with Show me on its sentence
   await fakeModel(distill.worker);
   expect(await startCaption(distill.worker, tab.id)).toBe(true);
   const frame = await captionFrame(page);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
 
   const box = frame.getByTestId("cap-ask");
   await expect(box).toHaveAttribute("data-phase", "idle");
@@ -68,6 +72,7 @@ test("ask: an answer from the page, on this device, with Show me on its sentence
   await expect(where).toHaveAttribute("data-src", "on_device");
 
   // Show me: the page scrolls to the sentence and highlights exactly it, above the strip.
+  await showPart(frame, "cap-ask-show"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-show").click();
   await expect.poll(async () => (await shown(page))?.text).toBe(SATURDAY);
   const s = await shown(page);
@@ -92,8 +97,11 @@ test("ask: an answer from the page, on this device, with Show me on its sentence
   await shot(page, "r3-08-refused");
 
   // Close takes everything away: no highlight, no strip.
+  await showPart(frame, "cap-ask-input"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-input").fill("When does the library open on Saturdays?");
+  await showPart(frame, "cap-ask-go"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-go").click();
+  await showPart(frame, "cap-ask-show"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-show").click();
   await expect.poll(async () => (await shown(page))?.text).toBe(SATURDAY);
   expect(await startCaption(distill.worker, tab.id)).toBe(false);
@@ -106,7 +114,7 @@ test("ask: a model that answers with nothing is refused as 'This page does not s
   await fakeModel(distill.worker, { fail: "empty:askPage" });
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
   await ask(frame, "When does the library open on Saturdays?");
   await expect(frame.getByTestId("cap-ask-refused")).toContainText("This page does not say.", { timeout: 10_000 });
 });
@@ -116,7 +124,7 @@ test("ask: with no model on this device the box says why and offers nothing to s
   const tab = await distill.openTab("caption-ask");
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
   const box = frame.getByTestId("cap-ask");
   await expect(box).toHaveAttribute("data-phase", "unavailable");
   await expect(frame.getByTestId("cap-ask-unavailable")).toContainText("never sent");
@@ -129,7 +137,7 @@ test("ask: a site that blocks the model in frames gets no question box, and noth
   const tab = await distill.openTab("caption-translate-blocked");
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
   await expect(frame.getByTestId("cap-ask-unavailable")).toHaveAttribute("data-why", "blocked");
   await expect(frame.getByTestId("cap-ask-unavailable")).toContainText("never sent to the cloud");
   await expect(frame.getByTestId("cap-ask-input")).toHaveCount(0);

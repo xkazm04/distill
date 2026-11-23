@@ -2,7 +2,7 @@
 // no lang attribute, #5 the contact card, #9 the form check. Hermetic, on the demo pages.
 import { join } from "node:path";
 import type { Frame, Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const shot = (page: Page, name: string) => page.screenshot({ path: join(OUT, `caption-find-${name}.png`), animations: "disabled" });
@@ -29,6 +29,7 @@ test("caption find: an old Czech site with no lang attribute is named Czech from
 
   // #5: More lists the contacts, phones and e-mails first; nothing on the price list or the company ids is a phone.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-contact"); // r5-02: its part of More
   const card = frame.getByTestId("cap-contact");
   await expect(card).toBeVisible();
   await expect(card.getByRole("heading", { name: "Contact" })).toBeVisible();
@@ -91,7 +92,8 @@ test("caption find: Ready to send? counts the form, jumps to the next empty requ
   // Seven fields a person can see; the hidden token and the robot trap (website) are not counted.
   const next = frame.getByTestId("cap-form-next");
   await expect(next).toHaveText("Form 0 of 7 · Next");
-  await expect(frame.getByTestId("cap-row").getByRole("button")).toHaveCount(3); // Form, More, Original
+  // The row's own controls (r5-03: the chips of the first line are buttons too, inside cap-line).
+  await expect(frame.getByTestId("cap-row").locator(":scope > button")).toHaveCount(3); // Form, More, Original
 
   // Typing in the page is counted when the strip gets focus back.
   await tab.page.fill("#jmeno", "Jana Nováková");
@@ -112,6 +114,7 @@ test("caption find: Ready to send? counts the form, jumps to the next empty requ
   await tab.page.locator("button[type=submit]").click();
   await refocus(frame);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-form"); // r5-02: its part of More
   const section = frame.getByTestId("cap-form");
   await expect(section).toContainText("2 of 7 fields filled. 4 required fields are empty.");
   await expect(section).toContainText("The page shows 4 errors.");
@@ -185,7 +188,10 @@ test("caption find: the form check is short at phone width, and absent on a page
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
   await firstSight(frame);
-  await expect(frame.getByTestId("cap-form-next")).toHaveText("0 of 7 · Next", { useInnerText: true });
+  // r5-08: on a phone the row keeps More and Original; the form check is the first thing in the sheet.
+  await expect(frame.getByTestId("cap-row").getByTestId("cap-form-next")).toHaveCount(0);
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(frame.getByTestId("cap-sheet-acts").getByTestId("cap-form-next")).toHaveText("0 of 7 · Next", { useInnerText: true });
 
   const article = await distill.openTab("article");
   await article.page.setViewportSize({ width: 1440, height: 900 });

@@ -95,7 +95,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:clean": return caption.clean(document, window);
     case "distill:caption:restore": return caption.restore(req.id);
     case "distill:caption:original": termsAside(caption.context, () => caption.showOriginal(document, req.on)); return { ok: true };
-    case "distill:caption:size": return { height: caption.resize(req.height, window) };
+    case "distill:caption:size": return { height: caption.resize(req.height, window, req.sheet, req.drag), win: window.innerHeight };
     case "distill:caption:close": caption.close(document); closedByPerson = true; return { ok: true };
     // ---- round 1 (spark universal-core) ----
     case "distill:caption:comfort": return { comfort: setComfort(document, req.on) };

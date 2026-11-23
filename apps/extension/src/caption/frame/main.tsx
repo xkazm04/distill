@@ -18,7 +18,7 @@ import { statusLine } from "./status";
 import { CalmSection } from "./Calm";
 import { ComfortSection } from "./Comfort";
 import { ContactSection } from "./Contact";
-import { FormCheckRow, FormCheckSection } from "./FormCheck";
+import { FormCheckRow, FormCheckSection, ROW_MIN_FIELDS, useFormFields } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 import { ClaimsSection, useClaims, withPageTasks } from "./Claims";
 import { chipWithChecks, ChecksControls, useChecks } from "./ClaimCheck";
@@ -36,13 +36,11 @@ import { ProductSection } from "./Product";
 import { VideoRow, VideoSection } from "./Video";
 import { ToursSection, TourRow, useTours } from "./Tours";
 import { useExplain } from "./Explain";
-
-const MODEL_WORDS: Record<LocalModelState, string> = {
-  available: "AI model on this device: ready.",
-  downloadable: "AI model on this device: not downloaded yet.",
-  downloading: "AI model on this device: downloading.",
-  unavailable: "This computer cannot run the AI model on the device.",
-};
+import { More, SHEET_FULL, SHEET_HALF, usePhone, type Sheet } from "./More";
+import { defaultPart, type Part } from "./parts";
+import { DistillLinks, RemovedSection } from "./Removed";
+import { FirstLine } from "./FirstLine";
+import { chips as lineChips, sentence as lineSentence } from "./lineParts";
 
 function useTheme() {
   useEffect(() => {
@@ -55,10 +53,18 @@ function useTheme() {
 }
 
 /** Tells the page side how tall the strip is, so it sizes the frame and keeps the page's last lines clear of it. */
-function useReportHeight(ref: React.RefObject<HTMLElement | null>) {
+function useReportHeight(ref: React.RefObject<HTMLElement | null>, sheet: { share: number; drag: boolean } | null, win: React.MutableRefObject<number>) {
+  // r5-08: on a phone More is a bottom sheet: it asks for its share of the window (half, full, where a finger holds it)
+  // instead of its natural height, and fills the frame inside.
+  const share = sheet?.share ?? null;
+  const drag = sheet?.drag ?? false;
+  useLayoutEffect(() => {
+    if (share === null) return;
+    void send<"distill:caption:size">({ type: "distill:caption:size", height: 0, sheet: share, drag }).then((r) => { win.current = r.win; }, () => undefined);
+  }, [share, drag, win]);
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || share !== null) return;
     let last = 0;
     // The height the strip wants is its natural height: More counted in full even while it scrolls inside itself. The
     // page side clamps it (at most 45% of the window); when it does, More gets the rest as its own scroll box, so the
@@ -69,7 +75,8 @@ function useReportHeight(ref: React.RefObject<HTMLElement | null>) {
       for (const c of Array.from(more?.children ?? [])) ro.observe(c);
       if (natural === last) return;
       last = natural;
-      void send<"distill:caption:size">({ type: "distill:caption:size", height: natural }).then(({ height }) => {
+      void send<"distill:caption:size">({ type: "distill:caption:size", height: natural }).then(({ height, win: w }) => {
+        win.current = w;
         if (!more?.isConnected) return;
         const over = natural - height;
         if (over > 0) more.style.setProperty("--more-max", `${Math.max(80, more.scrollHeight - over)}px`);
@@ -81,13 +88,16 @@ function useReportHeight(ref: React.RefObject<HTMLElement | null>) {
     let live = true;
     void document.fonts.ready.then(() => { if (live) ro.observe(el); });
     return () => { live = false; ro.disconnect(); };
-  }, [ref]);
+  }, [ref, share]);
 }
 
 function Caption() {
   useTheme();
   const root = useRef<HTMLDivElement>(null);
-  useReportHeight(root);
+  const phone = usePhone();
+  const [sheet, setSheet] = useState<Sheet>({ size: "half", drag: null });
+  const [asked, setAsked] = useState<Part | null>(null);
+  const win = useRef(0);
   const [report, setReport] = useState<CleanReport | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [original, setOriginal] = useState(false);
@@ -95,6 +105,13 @@ function Caption() {
   const [model, setModel] = useState<LocalModelState | "checking">("checking");
   const [modelBlocked, setModelBlocked] = useState(false);
   const moreBtn = useRef<HTMLButtonElement>(null);
+  const sheetOn = phone && more && report !== null && !original;
+  useReportHeight(root, sheetOn ? { share: sheet.drag ?? (sheet.size === "full" ? SHEET_FULL : SHEET_HALF), drag: sheet.drag !== null } : null, win);
+  // More closed: the next time it opens on the remembered or default part, at half the screen on a phone.
+  useEffect(() => { if (!more) { setAsked(null); setSheet({ size: "half", drag: null }); } }, [more]);
+  const openPart = useCallback((p: Part) => { setAsked(p); setMore(true); }, []);
+  const closeMore = useCallback(() => { setMore(false); moreBtn.current?.focus(); }, []);
+  const winHeight = useCallback(() => win.current || (sheet.size === "full" ? innerHeight / SHEET_FULL : innerHeight / SHEET_HALF), [sheet.size]);
 
   useEffect(() => {
     void send<"distill:caption:clean">({ type: "distill:caption:clean" }).then(setReport, (e: unknown) =>
@@ -123,6 +140,8 @@ function Caption() {
   // Round 3: who wrote this and when (r3-05), what this page asks of you (r3-09); both parts of the status line.
   const byline = useByline(report);
   const actions = useActions(report);
+  // r5-02: a page with a real form opens More on Do when it asks things of the reader.
+  const formFields = useFormFields(report);
   // Round 4: explain this word (r4-05) answers the page's Explain button, More open or not.
   useExplain(report);
   // Round 4: tours, started by hand only (r4-08).
@@ -171,66 +190,61 @@ function Caption() {
     return () => removeEventListener("keydown", onKey);
   }, [more, original, toggleOriginal, touring, endTour]);
 
-  const removed = report ? report.items.length - report.restored.length : 0;
   const status = problem ?? (!report ? "Cleaning the page..." : withActions(withByline(withPlain(statusLine(report, translate.state, claims.phase === "ready" ? claims.claims.length : 0), plain.state), byline), actions));
 
+  const claimCount = claims.phase === "ready" ? claims.claims.length : 0;
+  const lineIn = { report, problem, translate: translate.state, plain: plain.state, claims: claimCount, actions: actions?.length ?? 0, byline };
+  // The row's own controls: in the row on a wide strip; on a phone, in the sheet (r5-08), so the row keeps More and Original.
+  const rowControls = report && <>
+    <VideoRow report={report} />
+    <FormCheckRow report={report} />
+    <TranslateRow report={report} translate={translate} />
+    <PlainRow report={report} plain={plain} translate={translate} />
+  </>;
+
   return (
-    <div className="cap" ref={root} data-testid="caption">
+    <div className="cap" ref={root} data-testid="caption" data-sheet={sheetOn ? "" : undefined}>
       <div className="cap-in">
         {more && report && (
-          <section className="more" id="cap-more" aria-label="More" data-testid="cap-more">
-            <GistSection report={report} gist={gist} />
-            <AskSection report={report} setReport={setReport} />
-            <ProductSection report={report} setReport={setReport} />
-            <VideoSection report={report} setReport={setReport} />
-            <ToursSection report={report} setReport={setReport} tours={tours} />
-            <div className="more-cols">
-              <div>
-                <h2>What was removed ({removed} of {report.items.length})</h2>
-                {report.items.length === 0 ? <p className="note">Nothing on this page looked like clutter.</p> : (
-                  <ul className="removed">
-                    {report.items.map((it) => {
-                      const back = report.restored.includes(it.id);
-                      return (
-                        <li key={it.id} className={back ? "back" : undefined} data-testid="cap-removed-item">
-                          <span>{it.label}</span>
-                          {back ? <span>Back on the page</span>
-                            : <button type="button" className="btn sm quiet" onClick={() => void restore(it.id)} aria-label={`Show ${it.label} again`}>Show</button>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {removed > 1 && <button type="button" className="link" onClick={() => void restore("all")}>Show everything again</button>}
-                {report.unlockedScroll && <p className="note">The page could not scroll while its pop-up was up. Distill let it scroll again.</p>}
-              </div>
-              <div className="links">
-                <h2>Distill</h2>
-                <button type="button" className="link" onClick={() => void openPanel()}>Open the full Distill panel</button>
-                <button type="button" className="link" onClick={close} data-testid="cap-close">Close Distill on this page</button>
-                <p className="model" data-testid="cap-model" data-state={model}>
-                  {model === "checking" ? "Checking the AI model on this device..." : MODEL_WORDS[model]}
-                  {model === "downloadable" && !modelBlocked && <> <button type="button" className="link" onClick={() => { setModel("downloading"); void downloadLocalModel(() => undefined).finally(() => void localModelState().then(setModel)); }}>Download the model</button></>}
-                </p>
-                {isOnDeviceOnlyBuild() && <p className="note">{ON_DEVICE_ONLY_NOTE}</p>}
-              </div>
-            </div>
-            <div className="more-extra">
-              <BylineSection report={report} setReport={setReport} />
-              <ActionsSection report={report} setReport={setReport} showOriginal={toggleOriginal} />
-              <ChecksControls checks={checks} claims={claims.claims} />
-              <ClaimsSection report={report} claims={claims} />
-              <ContactSection report={report} />
-              <FormCheckSection report={report} />
-              <ComfortSection report={report} setReport={setReport} />
-              <CalmSection report={report} setReport={setReport} />
-              <TablesLinksSection report={report} setReport={setReport} />
-              <TermsSection report={report} setReport={setReport} />
-              <DarkSection report={report} setReport={setReport} />
-              <ConsentSection report={report} setReport={setReport} />
-              <RememberSection report={report} remember={remember} />
-            </div>
-          </section>
+          <More asked={asked} setAsked={setAsked} origin={remember.origin} phone={phone} sheet={sheet} setSheet={setSheet} close={closeMore} win={winHeight}
+            preferred={defaultPart({ claims: claimCount, claimsComing: claims.phase === "finding" || claims.phase === "idle", article: report.kind === "article",
+              actions: actions?.length ?? 0, actionsComing: actions === null, formOrLetter: report.kind === "form" || report.kind === "letter" || formFields >= ROW_MIN_FIELDS })}
+            counts={{ check: claimCount, do: actions?.length ?? 0, removed: report.items.length - report.restored.length }}
+            acts={phone ? <div className="sheet-acts" data-testid="cap-sheet-acts">{rowControls}</div> : undefined}
+            parts={{
+              page: <>
+                <GistSection report={report} gist={gist} />
+                <AskSection report={report} setReport={setReport} />
+                <ProductSection report={report} setReport={setReport} />
+                <VideoSection report={report} setReport={setReport} />
+                <BylineSection report={report} setReport={setReport} />
+              </>,
+              do: <>
+                <ActionsSection report={report} setReport={setReport} showOriginal={toggleOriginal} />
+                <ContactSection report={report} />
+                <FormCheckSection report={report} />
+                <ToursSection report={report} setReport={setReport} tours={tours} />
+              </>,
+              check: <>
+                <ClaimsSection report={report} claims={claims} />
+                <ChecksControls checks={checks} claims={claims.claims} />
+              </>,
+              settings: <>
+                <ComfortSection report={report} setReport={setReport} />
+                <DarkSection report={report} setReport={setReport} />
+                <TermsSection report={report} setReport={setReport} />
+                <TablesLinksSection report={report} setReport={setReport} />
+                <ConsentSection report={report} setReport={setReport} />
+                <CalmSection report={report} setReport={setReport} />
+                <RememberSection report={report} remember={remember} />
+              </>,
+              removed: <>
+                <RemovedSection report={report} restore={(id) => void restore(id)} />
+                <DistillLinks model={model} modelBlocked={modelBlocked} openPanel={() => void openPanel()} close={close}
+                  onDeviceOnly={isOnDeviceOnlyBuild() ? ON_DEVICE_ONLY_NOTE : null}
+                  download={() => { setModel("downloading"); void downloadLocalModel(() => undefined).finally(() => void localModelState().then(setModel)); }} />
+              </>,
+            }} />
         )}
         {original ? (
           <div className="row" data-testid="cap-row">
@@ -248,17 +262,15 @@ function Caption() {
         ) : (
           <div className="row" data-testid="cap-row">
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
-            <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
+            <span className="status vh" role="status" data-testid="cap-status" title={status}>{status}</span>
+            <FirstLine sentence={lineSentence(lineIn)} chips={lineChips(lineIn)} full={status} open={openPart} wrap={!!problem && !report} />
             {report && (() => {
               const chip = chipWithChecks(withPageTasks(plainChip(sourceChip(translate.state), plain.state, translate.state.source), claims, gist), checks);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />
-            {report && <VideoRow report={report} />}
-            {report && <FormCheckRow report={report} />}
-            {report && <TranslateRow report={report} translate={translate} />}
-            {report && <PlainRow report={report} plain={plain} translate={translate} />}
-            <button type="button" className="btn quiet" ref={moreBtn} aria-expanded={more} aria-controls="cap-more" disabled={!report}
+            {!phone && rowControls}
+            <button type="button" className="btn quiet more-btn" ref={moreBtn} aria-expanded={more} aria-controls="cap-more" disabled={!report}
               onClick={() => setMore((m) => !m)} data-testid="cap-more-btn">More <span className="car" aria-hidden="true">{more ? "▾" : "▴"}</span></button>
             <button type="button" className="btn quiet" onClick={() => void toggleOriginal()} disabled={!report} data-testid="cap-original">Original</button>
             {problem && !report && <button type="button" className="btn quiet" onClick={close}>Close</button>}

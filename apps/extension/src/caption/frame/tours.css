@@ -1,5 +1,5 @@
 /* Round 4, r4-08: tours started by hand; the list in More on the kit's rows (kit.css). Theme roles only. */
-.more > .tours { padding-bottom: var(--k-sp-4); margin-bottom: var(--k-sp-2); border-bottom: 1px solid var(--k-quiet); }
+.more-part > .tours { grid-column: 1 / -1; }
 .tours-list .k-what { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--k-sp-1) var(--k-sp-4); }
 .tour-what { font-size: var(--k-fs-sm); color: var(--muted); }
 .btn[aria-disabled="true"] { opacity: .45; cursor: default; }

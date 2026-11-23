@@ -5,7 +5,7 @@
 import type { Page } from "playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { BAR, captionFrame, firstSight, startCaption } from "./caption";
+import { BAR, captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const snap = async (page: Page, name: string) => {
@@ -48,6 +48,7 @@ test("caption-speed: Clean on a page of 20,000 elements takes exactly the clutte
   for (const p of await tab.page.locator("article.description > p").all()) await expect(p).toBeVisible();
   await expect(tab.page.locator("#main-video")).toBeVisible();
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   const labels = await frame.getByTestId("cap-removed-item").locator("span:first-child").allTextContents();
   expect(labels).toEqual(["Site header", "Share buttons", "Advert", "Newsletter sign-up", "Comments", "Related links", "Footer", "Cookie notice"]);
   await frame.getByTestId("cap-more-btn").click();

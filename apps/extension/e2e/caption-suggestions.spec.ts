@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 type Entry = "sample" | "hostile" | "huge" | "none";
@@ -22,6 +22,7 @@ async function openChecked(distill: { openTab(n: string): Promise<{ page: Page; 
   const frame = await captionFrame(tab.page);
   await firstSight(frame);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-claim"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-more")).toBeVisible();
   const first = frame.getByTestId("cap-claim").nth(0).getByTestId("cap-check");
   await expect(first).toHaveAttribute("data-state", "done", { timeout: 15_000 });
