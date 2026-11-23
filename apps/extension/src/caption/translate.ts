@@ -289,12 +289,18 @@ export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">
   for (const [el, nodes] of owned(top, new Set())) {
     const text = wordsOf(nodes);
     if ((text.match(/\p{L}+/gu) ?? []).length < 3 || contactOnly(text)) continue;
-    if (el.closest("h1, figure, figcaption, caption") || isCredit(text, inFigure(el))) continue;
+    if (el.closest("figure, figcaption, caption") || isCredit(text, inFigure(el))) continue;
     const root = top.find((r) => r.contains(el)) ?? el;
     if (inBoiler(el, root) || linkRow(el) || notDrawn(el)) continue;
     out.push({ el, nodes, text });
   }
-  return out.sort((a, b) => docOrder(a.el, b.el));
+  // The headline is the page's title, not a paragraph: the one h1 of the main text, or an h1 the title repeats. A page
+  // that stacks h1s as its text (an old site's opening hours) keeps the others.
+  const h1s = out.filter((b) => b.el.closest("h1"));
+  const title = (h1s[0]?.el.ownerDocument.title ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const headline = (b: MainBlock): boolean =>
+    h1s.includes(b) && (h1s.length === 1 || (!!title && title.includes(b.text.toLowerCase())));
+  return out.filter((b) => !headline(b)).sort((a, b) => docOrder(a.el, b.el));
 }
 
 function pending(s: State): TextBlock[] {
