@@ -191,6 +191,37 @@ describe("payload privacy", () => {
     await close();
   });
 
+  // Round 2, card 2: the web check is the strip's first cloud call. It carries one sentence of the page, the page's title
+  // and its address, and nothing else: no typed value, no other text of the page.
+  it("a checkClaim prompt carries only the claim, the title and the address", async () => {
+    const doc = parse(czech);
+    const structure = await extractForm(doc, "https://mv.example/zadost");
+    writeValues(doc, structure, { ...SECRETS, stav: "zenaty", stat: "VN", duvod: "studium", souhlas: "true" });
+    const page = extractPage(doc, "https://mv.example/zadost");
+    const claim = "Žádost můžete podat také osobně na úřadě.";
+    expect(page.blocks.some((b) => b.text.includes(claim))).toBe(true);
+    const title = doc.title;
+    const url = "https://mv.example/zadost";
+
+    const prompt = prompts.checkClaim(claim, title, url, "en");
+    expect(route("checkClaim", "only_on_device")).toMatchObject({ promptClass: "page", mode: "only_in_cloud" });
+    expect(prompt).toContain(claim);
+    expect(prompt).toContain(JSON.stringify(title));
+    expect(prompt).toContain(JSON.stringify(url));
+    for (const secret of Object.values(SECRETS)) expect(prompt).not.toContain(secret);
+    for (const part of ["Zqxvlenka", "Wbrtnovsky", "870619", "private.example", "601 998", "ZQX"]) expect(prompt).not.toContain(part);
+    // No other text of the page: not the heading, not the rest of the paragraph, not a label, not the footer.
+    for (const other of ["Žádost o povolení k přechodnému pobytu", "Vyplňte prosím", "Jméno", "Osobní údaje", "Všechna práva vyhrazena"]) {
+      expect(prompt).not.toContain(other);
+    }
+    // Every line is the fixed template's, except the claim's two lines: nothing else can ride along.
+    const template = prompts.checkClaim("", "", "", "en").split("\n");
+    const lines = prompt.split("\n");
+    expect(lines).toHaveLength(template.length);
+    const differ = lines.filter((l, i) => l !== template[i]);
+    expect(differ).toEqual([`<claim source-title=${JSON.stringify(title)} source-url=${JSON.stringify(url)}>`, claim]);
+  });
+
   it("only the values-class prompts carry a person's details, and they route on device only", async () => {
     const structure = await extractForm(parse(czech), "https://mv.example/zadost");
     expect(prompts.suggestValue(structure, "jmeno", { name: "Zqxvlenka" })).toContain("Zqxvlenka");

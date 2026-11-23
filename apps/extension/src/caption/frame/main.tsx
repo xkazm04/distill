@@ -21,6 +21,7 @@ import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 import { ClaimsSection, useClaims, withPageTasks } from "./Claims";
+import { chipWithChecks, ChecksControls, useChecks } from "./ClaimCheck";
 import { GistSection, useGist } from "./Gist";
 import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
@@ -102,6 +103,8 @@ function Caption() {
   const claims = useClaims(report, translate.state);
   const gist = useGist(report, translate.state);
   const plain = usePlain(report, translate);
+  // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
+  const checks = useChecks(claims.claims);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -175,6 +178,7 @@ function Caption() {
               </div>
             </div>
             <div className="more-extra">
+              <ChecksControls checks={checks} claims={claims.claims} />
               <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />
               <FormCheckSection report={report} />
@@ -197,7 +201,7 @@ function Caption() {
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
             <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
             {report && (() => {
-              const chip = withPageTasks(plainChip(sourceChip(translate.state), plain.state, translate.state.source), claims, gist);
+              const chip = chipWithChecks(withPageTasks(plainChip(sourceChip(translate.state), plain.state, translate.state.source), claims, gist), checks);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />
