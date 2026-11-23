@@ -269,6 +269,46 @@ Still open:
   `sites.json` sends a policy that blocks the model in frames (proven on a demo page only).
 - Content appended after the article (an infinite scroll's next article) is not translated (main-column rule).
 
+## Round 2: claims, the gist, tables, link notes, Remember (2026-11-23)
+
+Seven cards built (owner's verdicts: Go on r2-01, 02, 04, 05, 07, 08, 10; No on the outline, Copy and Read aloud).
+Plain words (r2-04) and the web check (r2-02) have their own sections below.
+
+- **r2-01 Claims to check** (on device). `engine/claims.ts` picks candidate sentences (numbers, dates, quotes,
+  "according to"/"podle", studies, causes; Czech and English); task `findClaims` keeps the ones worth checking; door
+  `parseClaims` (candidate ids only, `why` from a closed set, at most 12; the text is always the page's own). Marks are
+  CSS Custom Highlights over the page's own text nodes (`caption/claims.ts`): no element added, links and Translate's
+  swap untouched; re-found after a translation; Original hides them, close removes them. The strip says "N claims to
+  check"; More lists them with Show me. No model: nothing is shown as a claim. Main text for round-2 tasks comes from
+  `distill:caption:mainText` (ids `m0...`, every language, captions and contact lines left out).
+- **r2-10 The gist** (on device). Task `gist`, door `parseGist`: a point whose sentence is not in its block is dropped
+  and counted. Top of More, each point with Show me.
+- **r2-05 Tables you can read** (`caption/tables.ts`). Only data tables of the main text (a header naming half the
+  columns, regular rows, short cells, no nested tables or form fields): header row sticky below the page's own bar,
+  wide tables scroll inside themselves, at 480 px or less a table of up to 4 columns becomes one card per row.
+  Pujcovna Smid's roof-box price list counts as a data table; its layout tables are left alone.
+- **r2-07 Where does this link go** (`engine/links.ts`, `caption/links.ts`). From the address alone, no request:
+  site, "Leaves this site", file type, redirects unwrapped (Google, Facebook, Outlook safelinks and others), tracking
+  tags removed with Copy clean link. A note in a closed shadow root on hover, focus or a long press.
+- **r2-08 Remember this site** (`caption/sites.ts`, `autoOpen.ts`, `sitePermission.ts`). The switch asks Chrome for
+  that one origin; on its next loads the service worker opens the strip by itself (top frame only, not after the
+  person closed it on that page). Kept on this device: items shown again, Keep <language>, reading comfort off.
+  Forget gives back the permission Distill asked for.
+
+Tests after round 2: unit 994, browser tests on demo pages 72 (71 pass in a full run; see the open list), live 9/9,
+round-2 probes 14/14.
+
+Open after round 2:
+- `caption-lifecycle` G5 ("Stay clean keeps the reading layer..."): the reading layer sometimes never reaches a
+  single-page app's next story (fails about 1 run in 3 to 6, also on the commit before round 2). Not caused by round 2;
+  not yet understood.
+- Real model quality (claims, gist, plain words) and the real grounded web check need the owner's check in Chrome.
+- Google's grounding terms ask to show the search suggestions (`searchEntryPoint`, HTML); the strip renders no model
+  HTML, so they are not shown yet.
+- With "Keep <language>" remembered, the translation still runs and is only hidden.
+- The real Chrome permission prompt for Remember was seen to start from the strip's frame but not pressed in a test.
+- Deník keeps an empty "REKLAMA" box and the "Chcete upřednostnit v Google" promo after Clean.
+
 ## Round 2, r2-04: plain words in place (2026-11-23)
 
 **Plain / As written** in the strip rewrites each main-text block of 8 words or more in short sentences (task
