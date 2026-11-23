@@ -33,7 +33,7 @@ import { TermsSection, useTerms } from "./Terms";
 import { DarkSection, useDark } from "./Dark";
 import { ConsentSection } from "./Consent";
 import { ProductSection } from "./Product";
-import { VideoSection } from "./Video";
+import { VideoRow, VideoSection } from "./Video";
 import { ToursSection, TourRow, useTours } from "./Tours";
 import { useExplain } from "./Explain";
 
@@ -254,6 +254,7 @@ function Caption() {
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />
+            {report && <VideoRow report={report} />}
             {report && <FormCheckRow report={report} />}
             {report && <TranslateRow report={report} translate={translate} />}
             {report && <PlainRow report={report} plain={plain} translate={translate} />}

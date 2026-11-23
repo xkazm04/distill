@@ -37,7 +37,7 @@ export { findActions, ACTION_KINDS, type ActionKind, type FoundAction } from "./
 export { findPrices, convert, formatMoney, parseEcbRates, parseAmount, currencyOfLocale, READER_CURRENCIES, type FoundPrice, type Rates } from "./money.js";
 export { findDates, formatDate, type FoundDate } from "./dates.js";
 // Spark universal-core round 4 (contract; each module is filled by its card's builder).
-export { readChapters, type Chapter } from "./chapters.js";
-export { readProduct, PRODUCT_FACTS, type ProductFact, type ProductFactKind, type ProductFacts } from "./product.js";
+export { readChapters, chapterAt, chapterEnd, formatTime as chapterTime, isSponsor, type Chapter } from "./chapters.js";
+export { readProduct, PRODUCT_FACTS, type ProductFact, type ProductFactKind, type ProductFacts, type ReadProductOptions } from "./product.js";
 export { spelledOut, parseExplanation, cleanTerm, isAbbreviation, TERM_MAX, EXPLANATION_MAX, type ExplainResult } from "./explain.js";
 export { parseAnswer, cleanQuestion, capAnswer, QUESTION_MAX, ANSWER_MAX, ANSWER_SENTENCES, type PageAnswer, type AnswerResult } from "./ask.js";

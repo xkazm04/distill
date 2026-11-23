@@ -1,0 +1,26 @@
+/* Round 4, r4-06 video chapters, and r4-07 a product page's facts: sections at the top of More. Theme roles only. */
+.more > .video, .more > .product { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.video-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 16px; max-height: 200px; overflow: auto; }
+.video-list li { display: flex; align-items: center; gap: 8px; min-height: 34px; border-radius: 7px; padding: 0 6px; }
+.video-list li[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.video-go { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1 1 auto; min-height: 32px; padding: 2px 0; background: none; border: 0;
+  color: var(--fg); font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.video-go:hover .video-title { text-decoration: underline; text-underline-offset: 3px; }
+.video-time { flex: 0 0 auto; min-width: 44px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.video-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-list li[aria-current="true"] .video-time { color: var(--fg); font-weight: 600; }
+.video-tag, .video-now { flex: 0 0 auto; font-size: 12px; padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); color: var(--muted); }
+.video-now { color: var(--fg); }
+
+.product-card { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 24px; margin: 0; }
+.product-card > div { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; }
+.product-card dt { font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.product-card dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; user-select: text; }
+.product-card .product-price dd { font-size: 17px; font-weight: 600; }
+.product-card .product-old dd { color: var(--muted); text-decoration: line-through; }
+.product-name { margin: 0 0 4px; font-weight: 600; }
+.product-specs { margin-top: 6px; }
+.product-specs > summary { cursor: pointer; font-size: 15px; min-height: 32px; display: flex; align-items: center; }
+@media (max-width: 560px) {
+  .product-card > div { grid-template-columns: 96px minmax(0, 1fr) auto; }
+}

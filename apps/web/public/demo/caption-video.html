@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>Bramboráky jako od babičky - Vaříme doma</title>
+<style>
+body{margin:0;background:#fafafa;font:15px/1.5 Arial,sans-serif;color:#111}
+header{background:#fff;border-bottom:1px solid #ddd;padding:10px 20px;display:flex;gap:16px;align-items:center}
+header input{flex:0 1 420px;padding:6px 10px;border:1px solid #ccc;border-radius:16px;font:inherit}
+.wrap{display:flex;gap:24px;max-width:1200px;margin:0 auto;padding:16px 20px}
+main{flex:1;min-width:0}
+video{width:100%;max-width:800px;aspect-ratio:16/9;background:#000;display:block;border-radius:10px}
+h1{font-size:22px;margin:12px 0 4px}
+#description{background:#eee;border-radius:10px;padding:10px 12px;margin-top:10px;white-space:pre-line;max-width:800px}
+.recs{width:340px;font-size:14px}
+.recs a{display:block;padding:8px 0;color:#111;text-decoration:none;border-bottom:1px solid #e3e3e3}
+.comments{max-width:800px;margin-top:20px;font-size:14px}
+</style>
+</head>
+<body>
+<header><strong>Vaříme doma</strong><input type="search" placeholder="Hledat" aria-label="Hledat"><nav><a href="#">Domů</a> <a href="#">Odběry</a></nav></header>
+<div class="wrap">
+<main>
+  <video id="player" controls preload="auto" playsinline></video>
+  <h1>Bramboráky jako od babičky</h1>
+  <div id="description">Křupavé bramboráky s majoránkou a česnekem. Recept najdete níže.
+0:00 Úvod
+0:40 Suroviny
+2:10 Reklama – sponzor dílu: nože Ostrý
+3:05 Těsto
+5:30 Smažení
+7:45 Servírování
+
+Ve 3:40 přidáváme mouku jen po lžících.
+Suroviny: 1 kg brambor, 2 vejce, 4 stroužky česneku, majoránka, hladká mouka, sádlo.</div>
+  <section class="comments" id="comments">
+    <h2>Komentáře</h2>
+    <p><b>Jana</b>: Výborné, dělám každou neděli.</p>
+    <p><b>Petr</b>: Já dávám ještě kmín.</p>
+  </section>
+</main>
+<aside class="recs" id="related" aria-label="Další videa">
+  <a href="#">Guláš z hovězí kližky</a>
+  <a href="#">Svíčková na smetaně</a>
+  <a href="#">Knedlíky bez vajec</a>
+  <a href="#">Rychlý chléb z hrnce</a>
+  <a href="#">Smažený sýr jako z hospody</a>
+</aside>
+</div>
+<script>
+// The demo's video: nine minutes of silence made here (a WAV the player can seek in), so the page needs no file and no
+// network. A <video> plays a sound-only file; its time and length are what the chapters need.
+(function () {
+  var rate = 4000, seconds = 540, n = rate * seconds;
+  var buf = new ArrayBuffer(44 + n), v = new DataView(buf), o = 0;
+  function s(t) { for (var i = 0; i < t.length; i++) v.setUint8(o++, t.charCodeAt(i)); }
+  function u32(x) { v.setUint32(o, x, true); o += 4; }
+  function u16(x) { v.setUint16(o, x, true); o += 2; }
+  s("RIFF"); u32(36 + n); s("WAVE"); s("fmt "); u32(16); u16(1); u16(1); u32(rate); u32(rate); u16(1); u16(8); s("data"); u32(n);
+  new Uint8Array(buf, 44).fill(128);
+  document.getElementById("player").src = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+})();
+</script>
+</body>
+</html>
