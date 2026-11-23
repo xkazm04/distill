@@ -70,7 +70,15 @@ export type ContentRequest =
   /** From the caption: readable tables on (true) or off (r2-05). */
   | { type: "distill:caption:tables"; on: boolean }
   /** From the caption: link notes on (true) or off (r2-07). */
-  | { type: "distill:caption:links"; on: boolean };
+  | { type: "distill:caption:links"; on: boolean }
+  // ---- round 2: plain words (r2-04) ----
+  /** From the caption: the main text's blocks to rewrite in plain words, as the page shows them now (a translated
+   *  block's translation, else the page's words). Page text, kept inside the browser. */
+  | { type: "distill:caption:plainBlocks" }
+  /** From the caption: put these plain words (they passed parsePlain) into the page; the page's words are kept. */
+  | { type: "distill:caption:plainText"; blocks: TextBlock[] }
+  /** From the caption: plain words on (true) or the words as written (false). */
+  | { type: "distill:caption:plainShown"; on: boolean };
 
 /** A claim to mark on the page (r2-01): page text only. `verdict` once checked on the web (r2-02). */
 export interface ClaimMark { id: string; blockId: string; text: string; verdict?: ClaimVerdict }
@@ -185,6 +193,11 @@ export interface ContentReplies {
   "distill:caption:clearClaims": { ok: true };
   "distill:caption:tables": { tables: number };
   "distill:caption:links": { ok: true };
+  // round 2: plain words (r2-04)
+  "distill:caption:plainBlocks": TextBlock[];
+  "distill:caption:plainText": { applied: number };
+  /** Blocks showing plain words now. */
+  "distill:caption:plainShown": { shown: number };
 }
 
 /**

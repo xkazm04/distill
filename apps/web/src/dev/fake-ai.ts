@@ -59,6 +59,12 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
   const blocks = ctx.page?.blocks ?? [];
   switch (task) {
     case "simplifyBlocks":
+      // Plain words in place (r2-04, the caption's text blocks): schemas.translate's shape, each block "[PLAIN] " + its
+      // words. A block that says "vynechá číslo" ("leaves out a number") loses its digits, so a test sees the facts door
+      // refuse a rewrite.
+      if (ctx.blocks) {
+        return { blocks: empty ? [] : ctx.blocks.map((b) => ({ id: b.id, text: `[PLAIN] ${/vynechá číslo/i.test(b.text) ? b.text.replace(/\d/g, "") : b.text}` })) };
+      }
       // schemas.simplify: {blocks: [{id, text}]}
       return {
         blocks: empty ? [] : blocks

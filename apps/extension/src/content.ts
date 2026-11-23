@@ -15,6 +15,7 @@ import { applyTranslation, showSource, textBlocks, watchText } from "./caption/t
 import { clearClaims, markClaims, showText } from "./caption/claims";
 import { setTables } from "./caption/tables";
 import { setLinks } from "./caption/links";
+import { applyPlain, plainBlocks, plainShown } from "./caption/translate";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -98,6 +99,13 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:clearClaims": clearClaims(document); return { ok: true };
     case "distill:caption:tables": return { tables: setTables(document, req.on) };
     case "distill:caption:links": setLinks(document, req.on); return { ok: true };
+    // ---- round 2: plain words (r2-04) ----
+    case "distill:caption:plainBlocks": {
+      const ctx = caption.context();
+      return ctx ? plainBlocks(ctx) : [];
+    }
+    case "distill:caption:plainText": return { applied: applyPlain(req.blocks) };
+    case "distill:caption:plainShown": return { shown: plainShown(req.on) };
   }
 }
 

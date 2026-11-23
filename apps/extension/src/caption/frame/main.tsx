@@ -22,7 +22,7 @@ import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 import { ClaimsSection, useClaims } from "./Claims";
 import { GistSection } from "./Gist";
-import { PlainRow } from "./Plain";
+import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
 import { RememberSection } from "./Remember";
 
@@ -100,6 +100,7 @@ function Caption() {
   }, []);
   const translate = useTranslate(report);
   const claims = useClaims(report);
+  const plain = usePlain(report, translate);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -133,7 +134,7 @@ function Caption() {
   }, [more, original, toggleOriginal]);
 
   const removed = report ? report.items.length - report.restored.length : 0;
-  const status = problem ?? (!report ? "Cleaning the page..." : statusLine(report, translate.state));
+  const status = problem ?? (!report ? "Cleaning the page..." : withPlain(statusLine(report, translate.state), plain.state));
 
   return (
     <div className="cap" ref={root} data-testid="caption">
@@ -195,13 +196,13 @@ function Caption() {
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
             <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
             {report && (() => {
-              const chip = sourceChip(translate.state);
+              const chip = plainChip(sourceChip(translate.state), plain.state, translate.state.source);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />
             {report && <FormCheckRow report={report} />}
             {report && <TranslateRow report={report} translate={translate} />}
-            {report && <PlainRow report={report} />}
+            {report && <PlainRow report={report} plain={plain} translate={translate} />}
             <button type="button" className="btn quiet" ref={moreBtn} aria-expanded={more} aria-controls="cap-more" disabled={!report}
               onClick={() => setMore((m) => !m)} data-testid="cap-more-btn">More <span className="car" aria-hidden="true">{more ? "▾" : "▴"}</span></button>
             <button type="button" className="btn quiet" onClick={() => void toggleOriginal()} disabled={!report} data-testid="cap-original">Original</button>
