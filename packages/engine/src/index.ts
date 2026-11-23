@@ -24,7 +24,7 @@ export { detectLang, type DetectedLang } from "./lang.js";
 export { findContacts, type ContactKind, type ContactOptions, type FoundContact } from "./contact.js";
 export { parseTranslation, MAX_GROWTH, type TranslateBlock, type Translation } from "./translate.js";
 export { parseColor, composite, contrastRatio, luminance, readableOn, cssColor, type Rgba } from "./contrast.js";
-export { READING, columnWidth, dominantSize, isLargeText, lineHeightFor, measureFor, sizeScale } from "./reading.js";
+export { READING, columnWidth, dominantSize, headingLeading, headingLeadingOff, headingSpace, isLargeText, leadingFor, lineHeightFor, measureFor, numericColumns, numericText, paragraphGap, sizeScale } from "./reading.js";
 // Spark universal-core round 2.
 export { findClaimCandidates, parseClaims, splitSentences, topClaims, quoteEnds, wholeQuotes, claimWhy, CLAIM_WHY, MAX_CLAIMS, type Claim, type ClaimPick, type ClaimWhy } from "./claims.js";
 export { parseCheck, CLAIM_VERDICTS, REASON_MAX, SOURCES_MAX, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
