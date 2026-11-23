@@ -366,6 +366,47 @@ Checking it for real (owner, own build; e2e and unit tests use a stand-in model 
    search suggestions (`searchEntryPoint`, an HTML snippet); the strip renders no model HTML. Closed in round 3
    (r3-02, below): the suggestions show in a sealed-off frame, never in the strip's own document.
 
+## Round 3: main text, sealed suggestions, the proof page, and seven more (2026-11-23)
+
+All ten cards built (owner's verdicts: Go on all, no notes). r3-02, r3-03, r3-04 and r3-06 have their own sections
+below. Built by seven builders in worktrees after a contract commit (f9f8374); merged and integrated on master.
+
+- **r3-01 Main text that is only the text** (`engine/boiler.ts`, `page.ts`, `clutter.ts`, `caption/translate.ts`
+  `mainTextBlocks`). The headline is the title, not a block; photo credits, captions, "read also" boxes, Google promos
+  and ad labels are left out of the main text. Clean also removes empty ad slots labelled by CSS ("Reklama") and the
+  "prefer us in Google" box (new clutter kind `promo`). Deník: 32 -> 25 blocks, first block the lead, 6 ad labels -> 0.
+- **r3-05 Who wrote this, and when** (`engine/byline.ts`). JSON-LD (arrays, `@graph`, `mainEntity`), microdata, meta
+  tags, then the visible byline; published and updated told apart. The strip line shows only when they differ by more
+  than a week. The web check sends the published day (`source-published`), nothing else of the byline.
+- **r3-07 Prices and dates in your terms** (`engine/money.ts`, `dates.ts`, `caption/terms.ts`, `rates.ts`). Additions
+  drawn by CSS after a wrapped span (never page text). ECB rates once a day, optional host permission asked on a click,
+  `credentials: "omit"`, no referrer. Translate, Plain, Original and the main-text readers run inside `termsAside`;
+  every split or rejoin fires `distill:textsplit` (`caption/textSplit.ts`) so the claims' and actions' highlights are
+  found again (found while merging: a mark's range ran on to the end of the paragraph).
+- **r3-08 Ask this page** (task `askPage`, class `values`: device only, no fallback; door `engine/ask.ts`). The answer
+  must quote a sentence of the main text, else "This page does not say". The question is never stored or sent.
+- **r3-09 What this page asks of you** (`engine/actions.ts`, `caption/actions.ts`). Deadlines, sums with a checked
+  Czech account or IBAN, what to bring, contacts and hours; patterns only. Highlights, Show me, Copy, Call or Write.
+- **r3-10 Loose ends**: Keep <language> holds the translation (`held`, nothing sent until Show English); a form of only
+  radios or checkboxes with no action or submit is not a page form (Wikipedia's appearance panel); link notes by
+  keyboard; G5 fixed at its cause (the test clicked while the strip was still sliding down; it now waits and checks the
+  next story arrived; 30/30); YouTube: forms read once, a cheap error-word check first, `unstick` skips hidden parts,
+  one main-text read shared by claims and the gist.
+- A cookie banner Distill answered carries `data-distill-answered`; the live check of Original does not count it (the
+  site removes it itself once told no).
+
+Tests after round 3: unit 1261, browser tests on demo pages 93/93, live 9/9.
+
+Open after round 3:
+- Real model quality and the real grounded check (with Google's real search suggestions): run the proof page (r3-03).
+- YouTube first sight 1.6-1.7 s median, above 1.5 s (status line about 0.9 s; the rest is YouTube's own scripts and
+  the frame loading).
+- Didomi's reject press not yet seen live (its notice never showed to the test browser).
+- Village offices show 0 things to do: their contacts sit only in parts Clean hid.
+- Dark page does not follow parts that change class later (a menu opening).
+- Ask is not offered on sites that block the model in frames (the offscreen door refuses values tasks by design).
+- A small empty grey bar between Deník's paragraphs (no ad label, so kept).
+
 ## Round 3, r3-02: Google's search suggestions, sealed off (2026-11-23)
 
 - **What it is.** Under a claim checked on the web, a small "Search on Google" area shows the answer's
