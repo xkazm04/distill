@@ -30,7 +30,7 @@ import { AskSection } from "./Ask";
 import { BylineSection } from "./Byline";
 import { ActionsSection } from "./Actions";
 import { TermsSection } from "./Terms";
-import { DarkSection } from "./Dark";
+import { DarkSection, useDark } from "./Dark";
 import { ConsentSection } from "./Consent";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
@@ -112,6 +112,8 @@ function Caption() {
   // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
   const checks = useChecks(claims.claims);
   const remember = useRemember(report, setReport, translate);
+  // Dark page (r3-06) turns on by itself in dark mode once chosen, More open or not.
+  useDark(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;

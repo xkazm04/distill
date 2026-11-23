@@ -1,0 +1,153 @@
+// Cookie banners answered for you (r3-04), the page side: which button is a reject-everything-not-needed button, for
+// each common banner system and for plain words; Accept and ambiguous buttons are never pressed; once per page load.
+// The real browser run is e2e/caption-consent.spec.ts.
+import { describe, expect, it } from "vitest";
+import { acceptsByWords, consentWanted, findReject, foldWords, parseConsentPrefs, rejectsByWords, setConsent } from "./consent";
+
+/** A fresh document per test: a press is remembered per document (once per page load). Every button counts its clicks. */
+function page(html: string): { doc: Document; clicks: () => string[] } {
+  const doc = document.implementation.createHTMLDocument("t");
+  doc.body.innerHTML = html;
+  const log: string[] = [];
+  for (const b of Array.from(doc.querySelectorAll("button, a, input, [role=button]"))) {
+    b.addEventListener("click", (e) => { e.preventDefault(); log.push(b.id || (b.textContent ?? "").trim()); });
+  }
+  return { doc, clicks: () => log };
+}
+
+describe("the words of a button", () => {
+  it.each([
+    "Reject all", "REJECT ALL", "Reject All Cookies", "Decline", "Deny", "Refuse all", "I do not accept", "Only necessary",
+    "Necessary only", "Use necessary cookies only", "Allow only necessary cookies", "Accept only necessary", "Continue without accepting",
+    "Odmítnout vše", "Odmítnout", "Nesouhlasím", "Pouze nezbytné", "Jen nezbytné", "Povolit pouze nezbytné", "Pokračovat bez souhlasu",
+    "Odmietnuť všetko", "Alle ablehnen", "Nur notwendige", "Tout refuser", "Continuer sans accepter", "Odrzuć wszystkie",
+  ])("%s rejects", (w) => {
+    expect(rejectsByWords(foldWords(w))).toBe(true);
+    expect(acceptsByWords(foldWords(w))).toBe(false);
+  });
+  it.each([
+    "Accept all", "Accept", "I agree", "Agree and close", "Allow all", "OK", "Got it", "Souhlasím", "Přijmout vše", "Povolit vše",
+    "Rozumím", "Akzeptieren", "J'accepte",
+  ])("%s accepts and is never a reject", (w) => {
+    expect(rejectsByWords(foldWords(w))).toBe(false);
+    expect(acceptsByWords(foldWords(w))).toBe(true);
+  });
+  it.each([
+    "Continue", "Close", "Save settings", "Settings", "More options", "Manage preferences", "Nastavení", "Uložit nastavení",
+    "Accept selected", "Allow selection", "Reject all or accept later", "Learn more about how we reject spam",
+  ])("%s is ambiguous: neither", (w) => {
+    expect(rejectsByWords(foldWords(w))).toBe(false);
+  });
+});
+
+describe("the banner systems: their own reject button, never Accept", () => {
+  it("OneTrust", () => {
+    const { doc, clicks } = page(`<div id="onetrust-consent-sdk"><div id="onetrust-banner-sdk">
+      <button id="onetrust-accept-btn-handler">Accept All Cookies</button><button id="onetrust-reject-all-handler">Reject All</button>
+      <button id="onetrust-pc-btn-handler">Cookies Settings</button></div></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["onetrust-reject-all-handler"]);
+  });
+  it("Didomi (Czech)", () => {
+    const { doc, clicks } = page(`<div id="didomi-host"><div id="didomi-notice">
+      <button id="didomi-notice-agree-button">Souhlasím</button><button id="didomi-notice-disagree-button">Nesouhlasím</button></div></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["didomi-notice-disagree-button"]);
+  });
+  it("Didomi's 'continue without agreeing' link", () => {
+    const { doc, clicks } = page(`<div id="didomi-host"><div id="didomi-popup"><a href="#" class="didomi-continue-without-agreeing" id="cwa">Pokračovat bez souhlasu</a>
+      <button id="didomi-notice-agree-button">Přijmout a zavřít</button></div></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["cwa"]);
+  });
+  it("Cookiebot", () => {
+    const { doc, clicks } = page(`<div id="CybotCookiebotDialog"><button id="CybotCookiebotDialogBodyButtonDecline">Odmítnout</button>
+      <button id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection">Povolit výběr</button>
+      <button id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll">Povolit vše</button></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["CybotCookiebotDialogBodyButtonDecline"]);
+  });
+  it("Quantcast / InMobi: the secondary button only when its words say no", () => {
+    const yes = page(`<div id="qc-cmp2-container"><div class="qc-cmp2-summary-buttons">
+      <button mode="secondary" id="more">MORE OPTIONS</button><button mode="primary" id="agree">AGREE</button></div></div>`);
+    expect(setConsent(yes.doc, true)).toBe("hidden");
+    expect(yes.clicks()).toEqual([]);
+    const no = page(`<div id="qc-cmp2-container"><div class="qc-cmp2-summary-buttons">
+      <button mode="secondary" id="disagree">I DO NOT ACCEPT</button><button mode="primary" id="agree">I ACCEPT</button></div></div>`);
+    expect(setConsent(no.doc, true)).toBe("rejected");
+    expect(no.clicks()).toEqual(["disagree"]);
+  });
+  it("Usercentrics, inside its open shadow root", () => {
+    const { doc } = page(`<div id="usercentrics-root"></div>`);
+    const host = doc.getElementById("usercentrics-root") as HTMLElement;
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML = `<div><button data-testid="uc-accept-all-button">Accept All</button><button data-testid="uc-deny-all-button">Deny</button></div>`;
+    const log: string[] = [];
+    for (const b of Array.from(root.querySelectorAll("button"))) b.addEventListener("click", () => log.push(b.getAttribute("data-testid") ?? ""));
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(log).toEqual(["uc-deny-all-button"]);
+  });
+  it("Sourcepoint whose buttons are out of reach (a frame from elsewhere): only hidden", () => {
+    const { doc, clicks } = page(`<div id="sp_message_container_123"><div class="frame-from-elsewhere"></div></div>`);
+    expect(setConsent(doc, true)).toBe("hidden");
+    expect(clicks()).toEqual([]);
+  });
+  it("Sourcepoint drawn in the page: its REJECT_ALL choice", () => {
+    const { doc, clicks } = page(`<div id="sp_message_container_9"><button class="sp_choice_type_11" id="acc">Accept</button><button class="sp_choice_type_13" id="rej">Reject</button></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["rej"]);
+  });
+  it("TrustArc", () => {
+    const { doc, clicks } = page(`<div id="truste-consent-track"><button id="truste-consent-button">Accept all</button><button id="truste-consent-required">Required only</button></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(clicks()).toEqual(["truste-consent-required"]);
+  });
+  it("a system's reject id on a button whose words say yes is never pressed", () => {
+    const { doc, clicks } = page(`<div id="onetrust-banner-sdk"><button id="onetrust-reject-all-handler">Accept all</button></div>`);
+    expect(setConsent(doc, true)).toBe("hidden");
+    expect(clicks()).toEqual([]);
+  });
+});
+
+describe("plain banners, by their words", () => {
+  it("a banner Clean hid, with Odmítnout vše beside Přijmout vše", () => {
+    const { doc, clicks } = page(`<div class="lista"><p>Používáme cookies.</p><button id="a">Přijmout vše</button><button id="r">Odmítnout vše</button><button id="s">Nastavení</button></div>`);
+    const banner = doc.querySelector(".lista") as Element;
+    expect(setConsent(doc, true, [banner])).toBe("rejected");
+    expect(clicks()).toEqual(["r"]);
+  });
+  it("a banner with only Accept and Settings is hidden, nothing pressed", () => {
+    const { doc, clicks } = page(`<div class="lista"><button id="a">Accept</button><button id="s">Settings</button><a href="/privacy">Decline</a></div>`);
+    expect(setConsent(doc, true, [doc.querySelector(".lista") as Element])).toBe("hidden");
+    expect(clicks()).toEqual([]); // "Decline" here is a link to another page
+  });
+  it("a reject button outside any banner is never pressed", () => {
+    const { doc, clicks } = page(`<form><button id="r">Decline</button></form>`);
+    expect(findReject(doc, [])).toBeNull();
+    expect(setConsent(doc, true, [])).toBe("none");
+    expect(clicks()).toEqual([]);
+  });
+});
+
+describe("the switch and once per page", () => {
+  it("off: nothing pressed", () => {
+    const { doc, clicks } = page(`<div id="onetrust-banner-sdk"><button id="onetrust-reject-all-handler">Reject All</button></div>`);
+    expect(setConsent(doc, false)).toBe("off");
+    expect(clicks()).toEqual([]);
+  });
+  it("pressed once per page load, whatever is asked after", () => {
+    const { doc, clicks } = page(`<div id="onetrust-banner-sdk"><button id="onetrust-reject-all-handler">Reject All</button></div>`);
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(setConsent(doc, true)).toBe("rejected");
+    expect(setConsent(doc, false)).toBe("rejected");
+    expect(clicks()).toEqual(["onetrust-reject-all-handler"]);
+  });
+  it("kept choices: the site's own, else every site's, else on", () => {
+    const p = parseConsentPrefs({ on: false, sites: { "https://a.cz": true, bad: "x" } });
+    expect(p).toEqual({ on: false, sites: { "https://a.cz": true } });
+    expect(consentWanted(p, "https://a.cz")).toBe(true);
+    expect(consentWanted(p, "https://b.cz")).toBe(false);
+    expect(consentWanted(parseConsentPrefs(null), "https://b.cz")).toBe(true);
+    expect(consentWanted(parseConsentPrefs({ sites: { "https://b.cz": false } }), "https://b.cz")).toBe(false);
+  });
+});

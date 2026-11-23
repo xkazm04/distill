@@ -13,6 +13,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function statusLine(report: CleanReport, translate: TranslateState, claims = 0): string {
   const parts = [clutterSummary(report.items)];
   if (report.restored.length) parts.push(`${report.restored.length} back`);
+  // r3-04: the banner's own reject button was pressed for the person.
+  if (report.consent === "rejected") parts.push("Cookies: rejected");
   if (report.calm.media) parts.push(`Paused ${plural(report.calm.media, "video", "videos")}`);
   // Translate (#10) words the language part while it runs and once it is done.
   const lang = languagePart(report, translate);
