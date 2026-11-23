@@ -35,4 +35,4 @@ export { readByline, bylineLine, type Byline } from "./byline.js";
 export { findActions, ACTION_KINDS, type ActionKind, type FoundAction } from "./actions.js";
 export { findPrices, convert, formatMoney, parseEcbRates, type FoundPrice, type Rates } from "./money.js";
 export { findDates, formatDate, type FoundDate } from "./dates.js";
-export { parseAnswer, QUESTION_MAX, ANSWER_MAX, type PageAnswer, type AnswerResult } from "./ask.js";
+export { parseAnswer, cleanQuestion, capAnswer, QUESTION_MAX, ANSWER_MAX, ANSWER_SENTENCES, type PageAnswer, type AnswerResult } from "./ask.js";

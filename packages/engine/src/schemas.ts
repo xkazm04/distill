@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate" | "claims" | "check" | "gist", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate" | "claims" | "check" | "gist" | "ask", object> = {
   recast: {
     type: "object",
     properties: {
@@ -152,6 +152,13 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
       },
     },
     required: ["points"],
+  },
+  // Round 3: ask this page (askPage, device only). One short answer with the block and the exact sentence it rests on;
+  // an empty answer means the page does not say (ask.ts parseAnswer).
+  ask: {
+    type: "object",
+    properties: { answer: str, blockId: str, sentence: str },
+    required: ["answer", "blockId", "sentence"],
   },
 };
 

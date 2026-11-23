@@ -14,6 +14,8 @@ export interface FakeContext {
   claims?: readonly { id: string; text: string; why?: string }[];
   /** checkClaim: the sentence checked (round 2). */
   claim?: string;
+  /** askPage: the person's question (round 3; a typed value, device only). */
+  question?: string;
 }
 
 export type FakeFailure = "busy" | "genuine" | "device" | "other" | "empty";
@@ -156,8 +158,31 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
           return { text: `[GIST] ${sentence}`, blockId: b.id, sentence };
         }),
       };
+    case "askPage":
+      // schemas.ask: the sentence of the main text sharing the most words with the question, quoted as its own answer;
+      // no shared word -> an empty answer (the page does not say).
+      return empty ? { answer: "", blockId: "", sentence: "" } : fakeAsk(ctx.question ?? "", ctx.blocks ?? []);
     case "draftReply":
       // schemas.replyDraft
       return empty ? { reply: "" } : { reply: "(dev fake AI) Dobrý den, dokument pošlu do [datum]. S pozdravem", translation: "(dev fake AI) Hello, I will send the document by [date]. Kind regards" };
   }
+}
+
+/** Words that say nothing about what is asked. */
+const ASK_STOP = new Set(["what", "when", "where", "which", "whom", "whose", "does", "this", "that", "page", "article", "about", "with", "from", "have", "will", "would", "should", "there", "they", "them", "your"]);
+const askWords = (s: string): string[] => (s.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []).filter((w) => !ASK_STOP.has(w));
+
+/** askPage's stand-in: the real sentence of the blocks sharing the most words (4+ letters, not a question word) with
+ *  the question; none -> an empty answer. */
+function fakeAsk(question: string, blocks: readonly { id: string; text: string }[]): { answer: string; blockId: string; sentence: string } {
+  const words = new Set(askWords(question));
+  let best: { blockId: string; sentence: string; score: number } | null = null;
+  for (const b of blocks) {
+    for (const part of b.text.split(/(?<=[.!?])\s+/)) {
+      const sentence = part.trim();
+      const score = askWords(sentence).filter((w) => words.has(w)).length;
+      if (score > 0 && (!best || score > best.score)) best = { blockId: b.id, sentence, score };
+    }
+  }
+  return best ? { answer: `[ASK] ${best.sentence}`, blockId: best.blockId, sentence: best.sentence } : { answer: "", blockId: "", sentence: "" };
 }

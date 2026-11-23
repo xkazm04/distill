@@ -1,7 +1,8 @@
 // One way for the strip to run an on-device-first page task (round 2: findClaims, gist, plain words): the frame's own
 // run(), the offscreen document when the site forbids the model in frames (docs/caption.md, risk 1), or the e2e
-// build's stand-in model. The same paths Translate.tsx's runTranslate takes, for any task. A values task never comes
-// here (the strip has none); the web check (checkClaim) is cloud and grounded and has its own run (ClaimCheck.tsx).
+// build's stand-in model. The same paths Translate.tsx's runTranslate takes, for any task. The one values task here is
+// askPage (Ask.tsx): run() pins it to the device, and Ask never calls this in a blocked frame (the offscreen door refuses
+// values); the web check (checkClaim) is cloud and grounded and has its own run (ClaimCheck.tsx).
 import type { Task } from "@distill/engine";
 import { aiAvailable, run, toAiError, type RunContext, type RunResult } from "@distill/web/ai";
 import { deviceModelBlocked, runOffscreen } from "../../offscreen/client";

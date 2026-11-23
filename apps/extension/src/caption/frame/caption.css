@@ -160,3 +160,12 @@ a.btn { text-decoration: none; }
 .chip.sm { min-height: 22px; font-size: 13px; padding: 0 8px; }
 .checks { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .checks h2 { margin-bottom: 0; }
+
+/* Round 3, r3-08 Ask this page: a question box under the gist, on this device only. */
+.more > .ask { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.ask-form { display: flex; gap: 8px; align-items: center; }
+.ask-input { flex: 1 1 auto; min-width: 0; min-height: 34px; padding: 4px 10px; font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 8px; }
+.ask-answer { margin-top: 8px; }
+.ask-text { margin: 0; font-size: 15px; }
+.ask-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; }
