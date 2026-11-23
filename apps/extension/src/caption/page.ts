@@ -15,6 +15,14 @@ import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearLinks, linkNotes } from "./links";
+import { clearConsent, consentAfterClean, setConsent } from "./consent";
+import { clearDark } from "./dark";
+
+/** The consent switch for this site as Clean read it (r3-04): late banners are answered only while it is on. */
+let consentOn = false;
+/** What Clean hid as a cookie notice. */
+const cookieBanners = (items: readonly ClutterItem[], removed: ReadonlyMap<string, Element>): Element[] =>
+  items.filter((it) => it.kind === "cookie").map((it) => removed.get(it.id)).filter((el): el is Element => !!el);
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
 export const HIDE = "data-distill-hide";
@@ -119,6 +127,8 @@ export function close(doc: Document): void {
   clearClaims(doc);
   clearTables(doc);
   clearLinks(doc);
+  clearDark(doc);
+  clearConsent();
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
   doc.documentElement.removeAttribute(ORIGINAL);
   doc.documentElement.removeAttribute(UNLOCK);
@@ -295,6 +305,10 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   if (locked) html.setAttribute(UNLOCK, "");
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
   s.report = { ...s.report, items: [...s.report.items, ...added], unlockedScroll: s.report.unlockedScroll || locked, calm: calmCounts() };
+  // A cookie banner that came late (r3-04) is answered like an early one, still at most once per page load.
+  if (consentOn && s.report.consent !== "rejected" && added.some((it) => it.kind === "cookie")) {
+    s.report = { ...s.report, consent: setConsent(doc, true, cookieBanners(s.report.items, s.removed)) };
+  }
   s.stale = true;
   follow(s, ctx);
   notifyFrame(current());
@@ -435,6 +449,8 @@ function anchorOf(keep: Element[], win: Window): { el: Element; top: number } | 
 /** Clean, once per page: hide what is not content, fading it out first (instantly under reduced motion). */
 export async function clean(doc: Document, win: Window): Promise<CleanReport> {
   if (!state) throw new Error("Distill is not open on this page.");
+  // A Clean still running (its consent step reads the device's switch) answers with its finished report.
+  if (cleaning) return cleaning;
   if (state.report) return current();
   cleaning ??= cleanOnce(doc, win).finally(() => { cleaning = null; });
   return cleaning;
@@ -518,8 +534,14 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     tables: readableTables(ctx),
   };
   linkNotes(ctx);
-  state.unwatch = watchForClutter(doc, win, () => { void recheck(doc, win); });
-  return state.report;
+  // r3-04: after Clean, in the top frame, once per page load: a cookie banner's reject button pressed (never Accept).
+  const s = state;
+  const answered = await consentAfterClean(doc, cookieBanners(items, removed));
+  if (state !== s || !s.report) return base; // closed meanwhile
+  consentOn = answered.on;
+  s.report = { ...s.report, consent: answered.outcome };
+  s.unwatch = watchForClutter(doc, win, () => { void recheck(doc, win); });
+  return s.report;
 }
 
 /** The report as it stands, with what the person brought back, what Calm holds right now, and the reading layer as

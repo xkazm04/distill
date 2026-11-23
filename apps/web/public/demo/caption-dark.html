@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring walks in the valley | Demo</title>
+<!-- Dark page (r3-06): a light page with what must keep its colours (a photo, an SVG logo, a canvas, a background
+     picture) next to what must turn dark and stay readable (body text, grey notes, links, a pale yellow box, a light
+     table, a light gradient). A dark band in the text is dark already and keeps its white text. -->
+<style>
+body{font:17px/1.6 Georgia,serif;margin:0;background:#fff;color:#333}
+header{background:#1f3b4d;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px}
+header a{color:#fff}
+.band{background:#1f3b4d;color:#fff;padding:10px 14px;display:flex;align-items:center;gap:12px;margin:12px 0}
+main{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+h1{font-size:1.8rem;line-height:1.2;color:#111}
+.meta{color:#777;font-size:14px}
+.tip{background:#fff8dc;border:1px solid #e8d9a0;padding:10px 14px}
+.hero{background:linear-gradient(#ffffff,#eef2f5);padding:16px;border:1px solid #dde3e8}
+.pic{height:120px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='20' height='20' fill='%23ff5500'/%3E%3Crect x='20' y='20' width='20' height='20' fill='%2300aa44'/%3E%3C/svg%3E")}
+table{border-collapse:collapse}
+td,th{border:1px solid #ccc;padding:4px 10px;background:#f7f7f7}
+a{color:#0645ad}
+</style>
+</head>
+<body>
+<header><b>Valley Walks</b><a href="#">Routes</a></header>
+<main>
+<h1>Five spring walks in the valley</h1>
+<p class="meta" id="meta">By the visitor centre · 12 March</p>
+<p id="p1">Spring comes early to the lower valley. By the end of March the meadows along the river are full of wild garlic, and the path from the old mill to the chapel is dry enough for ordinary shoes. The <a id="link" href="#routes">full list of routes</a> gives the length and the climb of each walk.</p>
+<img id="photo" width="320" height="160" alt="The river below the chapel" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='160'%3E%3Crect width='320' height='80' fill='%2387ceeb'/%3E%3Crect y='80' width='320' height='80' fill='%233cb371'/%3E%3Ccircle cx='260' cy='40' r='22' fill='%23ffd700'/%3E%3C/svg%3E">
+<p id="p2">The second walk climbs through the beech wood to the lookout tower. It takes about two hours, and the tower is open at weekends from April. Children under ten climb the tower free of charge.</p>
+<div class="band" id="band"><svg id="logo" width="36" height="36" viewBox="0 0 36 36" aria-label="Valley walks"><circle cx="18" cy="18" r="16" fill="#ffcc00"/><path d="M4 26 L14 12 L22 22 L27 16 L33 26 Z" fill="#2e8b57"/></svg><span id="brand">The visitor centre is open daily from nine to five.</span></div>
+<div class="tip" id="tip">Tip: the bus from the town square stops at the old mill every hour on Saturdays.</div>
+<div class="hero" id="hero"><p id="p3">The third walk follows the old railway line, flat all the way, and is suitable for pushchairs and wheelchairs.</p></div>
+<div class="pic" id="bgpic" role="img" aria-label="Pattern"></div>
+<canvas id="canvas" width="120" height="60"></canvas>
+<table id="routes"><tr><th>Walk</th><th>Length</th></tr><tr><td>Mill to chapel</td><td>4 km</td></tr><tr><td>Lookout tower</td><td>7 km</td></tr></table>
+<p id="p4">Please keep dogs on a lead in the nature reserve between April and July, when the birds are nesting along the river banks.</p>
+</main>
+<script>
+var c = document.getElementById("canvas").getContext("2d");
+c.fillStyle = "#e0115f"; c.fillRect(0, 0, 60, 60); c.fillStyle = "#1e90ff"; c.fillRect(60, 0, 60, 60);
+</script>
+</body>
+</html>

@@ -10,7 +10,8 @@ There is no sidebar.
 1. **The default surface.** The toolbar icon switches from the side panel to the caption once slices 1 to 5 meet the
    live bar.
 2. **Cookie walls.** Clean hides a consent wall **without answering it**: Distill never clicks "Accept" or "Reject" for
-   the person.
+   the person. *Changed in round 3 (card r3-04, owner's Go):* where the banner has a reject-everything-not-needed button,
+   Distill presses it once per page load (switch in More, on by default); Accept is still never pressed.
 3. **Tours are optional and start only when the person asks for one.** The strip suggests no next step. Once tours
    exist, a manual trigger starts them (in the strip, or in More). Nothing past Clean and Translate starts on its own.
 
@@ -416,6 +417,46 @@ marker.
 
 In e2e (`e2e/proof.spec.ts`) the page runs with the stand-in model. That proves the page and the report work, not the
 models: screenshot `r3-03-proof.jpg`.
+
+## Round 3, r3-04 and r3-06: cookie banners answered, dark page (2026-11-23)
+
+- **r3-04 A cookie banner answered for you** (`caption/consent.ts`, hooked into `page.ts`; `frame/Consent.tsx`). After
+  Clean, in the top frame, at most once per page load, Distill presses the banner's own reject-everything-not-needed
+  button. It finds the button in one of two ways:
+  - by the known ids and classes of OneTrust, Didomi, Cookiebot, Quantcast / InMobi, Usercentrics (open shadow root),
+    Sourcepoint (only when its frame is the site's own), TrustArc, CookieConsent, Complianz, CookieYes and Seznam;
+  - or by a plain button inside a banner whose whole text is a reject phrase (en, cs, sk, de, fr, pl).
+
+  A button whose words say yes is never pressed, even with a reject id, and neither is a link to another page. A
+  late banner is answered when Stay clean finds it. A banner without a reject button is only hidden, as before.
+  `CleanReport.consent` records the outcome (`rejected | hidden | none | off`), and the strip says "Cookies: rejected".
+  The switch in More is kept in `chrome.storage.local` under `distill:consent` (`{ on?, sites }`): one setting for
+  this site, one for every site, on by default.
+- **r3-06 Dark page** (`caption/dark.ts`, `frame/Dark.tsx` with `useDark` in `main.tsx`):
+  - A light background turns dark with the same hue.
+  - Text below 4.5:1 on its new background turns light, only as far as needed (engine `contrast.ts`). Text over a
+    picture keeps its colour.
+  - Light gradients are darkened in place.
+  - img, video, canvas, svg, iframe and background pictures are never marked or filtered.
+  - The changes are one stylesheet plus a `data-distill-dark` attribute on each changed element, under
+    `html[data-distill-dark-on]:not([data-distill-original])`. Off and close remove both.
+  - A page whose background under its text blocks (median) is dark is left alone (`alreadyDark`).
+  - Turning the switch on once stores `distill:dark {auto:true}`. After that the page goes dark by itself whenever
+    Chrome is in dark mode. Turning it off stops that.
+
+Live, 2026-11-23:
+- **Consent**, probe `consent.live.ts`, fresh profile:
+  - YouTube (Pohlreich): the "Odmítnout vše" button of the consent dialog was pressed. It was the only click. After a
+    reload the dialog did not come back, and SOCS was set.
+  - Deník and Aktuálně: Didomi did not show its notice in these headless runs, so nothing was pressed. Deník reports
+    `hidden` from a cookie item Clean hid.
+  - Přáslavice and the demo article: only hidden (no reject button). Štáhlavy: none.
+- **Dark**, probe `dark.live.ts`, 9 sites plus cs.wikipedia under a light and a dark scheme:
+  - Every darkened page had 0 main-text elements below 4.5:1.
+  - The lowest minimums were Wikipedia's links at 4.8 and Deník at 7.75.
+  - Dymáček counts as dark already, correctly.
+  - cs.wikipedia does not switch to its own dark mode under a dark scheme for an anonymous reader, so Distill darkens
+    it.
 
 ## Code map
 
