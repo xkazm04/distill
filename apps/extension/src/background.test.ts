@@ -13,8 +13,8 @@ beforeAll(async () => {
   (globalThis as { chrome?: unknown }).chrome = {
     sidePanel: { setPanelBehavior: vi.fn(async () => undefined) },
     runtime: { onConnect: { addListener: (l: Fn) => { listeners.connect = l as never; } }, connectNative, lastError: undefined },
-    tabs: { onRemoved: { addListener: (l: Fn) => { listeners.removed = l as never; } } },
-    permissions: { contains },
+    tabs: { onRemoved: { addListener: (l: Fn) => { listeners.removed = l as never; } }, onUpdated: { addListener: vi.fn() } },
+    permissions: { contains, onRemoved: { addListener: vi.fn() } },
     storage: {
       session: {
         get: async (k: null) => (k === null ? Object.fromEntries(session) : {}),

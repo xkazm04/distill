@@ -336,3 +336,4 @@ Checking it for real (owner, own build; e2e and unit tests use a stand-in model 
 | `apps/extension/e2e/caption.ts` | `BAR` and the measurements shared by both runs |
 | `apps/extension/e2e/caption.spec.ts` | Hermetic scenarios on the demo pages |
 | `apps/extension/e2e/live/` | The live run: `sites.json`, `caption.live.ts`, `report.ts`, `README.md` |
+| `apps/extension/src/caption/sites.ts`, `sitePermission.ts`, `autoOpen.ts`, `frame/Remember.tsx` | r2-08 Remember this site: `distill:sites` in chrome.storage.local, the one `<origin>/*` permission asked from the strip's frame, the service worker's automatic open (tabs.onUpdated, no new permission; top frame only; not after Close until the next load; dropped on `permissions.onRemoved`) |

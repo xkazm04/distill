@@ -6,6 +6,8 @@ import { send } from "./send";
 
 /** How many parts of the page the layer changes when on. Kept for the frame's life: off, the report says 0. */
 let known = 0;
+/** The page needed the layer (r2-08: Remember turns it off before More ever showed it, and the switch must stay). */
+export const knowComfort = (n: number): void => { if (n > 0) known = n; };
 
 export function ComfortSection(props: { report: CleanReport; setReport: (r: CleanReport) => void }) {
   const { report, setReport } = props;

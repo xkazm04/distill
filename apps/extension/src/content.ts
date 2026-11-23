@@ -25,6 +25,8 @@ declare global {
 let sources = new Map<string, Element>();
 /** Action id -> the control it names, by the last distill:listActions. Never leaves the page. */
 let controls = new Map<string, Element>();
+/** The person closed the caption on this document (r2-08): a remembered site does not open it again until the next load. */
+let closedByPerson = false;
 
 /** Clicks a control the person accepted. Only one from the last listing, and only while it is still in the page. */
 function doAction(actionId: string): void {
@@ -70,14 +72,16 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:doAction": doAction(req.actionId); return { ok: true };
     case "distill:caption:open":
-      if (caption.isOpen() && req.toggle) { caption.close(document); return { open: false }; }
+      // r2-08: an automatic open never in a frame, never again on a document where the person closed Distill.
+      if (req.auto && (window !== window.top || closedByPerson)) return { open: caption.isOpen() };
+      if (caption.isOpen() && req.toggle) { caption.close(document); closedByPerson = true; return { open: false }; }
       caption.open(document, req.tabId);
       return { open: true };
     case "distill:caption:clean": return caption.clean(document, window);
     case "distill:caption:restore": return caption.restore(req.id);
     case "distill:caption:original": caption.showOriginal(document, req.on); return { ok: true };
     case "distill:caption:size": return { height: caption.resize(req.height, window) };
-    case "distill:caption:close": caption.close(document); return { ok: true };
+    case "distill:caption:close": caption.close(document); closedByPerson = true; return { ok: true };
     // ---- round 1 (spark universal-core) ----
     case "distill:caption:comfort": return { comfort: setComfort(document, req.on) };
     case "distill:caption:play": playAgain(document); caption.recount(); return { ok: true };

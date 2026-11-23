@@ -25,7 +25,7 @@ import { chipWithChecks, ChecksControls, useChecks } from "./ClaimCheck";
 import { GistSection, useGist } from "./Gist";
 import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
-import { RememberSection } from "./Remember";
+import { RememberSection, useRemember } from "./Remember";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -105,6 +105,7 @@ function Caption() {
   const plain = usePlain(report, translate);
   // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
   const checks = useChecks(claims.claims);
+  const remember = useRemember(report, setReport, translate);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -185,7 +186,7 @@ function Caption() {
               <ComfortSection report={report} setReport={setReport} />
               <CalmSection report={report} setReport={setReport} />
               <TablesLinksSection report={report} setReport={setReport} />
-              <RememberSection report={report} />
+              <RememberSection report={report} remember={remember} />
             </div>
           </section>
         )}
