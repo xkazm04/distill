@@ -10,6 +10,7 @@
 // link, Tab goes on to the page's next stop.
 import { describeLink, PROGRAM_FILE_TYPES, type LinkNote } from "@distill/engine";
 import type { CleanContext } from "./context";
+import { NOTE_CSS as BASE_NOTE_CSS } from "./marks";
 
 const ORIGINAL = "data-distill-original";
 const HIDE = "data-distill-hide";
@@ -24,22 +25,12 @@ const PRESS_SLOP = 10;
 /** Room kept free at the bottom of the window for Distill's strip (px). */
 const STRIP_ROOM = 64;
 
-// The note sits on any page, light or dark, and the frame's theme roles cannot reach into the page. So it uses the
-// browser's own system colours (Canvas, CanvasText, ButtonFace ...) with color-scheme: light dark: a neutral,
-// high-contrast box that follows the person's light or dark setting, and forced-colours mode, with no colour of
-// Distill's own. System fonts only: nothing is loaded.
-const NOTE_CSS = `
-:host { all: initial; }
-.note { box-sizing: border-box; max-width: 300px; padding: 8px 10px; border: 1px solid GrayText; border-radius: 8px;
-  background: Canvas; color: CanvasText; color-scheme: light dark; pointer-events: none;
-  box-shadow: 0 2px 10px color-mix(in srgb, CanvasText 22%, transparent);
-  font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: start; overflow-wrap: anywhere; }
-.site { font-weight: 700; font-size: 14px; }
-.line { margin-top: 2px; }
-.warn { font-weight: 600; }
-button { pointer-events: auto; margin-top: 6px; min-height: 28px; padding: 3px 10px; border: 1px solid ButtonBorder;
-  border-radius: 6px; background: ButtonFace; color: ButtonText; font: inherit; cursor: pointer; }
-button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+// The note sits on any page, light or dark, and the frame's theme roles cannot reach into the page. So it is the one
+// note shape of caption/marks.ts (r5-07, shared with explain.ts): the browser's own system colours (Canvas, CanvasText,
+// ButtonFace ...) with color-scheme: light dark, a neutral, high-contrast box that follows the person's light or dark
+// setting and forced-colours mode, with no colour of Distill's own. System fonts only: nothing is loaded.
+const NOTE_CSS = `${BASE_NOTE_CSS}
+button { margin-top: 6px; }
 `;
 
 interface State {
@@ -154,7 +145,7 @@ function show(s: State, a: HTMLAnchorElement): void {
   const host = s.host as HTMLElement;
   box.replaceChildren();
   const site = s.doc.createElement("div");
-  site.className = "site";
+  site.className = "title";
   site.textContent = note.site;
   box.append(site);
   for (const l of noteLines(note)) {

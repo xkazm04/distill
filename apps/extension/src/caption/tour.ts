@@ -12,6 +12,7 @@ import type { TourStep } from "../messages";
 import { actionTarget } from "./actions";
 import { textTarget } from "./claims";
 import { contactPlace } from "./contact";
+import { ACTIVE_PRIORITY, activeCss, ringCss } from "./marks";
 import { showProduct } from "./product";
 import { TEXT_SPLIT_EVENT } from "./textSplit";
 
@@ -24,11 +25,9 @@ const REPAINT_MS = 120;
  *  written (the finder joins lines of hours). A longer one is outlined. */
 const WHOLE_MAX = 160;
 
-// The system's find-in-page colours (no colour of Distill's on the page), above the claims' and actions' marks.
-const CSS = [
-  `::highlight(${TOUR_HIGHLIGHT}) { background-color: Mark; color: MarkText; }`,
-  `html:not([${ORIGINAL}]) [${TOUR_ATTR}] { outline: 3px solid Mark !important; outline-offset: 3px !important; }`,
-].join("\n");
+// r5-07: the active mark of caption/marks.ts, as Show me's: the system's find-in-page colours on the words (no colour of
+// Distill's on the page), above the claims' and actions' quiet marks; the ring on a place without exact words.
+const CSS = [activeCss(TOUR_HIGHLIGHT), ringCss(`html:not([${ORIGINAL}]) [${TOUR_ATTR}]`)].join("\n");
 
 type Target = { range: Range } | { el: Element };
 interface Current {
@@ -162,7 +161,7 @@ function paint(doc: Document, scroll: boolean): boolean {
   if ("range" in target && reg && H) {
     wholeWords(target.range);
     const h = new H(target.range);
-    h.priority = 2;
+    h.priority = ACTIVE_PRIORITY;
     reg.set(TOUR_HIGHLIGHT, h);
     const c = target.range.commonAncestorContainer;
     current.at = c.nodeType === 1 ? (c as Element) : c.parentElement;

@@ -11,6 +11,7 @@
 import { cleanTerm, spelledOut, TERM_MAX } from "@distill/engine";
 import type { CaptionExplainAsk } from "../messages";
 import type { CleanContext } from "./context";
+import { NOTE_CSS as BASE_NOTE_CSS } from "./marks";
 
 const ORIGINAL = "data-distill-original";
 const HIDE = "data-distill-hide";
@@ -32,24 +33,15 @@ const NOT_HERE = `input, textarea, select, option, button, [contenteditable]:not
 export type ExplainSource = "page" | "on_device" | "refused";
 type Phase = "offer" | "asking" | "shown";
 
-// System colours only (like the link notes): the note sits on any page and follows the person's light or dark setting
-// and forced colours, with no colour of Distill's own. System fonts only: nothing is loaded.
-const NOTE_CSS = `
-:host { all: initial; }
-.note { box-sizing: border-box; max-width: 340px; padding: 6px 8px; border: 1px solid GrayText; border-radius: 8px;
-  background: Canvas; color: CanvasText; color-scheme: light dark; pointer-events: none;
-  box-shadow: 0 2px 10px color-mix(in srgb, CanvasText 22%, transparent);
-  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: start; overflow-wrap: anywhere; }
-.note.open { pointer-events: auto; padding: 8px 10px; }
-.term { font-weight: 700; }
-.text { margin-top: 2px; }
+// The one note shape of caption/marks.ts (r5-07, shared with the link notes): system colours only, so the note sits on
+// any page and follows the person's light or dark setting and forced colours, with no colour of Distill's own. System
+// fonts only: nothing is loaded. The offer (its one Explain button) is the same box, tighter.
+const NOTE_CSS = `${BASE_NOTE_CSS}
+.note:not(.open) { padding: 4px; }
+.note.open { pointer-events: auto; }
 .foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-.src { font-size: 12px; opacity: .8; }
 .busy { opacity: .8; }
-button { pointer-events: auto; min-height: 28px; padding: 3px 10px; border: 1px solid ButtonBorder; border-radius: 6px;
-  background: ButtonFace; color: ButtonText; font: inherit; cursor: pointer; }
 .foot button { margin-inline-start: auto; }
-button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 `;
 
 const SOURCE_WORDS: Record<ExplainSource, string> = {
@@ -228,7 +220,7 @@ function render(s: State, phase: "asking" | "shown", text: string, source?: Expl
   box.dataset.phase = phase;
   if (source) box.dataset.source = source;
   else delete box.dataset.source;
-  const children: HTMLElement[] = [el(s, "div", "term", s.term), el(s, "div", phase === "asking" ? "text busy" : "text", text)];
+  const children: HTMLElement[] = [el(s, "div", "title", s.term), el(s, "div", phase === "asking" ? "line busy" : "line", text)];
   const foot = el(s, "div", "foot");
   if (source) foot.append(el(s, "span", "src", SOURCE_WORDS[source]));
   const close = el(s, "button", "", "Close");
@@ -303,7 +295,7 @@ export function explainShown(): { phase: Phase; term: string; text: string; sour
   const s = state;
   if (!s?.phase || !s.box) return null;
   const source = s.box.dataset.source as ExplainSource | undefined;
-  return { phase: s.phase, term: s.term, text: s.box.querySelector(".text")?.textContent ?? "", ...(source ? { source } : {}) };
+  return { phase: s.phase, term: s.term, text: s.box.querySelector(".line")?.textContent ?? "", ...(source ? { source } : {}) };
 }
 
 function listen(s: State): () => void {

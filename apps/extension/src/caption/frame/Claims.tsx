@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { findClaimCandidates, parseClaims, prompts, schemas, type Claim, type ClaimWhy, type InferenceSource } from "@distill/engine";
 import type { CleanReport, TextBlock } from "../../messages";
 import { ClaimCheck, useChecks } from "./ClaimCheck";
+import { MarksKey } from "./MarksKey";
 import { articleLike, firstPart, useMainText } from "./mainText";
 import { canRunTask, runTask } from "./runTask";
 import { send } from "./send";
@@ -152,6 +153,7 @@ export function ClaimsSection(props: { report: CleanReport; claims: ClaimsState 
     <section className="claims" aria-labelledby="cap-claims-h" data-testid="cap-claims" data-phase="ready" data-src={state.source}>
       <h2 id="cap-claims-h">Claims to check ({state.claims.length})</h2>
       {state.source && <p className="note claims-where" data-testid="cap-claims-where">{whereWords(state.source)}. Underlined on the page.</p>}
+      <MarksKey kind="claims" />
       <ol className="claims-list">
         {state.claims.map((c) => (
           <li key={c.id} data-testid="cap-claim" data-why={c.why}>
