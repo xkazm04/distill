@@ -608,6 +608,60 @@ From the line to first sight takes 500-600 ms there, against 350-400 ms on the o
 0.9-1.3 s of the 2 s before the click, when nothing of Distill runs (trace field `busyBefore2s`). On the other traced
 sites (Deník, the demo article, Dymáček, Půjčovna Šmíd) that figure was 0.
 
+## Round 5, r5-07: highlights that belong together (2026-11-23)
+
+Every mark Distill puts on the page now takes its look from one module, `caption/marks.ts`:
+
+- **Quiet marks** sit in the text while you read.
+  - A claim to check is underlined in the text's own colour. Once checked, the line's style gives the verdict:
+    dotted unchecked, solid supported, wavy disputed, dashed mixed, double nothing found. "Nothing found" was dashed
+    like "mixed" before. Now no two states share a style, so colour is never needed to tell them apart.
+  - A thing to do gets a light wash of the system's find-in-page colour (`Mark`). The wash is the strongest (32% at
+    most, 6% at least) that keeps the text on it at 4.5:1, or as readable as the page's own text when that is fainter
+    (`washFor`). It is weighed on the page as it looks (`washOn`: the colour behind the marked words) when the marks
+    are painted, and again when Dark page turns on or off.
+  - Words laid over a picture are left out of that weighing. That covers a background image, and text positioned
+    over an `<img>`, as on Dymáček.
+- **The active mark** says "here it is": Show me (claims, the gist, things to do), a tour's current step, and the
+  outline on a place (a contact, a product fact, a form field, a block whose words changed).
+  - On words: `Mark` under `MarkText`, as before.
+  - On a place: a ring, a `MarkText` line inside a `Mark` line. It replaces the shared outline's blue (#0b5fff, a
+    colour of Distill's own: 5.1:1 on white, 3.5:1 on a dark page) and the tour's yellow-only outline (1.07:1 on
+    white). One of the ring's two lines stands out at 4.4:1 or more on any background.
+  - The active mark paints over the quiet ones (highlight priority 2 against 0).
+- **Notes** (where a link goes, explain this word) share one box (`NOTE_CSS`): the same border, radius, type, title,
+  line, source line and button, in closed shadow roots, in system colours.
+- **A key in More**: "On the page:" with a sample of each mark, in the Things to do section (the wash) and the Claims
+  section (the five line styles), each with the active mark. It is one component (`frame/MarksKey.tsx`) that wave B
+  can move. A screen reader hears how each sample looks ("wavy underline: disputed").
+- Colours are CSS system colours only (`Mark`, `MarkText`, `Canvas`, `CanvasText`, `GrayText`, `ButtonFace`,
+  `Highlight`). In Chromium, `Mark` is yellow and `MarkText` black in both light and dark schemes; the e2e checks
+  this.
+- Close takes a ring that is still up off at once (`contact.ts` `clearPlace`), instead of 2.4 s later.
+
+**Contrast** (WCAG ratios, from `markContrast` on the colours measured under the first marked block;
+`caption-marks.spec.ts` and `live/probes/marks.live.ts`):
+
+| Page | Background / text | Text (= claim underline) | Wash | Text on wash | Active words (MarkText on Mark) | Active fill vs page | Ring |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Demo notice, light | white / rgb(29,42,29) | 14.99 | 32% | 14.39 | 19.56 | 1.07 | 21 |
+| Demo notice, Dark page | rgb(23,23,23) / rgb(213,226,213) | 13.38 | 32% | 4.84 | 19.56 | 16.70 | 16.70 |
+| Demo notice dark already, grey text | rgb(30,30,30) / rgb(150,150,150) | 5.64 | 8% | 4.54 (2.04 at the old fixed 32%) | 19.56 | 15.52 | 15.52 |
+| Aktuálně (live) | white / rgb(5,23,31) | 18.28 | 32% | 17.55 | 19.56 | 1.07 | 21 |
+| Deník (live; claims only, the wash is what it would be) | white / rgb(28,30,31) | 16.73 | 32% | 16.07 | 19.56 | 1.07 | 21 |
+| Deník, Dark page (live; as above) | rgb(23,23,23) / rgb(224,226,227) | 13.79 | 32% | 4.99 | 19.56 | 16.70 | 16.70 |
+| Dymáček (live, dark already) | black text over a yellow-black picture | not computable | 32% (left as it is) | not computable | 19.56 | not computable | not computable |
+
+The active fill against a white page is 1.07:1. That is the find-in-page yellow's own trait: the yellow tells it from
+the page by hue, and the words on it read at 19.56:1. Where it must stand out by lightness (a place, not words), the
+ring does.
+
+Still open:
+- Dymáček's text sits on a picture, so no contrast can be computed there. The wash is left at full strength, and the
+  active mark on its yellow banner differs from the picture mostly by its edge.
+- Verdict styles are checked in the style sheet and the key. No hermetic e2e paints a checked claim, because the web
+  check is a cloud call.
+
 ## Code map
 
 | File | Role |
@@ -618,6 +672,7 @@ sites (Deník, the demo article, Dymáček, Půjčovna Šmíd) that figure was 0
 | `apps/extension/src/messages.ts` | `distill:caption:*`, `CleanReport` |
 | `apps/extension/src/background.ts` | `startCaption`, the `VITE_SURFACE` switch, the e2e hook |
 | `apps/extension/e2e/caption.ts` | `BAR` and the measurements shared by both runs |
+| `apps/extension/src/caption/marks.ts`, `frame/MarksKey.tsx`, `e2e/marks.ts` | r5-07 the one mark system: quiet, active and note CSS, the wash and contrast numbers, the key in More, the e2e and probe readers |
 | `apps/extension/e2e/caption.spec.ts` | Hermetic scenarios on the demo pages |
 | `apps/extension/e2e/live/` | The live run: `sites.json`, `caption.live.ts`, `report.ts`, `README.md` |
 | `apps/extension/src/caption/sites.ts`, `sitePermission.ts`, `autoOpen.ts`, `frame/Remember.tsx` | r2-08 Remember this site: `distill:sites` in chrome.storage.local, the one `<origin>/*` permission asked from the strip's frame, the service worker's automatic open (tabs.onUpdated, no new permission; top frame only; not after Close until the next load; dropped on `permissions.onRemoved`) |
