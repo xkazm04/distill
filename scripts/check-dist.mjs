@@ -9,6 +9,7 @@
 // - The web app and the public extension: no never-ship credential from .env (the App Check debug token).
 // - The public extension, in addition: no reCAPTCHA, no FIREBASE_APPCHECK_DEBUG_TOKEN, no App Check or Firestore
 //   endpoint. That build runs AI only on the device and must carry nothing that proves identity or stores remotely.
+//   Nor the developer-only proof page (r3-03: proof.html, its report marker).
 // - The own extension (build it yourself) holds its builder's debug token by design, so it is not checked for it:
 //   that folder is private and is never packaged.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,6 +30,7 @@ const PUBLIC_ONLY = [
   [/FIREBASE_APPCHECK_DEBUG_TOKEN/, "the App Check debug-token hook"],
   [/firebaseappcheck/i, "an App Check endpoint"],
   [/firestore\.googleapis/i, "a Firestore endpoint"],
+  [/distill-proof-report/, "the developer-only proof page (r3-03, src/proof)"],
 ];
 
 const KNOWN = ["apps/web/dist", "apps/extension/dist", "apps/extension/dist-public"];
@@ -50,6 +52,8 @@ for (const dist of dists) {
     if (kind === "public") for (const [re, what] of PUBLIC_ONLY) if (re.test(text)) found.push(what);
     for (const what of found) { console.error(`check-dist: ${what} is in ${f}`); bad++; }
   }
+  // The proof page (r3-03) runs the real models on saved pages for the developer; the public build never has it.
+  if (kind === "public" && existsSync(join(dist, "proof.html"))) { console.error(`check-dist: ${join(dist, "proof.html")} (the developer-only proof page) is in the public build`); bad++; }
   // The web app serves the guide library as one file; a build people use carries no draft guide (guides/README.md).
   if (kind === "web") {
     const lib = join(dist, "guides", "library.json");

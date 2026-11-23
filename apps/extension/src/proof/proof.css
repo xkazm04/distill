@@ -1,0 +1,23 @@
+/* r3-03 proof page (developer build only). Theme roles only, as the strip: no colour literal here. */
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { font-family: var(--font-body); color: var(--fg); font-size: 15px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.proof { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 0 0 8px; }
+h2 { font-size: 18px; margin: 0 0 4px; }
+h2.sub { margin-top: 24px; }
+.note { color: var(--muted); font-size: 14px; }
+.acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 16px; }
+.btn { padding: 8px 14px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); background: var(--card); cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.fx { margin: 16px 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--line) 50%, transparent); border-radius: 12px; background: var(--card); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 4px 8px; border-top: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+thead th { color: var(--muted); font-weight: 600; border-top: 0; }
+td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.ans { overflow-wrap: anywhere; }
+tr[data-status="failed"] td:nth-child(2) { font-weight: 700; }
+.page { display: block; width: 100%; height: 420px; border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 8px; background: var(--card); }

@@ -440,9 +440,22 @@ export async function clean(doc: Document, win: Window): Promise<CleanReport> {
   return cleaning;
 }
 
-async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
-  if (!state) throw new Error("Distill is not open on this page.");
+/** What Clean reads and decides before it changes anything: the main text's elements, what it would hide, and the
+ *  page's language (its lang attribute, else its words, #2). Clean uses it; so does the proof page (r3-03), which runs
+ *  the page tasks on saved copies of real pages without a strip. */
+export interface CleanReading {
+  page: PageModel;
+  keep: Element[];
+  body: Element[];
+  main: Element | null;
+  protect: Element[];
+  items: ClutterItem[];
+  removed: Map<string, Element>;
+  lang: string;
+  langFrom: CleanReport["langFrom"];
+}
 
+export function readForClean(doc: Document, win: Window): CleanReading {
   const keep: Element[] = [];
   const page: PageModel = extractPage(doc, win.location.href, { onSource: (_id, el) => keep.push(el) });
   const body = keep.filter((_el, i) => {
@@ -453,17 +466,6 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
   const protect = contentExtras(doc, win, main);
   const items: ClutterItem[] = findClutter(doc, clutterOptions(win, keep, body, protect, (id, el) => removed.set(id, el)));
-  const unlockedScroll = scrollLocked(doc, win);
-
-  const anchor = win.scrollY > 0 ? anchorOf(keep, win) : null;
-  if (!reducedMotion() && removed.size) {
-    for (const el of removed.values()) el.setAttribute(FADE, "");
-    await new Promise((r) => setTimeout(r, FADE_MS));
-  }
-  for (const [id, el] of removed) { el.setAttribute(HIDE, id); el.removeAttribute(FADE); }
-  if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
-  // Keep the reader's place: what they were looking at stays where it was on screen.
-  if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
 
   // The language: the page's own lang attribute, else its words (#2).
   let lang = page.lang;
@@ -475,6 +477,30 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     const found = detectLang(text);
     if (found.lang !== "und") { lang = found.lang; langFrom = "text"; }
   }
+  return { page, keep, body, main, protect, items, removed, lang, langFrom };
+}
+
+/** Marks what Clean hides, the way Clean does (the attribute every page task skips). */
+export function hideRemoved(removed: ReadonlyMap<string, Element>): void {
+  for (const [id, el] of removed) { el.setAttribute(HIDE, id); el.removeAttribute(FADE); }
+}
+
+async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
+  if (!state) throw new Error("Distill is not open on this page.");
+
+  const { page, keep, body, main, protect, items, removed, lang, langFrom } = readForClean(doc, win);
+  const unlockedScroll = scrollLocked(doc, win);
+
+  const anchor = win.scrollY > 0 ? anchorOf(keep, win) : null;
+  if (!reducedMotion() && removed.size) {
+    for (const el of removed.values()) el.setAttribute(FADE, "");
+    await new Promise((r) => setTimeout(r, FADE_MS));
+  }
+  hideRemoved(removed);
+  if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
+  // Keep the reader's place: what they were looking at stays where it was on screen.
+  if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
+
   const base: CleanReport = { items, restored: [], lang, kind: page.kind, unlockedScroll, langFrom, widened: 0, comfort: 0, calm: { media: 0, motion: 0 }, unstuck: 0, tables: 0 };
   if (!state) return base; // closed meanwhile
 

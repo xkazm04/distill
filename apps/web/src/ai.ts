@@ -208,6 +208,31 @@ export interface GroundedResult<T> extends RunResult<T> {
   grounding: GroundingSource[];
   /** The searches the service ran, for a "search it yourself" link. */
   queries: string[];
+  /** Google's Search Suggestions markup (`groundingMetadata.searchEntryPoint.renderedContent`), which Google's terms
+   *  ask an app to show beside a grounded answer. Untrusted HTML: only ever shown inside a sealed-off frame (no
+   *  scripts, no same origin: the extension's SearchSuggestions), never put into a surface's own DOM. Omitted when
+   *  the answer has none or the door refused it (then `entryRefused`). */
+  entryPoint?: string;
+  /** The answer carried a searchEntryPoint the door refused (not a string, empty, or over ENTRY_POINT_MAX). */
+  entryRefused?: true;
+}
+
+/** The largest Search Suggestions markup the door accepts, in characters. Google's is a few kilobytes of HTML and CSS
+ *  (a logo and a row of search chips); anything far larger is not that, and is left out. */
+export const ENTRY_POINT_MAX = 32_000;
+
+/**
+ * The door for `searchEntryPoint`: only a `renderedContent` that is a non-empty string of at most ENTRY_POINT_MAX
+ * characters passes, unchanged (Google's terms ask for it as it is). Anything else there is refused and counted; an
+ * answer with no entry point is neither.
+ */
+export function entryPointOf(meta: unknown): { entryPoint?: string; entryRefused?: true } {
+  const sep = (meta as { searchEntryPoint?: unknown } | null | undefined)?.searchEntryPoint;
+  if (sep === undefined || sep === null) return {};
+  const html = typeof sep === "object" ? (sep as { renderedContent?: unknown }).renderedContent : sep;
+  if (html === undefined) return {};
+  if (typeof html !== "string" || !html.trim() || html.length > ENTRY_POINT_MAX) return { entryRefused: true };
+  return { entryPoint: html };
 }
 
 /** The model reply as JSON, leniently: a fence or words around it are tolerated. Unparseable text comes back as the
@@ -225,8 +250,8 @@ export function lenientJson(text: string): unknown {
 
 type GroundingShape = { groundingChunks?: { web?: { uri?: string; title?: string; domain?: string } }[]; webSearchQueries?: string[] } | undefined;
 
-/** The grounding sources and searches of a response (`candidates[0].groundingMetadata`). */
-export function groundingOf(response: { candidates?: { groundingMetadata?: unknown }[] }): { grounding: GroundingSource[]; queries: string[] } {
+/** The grounding sources, searches and Search Suggestions of a response (`candidates[0].groundingMetadata`). */
+export function groundingOf(response: { candidates?: { groundingMetadata?: unknown }[] }): Pick<GroundedResult<unknown>, "grounding" | "queries" | "entryPoint" | "entryRefused"> {
   const meta = response.candidates?.[0]?.groundingMetadata as GroundingShape;
   const grounding = (meta?.groundingChunks ?? []).flatMap((c) => {
     const w = c?.web;
@@ -234,7 +259,7 @@ export function groundingOf(response: { candidates?: { groundingMetadata?: unkno
     return [{ url: w.uri, title: typeof w.title === "string" && w.title ? w.title : typeof w.domain === "string" ? w.domain : "" }];
   });
   const queries = (meta?.webSearchQueries ?? []).filter((q): q is string => typeof q === "string").slice(0, 3);
-  return { grounding, queries };
+  return { grounding, queries, ...entryPointOf(meta) };
 }
 
 /**
@@ -256,7 +281,8 @@ export async function runGrounded<T = unknown>(task: Task, prompt: string, devCo
       const fake = await import("./dev/fake-ai");
       await fake.fakeDelay(globalThis.location?.search);
       const data = fake.fakeRun(task, devContext, new URLSearchParams(globalThis.location?.search ?? "").get("aifail")) as T;
-      return { data, ...fake.fakeGrounding(), source: "in_cloud", ms: Math.round(performance.now() - started), reason: `${decision.reason} (Fake AI, dev only)` };
+      const g = fake.fakeGrounding();
+      return { data, grounding: g.grounding, queries: g.queries, ...entryPointOf(g), source: "in_cloud", ms: Math.round(performance.now() - started), reason: `${decision.reason} (Fake AI, dev only)` };
     }
 
     const services = await getFirebase();

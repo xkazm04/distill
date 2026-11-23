@@ -143,7 +143,8 @@ async function e2eFake(): Promise<E2eFake | null> {
   } catch { return null; }
 }
 
-async function runTranslate(prompt: string, batch: TextBlock[]): Promise<TranslateCall> {
+/** One translateBlocks call, as the strip makes it (also the proof page's, r3-03). */
+export async function runTranslate(prompt: string, batch: TextBlock[]): Promise<TranslateCall> {
   // The page forbids the on-device model in this frame (docs/caption.md, risk 1): the same run, in Distill's offscreen
   // document, where no site's policy reaches. An e2e build hands its stand-in model's switch along (the document cannot
   // read chrome.storage.session); every other build passes nothing.

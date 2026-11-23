@@ -10,7 +10,8 @@ import { E2E_FAKE_AI_KEY } from "./Translate";
 
 export type TaskCall<T> = RunResult<T> & { via?: "offscreen" };
 
-interface E2eFake { fail?: string; source?: "on_device" | "in_cloud"; delayMs?: number }
+/** `entry`: which stand-in Search Suggestions the grounded run returns (fake-ai.ts FakeEntry; r3-02). */
+interface E2eFake { fail?: string; source?: "on_device" | "in_cloud"; delayMs?: number; entry?: "sample" | "hostile" | "huge" | "none" }
 
 /** E2E ONLY: the stand-in model's switch (chrome.storage.session). Null in every other build (dead code there). */
 export async function e2eFake(): Promise<E2eFake | null> {

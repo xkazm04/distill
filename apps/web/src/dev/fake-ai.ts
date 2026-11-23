@@ -58,7 +58,10 @@ export function fakeDelay(search: string | undefined): Promise<void> {
 
 /** The stand-in grounded run's "search results" (checkClaim): two https pages, the second one twice (the service
  *  repeats pages), and one plain-http page the door must refuse, so its rules and the links are exercised. */
-export function fakeGrounding(): { grounding: { title: string; url: string }[]; queries: string[] } {
+export function fakeGrounding(entry: FakeEntry = "sample"): {
+  grounding: { title: string; url: string }[]; queries: string[]; searchEntryPoint?: { renderedContent: string };
+} {
+  const html = FAKE_ENTRY[entry];
   return {
     grounding: [
       { title: "Example News: the figures checked", url: "https://example.com/fact-check" },
@@ -67,8 +70,36 @@ export function fakeGrounding(): { grounding: { title: string; url: string }[]; 
       { title: "Plain-http page", url: "http://example.net/insecure" },
     ],
     queries: ["stand-in search"],
+    // Raw, as the service sends it in groundingMetadata: the caller passes it through the door (entryPointOf).
+    ...(html === undefined ? {} : { searchEntryPoint: { renderedContent: html } }),
   };
 }
+
+/**
+ * The stand-in Search Suggestions (r3-02): "sample" looks like Google's (a heading and a row of search chips, inline
+ * CSS, no script); "hostile" tries everything a snippet should not be able to do from its sealed-off frame (a script,
+ * an onerror handler, a javascript: link, a top-navigation link and a meta refresh); "huge" is over the door's cap;
+ * "none" is an answer without suggestions (no frame at all).
+ */
+export type FakeEntry = "sample" | "hostile" | "huge" | "none";
+const CHIP = "display:inline-block;margin:4px 6px 4px 0;padding:6px 12px;border-radius:16px;border:1px solid lightgray;color:black;background:white;text-decoration:none;font:14px/18px Arial,sans-serif;white-space:nowrap";
+const FAKE_ENTRY: Record<FakeEntry, string | undefined> = {
+  sample:
+    `<style>.sg{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:4px 2px;font:14px Arial,sans-serif;color:black}` +
+    `.sg .lg{font-weight:700;letter-spacing:-.5px;white-space:nowrap}@media (prefers-color-scheme:dark){.sg{color:gainsboro}.sg a{background:black!important;color:gainsboro!important;border-color:gray!important}}</style>` +
+    `<div class="sg" data-stand-in="search-suggestions"><span class="lg">Google</span>` +
+    `<a class="chip" style="${CHIP}" href="https://www.google.com/search?q=stand-in+search">stand-in search</a>` +
+    `<a class="chip" style="${CHIP}" href="https://www.google.com/search?q=stand-in+bridge+cost">stand-in bridge cost</a></div>`,
+  hostile:
+    `<script>parent.document.body.innerHTML='x';top.location='https://evil.example/';</script>` +
+    `<img src="x:broken" onerror="parent.document.body.innerHTML='x'">` +
+    `<meta http-equiv="refresh" content="1;url=https://evil.example/refresh">` +
+    `<a id="js" href="javascript:parent.document.body.innerHTML='x'">js link</a> ` +
+    `<a id="top" href="https://evil.example/top" target="_top">top link</a> ` +
+    `<a id="chip" class="chip" style="${CHIP}" href="https://example.com/search-suggestion">stand-in search</a>`,
+  huge: `<div>${"x".repeat(40_000)}</div>`,
+  none: undefined,
+};
 
 export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unknown {
   const empty = failFor(task, fail) === "empty";

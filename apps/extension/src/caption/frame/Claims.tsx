@@ -6,7 +6,7 @@
 // card 2).
 import { useEffect, useRef, useState } from "react";
 import { findClaimCandidates, parseClaims, prompts, schemas, type Claim, type ClaimWhy, type InferenceSource } from "@distill/engine";
-import type { CleanReport } from "../../messages";
+import type { CleanReport, TextBlock } from "../../messages";
 import { ClaimCheck, useChecks } from "./ClaimCheck";
 import { articleLike, firstPart, useMainText } from "./mainText";
 import { canRunTask, runTask } from "./runTask";
@@ -32,6 +32,16 @@ export interface ClaimsState {
   via?: "offscreen";
 }
 
+/** The engine's candidate sentences in the first part of the main text (what the model is offered). */
+export const claimCandidates = (blocks: readonly TextBlock[]) => findClaimCandidates(firstPart(blocks));
+
+/** The model keeps the claims worth checking; its answer passes the door (parseClaims). The strip and the proof page
+ *  (r3-03) both come through here. */
+export async function pickClaims(candidates: ReturnType<typeof findClaimCandidates>) {
+  const r = await runTask("findClaims", prompts.findClaims(candidates), schemas.claims, { claims: candidates });
+  return { pick: parseClaims(r.data, candidates), r };
+}
+
 /** Finds the claims once the main text is settled (after Clean, and after Translate where it runs). The strip's status
  *  line reads `claims.length`. */
 export function useClaims(report: CleanReport | null, translate?: TranslateState): ClaimsState {
@@ -44,13 +54,12 @@ export function useClaims(report: CleanReport | null, translate?: TranslateState
     started.current = true;
     void (async () => {
       if (!articleLike(report, blocks)) { setState((s) => ({ ...s, phase: "none" })); return; }
-      const candidates = findClaimCandidates(firstPart(blocks));
+      const candidates = claimCandidates(blocks);
       if (!candidates.length) { setState((s) => ({ ...s, phase: "none", candidates: 0 })); return; }
       if (!(await canRunTask())) { setState((s) => ({ ...s, phase: "none", noModel: true, candidates: candidates.length })); return; }
       setState((s) => ({ ...s, phase: "finding", candidates: candidates.length }));
       try {
-        const r = await runTask("findClaims", prompts.findClaims(candidates), schemas.claims, { claims: candidates });
-        const pick = parseClaims(r.data, candidates);
+        const { pick, r } = await pickClaims(candidates);
         const marked = pick.claims.length
           ? (await send<"distill:caption:markClaims">({ type: "distill:caption:markClaims", claims: pick.claims.map(({ id, blockId, text }) => ({ id, blockId, text })) })
             .catch(() => ({ marked: 0 }))).marked

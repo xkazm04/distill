@@ -4,7 +4,7 @@
 // so the gist cannot say what the article does not. Without a model there is no gist (nothing pretends to be one).
 import { useEffect, useRef, useState } from "react";
 import { parseGist, prompts, schemas, type GistPoint, type InferenceSource } from "@distill/engine";
-import type { CleanReport } from "../../messages";
+import type { CleanReport, TextBlock } from "../../messages";
 import { articleLike, firstPart, useMainText } from "./mainText";
 import { canRunTask, runTask } from "./runTask";
 import { send } from "./send";
@@ -18,6 +18,13 @@ export interface GistState {
   source?: InferenceSource;
   problem?: string;
   via?: "offscreen";
+}
+
+/** The gist of `part` (the first part of the main text): the real prompt, runTask, and the door (parseGist). The strip
+ *  and the proof page (r3-03) both come through here. */
+export async function gistOf(part: TextBlock[]) {
+  const r = await runTask("gist", prompts.gist(part, readerLang()), schemas.gist, { blocks: part });
+  return { g: parseGist(r.data, part), r };
 }
 
 /** The gist of the page, once: after Clean, on an article, when a model can run. */
@@ -34,8 +41,7 @@ export function useGist(report: CleanReport | null, translate?: TranslateState):
       const part = firstPart(blocks);
       setState((s) => ({ ...s, phase: "finding" }));
       try {
-        const r = await runTask("gist", prompts.gist(part, readerLang()), schemas.gist, { blocks: part });
-        const g = parseGist(r.data, part);
+        const { g, r } = await gistOf(part);
         setState({ phase: g.points.length ? "ready" : "failed", points: g.points, dropped: g.dropped, source: r.source,
           ...(g.points.length ? {} : { problem: "the AI's answer could not be used" }), ...(r.via ? { via: r.via } : {}) });
       } catch (e) {

@@ -25,7 +25,13 @@ export const PANEL_SIZE = { width: 420, height: 800 };
  * Console errors a scenario may show without failing. Each entry says why it is expected. Keep this short: every
  * line here is a message a person could see in DevTools.
  */
-export const ALLOWED_CONSOLE_ERRORS: { pattern: RegExp; why: string }[] = [];
+export const ALLOWED_CONSOLE_ERRORS: { pattern: RegExp; why: string }[] = [
+  // r3-02 (caption-suggestions.spec.ts, the hostile snippet): Chromium saying the sealed Search Suggestions frame did
+  // its job. Only a sandboxed srcdoc document can produce these, and only the hostile stand-in snippet tries them.
+  { pattern: /^(Blocked script execution in 'about:srcdoc'|Refused to execute the redirect specified via '<meta http-equiv='refresh'.*The document is sandboxed|Unsafe attempt to initiate navigation .* from frame with URL 'about:srcdoc'.*sandboxed)/s, why: "the sealed suggestions frame refused a hostile snippet's script, refresh or top navigation (r3-02)" },
+  { pattern: /^Not allowed to load local resource: file:\/\/\/X:\/broken \(about:srcdoc\)$/, why: "the hostile snippet's broken <img> (x:broken) inside the sealed suggestions frame (r3-02)" },
+  { pattern: /^Running the JavaScript URL violates the following Content Security Policy directive .* The action has been blocked\. \(about:srcdoc\)$/s, why: "the hostile snippet's javascript: link, refused by the sealed suggestions frame's policy (r3-02)" },
+];
 
 interface ConsoleError { page: string; text: string; allowed?: string }
 

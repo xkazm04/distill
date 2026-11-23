@@ -85,7 +85,8 @@ export async function plainRun(
   return out;
 }
 
-const runPlain = (prompt: string, batch: TextBlock[]) =>
+/** One simplifyBlocks call, as the strip makes it (also the proof page's, r3-03). */
+export const runPlain = (prompt: string, batch: TextBlock[]) =>
   runTask<unknown>("simplifyBlocks", prompt, schemas.translate, { blocks: batch });
 
 const primary = (lang: string): string => lang.split("-")[0]?.toLowerCase() || "und";
