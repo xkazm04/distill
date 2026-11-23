@@ -499,6 +499,40 @@ Live, 2026-11-23:
   - cs.wikipedia does not switch to its own dark mode under a dark scheme for an anonymous reader, so Distill darkens
     it.
 
+## Round 4: loose ends, speed, tuned AI, forms, explain, video, products, tours (2026-11-23)
+
+Eight cards built (owner's verdicts: Go on r4-01 to 08; No on Compare two pages and Print). r4-02 and r4-03 have their
+own sections below. Contract 405c158; seven builders; merged and integrated on master.
+
+- **r4-01 Round 3's loose ends**: contacts in parts Clean hid count as things to do on form and letter pages (marked,
+  Show me opens the original); dark page follows class, style, hidden and open changes; `findEmptySpace` removes empty
+  in-flow boxes of the main column ("Empty space", clutter kind `space`); Didomi answered in two steps (its own
+  settings button, then "Zamítnout vše"; never a yes); an address over several lines is highlighted.
+- **r4-04 A form in your language** (`caption/formText.ts`): labels, hints, placeholders, options, legends and buttons
+  of the page's main form go through `translateBlocks`; values, option values, live regions and anything marked as an
+  error are never read for it. Errors only through `translateErrors` (values: device only). Option values and a named
+  submit button are pinned so the form submits the same data.
+- **r4-05 Explain this word** (`engine/explain.ts`, `caption/explain.ts`, `frame/Explain.tsx`): `spelledOut` answers an
+  abbreviation from the page (Schwartz-Hearst); otherwise task `explainTerm` (values: device only), door
+  `parseExplanation`. A note in a closed shadow root; keyboard reachable.
+- **r4-06 Video chapters** (`engine/chapters.ts`, `caption/video.ts`, `frame/Video.tsx`): times listed in the
+  description (YouTube: the whole description from the served player data, for the video in the address bar only);
+  Skip while a part the description names as a sponsor plays.
+- **r4-07 Product facts** (`engine/product.ts`, `caption/product.ts`, `frame/Product.tsx`): schema.org Product/Offer,
+  microdata, then the page's labels (Czech and English); Show me for facts read from the page.
+- **r4-08 Tours** (`caption/tour.ts`, `frame/Tours.tsx`): Just the facts, Call or write, Before you go; started by hand,
+  steps over what Distill already found; things to do in hidden parts are left out.
+
+Tests after round 4: unit 1415, browser tests on demo pages 107/107, live 9/9.
+
+Open after round 4:
+- The web check and Google's real search suggestions never answered: the Firebase project is on the free tier
+  (15 requests a minute; 429 on every grounded call). Real Gemini Nano quality: the owner's run of the proof page.
+- YouTube first sight about 1.8-1.9 s (YouTube's own long tasks before the click).
+- An error message a site writes with no error marking and no link from a field could be read as form words and sent
+  to the cloud-capable translator (r4-04).
+- Skip sponsor and dark page's follow-up are proven on demo pages only; tours do not open hidden parts.
+
 ## Round 4, r4-03: the AI tuned from the proof report (2026-11-23)
 
 The Director ran the proof page with the owner's own build and Firebase project in Playwright's Chromium. That browser
