@@ -29,7 +29,7 @@ import { RememberSection, useRemember } from "./Remember";
 import { AskSection } from "./Ask";
 import { BylineSection } from "./Byline";
 import { ActionsSection } from "./Actions";
-import { TermsSection } from "./Terms";
+import { TermsSection, useTerms } from "./Terms";
 import { DarkSection } from "./Dark";
 import { ConsentSection } from "./Consent";
 
@@ -112,6 +112,8 @@ function Caption() {
   // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
   const checks = useChecks(claims.claims);
   const remember = useRemember(report, setReport, translate);
+  // r3-07: prices and dates in your terms go in once Clean answered, More open or not.
+  useTerms(report);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;

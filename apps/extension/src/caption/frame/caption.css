@@ -160,3 +160,7 @@ a.btn { text-decoration: none; }
 .chip.sm { min-height: 22px; font-size: 13px; padding: 0 8px; }
 .checks { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .checks h2 { margin-bottom: 0; }
+/* Round 3, r3-07: prices and dates in your terms, the currency in More. */
+.field { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 15px; }
+.field select { font: inherit; color: var(--fg); background: var(--card); min-height: 30px; padding: 0 6px; border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); }
