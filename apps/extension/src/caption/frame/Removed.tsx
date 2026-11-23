@@ -2,7 +2,7 @@
 // the Distill links (the full panel, Close Distill on this page, the model line). Was inline in main.tsx until round 5.
 import type { LocalModelState } from "@distill/engine";
 import type { CleanReport } from "../../messages";
-import { ActionRow, Empty, ListHeader, Note, Rows, Section } from "./kit";
+import { Empty, ListHeader, Note, Rows, Section } from "./kit";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -20,10 +20,16 @@ export function RemovedSection(props: { report: CleanReport; restore: (id: strin
         <Rows className="removed" label="Removed from the page">
           {report.items.map((it) => {
             const back = report.restored.includes(it.id);
+            // The kit's plain row, kept flat (the label is the row's first span, as the e2e specs and probes read it).
             return (
-              <ActionRow key={it.id} className={back ? "back" : undefined} testid="cap-removed-item" text={it.label}
-                acts={back ? <span className="note removed-back">Back on the page</span>
-                  : <button type="button" className="btn sm quiet" onClick={() => props.restore(it.id)} aria-label={`Show ${it.label} again`}>Show</button>} />
+              <li key={it.id} className={`k-row k-row-plain${back ? " back" : ""}`} data-testid="cap-removed-item">
+                <span className="k-text">{it.label}</span>
+                {back ? <span className="note removed-back">Back on the page</span> : (
+                  <span className="k-acts">
+                    <button type="button" className="btn sm quiet" onClick={() => props.restore(it.id)} aria-label={`Show ${it.label} again`}>Show</button>
+                  </span>
+                )}
+              </li>
             );
           })}
         </Rows>
