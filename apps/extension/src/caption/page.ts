@@ -9,6 +9,7 @@ import { applyComfort, clearComfort, comfortOff } from "./comfort";
 import { commonAncestor, type CleanContext } from "./context";
 import { restick, unstick } from "./float";
 import { layoutOf, type Layout } from "./layout";
+import { clearWayIn, keepSkipLinks, rescueFocus, spareWayIn, WAY_CSS } from "./access";
 import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { clearFormText, formOriginal } from "./formText";
@@ -59,7 +60,7 @@ html:not([${ORIGINAL}]) [${HIDE}] { display: none !important; }
 html:not([${ORIGINAL}]) [${FADE}] { opacity: 0 !important; transition: opacity ${FADE_MS}ms ease-out !important; }
 html:not([${ORIGINAL}]) [${FADE}="busy"] { transition-duration: ${FADE_BUSY_MS}ms !important; }
 html[${UNLOCK}]:not([${ORIGINAL}]), html[${UNLOCK}]:not([${ORIGINAL}]) > body { overflow: auto !important; }
-`;
+${WAY_CSS}`;
 
 interface State {
   tabId: number;
@@ -194,6 +195,7 @@ export function close(doc: Document): void {
   clearConsent();
   onConsentLater(null);
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
+  clearWayIn(doc); // r5-10
   doc.documentElement.removeAttribute(ORIGINAL);
   doc.documentElement.removeAttribute(UNLOCK);
   doc.documentElement.removeAttribute(OPEN);
@@ -350,6 +352,9 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
     if (inUse(el)) continue;
     fresh.push({ item: it, el });
   }
+  // r5-10: never the page's h1 or the landmark that holds the main text.
+  const spare = spareWayIn(doc, new Map(fresh.map((f) => [f.item.id, f.el])), ctx.body);
+  if (spare.size) fresh.splice(0, fresh.length, ...fresh.filter((f) => !spare.has(f.item.id)));
 
   const calm = calmCounts();
   const calmChanged = calm.media !== s.report.calm.media || calm.motion !== s.report.calm.motion;
@@ -377,6 +382,8 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
   }
   if (state !== s || !s.report) return false; // closed meanwhile: close() took the marks back
   for (const [i, el] of els.entries()) { el.setAttribute(HIDE, added[i]?.id ?? ""); el.removeAttribute(FADE); }
+  keepSkipLinks(doc, els, ctx.main); // r5-10
+  rescueFocus(doc);
   if (locked) html.setAttribute(UNLOCK, "");
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
   s.report = { ...s.report, items: [...s.report.items, ...added], unlockedScroll: s.report.unlockedScroll || locked, calm: calmCounts() };
@@ -559,7 +566,11 @@ export function readForClean(doc: Document, win: Window): CleanReading {
   const removed = new Map<string, Element>();
   const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
   const protect = contentExtras(doc, win, main);
-  const items: ClutterItem[] = findClutter(doc, clutterOptions(win, keep, body, protect, (id, el) => removed.set(id, el)));
+  const found: ClutterItem[] = findClutter(doc, clutterOptions(win, keep, body, protect, (id, el) => removed.set(id, el)));
+  // r5-10: never the page's h1 or the landmark that holds the main text.
+  const spare = spareWayIn(doc, removed, body);
+  for (const id of spare) removed.delete(id);
+  const items = found.filter((it) => !spare.has(it.id));
 
   // The language: the page's own lang attribute, else its words (#2).
   let lang = page.lang;
@@ -621,6 +632,9 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   const spaces = emptySpaces(doc, win, main, [...keep, ...protect], removed);
   for (const [id, el] of spaces) { removed.set(id, el); el.setAttribute(HIDE, id); }
   items.push(...Array.from(spaces.keys(), (id): ClutterItem => ({ id, kind: "space", label: CLUTTER_LABELS.space })));
+  // r5-10: a skip link in what went still takes the keyboard to the text; focus is never left in what went.
+  keepSkipLinks(doc, removed.values(), main);
+  rescueFocus(doc);
   if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
   // Keep the reader's place: what they were looking at stays where it was on screen.
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
