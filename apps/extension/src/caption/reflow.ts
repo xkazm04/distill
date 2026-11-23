@@ -25,6 +25,9 @@ const TERM_ADD = "data-distill-term-add";
  */
 function bare<T>(doc: Document, read: () => T): T {
   const html = doc.documentElement;
+  // Clean's own look comes before the reading layer: nothing to switch off, and two attribute flips on <html> would
+  // make the browser restyle the whole page twice (first sight, r5-10 loose end 3).
+  if (!doc.querySelector("[data-distill-comfort], [data-distill-table], [data-distill-term-add]")) return read();
   const flipped = [COMFORT_OFF, TABLES_OFF].filter((a) => !html.hasAttribute(a));
   for (const a of flipped) html.setAttribute(a, "");
   const quiet = doc.querySelector(`[${TERM_ADD}]`) ? doc.createElement("style") : null;

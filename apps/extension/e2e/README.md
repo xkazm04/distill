@@ -101,12 +101,12 @@ whose URL is hidden.
 `caption-visual.spec.ts` guards how Distill looks. It takes fixed screenshots and compares each with an approved
 picture committed in `caption-visual.spec.ts-snapshots/`, so a change to the look is a change someone reviews in git.
 
-- **What it takes (25 pictures).**
+- **What it takes (26 pictures).**
   - The strip, as an element screenshot of `distill-caption`, in each state: the first line, More open, a tour running
     (Just the facts, step 2) and Original. Each in light and dark, at 1440x900 and 390x844. These run on the claims demo
     with the stand-in model, so the claims, the gist and the tour are the same every run.
-  - Nine cleaned demo pages, the whole window: claims (1440 and 390), actions, comfort, shop (1440 and 390), consent,
-    reflow, video.
+  - Ten cleaned demo pages, the whole window: claims (1440 and 390), actions, comfort, shop (1440 and 390), tables
+    (back since r5-10 made its column one width), consent, reflow, video.
 - **Threshold.** Tight: at most 0.2% of the pixels may differ (`maxDiffPixelRatio: 0.002`, per-pixel `threshold: 0.2`).
 - **What keeps the pictures still.**
   - `deviceScaleFactor: 1`.
