@@ -508,6 +508,8 @@ export interface EmptySpaceOptions {
   size: (el: Element) => { width: number; height: number };
   /** Its CSS display; whether it has a background picture (url); the words CSS draws in it (::before, ::after). */
   display: (el: Element) => string;
+  /** Its CSS position: a box taken out of the flow (absolute, fixed) floats over something and holds no space. */
+  position?: (el: Element) => string;
   picture: (el: Element) => boolean;
   label: (el: Element) => string;
 }
@@ -520,9 +522,15 @@ export interface EmptySpaceOptions {
  * document order. Pure reading: layout comes from the caller.
  */
 export function findEmptySpace(main: Element, opts: EmptySpaceOptions): Element[] {
+  // Content inside a hidden part (a "read also" title Clean hid with its box) holds nothing open any more.
+  const shownUp = (k: Element): boolean => {
+    for (let e: Element | null = k; e && e !== main; e = e.parentElement) if (opts.hidden(e)) return false;
+    return true;
+  };
+  const keep = opts.keep.filter((k) => main.contains(k) || k.contains(main)).filter(shownUp);
   const chain = new Set<Element>();
-  for (const k of opts.keep) for (let e: Element | null = k; e && !chain.has(e); e = e.parentElement) chain.add(e);
-  const insideKeep = (el: Element): boolean => opts.keep.some((k) => k.contains(el));
+  for (const k of keep) for (let e: Element | null = k; e && !chain.has(e); e = e.parentElement) chain.add(e);
+  const insideKeep = (el: Element): boolean => keep.some((k) => k.contains(el));
   /** What the box holds that a person would see, leaving out what is hidden. */
   const holds = (el: Element): boolean => {
     if (collapse(opts.label(el))) return true;
@@ -546,7 +554,7 @@ export function findEmptySpace(main: Element, opts: EmptySpaceOptions): Element[
       if (insideKeep(c)) continue; // a paragraph's own inline parts
       if (holds(c)) { visit(c); continue; }
       if (NOT_SPACE.has(t) || Array.from(c.attributes).some((a) => a.name.startsWith("data-distill"))) continue;
-      if (!BOX_DISPLAY.test(opts.display(c))) continue;
+      if (!BOX_DISPLAY.test(opts.display(c)) || /^(absolute|fixed)$/.test(opts.position?.(c) ?? "static")) continue;
       const { width, height } = opts.size(c);
       if (height >= EMPTY_SPACE_MIN && height <= EMPTY_SPACE_MAX && width > height) out.push(c);
     }

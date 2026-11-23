@@ -362,13 +362,15 @@ describe("findEmptySpace: empty boxes inside the main text (r4-01)", () => {
     hidden: (el: Element) => el.hasAttribute("data-distill-hide"),
     size: (el: Element) => ({ width: Number(el.getAttribute("data-w") ?? 640), height: Number(el.getAttribute("data-h") ?? 200) }),
     display: (el: Element) => el.getAttribute("data-d") ?? "block",
+    position: (el: Element) => el.getAttribute("data-pos") ?? "static",
     picture: (el: Element) => el.hasAttribute("data-pic"),
     label: (el: Element) => el.getAttribute("data-label") ?? "",
   });
   const page = `<main id="main">
       <p id="p1">First paragraph of the article, a real one.</p>
       <div id="bar" data-h="24"></div>
-      <article id="related" data-h="32"><div><article class="js-related-article" data-distill-hide="c3"><a href="/x">Read also</a><img src="a.jpg"></article></div></article>
+      <article id="related" data-h="32"><div><article class="js-related-article" data-distill-hide="c3"><a id="ra" href="/x">Read also</a><img src="a.jpg"></article></div></article>
+      <div id="overlay" data-h="60" data-pos="absolute"></div>
       <p id="empty-p" data-h="22">&nbsp;</p>
       <figure id="fig" data-h="300"><img src="photo.jpg"></figure>
       <div id="pic" data-h="60" data-pic></div>
@@ -385,7 +387,8 @@ describe("findEmptySpace: empty boxes inside the main text (r4-01)", () => {
 
   it("finds the empty bar and the frame left of a hidden box; keeps every paragraph, picture, field and table part", () => {
     const doc = parse(page);
-    const keep = [doc.getElementById("p1"), doc.getElementById("p2"), doc.getElementById("fig")] as Element[];
+    // The page reader read the hidden box's title too: it holds nothing open now.
+    const keep = [doc.getElementById("p1"), doc.getElementById("p2"), doc.getElementById("fig"), doc.getElementById("ra")] as Element[];
     const found = findEmptySpace(doc.getElementById("main") as Element, opts(keep)).map((el) => el.id);
     expect(found).toEqual(["bar", "related", "empty-p"]);
     expect(CLUTTER_LABELS.space).toBe("Empty space");

@@ -17,7 +17,7 @@ import { clearActions } from "./actions";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
-import { clearConsent, consentAfterClean, setConsent } from "./consent";
+import { clearConsent, consentAfterClean, onConsentLater, setConsent } from "./consent";
 import { clearDark } from "./dark";
 
 /** The consent switch for this site as Clean read it (r3-04): late banners are answered only while it is on. */
@@ -133,6 +133,7 @@ export function close(doc: Document): void {
   clearLinks(doc);
   clearDark(doc);
   clearConsent();
+  onConsentLater(null);
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
   doc.documentElement.removeAttribute(ORIGINAL);
   doc.documentElement.removeAttribute(UNLOCK);
@@ -515,6 +516,7 @@ export function emptySpaces(doc: Document, win: Window, main: Element | null, ke
     hidden: (el) => el.hasAttribute(HIDE) || win.getComputedStyle(el).display === "none",
     size: (el) => { const r = el.getBoundingClientRect(); return { width: r.width, height: r.height }; },
     display: (el) => win.getComputedStyle(el).display,
+    position: (el) => win.getComputedStyle(el).position,
     picture: (el) => /url\(/i.test(win.getComputedStyle(el).backgroundImage),
     label: (el) => `${cssLabel(win.getComputedStyle(el, "::before").content)} ${cssLabel(win.getComputedStyle(el, "::after").content)}`.trim(),
   });
@@ -541,7 +543,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   }
   hideRemoved(removed);
   // r4-01: what is left of the main text's boxes once that went: an empty box that only holds space goes too.
-  const spaces = emptySpaces(doc, win, main, keep, removed);
+  const spaces = emptySpaces(doc, win, main, [...keep, ...protect], removed);
   for (const [id, el] of spaces) { removed.set(id, el); el.setAttribute(HIDE, id); }
   items.push(...Array.from(spaces.keys(), (id): ClutterItem => ({ id, kind: "space", label: CLUTTER_LABELS.space })));
   if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
@@ -570,6 +572,8 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   const answered = await consentAfterClean(doc, cookieBanners(items, removed));
   if (state !== s || !s.report) return base; // closed meanwhile
   consentOn = answered.on;
+  // r4-01: a two-step answer (Didomi's choices) ends after Clean answered: the strip hears the outcome then.
+  onConsentLater((outcome) => { if (state === s && s.report) { s.report = { ...s.report, consent: outcome }; notifyFrame(current()); } });
   s.report = { ...s.report, consent: answered.outcome };
   s.unwatch = watchForClutter(doc, win, () => { void recheck(doc, win); });
   return s.report;

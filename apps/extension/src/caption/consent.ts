@@ -57,7 +57,7 @@ const REJECT = new RegExp(
     "(use|allow|accept) (only )?(necessary|essential|required|strictly necessary) cookies( only)?",
     "continue without (accepting|agreeing|consent)",
     // Czech, Slovak
-    "odmítnout( vše| všechny| vše a zavřít)?", "nesouhlasím", "(pouze|jen|povolit pouze|povolit jen|přijmout pouze|použít pouze) (nezbytné|nutné|technické)",
+    "odmítnout( vše| všechny| vše a zavřít)?", "zamítnout( vše| všechny)?", "nesouhlasím", "(pouze|jen|povolit pouze|povolit jen|přijmout pouze|použít pouze) (nezbytné|nutné|technické)",
     "pokračovat bez (souhlasu|přijetí)", "odmietnuť( všetko| všetky)?", "nesúhlasím", "(iba|len) (nevyhnutné|nutné)",
     // German, French, Polish
     "(alle )?ablehnen", "nur (notwendige|erforderliche|essenzielle)", "tout refuser", "refuser( tout)?", "continuer sans accepter",
@@ -91,11 +91,18 @@ export const acceptsByWords = (words: string): boolean => ACCEPT.test(words) && 
 
 /** A consent system: where its banner is, and its own reject buttons (ids and classes it ships with). `wordsMust`:
  *  the system's selector is shared with other buttons, so the words must also say reject. */
-export interface Cmp { name: string; banner: string; reject: string[]; wordsMust?: boolean }
+export interface Cmp {
+  name: string; banner: string; reject: string[]; wordsMust?: boolean;
+  /** r4-01: the system's own "choose" button, for a notice that shows no reject button on its first layer (Deník's
+   *  Didomi: only "Podrobné nastavení" and "Souhlasím"). Pressed only then, never when its words say yes; then the
+   *  reject button of the choices it opens (`reject`, its words saying reject) is pressed once it appears. */
+  settings?: string;
+}
 
 export const CMPS: Cmp[] = [
   { name: "OneTrust", banner: "#onetrust-consent-sdk, #onetrust-banner-sdk", reject: ["#onetrust-reject-all-handler", ".ot-pc-refuse-all-handler"] },
-  { name: "Didomi", banner: "#didomi-host, #didomi-notice, #didomi-popup", reject: ["#didomi-notice-disagree-button", ".didomi-continue-without-agreeing"] },
+  { name: "Didomi", banner: "#didomi-host, #didomi-notice, #didomi-popup", reject: ["#didomi-notice-disagree-button", ".didomi-continue-without-agreeing", "#btn-toggle-disagree"],
+    settings: "#didomi-notice-learn-more-button" },
   { name: "Cookiebot", banner: "#CybotCookiebotDialog", reject: ["#CybotCookiebotDialogBodyButtonDecline", "#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll"] },
   { name: "Quantcast", banner: "#qc-cmp2-container, .qc-cmp2-container, #qc-cmp2-ui, .qc-cmp2-ui", reject: [".qc-cmp2-summary-buttons button[mode=secondary]", ".qc-cmp2-footer button[mode=secondary]"], wordsMust: true },
   { name: "Usercentrics", banner: "#usercentrics-root, #usercentrics-cmp-ui, #uc-banner", reject: ["[data-testid=uc-deny-all-button]", "#uc-btn-deny-banner", "button.uc-deny-button"] },
@@ -178,6 +185,41 @@ export function findReject(doc: Document, hidden: readonly Element[] = []): { bu
   return null;
 }
 
+/** A system's own "choose" button (r4-01), for a notice without a reject button on its first layer; its words never
+ *  say yes. Null when the notice has a reject button, or no such system is there. */
+export function findSettings(doc: Document, hidden: readonly Element[] = []): { button: HTMLElement; cmp: Cmp } | null {
+  const banners = bannersOf(doc, hidden);
+  for (const cmp of CMPS) {
+    if (!cmp.settings || !banners.some((b) => b.cmp === cmp || b.el.matches(cmp.banner) || !!b.el.querySelector(cmp.banner))) continue;
+    for (const root of banners.flatMap((b) => roots(b.el))) {
+      for (const el of Array.from(root.querySelectorAll(cmp.settings))) {
+        if (pressable(el) && !acceptsByWords(buttonWords(el))) return { button: el, cmp };
+      }
+    }
+  }
+  return null;
+}
+
+/** The reject button of a system's choices, once open: its own id, its words saying reject (never yes). */
+function rejectInChoices(doc: Document, cmp: Cmp): HTMLElement | null {
+  const boxes = Array.from(doc.querySelectorAll(cmp.banner));
+  for (const root of boxes.flatMap((b) => roots(b))) {
+    for (const sel of cmp.reject) {
+      for (const el of Array.from(root.querySelectorAll(sel))) {
+        if (pressable(el) && rejectsByWords(buttonWords(el)) && !acceptsByWords(buttonWords(el))) return el;
+      }
+    }
+  }
+  return null;
+}
+
+/** How long the choices may take to open after the "choose" press (ms), looked for every CHOICES_STEP ms. */
+const CHOICES_WAIT = 4000;
+const CHOICES_STEP = 100;
+/** Told when a two-step answer (r4-01) ends: "rejected", or "hidden" when the choices never showed a reject button. */
+let onLater: ((outcome: ConsentOutcome) => void) | null = null;
+export function onConsentLater(fn: ((outcome: ConsentOutcome) => void) | null): void { onLater = fn; }
+
 // ---- This page ----------------------------------------------------------------------------------------------------
 
 /** Per page load (the content script lives as long as the document): pressed already, and the banners Clean found. */
@@ -202,6 +244,7 @@ export function setConsent(doc: Document, on: boolean, banners?: readonly Elemen
   if (!on) return (last = "off");
   const win = doc.defaultView;
   if (win && win.top !== win) return (last = "none"); // the top frame only
+  if (opening.has(doc) || tried.has(doc)) return last; // a two-step answer is under way, or was tried
   const found = findReject(doc, known);
   if (found) {
     pressed.set(doc, found.via);
@@ -211,8 +254,46 @@ export function setConsent(doc: Document, on: boolean, banners?: readonly Elemen
     found.button.click();
     return (last = "rejected");
   }
-  return (last = bannersOf(doc, known).length ? "hidden" : "none");
+  last = bannersOf(doc, known).length ? "hidden" : "none";
+  // r4-01: no reject button on the notice itself, but the system's own choices have one (Didomi's "Podrobné nastavení"
+  // opens them, "Zamítnout vše" there says no and closes). Hidden until that second press is made.
+  const settings = findSettings(doc, known);
+  if (settings && win) {
+    opening.add(doc);
+    const banners = [...known];
+    settings.button.click();
+    const gen = generation;
+    const t0 = Date.now();
+    const look = () => {
+      if (gen !== generation) { opening.delete(doc); return; } // Distill was closed meanwhile
+      const button = rejectInChoices(doc, settings.cmp);
+      if (button) {
+        opening.delete(doc);
+        pressed.set(doc, `${settings.cmp.name} (choices)`);
+        for (const b of banners) if (b.contains(button) || banners.length === 1) b.setAttribute(ANSWERED, "");
+        button.click();
+        last = "rejected";
+        onLater?.("rejected");
+      } else if (Date.now() - t0 < CHOICES_WAIT) {
+        win.setTimeout(look, CHOICES_STEP);
+      } else {
+        // The choices never showed a reject button: nothing more is pressed on this page.
+        opening.delete(doc);
+        tried.add(doc);
+        onLater?.(last);
+      }
+    };
+    win.setTimeout(look, CHOICES_STEP);
+  }
+  return last;
 }
+
+/** Pages where a two-step answer (r4-01) is under way. */
+const opening = new WeakSet<Document>();
+/** Pages where the choices were opened and showed no reject button: not tried again. */
+const tried = new WeakSet<Document>();
+/** Bumped by close: a two-step answer under way stops. */
+let generation = 0;
 
 /** What happened last on this page (the report carries it). */
 export const consentNow = (): ConsentOutcome => last;
@@ -227,6 +308,7 @@ export async function consentAfterClean(doc: Document, banners: readonly Element
 
 /** Close: forget the banners (the press itself cannot be taken back, and is not made again on this page). */
 export function clearConsent(): void {
+  generation++;
   for (const b of known) b.removeAttribute(ANSWERED);
   known = [];
 }
