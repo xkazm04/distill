@@ -2,7 +2,7 @@
 // caption frame, an extension page), and what Distill changes in the page itself (Clean, Original). Everything here is
 // reversible: closing the caption puts the page back exactly as it was. Nothing read here leaves the page except the
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
-import { cssLabel, detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
+import { CLUTTER_LABELS, cssLabel, detectLang, extractPage, findClutter, findEmptySpace, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
 import { calmCounts, calmMore, calmPage, calmProtect, clearCalm } from "./calm";
 import { applyComfort, clearComfort, comfortOff } from "./comfort";
@@ -241,7 +241,7 @@ function readContext(doc: Document, win: Window, removed: Map<string, Element>):
   const keep = read.filter(visible);
   const body = read.filter((el, i) => visible(el) && ["paragraph", "list", "table", "quote", "code"].includes(kinds[i] ?? ""));
   const main = body.length ? body.reduce<Element>((a, b) => commonAncestor(a, b), body[0] as Element) : null;
-  return { doc, win, keep, body, main, protect: contentExtras(doc, win, main), removed };
+  return { doc, win, keep, body, main, protect: contentExtras(doc, win, main), removed, kind: page.kind };
 }
 
 async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
@@ -502,6 +502,27 @@ export function readForClean(doc: Document, win: Window): CleanReading {
   return { page, keep, body, main, protect, items, removed, lang, langFrom };
 }
 
+/**
+ * The empty boxes of the main column once what Clean hid is out of the layout (engine findEmptySpace, r4-01): ids
+ * after the highest of `removed` ("c<n>"), each with its element. Read after hideRemoved, so sizes are what the person
+ * sees. None on a page without a main column.
+ */
+export function emptySpaces(doc: Document, win: Window, main: Element | null, keep: readonly Element[], removed: ReadonlyMap<string, Element>): Map<string, Element> {
+  const out = new Map<string, Element>();
+  if (!main || main === doc.body || main === doc.documentElement) return out;
+  const found = findEmptySpace(main, {
+    keep,
+    hidden: (el) => el.hasAttribute(HIDE) || win.getComputedStyle(el).display === "none",
+    size: (el) => { const r = el.getBoundingClientRect(); return { width: r.width, height: r.height }; },
+    display: (el) => win.getComputedStyle(el).display,
+    picture: (el) => /url\(/i.test(win.getComputedStyle(el).backgroundImage),
+    label: (el) => `${cssLabel(win.getComputedStyle(el, "::before").content)} ${cssLabel(win.getComputedStyle(el, "::after").content)}`.trim(),
+  });
+  let next = 1 + Math.max(-1, ...Array.from(removed.keys(), (id) => Number(id.slice(1))).filter(Number.isFinite));
+  for (const el of found) out.set(`c${next++}`, el);
+  return out;
+}
+
 /** Marks what Clean hides, the way Clean does (the attribute every page task skips). */
 export function hideRemoved(removed: ReadonlyMap<string, Element>): void {
   for (const [id, el] of removed) { el.setAttribute(HIDE, id); el.removeAttribute(FADE); }
@@ -519,6 +540,10 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
     await new Promise((r) => setTimeout(r, FADE_MS));
   }
   hideRemoved(removed);
+  // r4-01: what is left of the main text's boxes once that went: an empty box that only holds space goes too.
+  const spaces = emptySpaces(doc, win, main, keep, removed);
+  for (const [id, el] of spaces) { removed.set(id, el); el.setAttribute(HIDE, id); }
+  items.push(...Array.from(spaces.keys(), (id): ClutterItem => ({ id, kind: "space", label: CLUTTER_LABELS.space })));
   if (unlockedScroll) doc.documentElement.setAttribute(UNLOCK, "");
   // Keep the reader's place: what they were looking at stays where it was on screen.
   if (anchor?.el.isConnected) win.scrollBy({ top: anchor.el.getBoundingClientRect().top - anchor.top, behavior: "instant" });
@@ -527,7 +552,7 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   if (!state) return base; // closed meanwhile
 
   // Round 1 (spark universal-core): each module changes the page only through what it can take back.
-  const ctx: CleanContext = { doc, win, keep, body, main, protect, removed };
+  const ctx: CleanContext = { doc, win, keep, body, main, protect, removed, kind: page.kind };
   state.ctx = ctx;
   state.removed = removed;
   state.href = win.location.href;
