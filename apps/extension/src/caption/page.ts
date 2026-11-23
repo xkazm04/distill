@@ -2,7 +2,7 @@
 // caption frame, an extension page), and what Distill changes in the page itself (Clean, Original). Everything here is
 // reversible: closing the caption puts the page back exactly as it was. Nothing read here leaves the page except the
 // CleanReport (kinds and labels, no page text). See docs/caption.md.
-import { detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
+import { cssLabel, detectLang, extractPage, findClutter, type ClutterItem, type ClutterOptions, type PageModel } from "@distill/engine";
 import type { CaptionUpdate, CleanReport } from "../messages";
 import { calmCounts, calmMore, calmPage, calmProtect, clearCalm } from "./calm";
 import { applyComfort, clearComfort, comfortOff } from "./comfort";
@@ -225,6 +225,8 @@ function clutterOptions(win: Window, keep: readonly Element[], body: readonly El
       const r = look.rect(el);
       return { left: r.left, top: r.top, width: r.width, height: r.height, winWidth: win.innerWidth, winHeight: win.innerHeight };
     },
+    // The words CSS draws in the box (an empty ad slot's "REKLAMA"), asked only of boxes with no words of their own.
+    label: (el) => `${cssLabel(win.getComputedStyle(el, "::before").content)} ${cssLabel(win.getComputedStyle(el, "::after").content)}`.trim(),
     onElement,
   };
 }

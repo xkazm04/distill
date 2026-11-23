@@ -136,8 +136,17 @@ test("remember: Keep Czech is kept for the site and put back on the next load, w
   // The page keeps its own words; the translation is one click away.
   await expect(again.getByTestId("cap-keep-source")).toHaveText("Show English", { timeout: 15_000 });
   await expect(tab.page.locator("h1")).not.toContainText("[EN]");
+  // r3-10: Translate did not run at all on this load - nothing went to a model, not even to be hidden again.
+  const chip = again.getByTestId("cap-chip");
+  await expect(chip).toHaveAttribute("data-translate", "idle");
+  await expect(chip).toHaveAttribute("data-translate-held", "true");
+  await expect(chip).not.toHaveAttribute("data-blocks", /./);
+  await expect(again.getByTestId("cap-status")).toContainText("Page in Czech");
+  await expect(tab.page.locator(`[data-distill-translated]`)).toHaveCount(0);
   await again.getByTestId("cap-keep-source").click();
   await expect(tab.page.locator("h1")).toContainText("[EN]");
+  await expect(chip).toHaveAttribute("data-translate", "done");
+  await expect(again.getByTestId("cap-keep-source")).toHaveText("Keep Czech");
   // That choice is kept too: translated from now on.
   await again.getByTestId("cap-more-btn").click();
   await expect(again.getByTestId("cap-remember-kept")).toHaveCount(0); // translated is what Distill does anyway

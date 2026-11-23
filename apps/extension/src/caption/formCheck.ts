@@ -51,6 +51,21 @@ function trap(el: HTMLElement): boolean {
   return el.tabIndex === -1 || el.getAttribute("autocomplete") === "off" || !!el.closest("[aria-hidden=true]") || !seen(el);
 }
 
+/** What sends a form: a submit button (a <button> with no type is one), an image button. */
+const SENDS = "button:not([type]), button[type=submit], input[type=submit], input[type=image]";
+
+/**
+ * r3-10: a form that only changes how the page looks, not one to fill. Choices alone (radio buttons, checkboxes),
+ * nothing to type or pick from a list, and nothing that sends it (no action, no submit button): each choice applies as
+ * it is clicked. Wikipedia's Appearance panel (text size, width, colour) is three of these; a shop's live filters are
+ * the same kind. A survey of radio buttons has a button that sends it, so it stays a form.
+ */
+export function pageControl(form: Element): boolean {
+  if (form.localName !== "form" || form.getAttribute("action") || form.querySelector(SENDS)) return false;
+  const fields = Array.from(form.querySelectorAll("input, select, textarea")).filter((f) => (f.getAttribute("type") ?? "").toLowerCase() !== "hidden");
+  return fields.length > 0 && fields.every((f) => f.localName === "input" && /^(radio|checkbox)$/i.test(f.getAttribute("type") ?? ""));
+}
+
 /** The first option of a select that only asks to choose ("-- vyberte --", "Please select"). */
 const PLACEHOLDER = /^[\s\-–—_.:*]*(vyberte|zvolte|vyber|select|choose|please|bitte|wählen|auswählen|seleccione|choisissez|wybierz)\b|^[\s\-–—_.:*]*$/i;
 
@@ -72,6 +87,9 @@ async function scan(doc: Document): Promise<Scan | null> {
     const structure = await extractForm(doc, url, i);
     if (!structure.fields.length) break;
     const els = new Map(structure.fields.map((f) => [f.fieldId, fieldElements(doc, [f.fieldId])[0] ?? null]));
+    // A panel of the page's own settings is not the page's form, whatever its number of choices.
+    const form = Array.from(els.values()).find((el) => el)?.closest("form");
+    if (form && pageControl(form)) continue;
     // A field the reader found but Distill cannot point at (no id or name) still counts: the person sees it.
     const shown = structure.fields.filter((f) => { const el = els.get(f.fieldId); return !el || (seen(el) && !trap(el)); });
     if (shown.length < MIN_FIELDS || (best && shown.length <= best.fields.length)) continue;

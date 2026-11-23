@@ -7,6 +7,7 @@ import { parseTranslation, prompts, schemas, type InferenceSource } from "@disti
 import { aiAvailable, run, toAiError, type AiFailure, type RunResult } from "@distill/web/ai";
 import { isCaptionMoreText, type CleanReport, type TextBlock } from "../../messages";
 import { deviceModelBlocked, runOffscreen } from "../../offscreen/client";
+import { loadSites, siteOrigin } from "../sites";
 import { send, tabId } from "./send";
 import { langName } from "./status";
 
@@ -30,6 +31,9 @@ export interface TranslateState {
   reason?: string;
   /** The page forbids the on-device model in frames: the AI ran in Distill's offscreen document instead. */
   via?: "offscreen";
+  /** r3-10: the person chose "Keep <language>" for this site (Remember). Translate did not start and nothing was sent;
+   *  "Show <reader's language>" starts it. Set with `showingSource`, while the phase is still "idle". */
+  held?: boolean;
 }
 
 export interface Translate { state: TranslateState; keepSource(on: boolean): Promise<void> }
@@ -168,6 +172,17 @@ export async function runTranslate(prompt: string, batch: TextBlock[]): Promise<
   return run("translateBlocks", prompt, schemas.translate, { blocks: batch });
 }
 
+/** The person chose "Keep <language>" for this site (Remember, kept on this device): Translate does not start by
+ *  itself on it. Anything unsure (no answer from the page, storage unreadable) is not such a choice. */
+async function keptInOwnLanguage(): Promise<boolean> {
+  try {
+    const origin = siteOrigin((await send<"distill:caption:pageInfo">({ type: "distill:caption:pageInfo" })).url);
+    return !!origin && (await loadSites())[origin]?.prefs.translate === "source";
+  } catch {
+    return false;
+  }
+}
+
 /** Whether AI can answer here at all (else Translate does not start: the status keeps "Page in <language>"). */
 async function canRun(): Promise<boolean> {
   if (import.meta.env.MODE === "e2e" && (await e2eFake())) return true;
@@ -186,36 +201,46 @@ export function useTranslate(report: CleanReport | null): Translate {
   const put = useCallback(async (b: TextBlock[]) =>
     (await send<"distill:caption:translated">({ type: "distill:caption:translated", blocks: b })).applied, []);
 
+  /** The first translation of the page: the main text's blocks, batch by batch, into the page. */
+  const translatePage = useCallback(async (from: string, to: string) => {
+    const blocks = await send<"distill:caption:blocks">({ type: "distill:caption:blocks" }).catch(() => [] as TextBlock[]);
+    if (!blocks.length) return; // nothing of the main text to translate: the status keeps "Page in <language>"
+    setState((s) => ({ ...s, phase: "translating", from, to, total: blocks.length }));
+    try {
+      const r = await translateBlocks(blocks, from, to, runTranslate, put);
+      if (!r.translated) {
+        setState((s) => ({ ...s, phase: "failed", problem: "the AI's answer could not be used", dropped: r.dropped, total: r.total }));
+        return;
+      }
+      if (r.error) console.warn("[distill] Translate stopped part way:", r.error);
+      blocks.forEach((b) => later.current.seen.add(b.id));
+      if (r.source) later.current.sources.push(r.source);
+      setState((s) => ({
+        ...s, phase: "done", source: r.source, reason: r.reason, translated: r.translated, total: r.total, dropped: r.dropped,
+        ...(r.via ? { via: r.via } : {}),
+      }));
+      // From now on, text the page adds or rewrites is translated too (the page side counts it and tells this frame).
+      void send({ type: "distill:caption:watchText", tabId }).catch(() => undefined);
+    } catch (e) {
+      setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
+    }
+  }, [put]);
+
   useEffect(() => {
     if (!report || started.current || !wantsTranslation(report)) return;
     started.current = true;
     const from = primary(report.lang);
     const to = readerLang();
     void (async () => {
-      if (!(await canRun())) return;
-      const blocks = await send<"distill:caption:blocks">({ type: "distill:caption:blocks" }).catch(() => [] as TextBlock[]);
-      if (!blocks.length) return; // nothing of the main text to translate: the status keeps "Page in <language>"
-      setState((s) => ({ ...s, phase: "translating", from, to, total: blocks.length }));
-      try {
-        const r = await translateBlocks(blocks, from, to, runTranslate, put);
-        if (!r.translated) {
-          setState((s) => ({ ...s, phase: "failed", problem: "the AI's answer could not be used", dropped: r.dropped, total: r.total }));
-          return;
-        }
-        if (r.error) console.warn("[distill] Translate stopped part way:", r.error);
-        blocks.forEach((b) => later.current.seen.add(b.id));
-        if (r.source) later.current.sources.push(r.source);
-        setState((s) => ({
-          ...s, phase: "done", source: r.source, reason: r.reason, translated: r.translated, total: r.total, dropped: r.dropped,
-          ...(r.via ? { via: r.via } : {}),
-        }));
-        // From now on, text the page adds or rewrites is translated too (the page side counts it and tells this frame).
-        void send({ type: "distill:caption:watchText", tabId }).catch(() => undefined);
-      } catch (e) {
-        setState((s) => ({ ...s, phase: "failed", problem: shortReason(e) }));
+      // Kept in its own language on this site (r3-10): nothing is sent to a model until the person asks for it.
+      if (await keptInOwnLanguage()) {
+        setState((s) => ({ ...s, held: true, showingSource: true, from, to }));
+        return;
       }
+      if (!(await canRun())) return;
+      await translatePage(from, to);
     })();
-  }, [report, put]);
+  }, [report, translatePage]);
 
   /** The page added or rewrote text: translate the blocks still waiting, the same way, while the translation shows. */
   const translateMore = useCallback(async () => {
@@ -254,9 +279,18 @@ export function useTranslate(report: CleanReport | null): Translate {
   }, [translateMore]);
 
   const keepSource = useCallback(async (on: boolean) => {
+    const s = now.current;
+    // Held on this site and asked for the translation now: it runs for the first time (the page shows its words until
+    // then; the choice to translate is kept for the site once it is done).
+    if (!on && s.held && s.phase === "idle") {
+      setState((p) => ({ ...p, held: false, showingSource: false }));
+      if (!(await canRun())) { setState((p) => ({ ...p, phase: "failed", problem: SHORT["not-configured"] })); return; }
+      await translatePage(s.from ?? "und", s.to ?? readerLang());
+      return;
+    }
     await send({ type: "distill:caption:sourceText", on });
-    setState((s) => ({ ...s, showingSource: on }));
-  }, []);
+    setState((p) => ({ ...p, showingSource: on }));
+  }, [translatePage]);
 
   return { state, keepSource };
 }
@@ -268,6 +302,7 @@ export const OFFSCREEN_WORDS = "This site blocks on-device AI inside frames, so 
  *  phase and counts (no text) for the live run to read. */
 export function sourceChip(state: TranslateState): { src: "none" | InferenceSource; text: string; title: string; data: Record<string, string> } {
   const data: Record<string, string> = { "data-translate": state.phase };
+  if (state.held) data["data-translate-held"] = "true";
   if (state.total !== undefined) data["data-blocks"] = `${state.translated ?? 0}/${state.total}`;
   if (state.dropped) data["data-dropped"] = String(state.dropped);
   if (state.via) data["data-via"] = state.via;
@@ -285,7 +320,7 @@ export function sourceChip(state: TranslateState): { src: "none" | InferenceSour
 
 export function TranslateRow(props: { report: CleanReport; translate: Translate }) {
   const { state, keepSource } = props.translate;
-  if (state.phase !== "done") return null;
+  if (state.phase !== "done" && !(state.held && state.phase === "idle")) return null;
   const label = state.showingSource ? `Show ${langName(state.to ?? readerLang())}` : `Keep ${langName(state.from ?? props.report.lang)}`;
   return (
     <button type="button" className="btn quiet" data-testid="cap-keep-source" onClick={() => void keepSource(!state.showingSource)}>

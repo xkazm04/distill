@@ -3,12 +3,15 @@
 // in "What was removed", and can bring each item back. Layout facts (is it on screen, is it fixed) come from the caller,
 // because only a browser knows them; the defaults read attributes and inline styles, which is what a test document has.
 import { BLOCKISH, SKIP_TAGS, attr, collapse, isHidden, isNoise, tag } from "./dom.js";
+import { AD_LABEL as SLOT_LABEL, boilerKind, startText } from "./boiler.js";
 
 export type ClutterKind =
   | "cookie" | "popup" | "ad" | "menu" | "header" | "sidebar" | "footer" | "comments" | "related" | "share" | "newsletter"
   | "other"
   // Things that float over the page (#4): small widgets docked to an edge or a corner of the window.
-  | "chat" | "feedback" | "player" | "appBanner" | "backToTop";
+  | "chat" | "feedback" | "player" | "appBanner" | "backToTop"
+  // Round 3 (r3-01): a "follow us on Google News" box, the site promoting itself inside the article.
+  | "promo";
 
 export interface ClutterItem {
   /** `c0`, `c1`, ... in document order. Stable within one call. */
@@ -36,6 +39,7 @@ export const CLUTTER_LABELS: Record<ClutterKind, string> = {
   player: "Floating video",
   appBanner: "App banner",
   backToTop: "Back to top button",
+  promo: "Site promotion",
 };
 
 /** Where a box sits in the window, in CSS px (getBoundingClientRect plus the window's size). */
@@ -63,6 +67,9 @@ export interface ClutterOptions {
   /** Where the element sits in the window. Lets a small fixed box docked to a corner or an edge be told apart from a
    *  bar across the page (a chat bubble, not a site header). Default: unknown (a test document has no layout). */
   box?: (el: Element) => ClutterBox | null;
+  /** The words CSS draws in the element itself (its ::before and ::after content). An ad slot often shows its
+   *  "REKLAMA" label this way and holds nothing else once no ad came. Default: none (a test document has no styles). */
+  label?: (el: Element) => string;
   /** Called once per item with its id and the element to hide. The element never leaves the page. */
   onElement?: (id: string, el: Element) => void;
 }
@@ -74,7 +81,7 @@ SILENT.delete("iframe"); // an ad is often an iframe; it is judged like any othe
 const CLOSED = new Set(["script", "style", "noscript", "template", "canvas", "svg"]);
 
 /** Kinds that name themselves plainly enough to be taken out even when the page reader read their text. */
-const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie", "chat", "feedback", "appBanner", "backToTop"]);
+const STRONG = new Set<ClutterKind>(["comments", "related", "ad", "share", "newsletter", "cookie", "chat", "feedback", "appBanner", "backToTop", "promo"]);
 
 /** Characters of running text below which a page is treated as thin (see findClutter). */
 const THIN_PAGE = 400;
@@ -260,18 +267,40 @@ function kindOf(el: Element, overlay: boolean, place: Place | null = null): Clut
   // header or an aside is only a box, so what it says comes first ("We use cookies", "Advertisement").
   const role = kindByRole(el);
   const semantic = role === "menu" || role === "footer" || role === "popup" ? role : null;
-  return kindByTokens(el) ?? semantic ?? kindByText(el) ?? (overlay ? floatKind(el, place) : null) ?? role ?? (overlay ? "popup" : "other");
+  return kindByTokens(el) ?? semantic ?? boilerKind(el) ?? kindByText(el) ?? (overlay ? floatKind(el, place) : null) ?? role ?? (overlay ? "popup" : "other");
 }
 
-/** Inside the main column only things that announce themselves are clutter: an ad, a share bar, comments. */
-function looksLikeClutter(el: Element): ClutterKind | null {
+/** Boxes an ad slot is made of. */
+const SLOT_TAGS = new Set(["div", "section", "aside", "ins", "figure", "article"]);
+
+/** An ad slot: CSS draws "REKLAMA" in the box (r3-01), and it holds no text of the page, only an ad's frame or player
+ *  and its few words ("Advertisement", "Tap to unmute"), or nothing at all (no ad came). */
+function adSlot(el: Element, label: (el: Element) => string): boolean {
+  if (!SLOT_TAGS.has(tag(el)) || el.querySelector("p, h1, h2, h3, h4, h5, h6, li, table, blockquote")) return false;
+  if (startText(el, 200).length >= 200) return false;
+  return SLOT_LABEL.test(collapse(label(el)));
+}
+
+/** An empty box around an ad slot (a section that only frames it) is the slot too. */
+function holdsAdSlot(el: Element, label: (el: Element) => string): boolean {
+  if (adSlot(el, label)) return true;
+  const inner = Array.from(el.querySelectorAll("div, section, aside, ins")).slice(0, 12);
+  return inner.some((e) => adSlot(e, label));
+}
+
+/** Inside the main column only things that announce themselves are clutter: an ad, a share bar, comments, a "read
+ *  also" box, a "follow us on Google" promo, an ad slot left with its label only. */
+function looksLikeClutter(el: Element, label: (el: Element) => string): ClutterKind | null {
   // A header inside the main column is the article's own (its title block), whatever its class says.
   const byTokens = kindByTokens(el);
   if (byTokens && byTokens !== "header") return byTokens;
   const role = kindByRole(el);
   if (role && role !== "header") return role;
+  const boiler = boilerKind(el);
+  if (boiler) return boiler;
   const text = shortText(el);
   if (text && text.length < 40 && AD_LABEL.test(text)) return "ad";
+  if (adSlot(el, label)) return "ad";
   return null;
 }
 
@@ -313,6 +342,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   const rendered = opts.rendered ?? (() => true);
 
   const covers = opts.covers ?? (() => 0);
+  const label = opts.label ?? (() => "");
   const box = opts.box ?? (() => null);
   const protect = opts.protect ?? [];
   // The headline is content even when the page reader left it out (it drops an h1 that only repeats the title).
@@ -332,6 +362,9 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   const add = (el: Element, kind: ClutterKind) => { if (!found.has(el)) found.set(el, kind); };
   const eligible = (el: Element): boolean =>
     !SILENT.has(tag(el)) && !chain.has(el) && !insideKeep(el) && hasSubstance(el) && shown(el);
+  /** An ad slot with nothing in it but its CSS label still takes space: it goes, though it is empty. */
+  const emptySlot = (el: Element): boolean =>
+    !SILENT.has(tag(el)) && !chain.has(el) && !insideKeep(el) && !hasSubstance(el) && shown(el) && holdsAdSlot(el, label);
 
   /** Running text per element, and in all: how much of the page is text to read. */
   const textLen = new Map<Element, number>();
@@ -381,9 +414,10 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
   /** `strongOnly`: on a thin page only what names itself plainly (ads, cookie notices, share bars...) goes. `inRead`:
    *  `el` sits inside a box the page reader read text from, and holds none of its content (it is off the chain). */
   const scanInside = (el: Element, strongOnly = false, inRead = false): void => {
-    const kind = looksLikeClutter(el);
+    const kind = looksLikeClutter(el, label);
     if (kind && (!strongOnly || STRONG.has(kind))) {
       if (inRead ? !chain.has(el) && hasSubstance(el) && shown(el) : eligible(el)) add(el, kind);
+      else if (kind === "ad" && emptySlot(el)) add(el, kind);
       return;
     }
     for (const c of Array.from(el.children)) if (!SILENT.has(tag(c))) scanInside(c, strongOnly, inRead);
@@ -415,7 +449,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
     // A block itself can be such a box: a page reader takes a whole column of titles in as one paragraph.
     if (e === main || holdsProtected(e) || !shown(e)) continue;
     if (main.contains(e)) {
-      const kind = looksLikeClutter(e);
+      const kind = looksLikeClutter(e, label);
       if (kind && STRONG.has(kind) && (share(e) < 0.5 || (linkDensity(e) >= 0.5 && !e.querySelector("h1")))) add(e, kind);
     } else if (!e.contains(main) && !e.querySelector("h1")) {
       const kind = kindByTokens(e) ?? kindByRole(e);
@@ -431,6 +465,7 @@ export function findClutter(doc: Document, opts: ClutterOptions): ClutterItem[] 
       if (thin) scanInside(c, true);
       else if (inside(e) || between(c)) scanInside(c);
       else if (eligible(c)) add(c, kindOf(c, false));
+      else if (emptySlot(c)) add(c, "ad");
     }
   }
 

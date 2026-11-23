@@ -14,7 +14,7 @@
 // switches the frame sets: Original, Keep <language>, Plain, and whether the block was translated (viewOf). Plain
 // rewrites the page as it is shown: a translated block's translation, else the page's own words. Keep <language> turns
 // Plain off (the page's own words, as written); Original and close bring back every word.
-import { detectLang, extractPage } from "@distill/engine";
+import { boilerKind, detectLang, extractPage, inFigure, isCredit } from "@distill/engine";
 import type { CaptionMoreText, TextBlock } from "../messages";
 import { commonAncestor, type CleanContext } from "./context";
 
@@ -254,22 +254,56 @@ const translated = (u: Unit): boolean => u.values?.translation !== undefined;
 /** A block of the main text with its element and text nodes (round 2: claims, gist, Show me). */
 export interface MainBlock { el: Element; nodes: Text[]; text: string }
 
+/** Inside a "read also" box, a "follow us on Google" promo or an ad slot's label, up to (and with) its root `top`. */
+function inBoiler(el: Element, top: Element): boolean {
+  for (let e: Element | null = el; e; e = e.parentElement) {
+    if (boilerKind(e)) return true;
+    if (e === top) return false;
+  }
+  return false;
+}
+
+/** A row of links and nothing else (a tag cloud, a list of section links): three links or more hold all its words. */
+function linkRow(el: Element): boolean {
+  const links = Array.from(el.querySelectorAll("a[href]"));
+  if (links.length < 3) return false;
+  const linked = links.reduce((n, a) => n + collapse(a.textContent ?? "").length, 0);
+  return linked >= collapse(el.textContent ?? "").length * 0.9;
+}
+
+/** The page does not draw it now (display: none, a collapsed hover tip). Where the browser cannot say, it is drawn. */
+const notDrawn = (el: Element): boolean => (el as Element & { checkVisibility?: () => boolean }).checkVisibility?.() === false;
+
 /**
  * Round 2 (claims r2-01, gist r2-10): every block of the main text as the page shows it now, in document order, the
  * same blocks Translate reads but whatever their language (textBlocks leaves out what is already in the reader's
- * language) and without changing Translate's state. Left out: contact-only blocks, captions (a photo's credit is not
- * the article) and blocks of fewer than three words (a byline, a section name with the date).
+ * language) and without changing Translate's state. Left out: contact-only blocks, blocks of fewer than three words (a
+ * byline, a section name with the date), and (r3-01) what is only the text's frame: the headline (it is the page's
+ * title, not a paragraph), a figure's caption and credit ("Foto: ČTK", "Deník/Jan Novák"), a "read also" box, a
+ * "follow us on Google" promo, an ad slot's label, a row of links only (a tag cloud), and text the page does not draw.
  */
 export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">): MainBlock[] {
   const roots = rootsOf(ctx).filter((el) => el.isConnected && !el.closest(SKIP)).sort(docOrder);
   const top = roots.filter((el) => !roots.some((o) => o !== el && o.contains(el)));
   const out: MainBlock[] = [];
-  for (const [el, nodes] of owned(top, new Set())) {
+  const byOwner = owned(top, new Set());
+  /** The h1s of the main text, short ones too: one is the headline; several are an old site's way to set text. */
+  const h1Count = new Set(Array.from(byOwner.keys()).map((el) => el.closest("h1")).filter(Boolean)).size;
+  for (const [el, nodes] of byOwner) {
     const text = wordsOf(nodes);
-    if ((text.match(/\p{L}+/gu) ?? []).length < 3 || contactOnly(text) || el.closest("figcaption, caption")) continue;
+    if ((text.match(/\p{L}+/gu) ?? []).length < 3 || contactOnly(text)) continue;
+    if (el.closest("figure, figcaption, caption") || isCredit(text, inFigure(el))) continue;
+    const root = top.find((r) => r.contains(el)) ?? el;
+    if (inBoiler(el, root) || linkRow(el) || notDrawn(el)) continue;
     out.push({ el, nodes, text });
   }
-  return out.sort((a, b) => docOrder(a.el, b.el));
+  // The headline is the page's title, not a paragraph: the one h1 of the main text, or an h1 the title repeats. A page
+  // that stacks h1s as its text (an old site's opening hours) keeps the others.
+  const h1s = out.filter((b) => b.el.closest("h1"));
+  const title = (h1s[0]?.el.ownerDocument.title ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+  const headline = (b: MainBlock): boolean =>
+    h1s.includes(b) && (h1Count === 1 || (!!title && title.includes(b.text.toLowerCase())));
+  return out.filter((b) => !headline(b)).sort((a, b) => docOrder(a.el, b.el));
 }
 
 function pending(s: State): TextBlock[] {
