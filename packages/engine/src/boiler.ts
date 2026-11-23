@@ -26,7 +26,7 @@ export function isCredit(text: string, inFigure = false): boolean {
 }
 
 /** "Read also" and "you may also like" boxes, by their first words. */
-const READ_ALSO = /^(čtěte (také|též|dále|i)|přečtěte si (také|též|dále|i)|mohlo by vás (také |též |ještě )?zajímat|mohlo by v[áa]s|související (články|zprávy|témata|obsah)|další články|doporučené články|read (also|next|more on)|related (articles|stories|content|reading)|you (may|might) also like|more stories|lesen sie auch|mehr zum thema|das könnte sie auch interessieren)(?!\p{L})/iu;
+const READ_ALSO = /^(čtěte (také|též|dále|i)|přečtěte si (také|též|dále|i)|mohlo by vás (také |též |ještě )?zajímat|mohlo by v[áa]s|související( články| zprávy| témata| obsah)?|další články|doporučené články|read (also|next|more on)|related (articles|stories|content|reading)|you (may|might) also like|more stories|lesen sie auch|mehr zum thema|das könnte sie auch interessieren)(?!\p{L})/iu;
 /** "Follow us on Google News", "Chcete upřednostnit v Google naše články?", "Add us as a preferred source on Google". */
 const GOOGLE_PROMO = /(?<!\p{L})(google news|google zpr[aá]v|zpr[aá]v(y|[aá]ch) (od )?google|v google na[šs]e [čc]l[aá]nky|upřednostn[ií]t v google|preferovan[ýy] zdroj|preferred source|(follow|sledujte|najdete) (us |n[aá]s )?(on |na |v )google)(?!\p{L})/iu;
 
