@@ -10,6 +10,10 @@ export interface FakeContext {
   page?: PageModel; structure?: FormStructure; fieldId?: string; value?: string;
   /** translateBlocks: the blocks of the page's main text being translated. */
   blocks?: readonly { id: string; text: string }[];
+  /** findClaims: the engine's candidate sentences (round 2). */
+  claims?: readonly { id: string; text: string; why?: string }[];
+  /** checkClaim: the sentence checked (round 2). */
+  claim?: string;
 }
 
 export type FakeFailure = "busy" | "genuine" | "device" | "other" | "empty";
@@ -118,6 +122,20 @@ export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unk
       // schemas.translate: {blocks: [{id, text}]}. Not a translation: the source marked "[EN]", so a screen shows which
       // blocks were replaced (names, numbers and links stay exactly where they were).
       return { blocks: empty ? [] : (ctx.blocks ?? []).map((b) => ({ id: b.id, text: `[EN] ${b.text}` })) };
+    case "findClaims":
+      // schemas.claims: the first six candidates, each with the engine's own reason (or "number").
+      return { claims: empty ? [] : (ctx.claims ?? []).slice(0, 6).map((c) => ({ id: c.id, why: c.why ?? "number" })) };
+    case "checkClaim":
+      // schemas.check. The grounded run adds its sources from the response, never from here.
+      return empty ? { verdict: "notFound", reason: "" } : { verdict: "supported", reason: "(stand-in model) Other sources say the same." };
+    case "gist":
+      // schemas.gist: the first sentence of each of the first three blocks, as its own source.
+      return {
+        points: empty ? [] : (ctx.blocks ?? []).slice(0, 3).map((b) => {
+          const sentence = b.text.split(/(?<=[.!?])\s/)[0] ?? b.text;
+          return { text: `[GIST] ${sentence}`, blockId: b.id, sentence };
+        }),
+      };
     case "draftReply":
       // schemas.replyDraft
       return empty ? { reply: "" } : { reply: "(dev fake AI) Dobrý den, dokument pošlu do [datum]. S pozdravem", translation: "(dev fake AI) Hello, I will send the document by [date]. Kind regards" };
