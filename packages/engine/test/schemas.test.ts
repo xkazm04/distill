@@ -6,6 +6,7 @@ import checkJson from "../schemas/check.json";
 import claimsJson from "../schemas/claims.json";
 import gistJson from "../schemas/gist.json";
 import askJson from "../schemas/ask.json";
+import explainJson from "../schemas/explain.json";
 import classifyJson from "../schemas/classify.json";
 import letterJson from "../schemas/letter.json";
 import recastJson from "../schemas/recast.json";
@@ -21,6 +22,7 @@ const EXPORTED: Record<string, unknown> = {
   claims: claimsJson,
   gist: gistJson,
   ask: askJson,
+  explain: explainJson,
   classify: classifyJson,
   letter: letterJson,
   recast: recastJson,

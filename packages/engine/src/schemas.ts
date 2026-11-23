@@ -4,7 +4,7 @@
 const str = { type: "string" };
 const strList = { type: "array", items: str };
 
-export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate" | "claims" | "check" | "gist" | "ask", object> = {
+export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "letter" | "replyWizard" | "replyDraft" | "translate" | "claims" | "check" | "gist" | "ask" | "explain", object> = {
   recast: {
     type: "object",
     properties: {
@@ -159,6 +159,13 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
     type: "object",
     properties: { answer: str, blockId: str, sentence: str },
     required: ["answer", "blockId", "sentence"],
+  },
+  // Round 4: explain this word (explainTerm, device only). One or two plain sentences; an empty text means the model
+  // does not know (explain.ts parseExplanation).
+  explain: {
+    type: "object",
+    properties: { text: str },
+    required: ["text"],
   },
 };
 

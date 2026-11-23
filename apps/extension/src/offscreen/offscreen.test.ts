@@ -33,7 +33,7 @@ describe("the offscreen document's door", () => {
   });
 
   it("refuses every values task before anything runs", async () => {
-    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply", "askPage", "noSuchTask"] as Task[]) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply", "askPage", "explainTerm", "noSuchTask"] as Task[]) {
       const run = vi.fn(async () => ok());
       const fake = vi.fn(async () => ok());
       expect(await answer(ask(task, { fake: {} }), { run, fake, kindOf: () => "other" })).toEqual({ ok: false, kind: "other", refused: "values" });
