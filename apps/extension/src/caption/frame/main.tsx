@@ -1,6 +1,6 @@
 // The caption strip, an extension page in a frame the content script puts at the bottom of the page (docs/caption.md).
 // First sight: one line saying what Distill did, where it ran, More and Original. No next step is suggested: tours are
-// optional and start only when the person asks for one (owner, 2026-11-21). This is slice 1: Clean, What was removed,
+// optional and start only when the person asks for one in More (owner, 2026-11-21; Tours.tsx, r4-08). This is slice 1: Clean, What was removed,
 // Original and the model state. Translate, Simplify and the tours come in later slices (docs/caption.md).
 import { StrictMode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
