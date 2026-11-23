@@ -59,6 +59,11 @@ let state: {
   /** The column the last pass ran on, and its pictures (wakeMedia goes through them). */
   scope?: Element;
   pics: Element[];
+  /** The last pass's context, and the window's resize listener that runs the pass again (a phone turned, a window
+   *  narrowed: a picture that fits at 1440 can overflow or be squeezed at 390). */
+  ctx?: Parameters<typeof applyMedia>[0];
+  onResize?: () => void;
+  timer?: number;
 } | null = null;
 /** Galleries the person opened: they stay open when Stay clean runs the pass again. */
 let opened = new WeakSet<Element>();
@@ -317,6 +322,15 @@ export function applyMedia(ctx: { doc: Document; win: Window; main: Element | nu
   }
   const s = state;
   s.counts = { fit: 0, shape: 0, captions: 0, ratio: 0, empty: 0 };
+  s.ctx = ctx;
+  if (!s.onResize) {
+    const onResize = () => {
+      win.clearTimeout(s.timer);
+      s.timer = win.setTimeout(() => { if (state === s && s.ctx) applyMedia(s.ctx); }, 200);
+    };
+    s.onResize = onResize;
+    win.addEventListener("resize", onResize);
+  }
   // The column of a page without a column of its own (the body) still counts: its pictures are the page's.
   const scope = main === doc.body ? doc.body : main;
   const shown = (el: Element) => !el.closest(`[${HIDE}]`) && !ctx.protect.some((p) => p.contains(el));
@@ -330,7 +344,8 @@ export function applyMedia(ctx: { doc: Document; win: Window; main: Element | nu
     if (el.localName !== "img") continue;
     const img = el as HTMLImageElement;
     if (lazyStandIn(img) || s.lazy.some((l) => l.el === img)) continue;
-    if (done && img.complete && img.naturalWidth === 0 && img.getBoundingClientRect().height >= 2) {
+    // A broken picture whose words show instead (its alt text, a link's only words) is not empty: it stays.
+    if (done && img.complete && img.naturalWidth === 0 && img.getBoundingClientRect().height >= 2 && !(img.getAttribute("alt") ?? "").trim()) {
       token(img, "empty");
       s.counts.empty++;
     }
@@ -427,6 +442,8 @@ export function clearMedia(doc: Document): void {
       }
       l.el.removeAttribute(LAZY);
     }
+    const win = state.doc.defaultView;
+    if (win && state.onResize) { win.removeEventListener("resize", state.onResize); win.clearTimeout(state.timer); }
     state.style.remove();
     state = null;
   }
