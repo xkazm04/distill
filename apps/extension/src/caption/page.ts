@@ -16,6 +16,7 @@ import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
 import { clearActions } from "./actions";
 import { tourStep } from "./tour";
+import { clearPlace } from "./contact";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
@@ -178,6 +179,7 @@ export function close(doc: Document): void {
   clearClaims(doc);
   clearActions(doc);
   tourStep(doc, null); // r4-08: a tour that runs ends with the strip
+  clearPlace(doc); // r5-07: a "here it is" ring still up goes now, not 2.4 s later
   clearTables(doc);
   clearLinks(doc);
   clearExplain(doc);

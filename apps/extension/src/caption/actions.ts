@@ -11,6 +11,7 @@ import { findActions, findContacts, type FoundAction } from "@distill/engine";
 import type { ActionItem } from "../messages";
 import type { CleanContext } from "./context";
 import { markOnPage } from "./contact";
+import { ACTIVE_PRIORITY, activeCss, QUIET_PRIORITY, WASH_MAX, washCss, washOn } from "./marks";
 import { TEXT_SPLIT_EVENT } from "./textSplit";
 import { mainTextBlocks } from "./translate";
 
@@ -19,6 +20,8 @@ const SHOW_HIGHLIGHT = "distill-action-show";
 const STYLE_ID = "distill-actions-style";
 const ORIGINAL = "data-distill-original";
 const HIDE = "data-distill-hide";
+/** On <html> while Dark page is on (dark.ts): the wash is weighed again on the new colours. */
+const DARK_ON = "data-distill-dark-on";
 /** On each block with an action: the ids of its actions, space-separated. */
 export const ACTION_ATTR = "data-distill-action";
 const SHOW_MS = 2400;
@@ -26,11 +29,10 @@ const REMARK_MS = 120;
 /** At most this many ways to reach someone are added from the contact finder (the main text's own come first). */
 const MAX_CONTACTS = 4;
 
-// A light wash in the system's find-in-page colour (no colour of Distill's on the page); Show me in the full colour.
-const CSS = [
-  `::highlight(${ACTION_HIGHLIGHT}) { background-color: color-mix(in srgb, Mark 32%, transparent); }`,
-  `::highlight(${SHOW_HIGHLIGHT}) { background-color: Mark; color: MarkText; }`,
-].join("\n");
+// r5-07: the marks come from caption/marks.ts. Quiet: a light wash in the system's find-in-page colour (no colour of
+// Distill's on the page), as strong as the page's text allows (washOn: a dark page with grey text gets a fainter one).
+// Active: Show me in the full find-in-page colours.
+const css = (wash: number) => [washCss(ACTION_HIGHLIGHT, wash), activeCss(SHOW_HIGHLIGHT)].join("\n");
 
 export interface Where { el: Element; nodes: Text[] }
 interface Known { item: ActionItem; where: Where }
@@ -252,11 +254,17 @@ export function spanOfWords(flat: string, want: string): [number, number] | null
   return best;
 }
 
-function ensureStyle(doc: Document): void {
-  if (doc.getElementById(STYLE_ID)) return;
+/** The style sheet, with the wash at `wash` percent (kept as it is when no strength is given). */
+function ensureStyle(doc: Document, wash?: number): void {
+  const have = doc.getElementById(STYLE_ID);
+  if (have) {
+    const text = wash === undefined ? null : css(wash);
+    if (text && have.textContent !== text) have.textContent = text;
+    return;
+  }
   const style = doc.createElement("style");
   style.id = STYLE_ID;
-  style.textContent = CSS;
+  style.textContent = css(wash ?? WASH_MAX);
   (doc.head ?? doc.documentElement).append(style);
 }
 
@@ -277,7 +285,16 @@ function paint(doc: Document): number {
     onBlock.set(where.el, [...(onBlock.get(where.el) ?? []), item.id]);
   }
   for (const [el, ids] of onBlock) el.setAttribute(ACTION_ATTR, ids.join(" "));
-  if (reg && H && ranges.length && !doc.documentElement.hasAttribute(ORIGINAL)) reg.set(ACTION_HIGHLIGHT, new H(...ranges));
+  if (reg && H && ranges.length && !doc.documentElement.hasAttribute(ORIGINAL)) {
+    // r5-07: the wash as strong as the text under it allows, on the page as it looks now (Dark page on or off).
+    ensureStyle(doc, washOn(ranges.map((r) => {
+      const c = r.startContainer;
+      return c.nodeType === 1 ? (c as Element) : (c.parentElement ?? doc.documentElement);
+    })));
+    const h = new H(...ranges);
+    h.priority = QUIET_PRIORITY;
+    reg.set(ACTION_HIGHLIGHT, h);
+  }
   return ranges.length;
 }
 
@@ -290,7 +307,7 @@ function watch(doc: Document): void {
     if (marks !== m) return;
     const list = els();
     const touched = records.some((r) =>
-      (r.type === "attributes" && r.target === doc.documentElement && r.attributeName === ORIGINAL)
+      (r.type === "attributes" && r.target === doc.documentElement && (r.attributeName === ORIGINAL || r.attributeName === DARK_ON))
       || (r.type !== "attributes" && list.some((el) => el.contains(r.target))));
     if (!touched) return;
     again();
@@ -302,7 +319,7 @@ function watch(doc: Document): void {
     m.timer = setTimeout(() => { m.timer = null; if (marks === m) paint(doc); }, REMARK_MS);
   };
   doc.addEventListener(TEXT_SPLIT_EVENT, again);
-  observer.observe(doc.documentElement, { attributes: true, attributeFilter: [ORIGINAL] });
+  observer.observe(doc.documentElement, { attributes: true, attributeFilter: [ORIGINAL, DARK_ON] });
   if (doc.body) observer.observe(doc.body, { characterData: true, childList: true, subtree: true });
   m.observer = observer;
 }
@@ -336,7 +353,9 @@ export function showAction(doc: Document, id: string): boolean {
   const H = HighlightOf(doc);
   if (!range || !reg || !H) { markOnPage(doc, k.where.el); return true; }
   ensureStyle(doc);
-  reg.set(SHOW_HIGHLIGHT, new H(range));
+  const h = new H(range);
+  h.priority = ACTIVE_PRIORITY;
+  reg.set(SHOW_HIGHLIGHT, h);
   const win = doc.defaultView;
   const r = range.getBoundingClientRect();
   // Into the upper third of the window: the strip covers the bottom (up to 45% with More open).

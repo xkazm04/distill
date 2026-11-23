@@ -4,6 +4,7 @@
 import { findContacts } from "@distill/engine";
 import { applyLocate } from "@distill/web/dom";
 import type { ContactItem } from "../messages";
+import { ringCss } from "./marks";
 
 /** Item id -> where it was found, by the last readContacts. Never leaves the page. */
 let where = new Map<string, Element>();
@@ -67,6 +68,8 @@ export function markOnPage(doc: Document, el: Element): void {
   const r = el.getBoundingClientRect();
   const inView = !!win && r.top >= 8 && r.bottom <= win.innerHeight - 8;
   applyLocate(doc, [el], undefined, instant);
+  // r5-07: the active mark's ring (caption/marks.ts) over applyLocate's outline: system colours, not Distill's own.
+  ringPlace(doc, el);
   // The strip covers the bottom of the window: 46 px at first sight, up to 45% with More open.
   if (win && inView && r.bottom > win.innerHeight * 0.5) {
     win.scrollBy({ top: r.bottom - win.innerHeight * 0.4, behavior: instant ? "auto" : "smooth" });
@@ -74,8 +77,31 @@ export function markOnPage(doc: Document, el: Element): void {
   if (unmark) clearTimeout(unmark);
   unmark = setTimeout(() => {
     unmark = null;
-    applyLocate(doc, []);
-    // applyLocate leaves its style sheet for the next call; take it away when nothing else is outlined.
-    if (!doc.querySelector("[data-distill-locate]")) doc.getElementById("distill-locate-style")?.remove();
+    clearPlace(doc);
   }, MARK_MS);
+}
+
+const PLACE = "data-distill-place";
+const PLACE_STYLE = "distill-place-style";
+
+/** The ring on `el` (and off every earlier place). Its selector outweighs applyLocate's outline rule. */
+function ringPlace(doc: Document, el: Element): void {
+  doc.querySelectorAll(`[${PLACE}]`).forEach((e) => e.removeAttribute(PLACE));
+  if (!doc.getElementById(PLACE_STYLE)) {
+    const style = doc.createElement("style");
+    style.id = PLACE_STYLE;
+    style.textContent = ringCss(`html [data-distill-locate][${PLACE}]`);
+    (doc.head ?? doc.documentElement).append(style);
+  }
+  el.setAttribute(PLACE, "");
+}
+
+/** Takes "here it is" off at once (its timer, the outline, the ring and their style sheets): close calls it. */
+export function clearPlace(doc: Document): void {
+  if (unmark) { clearTimeout(unmark); unmark = null; }
+  applyLocate(doc, []);
+  doc.querySelectorAll(`[${PLACE}]`).forEach((e) => e.removeAttribute(PLACE));
+  doc.getElementById(PLACE_STYLE)?.remove();
+  // applyLocate leaves its style sheet for the next call; take it away when nothing else is outlined.
+  if (!doc.querySelector("[data-distill-locate]")) doc.getElementById("distill-locate-style")?.remove();
 }

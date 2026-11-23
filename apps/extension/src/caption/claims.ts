@@ -10,6 +10,7 @@ import { findSentence } from "@distill/engine";
 import type { ClaimMark, TextBlock } from "../messages";
 import type { CleanContext } from "./context";
 import { markOnPage } from "./contact";
+import { ACTIVE_PRIORITY, activeCss, CLAIM_LINE, QUIET_PRIORITY, underlineCss } from "./marks";
 import { TEXT_SPLIT_EVENT } from "./textSplit";
 import { mainTextBlocks } from "./translate";
 
@@ -26,14 +27,13 @@ const SHOW_MS = 2400;
 /** How long the page's text must be quiet before the marks are found again. */
 const REMARK_MS = 120;
 
-// Underlines in the text's own colour (no colour of Distill's on the page); a checked claim's line says its verdict by
-// its style. Show me uses the system's own find-in-page colours.
+// r5-07: the marks come from caption/marks.ts. Quiet: underlines in the text's own colour (no colour of Distill's on the
+// page); a checked claim's line says its verdict by its style (dotted, solid, wavy, dashed, double), never by colour
+// alone. Active: Show me in the system's own find-in-page colours.
 const CSS = [
-  `::highlight(${CLAIM_HIGHLIGHT}) { text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }`,
-  `::highlight(${CLAIM_HIGHLIGHT}-supported) { text-decoration: underline solid; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }`,
-  `::highlight(${CLAIM_HIGHLIGHT}-disputed) { text-decoration: underline wavy; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }`,
-  `::highlight(${CLAIM_HIGHLIGHT}-mixed), ::highlight(${CLAIM_HIGHLIGHT}-notFound) { text-decoration: underline dashed; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }`,
-  `::highlight(${SHOW_HIGHLIGHT}) { background-color: Mark; color: MarkText; }`,
+  underlineCss(CLAIM_HIGHLIGHT, CLAIM_LINE.unchecked),
+  ...VERDICTS.map((v) => underlineCss(`${CLAIM_HIGHLIGHT}-${v}`, CLAIM_LINE[v])),
+  activeCss(SHOW_HIGHLIGHT),
 ].join("\n");
 
 interface Known { el: Element; nodes: Text[] }
@@ -146,7 +146,11 @@ function paint(doc: Document): number {
   }
   for (const [el, list] of onBlock) el.setAttribute(CLAIM_ATTR, list.join(" "));
   // Original shows the page as it was: no marks (the attributes stay, they change nothing on screen).
-  if (reg && H && !doc.documentElement.hasAttribute(ORIGINAL)) for (const [name, ranges] of byName) reg.set(name, new H(...ranges));
+  if (reg && H && !doc.documentElement.hasAttribute(ORIGINAL)) for (const [name, ranges] of byName) {
+    const h = new H(...ranges);
+    h.priority = QUIET_PRIORITY;
+    reg.set(name, h);
+  }
   return found;
 }
 
@@ -197,7 +201,9 @@ export function showText(doc: Document, blockId: string, sentence: string): bool
   const H = HighlightOf(doc);
   if (!range || !reg || !H) { markOnPage(doc, k.el); return true; }
   ensureStyle(doc);
-  reg.set(SHOW_HIGHLIGHT, new H(range));
+  const h = new H(range);
+  h.priority = ACTIVE_PRIORITY;
+  reg.set(SHOW_HIGHLIGHT, h);
   const win = doc.defaultView;
   const r = range.getBoundingClientRect();
   // Into the upper third of the window: the strip covers the bottom (up to 45% with More open).

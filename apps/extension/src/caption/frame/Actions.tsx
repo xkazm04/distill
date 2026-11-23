@@ -7,6 +7,7 @@ import type { ActionKind } from "@distill/engine";
 import type { ActionItem, CleanReport } from "../../messages";
 import { copy } from "./Contact";
 import { send } from "./send";
+import { MarksKey } from "./MarksKey";
 import "./actions.css";
 
 /** Found once per strip (one page), right after Clean; the status line and More share it. The highlight goes on with it. */
@@ -72,6 +73,7 @@ export function ActionsSection(props: { report: CleanReport; setReport: (r: Clea
     <section className="actions" aria-labelledby="cap-actions-h" data-testid="cap-actions">
       <h2 id="cap-actions-h">What this page asks of you ({items.length})</h2>
       <p className="note">Found by patterns on this device, no AI. Highlighted on the page.</p>
+      <MarksKey kind="actions" />
       <ol className="actions-list">
         {items.map((it) => (
           <li key={it.id} data-testid="cap-action" data-kind={it.kind} data-hidden={it.hidden ? "" : undefined}>

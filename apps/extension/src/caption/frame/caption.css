@@ -136,6 +136,14 @@ a.btn { text-decoration: none; }
   .claims-list li { grid-template-columns: minmax(0, 1fr); padding: 4px 0; }
   .claims-list li > .note { grid-column: 1; }
 }
+/* Round 5, r5-07: what the marks on the page mean, one small line. The samples are drawn as the page draws them: in the
+   text's colour, and in the system's find-in-page colours (Mark/MarkText: CSS system colours, not colour literals). */
+.marks-key { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 0 0 4px; font-size: 13px; }
+.mk-head { font-weight: 600; }
+.mk-item { display: inline-flex; align-items: baseline; gap: 5px; }
+.mk-sample { color: var(--fg); padding: 0 2px; border-radius: 2px; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.mk-active { background-color: Mark; color: MarkText; }
+.mk-seen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Round 2, card 2: a claim checked on the web. The verdict is a word with a shape beside it, never colour alone. */
 .ck { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 4px 0 2px; font-size: 14px; }
