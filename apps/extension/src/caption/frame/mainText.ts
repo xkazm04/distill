@@ -35,6 +35,18 @@ export function firstPart(blocks: readonly TextBlock[], max = TASK_CHARS): TextB
   return out;
 }
 
+/** The reading of the main text that the parts asking for the same report share (the claims and the gist ask as it
+ *  arrives). Reading it is a long task on a huge page (YouTube: 60-120 ms), and two in a row held up the strip's first
+ *  sight; both now get the one answer, and the same block ids. */
+let shared: { report: CleanReport; phase: TranslateState["phase"] | undefined; ask: Promise<TextBlock[]> } | null = null;
+
+function askMainText(report: CleanReport, phase: TranslateState["phase"] | undefined): Promise<TextBlock[]> {
+  if (shared && shared.report === report && shared.phase === phase) return shared.ask;
+  const ask = send<"distill:caption:mainText">({ type: "distill:caption:mainText" }).catch((): TextBlock[] => []);
+  shared = { report, phase, ask };
+  return ask;
+}
+
 /** The main text once it is settled (null until then): after Clean, and after Translate where it runs. */
 export function useMainText(report: CleanReport | null, translate: TranslateState | undefined): TextBlock[] | null {
   const [blocks, setBlocks] = useState<TextBlock[] | null>(null);
@@ -53,7 +65,7 @@ export function useMainText(report: CleanReport | null, translate: TranslateStat
     if (!report || started.current) return;
     if (waitsForTranslation && phase !== "done" && phase !== "failed" && !(phase === "idle" && graceOver)) return;
     started.current = true;
-    void send<"distill:caption:mainText">({ type: "distill:caption:mainText" }).then(setBlocks, () => setBlocks([]));
+    void askMainText(report, phase).then(setBlocks);
   }, [report, waitsForTranslation, phase, graceOver]);
 
   return blocks;
