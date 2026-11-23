@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opening hours of the county library | Demo</title>
+<!-- Cookie banners answered for you (r3-04). One article; ?cmp=<system> draws that consent system's banner with its own
+     ids and classes (onetrust, didomi, cookiebot, quantcast, usercentrics, sourcepoint, trustarc, plain, acceptonly,
+     late). Each button records what was pressed in window.__consentLog and in a cookie (consent_<cmp>=accepted|rejected),
+     then the banner goes away. With the cookie set the banner does not come back: the site's own record of the choice.
+     Distill must press the reject button and never Accept. -->
+<style>
+body{font:17px/1.6 Georgia,serif;margin:0;background:#fff;color:#222}
+main{max-width:680px;margin:0 auto;padding:24px 16px 120px}
+h1{font-size:1.8rem;line-height:1.2}
+.banner{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#f4f4f4;border-top:1px solid #ccc;padding:16px;font:15px/1.4 Arial,sans-serif;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner p{margin:0;flex:1 1 300px}
+.banner button,.banner a{font:inherit;padding:8px 14px}
+</style>
+</head>
+<body>
+<main>
+<h1>New opening hours of the county library from January</h1>
+<p>From the first of January the county library opens one hour earlier on weekdays. The reading room keeps its hours, and the children's section opens on Saturday mornings for the first time. The change follows a survey of four hundred readers held last autumn.</p>
+<p>Readers can return books at the drop box by the main door at any time. Reservations made online are kept for five working days, after which the book goes back on the shelf for the next reader. The library asks readers to renew loans before the due date to avoid the small fine.</p>
+<p>The library also lends e-book readers for two weeks at a time. A reader's card is enough to borrow one, and the staff at the desk explain how to load books onto it. Courses for older readers on using the online catalogue begin in February.</p>
+<p>The library's cafe on the ground floor reopens after its renovation, with longer opening hours on Thursdays when the evening lectures take place. Lecture tickets are free but must be booked in advance, as the hall holds only eighty people.</p>
+</main>
+<script>
+(function () {
+  var cmp = new URLSearchParams(location.search).get("cmp") || "plain";
+  var name = "consent_" + cmp;
+  window.__consentLog = [];
+  if (document.cookie.split("; ").some(function (c) { return c.indexOf(name + "=") === 0; })) return; // already answered
+  function answer(what, box) {
+    return function (e) {
+      if (e) e.preventDefault();
+      window.__consentLog.push(what);
+      document.cookie = name + "=" + what + "; path=/; max-age=3600";
+      box.remove();
+    };
+  }
+  var TEXT = "<p>We use cookies to understand how readers use this site and to show relevant offers.</p>";
+  var html = {
+    onetrust: '<div id="onetrust-consent-sdk"><div id="onetrust-banner-sdk" class="banner">' + TEXT +
+      '<button id="onetrust-pc-btn-handler" data-a="settings">Cookies Settings</button><button id="onetrust-reject-all-handler" data-a="rejected">Reject All</button><button id="onetrust-accept-btn-handler" data-a="accepted">Accept All Cookies</button></div></div>',
+    didomi: '<div id="didomi-host"><div id="didomi-notice" class="banner didomi-popup-notice">' + TEXT +
+      '<button id="didomi-notice-learn-more-button" data-a="settings">Learn more</button><button id="didomi-notice-disagree-button" data-a="rejected">Disagree and close</button><button id="didomi-notice-agree-button" data-a="accepted">Agree and close</button></div></div>',
+    cookiebot: '<div id="CybotCookiebotDialog" class="banner">' + TEXT +
+      '<button id="CybotCookiebotDialogBodyButtonDecline" data-a="rejected">Deny</button><button id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowallSelection" data-a="selection">Allow selection</button><button id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll" data-a="accepted">Allow all</button></div>',
+    quantcast: '<div id="qc-cmp2-container"><div id="qc-cmp2-ui" class="banner">' + TEXT +
+      '<div class="qc-cmp2-summary-buttons"><button mode="secondary" data-a="rejected">I DO NOT ACCEPT</button><button mode="secondary" data-a="settings">MORE OPTIONS</button><button mode="primary" data-a="accepted">I ACCEPT</button></div></div></div>',
+    trustarc: '<div id="truste-consent-track" class="banner">' + TEXT +
+      '<button id="truste-show-consent" data-a="settings">Manage preferences</button><button id="truste-consent-required" data-a="rejected">Required Only</button><button id="truste-consent-button" data-a="accepted">Accept all</button></div>',
+    plain: '<div class="banner cookie-bar">' + TEXT +
+      '<button data-a="accepted">Accept all</button><button data-a="rejected">Only necessary</button><button data-a="settings">Settings</button></div>',
+    acceptonly: '<div class="banner cookie-bar">' + TEXT +
+      '<button data-a="accepted">OK, I agree</button><a href="/privacy.html" data-a="policy">Privacy policy</a></div>',
+    late: '<div class="banner cookie-bar">' + TEXT +
+      '<button data-a="accepted">Accept all</button><button data-a="rejected">Reject all</button></div>',
+  };
+  function wire(root, box) {
+    root.querySelectorAll("[data-a]").forEach(function (b) {
+      var a = b.getAttribute("data-a");
+      if (a === "accepted" || a === "rejected") b.addEventListener("click", answer(a, box));
+      else b.addEventListener("click", function (e) { e.preventDefault(); window.__consentLog.push(a); });
+    });
+  }
+  function show() {
+    var wrap = document.createElement("div");
+    if (cmp === "usercentrics") {
+      // Usercentrics draws its banner inside an open shadow root.
+      wrap.id = "usercentrics-root";
+      var root = wrap.attachShadow({ mode: "open" });
+      root.innerHTML = '<style>.banner{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#f4f4f4;padding:16px;font:15px Arial}</style><div class="banner" data-testid="uc-default-banner">' + TEXT +
+        '<button data-testid="uc-more-button" data-a="settings">Settings</button><button data-testid="uc-deny-all-button" data-a="rejected">Deny</button><button data-testid="uc-accept-all-button" data-a="accepted">Accept All</button></div>';
+      document.body.appendChild(wrap);
+      wire(root, wrap);
+      return;
+    }
+    if (cmp === "sourcepoint") {
+      // Sourcepoint draws its message in a frame; here the frame is the site's own (srcdoc), so Distill can reach it.
+      wrap.id = "sp_message_container_1001";
+      wrap.className = "banner";
+      wrap.style.padding = "0";
+      var f = document.createElement("iframe");
+      f.id = "sp_message_iframe_1001";
+      f.title = "SP Consent Message";
+      f.style.cssText = "width:100%;height:90px;border:0";
+      f.srcdoc = '<body style="margin:0;font:15px Arial;padding:12px;background:#f4f4f4"><p style="margin:0 0 8px">We use cookies to understand how readers use this site.</p>' +
+        '<button class="message-component message-button sp_choice_type_12" data-a="settings">Options</button> <button class="message-component message-button sp_choice_type_13" title="Reject all" data-a="rejected">Reject all</button> <button class="message-component message-button sp_choice_type_11" title="Accept all" data-a="accepted">Accept all</button></body>';
+      f.addEventListener("load", function () { wire(f.contentDocument, wrap); });
+      wrap.appendChild(f);
+      document.body.appendChild(wrap);
+      return;
+    }
+    wrap.innerHTML = html[cmp] || html.plain;
+    var box = wrap.firstElementChild;
+    document.body.appendChild(box);
+    wire(box, box);
+  }
+  if (cmp === "late") setTimeout(show, 1500); else show();
+})();
+</script>
+</body>
+</html>
