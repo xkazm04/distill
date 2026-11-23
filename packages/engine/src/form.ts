@@ -664,6 +664,12 @@ export function listForms(doc: Document): Element[] {
   return formScopes(doc).map((s) => s.scope);
 }
 
+/** listForms with how many fields each form has, read in the same pass (extractPage needs both; reading the fields
+ *  twice costs a huge page tens of milliseconds). Engine-internal. */
+export function listFormsWithFields(doc: Document): { scope: Element; fields: number }[] {
+  return formScopes(doc).map((s) => ({ scope: s.scope, fields: s.bindings.length }));
+}
+
 /**
  * The version of this reader (extractForm's labels, kinds and field ids), recorded in a guide that was written from it
  * (GuideMatch.reader). Raise it with any change that can change what extractForm reads from the same page, so guide

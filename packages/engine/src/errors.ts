@@ -14,6 +14,10 @@ const HINT_WORD = /(^|[\s_-])(hint|help|helper|description|form-text|note)([\s_-
 /** Longer than this, an element is a section of the page (a docs page's "Errors" chapter), not a message. */
 const MESSAGE_MAX = 1000;
 
+/** A cheap first look: without one of these letters in its class, id or tag, no error word can be there (splitting
+ *  camelCase only adds spaces). Saves a huge page the camelCase split on each of its thousands of elements. */
+const ERROR_LETTERS = /err|invalid|chyb/i;
+
 const words = (el: Element): string => `${attr(el, "class")} ${attr(el, "id")} ${tag(el)}`.replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2");
 
 /** aria-invalid is set and is not "false" ("true", "grammar" and "spelling" all mean invalid). */
@@ -31,7 +35,8 @@ export const hintLike = (el: Element): boolean => tag(el) === "small" || HINT_WO
  * message-sized.
  */
 export function looksLikeError(el: Element): boolean {
-  if (attr(el, "role").trim().toLowerCase() !== "alert" && !ERROR_WORD.test(words(el))) return false;
+  if (attr(el, "role").trim().toLowerCase() !== "alert"
+    && (!ERROR_LETTERS.test(`${attr(el, "class")} ${attr(el, "id")} ${tag(el)}`) || !ERROR_WORD.test(words(el)))) return false;
   if (el.matches(FIELDISH) || el.querySelector(FIELDISH)) return false;
   return collapse(el.textContent ?? "").length <= MESSAGE_MAX;
 }

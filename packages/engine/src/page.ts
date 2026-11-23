@@ -1,7 +1,7 @@
 import type { Block, PageKind, PageModel } from "./types.js";
 import { publicUrl } from "./url.js";
 import { BLOCKISH, SKIP_TAGS, attr, blocked, collapse, isHidden, isNoise, pageLang, tag, textOf } from "./dom.js";
-import { buildBindings, listForms } from "./form.js";
+import { listFormsWithFields } from "./form.js";
 import { errorElements } from "./errors.js";
 
 const SEMANTIC_ROOT = "main, article, [role=main]";
@@ -224,10 +224,11 @@ function collectBlocks(root: Element, url: string, formPage: boolean, isError: (
 const PRICE_RE = /([$€£]\s?\d|\d[\d.,]*\s?(€|Kč|USD|EUR|CZK|£|\$))/g;
 const PRICING_WORDS = /(per month|\/\s?mo\b|\/\s?month|monthly|annually|\/\s?year|pricing|billed|buy now|add to cart|checkout|free trial|za měsíc)/i;
 
-/** The form that dominates the page (three fields or more, and a good share of its text), if there is one. */
-function dominantForm(doc: Document, forms: Element[]): Element | undefined {
+/** The form that dominates the page (three fields or more, and a good share of its text), if there is one. `fields`:
+ *  how many fields each form has (listFormsWithFields read them). */
+function dominantForm(doc: Document, forms: { scope: Element; fields: number }[]): Element | undefined {
   const rawBodyLen = collapse(doc.body?.textContent ?? "").length || 1;
-  return forms.find((f) => buildBindings(f).length >= 3 && textOf(f).length >= rawBodyLen * 0.35);
+  return forms.find((f) => f.fields >= 3 && textOf(f.scope).length >= rawBodyLen * 0.35)?.scope;
 }
 
 function classify(doc: Document, url: string, blocks: Block[], formPage: boolean): PageKind {
@@ -271,8 +272,8 @@ export interface ExtractOptions {
 export function extractPage(doc: Document, url: string, opts?: ExtractOptions): PageModel {
   // The page view reads the top document's own tree: a form in a frame or a shadow root is reachable to Wayfill (and
   // counted in formCount), but its surroundings are not page text here.
-  const reachable = listForms(doc);
-  const forms = reachable.filter((f) => f.getRootNode() === doc);
+  const reachable = listFormsWithFields(doc);
+  const forms = reachable.filter((f) => f.scope.getRootNode() === doc);
   const form = dominantForm(doc, forms);
   let root = pickRoot(doc);
   // A form page reads the text around its form too, so the root holds the whole form and what sits beside it.
