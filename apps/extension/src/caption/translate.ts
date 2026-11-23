@@ -286,7 +286,10 @@ export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">
   const roots = rootsOf(ctx).filter((el) => el.isConnected && !el.closest(SKIP)).sort(docOrder);
   const top = roots.filter((el) => !roots.some((o) => o !== el && o.contains(el)));
   const out: MainBlock[] = [];
-  for (const [el, nodes] of owned(top, new Set())) {
+  const byOwner = owned(top, new Set());
+  /** The h1s of the main text, short ones too: one is the headline; several are an old site's way to set text. */
+  const h1Count = new Set(Array.from(byOwner.keys()).map((el) => el.closest("h1")).filter(Boolean)).size;
+  for (const [el, nodes] of byOwner) {
     const text = wordsOf(nodes);
     if ((text.match(/\p{L}+/gu) ?? []).length < 3 || contactOnly(text)) continue;
     if (el.closest("figure, figcaption, caption") || isCredit(text, inFigure(el))) continue;
@@ -299,7 +302,7 @@ export function mainTextBlocks(ctx: Pick<CleanContext, "keep" | "body" | "main">
   const h1s = out.filter((b) => b.el.closest("h1"));
   const title = (h1s[0]?.el.ownerDocument.title ?? "").replace(/\s+/g, " ").trim().toLowerCase();
   const headline = (b: MainBlock): boolean =>
-    h1s.includes(b) && (h1s.length === 1 || (!!title && title.includes(b.text.toLowerCase())));
+    h1s.includes(b) && (h1Count === 1 || (!!title && title.includes(b.text.toLowerCase())));
   return out.filter((b) => !headline(b)).sort((a, b) => docOrder(a.el, b.el));
 }
 
