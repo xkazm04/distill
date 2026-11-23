@@ -26,6 +26,8 @@ export interface PlainResult {
   lostFacts: number;
   /** For each refused block, the kind of the first fact it lost (in the source's order). */
   lostKinds: FactKind[];
+  /** The ids of the refused blocks, in the same order as lostKinds. */
+  lostIds: string[];
   /** Refused for any other reason (unknown id, no text, HTML only, far too long). */
   dropped: number;
 }
@@ -228,10 +230,11 @@ export function parsePlain(answer: unknown, source: readonly TranslateBlock[]): 
   const src = new Map(source.map((b) => [b.id, b.text]));
   const blocks: TranslateBlock[] = [];
   const lostKinds: FactKind[] = [];
+  const lostIds: string[] = [];
   for (const b of t.blocks) {
     const lost = missingFacts(src.get(b.id) ?? "", b.text);
-    if (lost.length) { lostKinds.push((lost[0] as Fact).kind); continue; }
+    if (lost.length) { lostKinds.push((lost[0] as Fact).kind); lostIds.push(b.id); continue; }
     blocks.push(b);
   }
-  return { blocks, lostFacts: lostKinds.length, lostKinds, dropped: t.dropped };
+  return { blocks, lostFacts: lostKinds.length, lostKinds, lostIds, dropped: t.dropped };
 }

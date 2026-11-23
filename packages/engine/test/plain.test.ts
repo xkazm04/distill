@@ -126,7 +126,7 @@ describe("parsePlain (the one door for plain words)", () => {
         { id: "t0", text: "Žádost podejte do 15. 3. 2026. Přineste ji osobně na podatelnu. Je to Městský úřad Benešov." },
         { id: "t1", text: "Poplatek je 500 Kč. Zaplaťte ho v hotovosti nebo na účet obce." },
       ],
-      lostFacts: 0, lostKinds: [], dropped: 0,
+      lostFacts: 0, lostKinds: [], lostIds: [], dropped: 0,
     });
   });
 
@@ -139,6 +139,7 @@ describe("parsePlain (the one door for plain words)", () => {
     expect(r.blocks.map((b) => b.id)).toEqual(["t2"]);
     expect(r.lostFacts).toBe(2);
     expect(r.lostKinds).toEqual(["date", "amount"]);
+    expect(r.lostIds).toEqual(["t0", "t1"]);
     expect(r.dropped).toBe(0);
   });
 
@@ -156,8 +157,8 @@ describe("parsePlain (the one door for plain words)", () => {
   });
 
   it("answers nothing for an answer of the wrong shape", () => {
-    expect(parsePlain(null, SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], dropped: 0 });
-    expect(parsePlain("Sure!", SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], dropped: 1 });
+    expect(parsePlain(null, SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], lostIds: [], dropped: 0 });
+    expect(parsePlain("Sure!", SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], lostIds: [], dropped: 1 });
   });
 
   it("the prompt asks for the facts to stay and the blocks to stay apart", () => {

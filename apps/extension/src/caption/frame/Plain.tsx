@@ -40,6 +40,7 @@ export interface PlainRun {
   total: number;
   lostFacts: number;
   lostKinds: FactKind[];
+  lostIds: string[];
   dropped: number;
   source?: InferenceSource;
   reason?: string;
@@ -57,7 +58,7 @@ export async function plainRun(
   call: (prompt: string, batch: TextBlock[]) => Promise<TaskCall<unknown>>,
   put: (blocks: TextBlock[]) => Promise<number>,
 ): Promise<PlainRun> {
-  const out: PlainRun = { applied: 0, total: blocks.length, lostFacts: 0, lostKinds: [], dropped: 0 };
+  const out: PlainRun = { applied: 0, total: blocks.length, lostFacts: 0, lostKinds: [], lostIds: [], dropped: 0 };
   const sources: InferenceSource[] = [];
   let answered = 0;
   for (const batch of batches(blocks)) {
@@ -73,6 +74,7 @@ export async function plainRun(
     const p = parsePlain(r.data, batch);
     out.lostFacts += p.lostFacts;
     out.lostKinds.push(...p.lostKinds);
+    out.lostIds.push(...p.lostIds);
     out.dropped += p.dropped;
     sources.push(r.source);
     out.reason = r.reason;
@@ -95,6 +97,9 @@ export function usePlain(report: CleanReport | null, translate: Translate): Plai
   const tr = useRef(translate.state);
   tr.current = translate.state;
   const busy = useRef({ running: false, again: false, sources: [] as InferenceSource[] });
+  /** Rewrites the door refused, by block and the words it was handed over with: the same words are not sent again
+   *  (Plain pressed twice), but still counted on the strip. */
+  const refused = useRef(new Map<string, FactKind>());
 
   useEffect(() => {
     if (!report) return;
@@ -115,17 +120,32 @@ export function usePlain(report: CleanReport | null, translate: Translate): Plai
 
   const waiting = useCallback(() => send<"distill:caption:plainBlocks">({ type: "distill:caption:plainBlocks" }), []);
 
-  /** Rewrites blocks the page handed over; adds the counts. Throws as plainRun does. */
-  const rewrite = useCallback(async (blocks: TextBlock[]): Promise<PlainRun> => {
-    setState((s) => ({ ...s, total: s.total + blocks.length }));
-    const r = await plainRun(blocks, lang(), runPlain, put);
+  /**
+   * Rewrites blocks the page handed over, but not words the door refused before. `fresh`: the counts start again (Plain
+   * pressed: they speak of what the page shows now); else they add up (the page's new text). Throws as plainRun does.
+   * Returns how many blocks stay as written because a fact would have changed.
+   */
+  const rewrite = useCallback(async (blocks: TextBlock[], fresh: boolean): Promise<number> => {
+    const key = (b: TextBlock) => `${b.id}\n${b.text}`;
+    const known = blocks.flatMap((b) => { const k = refused.current.get(key(b)); return k ? [k] : []; });
+    const todo = blocks.filter((b) => !refused.current.has(key(b)));
+    const r: PlainRun = todo.length ? await plainRun(todo, lang(), runPlain, put)
+      : { applied: 0, total: 0, lostFacts: 0, lostKinds: [], lostIds: [], dropped: 0 };
     if (r.error) console.warn("[distill] Plain words stopped part way:", r.error);
+    r.lostIds.forEach((id, i) => {
+      const b = todo.find((x) => x.id === id);
+      if (b) refused.current.set(key(b), r.lostKinds[i] ?? "number");
+    });
     if (r.source) busy.current.sources.push(r.source);
+    const kinds = [...known, ...r.lostKinds];
     setState((s) => ({
-      ...s, lostFacts: s.lostFacts + r.lostFacts, lostKinds: [...s.lostKinds, ...r.lostKinds], dropped: s.dropped + r.dropped,
+      ...s,
+      lostFacts: (fresh ? 0 : s.lostFacts) + kinds.length,
+      lostKinds: [...(fresh ? [] : s.lostKinds), ...kinds],
+      dropped: (fresh ? 0 : s.dropped) + r.dropped,
       source: overallSource(busy.current.sources) ?? s.source, reason: r.reason ?? s.reason, ...(r.via ? { via: r.via } : {}),
     }));
-    return r;
+    return kinds.length;
   }, [lang, put]);
 
   const shownNow = useCallback(async (on: boolean) =>
@@ -146,22 +166,24 @@ export function usePlain(report: CleanReport | null, translate: Translate): Plai
       // rest as each answer comes in.
       const blocks = await waiting();
       await shownNow(true);
-      let run: PlainRun | null = null;
+      let lost = 0;
       let failure: unknown = null;
       if (blocks.length) {
-        try { run = await rewrite(blocks); } catch (e) { failure = e; }
+        try { lost = await rewrite(blocks, true); } catch (e) { failure = e; }
+      } else {
+        setState((p) => ({ ...p, lostFacts: 0, lostKinds: [], dropped: 0 }));
       }
       const shown = await shownNow(true);
       if (!shown) {
         await shownNow(false);
         const problem = failure ? shortReason(failure)
-          : !run ? "nothing here is long enough to need plainer words"
-          : run.lostFacts ? "every rewrite would have changed a fact, so the words stay as written"
+          : !blocks.length ? "nothing here is long enough to need plainer words"
+          : lost ? "every rewrite would have changed a fact, so the words stay as written"
           : "the AI's answer could not be used";
         setState((p) => ({ ...p, phase: "failed", shown: 0, problem }));
         return;
       }
-      setState((p) => ({ ...p, phase: "on", shown }));
+      setState((p) => ({ ...p, phase: "on", shown, total: shown + p.lostFacts + p.dropped }));
       // From now on, text the page adds or rewrites gets plain words too (the page side counts it and tells this frame).
       void send({ type: "distill:caption:watchText", tabId }).catch(() => undefined);
     } catch (e) {
@@ -183,11 +205,11 @@ export function usePlain(report: CleanReport | null, translate: Translate): Plai
         try {
           const blocks = await waiting();
           if (!blocks.length) continue;
-          await rewrite(blocks);
+          await rewrite(blocks, false);
           // Plain may have gone off meanwhile (As written, Keep <language>): then it stays off.
           if (now.current.phase !== "on") return;
           const shown = await shownNow(true);
-          setState((p) => ({ ...p, shown }));
+          setState((p) => ({ ...p, shown, total: shown + p.lostFacts + p.dropped }));
         } catch (e) {
           console.warn("[distill] Plain words could not rewrite the page's new text:", e);
         }
