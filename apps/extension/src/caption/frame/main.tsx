@@ -79,7 +79,10 @@ function useReportHeight(ref: React.RefObject<HTMLElement | null>, sheet: { shar
         win.current = w;
         if (!more?.isConnected) return;
         const over = natural - height;
-        if (over > 0) more.style.setProperty("--more-max", `${Math.max(80, more.scrollHeight - over)}px`);
+        // r5-10: More's own box shrinks by what the strip has too much, measured as drawn (its border and the
+        // fractions of a pixel counted): from its scroll height it came out 1 px short, and a line of the page showed
+        // under the row (Aktuálně at 1280 px). Rounded up: a fraction of a pixel cut off the row's foot cannot be seen.
+        if (over > 0) more.style.setProperty("--more-max", `${Math.max(80, Math.ceil(more.getBoundingClientRect().height - (el.getBoundingClientRect().height - height)))}px`);
         else more.style.removeProperty("--more-max");
       }, () => undefined);
     };
