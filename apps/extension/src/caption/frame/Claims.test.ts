@@ -65,7 +65,7 @@ describe("the chip with the page tasks", () => {
     const claims: ClaimsState = { phase: "ready", claims: [claim("c0")], dropped: 0, source: "on_device" };
     const chip = withPageTasks(sourceChip(done), claims, noGist);
     expect(chip.text).toBe("On this device");
-    expect(chip.title).toMatch(/translation from Czech ran on this device.*The claims to check ran on this device\.$/);
+    expect(chip.title).toMatch(/translation from Czech ran on this device.*The claims to check ran on this device\. Clean used no AI\.$/);
     expect(chip.data["data-translate"]).toBe("done");
   });
 });

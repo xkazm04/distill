@@ -102,7 +102,11 @@ export function withPageTasks(chip: Chip, claims: ClaimsState, gist: { source?: 
   if (!ran.length) return { ...chip, data: { ...chip.data, ...counts } };
   const data = { ...chip.data, ...counts, "data-tasks": ran.map((r) => `${r.what === "The gist" ? "gist" : "claims"}:${r.source}`).join(" ") };
   const words = ran.map((r) => `${r.what} ran ${RAN[r.source]}.`).join(" ");
-  if (chip.src !== "none") return { ...chip, data, title: `${chip.title} ${words}` };
+  if (chip.src !== "none") {
+    // "Clean used no AI." stays the last words (Plain's title may end with it).
+    const clean = / ?Clean used no AI\.$/.test(chip.title);
+    return { ...chip, data, title: `${chip.title.replace(/ ?Clean used no AI\.$/, "")} ${words}${clean ? " Clean used no AI." : ""}` };
+  }
   const sources = ran.map((r) => r.source);
   const src: InferenceSource = sources.every((s) => s === sources[0]) ? (sources[0] as InferenceSource) : "in_cloud";
   return { src, text: CHIP_TEXT[src], title: `${words} Clean used no AI.`, data };
