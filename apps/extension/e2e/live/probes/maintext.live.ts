@@ -25,6 +25,8 @@ const only = (process.env.E2E_LIVE_SITES ?? "").split(",").map((s) => s.trim()).
 const SITES = ALL.filter((s) => (only.length ? only.includes(s.id) || only.includes(s.useCase) : DEFAULT.includes(s.id)));
 const DESKTOP = { width: 1440, height: 900 };
 const short = (id: string) => id.replace(/^news-/, "");
+/** The name of the after-Clean screenshots: "after" (this build); a run of the code before the change sets "before". */
+const TAG = process.env.E2E_SHOT_TAG ?? "after";
 
 async function shot(page: Page, dir: string, name: string, evidence?: string) {
   await page.screenshot({ path: join(dir, `${name}.png`) });
@@ -106,7 +108,7 @@ for (const site of SITES) {
       await toHeadline();
       await page.waitForTimeout(800);
       m.leftoversBefore = await leftovers(page);
-      await shot(page, dir, "before", `r3-01-${short(site.id)}-before`);
+      await shot(page, dir, "page", `r3-01-${short(site.id)}-page`);
       if (process.env.E2E_DUMP_HTML) writeFileSync(join(dir, "page.html"), await page.content());
 
       const tabId = await worker.evaluate(async (u) => {
@@ -134,7 +136,18 @@ for (const site of SITES) {
       await toHeadline();
       await page.waitForTimeout(600);
       m.leftoversAfter = await leftovers(page);
-      await shot(page, dir, "after", `r3-01-${short(site.id)}-after`);
+      await shot(page, dir, TAG, `r3-01-${short(site.id)}-${TAG}`);
+      // Further down: the article's second long paragraph at the top, where a news site puts its first ad slot (the
+      // same place before and after the change, whatever short blocks the main text had).
+      const second = (blocks.filter((b) => b.text.length >= 100)[1]?.text ?? "").slice(0, 40);
+      if (second) {
+        await page.evaluate((start) => {
+          const el = Array.from(document.querySelectorAll("p, li, div")).find((e) => (e.textContent ?? "").replace(/\s+/g, " ").trim().startsWith(start));
+          if (el) scrollTo(0, Math.max(0, el.getBoundingClientRect().top + scrollY - 120));
+        }, second);
+        await page.waitForTimeout(500);
+        await shot(page, dir, `${TAG}-body`, `r3-01-${short(site.id)}-${TAG}-body`);
+      }
 
       expect(await startCaption(worker, tabId)).toBe(false);
       m.hiddenAfterClose = await page.locator("[data-distill-hide]").count();
