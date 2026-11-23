@@ -710,6 +710,56 @@ line and Try again working once the stand-in model answers again; Translate's Tr
 kit). Its `E2E_KIT_SLOW=1` did not catch a placeholder live: on these Czech pages Translate runs first, so the gist and
 the claims have not started when the picture is taken; the waiting pictures are the hermetic ones.
 
+## Round 5, r5-02, r5-03 and r5-08: More in parts, a first line of chips, the strip on a phone (2026-11-23)
+
+**More in parts (r5-02).** More is one small tab row over five parts (`frame/More.tsx`, `frame/parts.ts`):
+
+- **This page:** the gist, Ask, who wrote it, the product facts or the chapters.
+- **Do:** things to do, contact, the form, tours.
+- **Check:** the claims and the web check controls.
+- **Settings:** reading, dark page, prices and dates, tables and links, cookie banners, motion, this site.
+- **What was removed:** the list and the Distill links (the full panel, Close Distill on this page, the model line),
+  moved out of `main.tsx` onto the kit (`frame/Removed.tsx`).
+
+Every part is rendered and the hidden ones carry `hidden`; a part whose panel holds no section gets no tab (watched with
+a MutationObserver, so a part appears when its AI answer does). More opens on the part with the most to say: Check on
+an article while claims are being looked for or were found, Do on a form or letter (or a page with a form of 4 fields
+or more) that asks things of the reader, otherwise This page; if that part has nothing, the first part that has. Until
+a part is asked for it follows what the page holds. The person's tab choice is kept per site on the device
+(`chrome.storage.local`, `distill:moreParts`, keyed by origin like `caption/sites.ts`; a chip does not count as a
+choice). Proper ARIA tabs: `role=tablist/tab/tabpanel`, roving `tabindex`, arrows wrap, Home and End. While More is
+open its body keeps the height of the tallest part shown so far, so the tab row does not move under the pointer. Every
+section kept its data-testid; the e2e helpers `showPart(frame, testid)` and `openMoreAt(frame, testid)` open the part
+that holds a section, and the specs that look inside More call them.
+
+**The first line (r5-03).** `cap-status` keeps the full status text (`status.ts`, unchanged), visually hidden and read
+out (`role=status`): every spec that reads it reads the same words. What the eye reads is `cap-line`
+(`frame/FirstLine.tsx`, `frame/lineParts.ts`): a short sentence ("Page cleaned", "Cleaned · in English", "Showing plain
+words", "Cookies rejected · nothing else to remove") plus chips with a number: `7 removed`, `6 claims`, `4 to do`,
+`published 3 years ago` (when updated well after), `cookies rejected`, `paused 1 video`. Each chip is a button that
+opens More on its part. The line measures itself (a hidden copy of every piece, a ResizeObserver on the row): chips
+that do not fit fold from the end into one `+n` chip (it opens the first folded chip's part), never a cut word. On a
+phone the sentence shortens first ("Cleaned"); on a wide strip the last chips fold first while the long sentence keeps
+one chip beside it. The AI chip (`cap-chip`) stays where it was, with its testid and data attributes. "Tour running" is
+not a chip: while a tour runs the row is the tour's own row (r4-08).
+
+**The strip on a phone (r5-08).** At most 560 px (the frame's own width), More is a bottom sheet: a handle and Full
+screen / Close buttons on top, then the row's other controls (Translate, Plain, the form check, video skip, moved out of
+the row, which keeps More and Original), then the tabs. It opens at half the window, drags up to full (92%) and down to
+close (pointer events on the handle, `touch-action: none`; let go above 72% full, under 28% closed, else half), and the
+keyboard works it through the buttons and ArrowUp / ArrowDown on the handle. The frame asks for its share of the window
+(`distill:caption:size` carries `sheet` and `drag`, and answers the window's height); `page.ts` sizes it up to
+`SHEET_MAX_SHARE` (0.92) and drops the height easing while a finger drags and under reduced motion. Every button, link,
+tab and switch is at least 44 x 44 px there (the AI chip is 44 px tall with its pill drawn inside). Desktop keeps More
+above the row and the 45% cap.
+
+Tests: `frame/parts.test.ts`, `frame/lineParts.test.ts`, and `e2e/caption-parts.spec.ts` on the demo page
+`caption-parts.html` (an article with clutter, a cookie banner with its own reject, claims, an old byline updated
+lately, a side video): each section in its part, empty parts without a tab, the part More opens on (article, a form
+that asks things, a product page), the choice kept per site, arrows / Home / End; each chip opening its part; the line
+uncut from 1440 to 320 px; the sheet at half and full, dragged by a finger (CDP touch events) up to full and down to
+closed, the buttons, reduced motion, and the 44 px check. Live: `e2e/live/probes/strip5.live.ts`.
+
 ## Code map
 
 | File | Role |
@@ -717,6 +767,8 @@ the claims have not started when the picture is taken; the waiting pictures are 
 | `packages/engine/src/clutter.ts` | `findClutter`, `clutterSummary`, `CLUTTER_LABELS` (pure DOM reading, unit-tested) |
 | `apps/extension/src/caption/page.ts` | The page side: mount, spacer, Clean, restore, Original, resize, close |
 | `apps/extension/src/caption/frame/main.tsx`, `caption.css`, `caption.html` | The strip |
+| `apps/extension/src/caption/frame/More.tsx`, `parts.ts`, `Removed.tsx`, `more.css` | r5-02 More in parts behind ARIA tabs (the per-site choice in `distill:moreParts`), r5-08 the phone sheet |
+| `apps/extension/src/caption/frame/FirstLine.tsx`, `lineParts.ts` | r5-03 the first line: the sentence, the chips, the measured fold into `+n` |
 | `apps/extension/src/caption/frame/kit.tsx`, `kit.css` | r5-04/r5-09 the strip's kit: sections, facts, rows, icons, switch, and waiting / empty / failed (API at the top of kit.tsx) |
 | `apps/extension/src/messages.ts` | `distill:caption:*`, `CleanReport` |
 | `apps/extension/src/background.ts` | `startCaption`, the `VITE_SURFACE` switch, the e2e hook |
