@@ -83,6 +83,12 @@ First time on a machine, if Playwright's Chromium is missing: `npx playwright in
   takes Distill off the page and leaves nothing behind. On the Czech demo form nothing is removed and
   the strip suggests nothing. The same measurements run on real sites with `npm run e2e:live` (see `live/README.md`).
 
+- Remember this site (`caption-remember.spec.ts`, r2-08): with the e2e build's stand-in for Chrome's site permission
+  (Chrome's prompt cannot be pressed; `__distillRemember` in the service worker), "Always clean this site" grants that
+  one origin; a reload opens the strip by itself, Clean runs and an item shown again stays shown; Keep Czech and Easier
+  to read off come back; Forget and a permission removed in Chrome's settings stop it; Close holds until the next load;
+  never in a frame. `SPARK_EVIDENCE=<folder>` also writes its screenshots there as JPG.
+
 Expected failures (`test.fail`, shown with a cross but counted as passing) are bugs the harness found; each carries the
 reason. When the bug is fixed the test reports "expected to fail, but passed": remove the `test.fail` line. There are
 none today.

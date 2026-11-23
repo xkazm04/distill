@@ -115,14 +115,12 @@ export function prefsNow(
   return out;
 }
 
-/** What More lists under the switch: each kept choice in a few words. */
+/** What More lists under the switch: each kept choice that differs from what Distill does anyway, in a few words. */
 export function describePrefs(prefs: SitePrefs, langName: (lang: string) => string, pageLang?: string): string[] {
   const out: string[] = [];
   if (prefs.shown.length) out.push(`Shown again: ${prefs.shown.map((s) => s.label).join(", ")}`);
   if (prefs.translate === "source") out.push(`Kept in ${pageLang ? langName(pageLang) : "its own language"}, not translated`);
-  if (prefs.translate === "translated") out.push("Translated");
   if (prefs.comfort === false) out.push("Easier to read: off");
-  if (prefs.comfort === true) out.push("Easier to read: on");
   return out;
 }
 

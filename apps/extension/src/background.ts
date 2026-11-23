@@ -5,7 +5,7 @@
 import { HANDRAIL_NATIVE_HOST, HANDRAIL_PORT, type ContentRequest } from "./messages";
 import { offscreenPort } from "./offscreen/host";
 import { forgetTab } from "./sidepanel/guideStore";
-import { onPermissionsRemoved, registerAutoOpen } from "./caption/autoOpen";
+import { onPermissionsRemoved, onTabUpdated, registerAutoOpen } from "./caption/autoOpen";
 import { e2eFakeSites } from "./caption/sitePermission";
 
 const CAPTION = import.meta.env.VITE_SURFACE === "caption";
@@ -55,6 +55,8 @@ if (import.meta.env.MODE === "e2e") {
       await e2eFakeSites.set(((await e2eFakeSites.get()) ?? []).filter((o) => o !== origin));
       await onPermissionsRemoved([`${origin}/*`]);
     },
+    /** Plays one more "load complete" for the tab without a new document (a single-page app's next view). */
+    async tabUpdated(tabId: number) { return onTabUpdated(tabId, "complete", (await chrome.tabs.get(tabId)).url); },
   };
 }
 if (fakeHelper) {

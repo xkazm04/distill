@@ -58,7 +58,7 @@ describe("the choices kept", () => {
     const name = (l: string) => (l === "cs" ? "Czech" : l);
     expect(describePrefs({ shown: [{ kind: "comments", label: "Comments" }, { kind: "footer", label: "Footer" }], translate: "source", comfort: false }, name, "cs"))
       .toEqual(["Shown again: Comments, Footer", "Kept in Czech, not translated", "Easier to read: off"]);
-    expect(describePrefs({ shown: [] }, name)).toEqual([]);
+    expect(describePrefs({ shown: [], translate: "translated", comfort: true }, name)).toEqual([]); // Distill's defaults: nothing to list
   });
 
   it("drop what storage holds that is not well formed", () => {

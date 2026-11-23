@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CleanReport } from "../../messages";
 import { hasSite, removeSite, requestSite } from "../sitePermission";
 import { describePrefs, idsToShow, loadSites, parseSites, prefsNow, samePrefs, siteName, siteOrigin, SITES_KEY, updateSite, type SiteEntry } from "../sites";
+import { knowComfort } from "./Comfort";
 import { send } from "./send";
 import { langName } from "./status";
 import type { Translate } from "./Translate";
@@ -80,6 +81,7 @@ export function useRemember(report: CleanReport | null, setReport: (r: CleanRepo
           r = await send<"distill:caption:restore">({ type: "distill:caption:restore", id });
         }
         if (prefs.comfort === false && r.comfort > 0) {
+          knowComfort(r.comfort);
           const { comfort } = await send<"distill:caption:comfort">({ type: "distill:caption:comfort", on: false });
           r = { ...r, comfort };
         }
