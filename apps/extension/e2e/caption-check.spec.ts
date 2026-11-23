@@ -64,7 +64,8 @@ test("check: asked once, then the top three are checked by themselves with sourc
   await expect(controls.getByRole("button", { name: "Not now" })).toBeVisible();
   await page_wait(tab.page, 600);
   expect(await sentPrompts(distill.worker)).toEqual([]);
-  await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
+  // The claims and the gist ran by themselves (cards 1 and 10); no web check is named before consent.
+  await expect(frame.getByTestId("cap-chip")).not.toHaveAttribute("title", /checked on the web|web check/i);
   await showInMore(frame, "cap-checks");
   await shot(tab.page, "consent");
 
@@ -77,7 +78,7 @@ test("check: asked once, then the top three are checked by themselves with sourc
   await expect(frame.getByTestId("cap-checks-count")).toHaveText("Checked 3 of 6 claims in the cloud.");
   // The strip's chip no longer says "No AI used": sentences went to the cloud.
   await expect(frame.getByTestId("cap-chip")).toHaveText("In the cloud");
-  await expect(frame.getByTestId("cap-chip")).toHaveAttribute("title", /^3 claims checked on the web in the cloud/);
+  await expect(frame.getByTestId("cap-chip")).toHaveAttribute("title", /3 claims checked on the web in the cloud/);
 
   // A verdict: the word (with its shape), where it ran from the run's answer, the reason, the service's sources.
   const first = check(frame, 0);

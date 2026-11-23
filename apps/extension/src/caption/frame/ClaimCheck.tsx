@@ -249,7 +249,10 @@ export function chipWithChecks<C extends { src: string; text: string; title: str
   if (chip.src === "none") {
     return { ...chip, data, src: cloud ? "in_cloud" : chip.src, text: cloud ? "In the cloud" : chip.text, title: `${words} Clean used no AI.` };
   }
-  return { ...chip, data, ...(cloud ? { src: "in_cloud", text: "In the cloud" } : {}), title: `${chip.title} ${words}` };
+  // "Clean used no AI." stays the last words when the page tasks of round 2 put theirs first.
+  const clean = / ?Clean used no AI\.$/.test(chip.title);
+  const before = clean ? chip.title.replace(/ ?Clean used no AI\.$/, "") : chip.title;
+  return { ...chip, data, ...(cloud ? { src: "in_cloud", text: "In the cloud" } : {}), title: `${before} ${words}${clean ? " Clean used no AI." : ""}` };
 }
 
 // ---- the UI ------------------------------------------------------------------------------------------------------

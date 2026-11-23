@@ -55,7 +55,8 @@ test("plain: Plain rewrites the long blocks in place; a rewrite that loses a num
   const plain = frame.getByTestId("cap-plain");
   await expect(plain).toHaveText("Plain");
   await expect(page.locator("[data-distill-plain]")).toHaveCount(0); // never by itself
-  await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
+  // The claims and the gist may have run by themselves (cards 1 and 10); nothing says plain words ran yet.
+  await expect(frame.getByTestId("cap-chip")).not.toHaveAttribute("title", /plain words/i);
 
   await plain.click();
   await expect(status).toHaveText(new RegExp(`^${NUMBER_LOST} · `), { timeout: 15_000 });

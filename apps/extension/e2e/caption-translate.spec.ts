@@ -49,7 +49,7 @@ test("translate: a Czech page is translated in place on its own; Keep Czech, Ori
   await expect(chip).toHaveAttribute("data-src", "on_device");
   await expect(chip).toHaveAttribute("title", /translation from Czech ran on this device/);
   await expect(frame.getByTestId("cap-keep-source")).toHaveText("Keep Czech");
-  await expect(frame.getByRole("button")).toHaveCount(3); // Keep Czech, More, Original
+  await expect(frame.getByRole("button")).toHaveCount(4); // Keep Czech, Plain (r2-04), More, Original
 
   // The text is replaced block by block; links, bold, list items and table cells survive with their words.
   const page = tab.page;
