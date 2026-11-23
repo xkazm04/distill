@@ -30,3 +30,9 @@ export { parseCheck, CLAIM_VERDICTS, REASON_MAX, SOURCES_MAX, type CheckResult, 
 export { parseGist, findSentence, GIST_POINTS, GIST_POINT_MAX, type Gist, type GistPoint } from "./gist.js";
 export { keepsFacts, missingFacts, parsePlain, type Fact, type FactKind, type PlainResult } from "./plain.js";
 export { describeLink, readableHost, registrableDomain, PROGRAM_FILE_TYPES, TRACKING_PARAMS, type LinkNote } from "./links.js";
+// Spark universal-core round 3 (contract; each module is filled by its card's builder).
+export { readByline, bylineLine, type Byline } from "./byline.js";
+export { findActions, ACTION_KINDS, type ActionKind, type FoundAction } from "./actions.js";
+export { findPrices, convert, formatMoney, parseEcbRates, type FoundPrice, type Rates } from "./money.js";
+export { findDates, formatDate, type FoundDate } from "./dates.js";
+export { parseAnswer, QUESTION_MAX, ANSWER_MAX, type PageAnswer, type AnswerResult } from "./ask.js";

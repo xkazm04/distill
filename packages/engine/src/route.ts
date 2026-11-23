@@ -10,6 +10,7 @@ const CLASS_OF: Record<Task, PromptClass> = {
   findClaims: "page",
   checkClaim: "page",
   gist: "page",
+  askPage: "values",
   buildWizard: "structure",
   explainField: "structure",
   suggestValue: "values",

@@ -26,6 +26,12 @@ import { GistSection, useGist } from "./Gist";
 import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
 import { RememberSection, useRemember } from "./Remember";
+import { AskSection } from "./Ask";
+import { BylineSection } from "./Byline";
+import { ActionsSection } from "./Actions";
+import { TermsSection } from "./Terms";
+import { DarkSection } from "./Dark";
+import { ConsentSection } from "./Consent";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
   available: "AI model on this device: ready.",
@@ -147,6 +153,7 @@ function Caption() {
         {more && report && (
           <section className="more" id="cap-more" aria-label="More" data-testid="cap-more">
             <GistSection report={report} gist={gist} />
+            <AskSection report={report} setReport={setReport} />
             <div className="more-cols">
               <div>
                 <h2>What was removed ({removed} of {report.items.length})</h2>
@@ -179,6 +186,8 @@ function Caption() {
               </div>
             </div>
             <div className="more-extra">
+              <BylineSection report={report} setReport={setReport} />
+              <ActionsSection report={report} setReport={setReport} />
               <ChecksControls checks={checks} claims={claims.claims} />
               <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />
@@ -186,6 +195,9 @@ function Caption() {
               <ComfortSection report={report} setReport={setReport} />
               <CalmSection report={report} setReport={setReport} />
               <TablesLinksSection report={report} setReport={setReport} />
+              <TermsSection report={report} setReport={setReport} />
+              <DarkSection report={report} setReport={setReport} />
+              <ConsentSection report={report} setReport={setReport} />
               <RememberSection report={report} remember={remember} />
             </div>
           </section>

@@ -16,6 +16,11 @@ import { clearClaims, markClaims, readMainText, showText } from "./caption/claim
 import { setTables } from "./caption/tables";
 import { setLinks } from "./caption/links";
 import { applyPlain, plainBlocks, plainShown } from "./caption/translate";
+import { readByline } from "@distill/engine";
+import { setConsent } from "./caption/consent";
+import { setDark } from "./caption/dark";
+import { setTerms } from "./caption/terms";
+import { markActions, readActions, showAction } from "./caption/actions";
 
 declare global {
   interface Window { __distillContent?: true }
@@ -114,6 +119,20 @@ async function handle(req: ContentRequest): Promise<unknown> {
     }
     case "distill:caption:plainText": return { applied: applyPlain(req.blocks) };
     case "distill:caption:plainShown": return { shown: plainShown(req.on) };
+    // ---- round 3 ----
+    case "distill:caption:consent": return { consent: setConsent(document, req.on) };
+    case "distill:caption:dark": return setDark(document, window, req.on);
+    case "distill:caption:byline": return readByline(document);
+    case "distill:caption:terms": {
+      const ctx = caption.context();
+      return ctx ? setTerms(ctx, req) : { prices: 0, dates: 0 };
+    }
+    case "distill:caption:actions": {
+      const ctx = caption.context();
+      return ctx ? readActions(ctx) : [];
+    }
+    case "distill:caption:markActions": return { marked: markActions(document, req.on) };
+    case "distill:caption:showAction": return { found: showAction(document, req.id) };
   }
 }
 

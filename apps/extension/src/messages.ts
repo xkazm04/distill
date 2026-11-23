@@ -1,6 +1,6 @@
 // Messages between the side panel and the content script. Structure and values travel only inside the browser
 // (chrome.tabs.sendMessage); nothing here leaves the device.
-import type { ClaimVerdict, ClutterItem, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
+import type { Byline, ClaimVerdict, ClutterItem, FoundAction, Rates, FormErrors, FormStructure, FormValues, PageAction, PageKind, PageModel } from "@distill/engine";
 import type { PageThemeSeed } from "@distill/web/ui/theme/roles";
 
 export type ContentRequest =
@@ -83,7 +83,38 @@ export type ContentRequest =
   /** From the caption: put these plain words (they passed parsePlain) into the page; the page's words are kept. */
   | { type: "distill:caption:plainText"; blocks: TextBlock[] }
   /** From the caption: plain words on (true) or the words as written (false). */
-  | { type: "distill:caption:plainShown"; on: boolean };
+  | { type: "distill:caption:plainShown"; on: boolean }
+  // ---- spark universal-core, round 3 ----
+  /** From the caption: answer cookie banners with their reject button (true) or only hide them (false) (r3-04). */
+  | { type: "distill:caption:consent"; on: boolean }
+  /** From the caption: the page's own colours darkened with care (true) or as the page made them (false) (r3-06). */
+  | { type: "distill:caption:dark"; on: boolean }
+  /** From the caption: who wrote the page and when, from its own data (r3-05). */
+  | { type: "distill:caption:byline" }
+  /** From the caption: prices with the reader's currency and dates in the reader's terms beside them (true), or off
+   *  (r3-07). `rates` comes from the service worker (RatesRequest); without it only dates are written. */
+  | { type: "distill:caption:terms"; on: boolean; currency?: string; locale?: string; rates?: Rates }
+  /** From the caption: what this page asks of you, found in the main text (r3-09). */
+  | { type: "distill:caption:actions" }
+  /** From the caption: the light highlight on every action's exact words on (true) or off (r3-09). */
+  | { type: "distill:caption:markActions"; on: boolean }
+  /** From the caption: scroll to one action's words and flash them (r3-09). */
+  | { type: "distill:caption:showAction"; id: string };
+
+/** What happened to a cookie banner (r3-04): its reject button pressed, only hidden, none on the page, or the switch off. */
+export type ConsentOutcome = "rejected" | "hidden" | "none" | "off";
+
+/** An action found on the page (r3-09): page words only. */
+export type ActionItem = FoundAction;
+
+/** Caption frame -> service worker (r3-07): the ECB's daily rates, fetched at most once a day and kept on the device.
+ *  The request carries nothing about the page or the person. */
+export interface RatesRequest { type: "distill:rates" }
+export function isRatesRequest(m: unknown): m is RatesRequest {
+  return !!m && (m as Partial<RatesRequest>).type === "distill:rates";
+}
+/** The service worker's answer: the rates, or null when none could be had (offline and none kept). */
+export type RatesReply = Rates | null;
 
 /** A claim to mark on the page (r2-01): page text only. `verdict` once checked on the web (r2-02). */
 export interface ClaimMark { id: string; blockId: string; text: string; verdict?: ClaimVerdict }
@@ -157,6 +188,8 @@ export interface CleanReport {
   unstuck: number;
   /** Tables of the main text made readable: header kept in view, wide ones scroll inside themselves (r2-05). */
   tables: number;
+  /** What Clean did with a cookie banner (r3-04). Absent: the page side has not decided (older reports, tests). */
+  consent?: ConsentOutcome;
 }
 
 /** What distill:locate points at: a block of the PageModel or the fields of a form step (the shared UI's LocateTarget). */
@@ -204,6 +237,15 @@ export interface ContentReplies {
   "distill:caption:plainText": { applied: number };
   /** Blocks showing plain words now. */
   "distill:caption:plainShown": { shown: number };
+  // round 3
+  "distill:caption:consent": { consent: ConsentOutcome };
+  /** `alreadyDark`: the page was dark already, so nothing was changed. */
+  "distill:caption:dark": { dark: boolean; alreadyDark: boolean };
+  "distill:caption:byline": Byline;
+  "distill:caption:terms": { prices: number; dates: number };
+  "distill:caption:actions": ActionItem[];
+  "distill:caption:markActions": { marked: number };
+  "distill:caption:showAction": { found: boolean };
 }
 
 /**
