@@ -266,12 +266,14 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   /** Override with `test.use({ grantHelper: true })` for the scenarios that play the helper program (startAgent). */
   grantHelper: [false, { option: true }],
 
-  distill: async ({ demo, grantHosts, grantHelper }, use, info) => {
+  distill: async ({ demo, grantHosts, grantHelper, deviceScaleFactor }, use, info) => {
     const ext = prepareExtension(grantHosts, grantHelper);
     const profile = mkdtempSync(join(tmpdir(), "distill-e2e-profile-"));
     const context = await chromium.launchPersistentContext(profile, {
       channel: LAUNCH.channel,
       headless: LAUNCH.headless,
+      // Playwright's own option; the picture tests (caption-visual.spec.ts) fix it at 1, the same pixels on any display.
+      ...(deviceScaleFactor ? { deviceScaleFactor } : {}),
       args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
     });
     try {

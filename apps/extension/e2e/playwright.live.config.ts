@@ -7,7 +7,11 @@ export default defineConfig({
   testMatch: "*.live.ts",
   // The per-feature probes (live/probes/, round 1 of docs/caption.md) add minutes; they run only when asked:
   // E2E_PROBES=1 npm run e2e:live (all of them), or name one: npx playwright test -c e2e/playwright.live.config.ts probes/find
-  testIgnore: process.env.E2E_PROBES || process.argv.some((a) => a.includes("probes")) ? [] : ["probes/**"],
+  // The live picture test (visual.live.ts, r5-01) likewise: only E2E_VISUAL=1, or named: ... playwright.live.config.ts visual
+  testIgnore: [
+    ...(process.env.E2E_PROBES || process.argv.some((a) => a.includes("probes")) ? [] : ["probes/**"]),
+    ...(process.env.E2E_VISUAL || process.argv.slice(2).some((a) => a.includes("visual")) ? [] : ["visual.live.ts"]),
+  ],
   outputDir: "out/live/test-results",
   timeout: 150_000,
   expect: { timeout: 15_000 },
