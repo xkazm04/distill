@@ -21,6 +21,7 @@ import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
 import { ClaimsSection, useClaims } from "./Claims";
+import { ChecksControls, useChecks } from "./ClaimCheck";
 import { GistSection } from "./Gist";
 import { PlainRow } from "./Plain";
 import { TablesLinksSection } from "./Tables";
@@ -100,6 +101,8 @@ function Caption() {
   }, []);
   const translate = useTranslate(report);
   const claims = useClaims(report);
+  // The web check (r2-02) lives here, not only in More: after consent the top claims are checked while More is shut.
+  const checks = useChecks(claims.claims);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
@@ -174,6 +177,7 @@ function Caption() {
             <div className="more-extra">
               <GistSection report={report} />
               <ClaimsSection report={report} claims={claims} />
+              <ChecksControls checks={checks} claims={claims.claims} />
               <ContactSection report={report} />
               <FormCheckSection report={report} />
               <ComfortSection report={report} setReport={setReport} />
