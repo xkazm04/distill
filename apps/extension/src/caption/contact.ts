@@ -7,6 +7,8 @@ import type { ContactItem } from "../messages";
 
 /** Item id -> where it was found, by the last readContacts. Never leaves the page. */
 let where = new Map<string, Element>();
+/** Item id -> its words as listed, by the last readContacts (a tour's step highlights them, r4-08). */
+let words = new Map<string, string>();
 let unmark: ReturnType<typeof setTimeout> | null = null;
 /** How long "here it is" stays outlined. */
 const MARK_MS = 2400;
@@ -20,6 +22,7 @@ export function readContacts(doc: Document, removed: readonly Element[]): Contac
   const next = new Map<string, Element>();
   const found = findContacts(doc, { url: doc.location?.href ?? "", onElement: (id, el) => next.set(id, el) });
   where = next;
+  words = new Map(found.map((f) => [f.id, f.text]));
   return found.map((f) => {
     const el = next.get(f.id);
     const item: ContactItem = { id: f.id, kind: f.kind, text: f.text, hidden: !!el && removed.some((r) => r.hasAttribute(HIDE) && r.contains(el)) };
@@ -43,6 +46,14 @@ export function showContact(doc: Document, id: string): void {
   if (!el?.isConnected) throw new Error("That part of the page is no longer there.");
   if (hiddenByClean(doc, el)) return;
   markOnPage(doc, el);
+}
+
+/** Where item `id` was found and its words, for a tour's step (r4-08); null when that part of the page is gone or Clean
+ *  hid it (the original not shown). */
+export function contactPlace(doc: Document, id: string): { el: Element; text: string } | null {
+  const el = where.get(id);
+  if (!el?.isConnected || hiddenByClean(doc, el)) return null;
+  return { el, text: words.get(id) ?? "" };
 }
 
 /**
