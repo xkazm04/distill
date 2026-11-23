@@ -82,12 +82,18 @@ export function readActions(ctx: CleanContext): ActionItem[] {
     if (c.href) item.href = c.href;
     const k = keyOf(item);
     if (have.has(k)) continue;
-    // The finder joins lines of hours into one ("Po - Pá: 7.00 - 16.30; So: 8.00 - 11.00"): one already listed in part
-    // is the same hours.
+    // The finder joins lines of hours into one ("Po - Pá: 7.00 - 16.30; So: 8.00 - 11.00"): hours already listed in part
+    // are the same hours. The first of them says the whole week (its highlight stays on its own words), the rest go.
     if (item.kind === "hours") {
       const flat = (s: string) => s.toLowerCase().replace(/[\s.,;:–-]+/g, "");
       const all = flat(c.text);
-      if (found.some((f) => f.item.kind === "hours" && all.includes(flat(f.item.value ?? f.item.quote)))) continue;
+      const parts = found.filter((f) => f.item.kind === "hours" && all.includes(flat(f.item.value ?? f.item.quote)));
+      const [first, ...rest] = parts;
+      if (first) {
+        first.item = { ...first.item, text: item.text, value: c.text };
+        for (const r of rest) found.splice(found.indexOf(r), 1);
+        continue;
+      }
     }
     have.add(k);
     added++;
