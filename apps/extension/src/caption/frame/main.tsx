@@ -20,8 +20,8 @@ import { ComfortSection } from "./Comfort";
 import { ContactSection } from "./Contact";
 import { FormCheckRow, FormCheckSection } from "./FormCheck";
 import { sourceChip, TranslateRow, useTranslate } from "./Translate";
-import { ClaimsSection, useClaims } from "./Claims";
-import { GistSection } from "./Gist";
+import { ClaimsSection, useClaims, withPageTasks } from "./Claims";
+import { GistSection, useGist } from "./Gist";
 import { plainChip, PlainRow, usePlain, withPlain } from "./Plain";
 import { TablesLinksSection } from "./Tables";
 import { RememberSection } from "./Remember";
@@ -99,7 +99,8 @@ function Caption() {
     return () => chrome.runtime.onMessage.removeListener(onUpdate);
   }, []);
   const translate = useTranslate(report);
-  const claims = useClaims(report);
+  const claims = useClaims(report, translate.state);
+  const gist = useGist(report, translate.state);
   const plain = usePlain(report, translate);
 
   const toggleOriginal = useCallback(async () => {
@@ -134,13 +135,14 @@ function Caption() {
   }, [more, original, toggleOriginal]);
 
   const removed = report ? report.items.length - report.restored.length : 0;
-  const status = problem ?? (!report ? "Cleaning the page..." : withPlain(statusLine(report, translate.state), plain.state));
+  const status = problem ?? (!report ? "Cleaning the page..." : withPlain(statusLine(report, translate.state, claims.phase === "ready" ? claims.claims.length : 0), plain.state));
 
   return (
     <div className="cap" ref={root} data-testid="caption">
       <div className="cap-in">
         {more && report && (
           <section className="more" id="cap-more" aria-label="More" data-testid="cap-more">
+            <GistSection report={report} gist={gist} />
             <div className="more-cols">
               <div>
                 <h2>What was removed ({removed} of {report.items.length})</h2>
@@ -173,7 +175,6 @@ function Caption() {
               </div>
             </div>
             <div className="more-extra">
-              <GistSection report={report} />
               <ClaimsSection report={report} claims={claims} />
               <ContactSection report={report} />
               <FormCheckSection report={report} />
@@ -196,7 +197,7 @@ function Caption() {
             <img className="mark" src="icons/icon-32.png" alt="Distill" />
             <span className="status" role="status" data-testid="cap-status" title={status}>{status}</span>
             {report && (() => {
-              const chip = plainChip(sourceChip(translate.state), plain.state, translate.state.source);
+              const chip = withPageTasks(plainChip(sourceChip(translate.state), plain.state, translate.state.source), claims, gist);
               return <span className="chip" data-src={chip.src} tabIndex={0} title={chip.title} data-testid="cap-chip" {...chip.data}>{chip.text}</span>;
             })()}
             <span className="sp" />

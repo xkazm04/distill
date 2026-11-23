@@ -116,3 +116,21 @@ a.btn { text-decoration: none; }
 .more-extra > section[data-testid="cap-calm"] { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .more-extra > section[data-testid="cap-calm"] h2 { margin-bottom: 0; }
 .calm-line { margin: 0; font-size: 15px; color: var(--fg); }
+/* Round 2, r2-10 The gist first: three points at the top of More, each with Show me. */
+.more > .gist { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.gist-list, .claims-list { margin: 0; padding: 0 0 0 1.4em; display: grid; gap: 2px; }
+.gist-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 34px; font-size: 15px; }
+.gist-text { flex: 1 1 260px; min-width: 0; }
+/* Round 2, r2-01 Claims to check: the sentences, full width, each with its reason, Show me and the web check. */
+.more-extra > .claims { grid-column: 1 / -1; }
+.claims-list { max-height: 220px; overflow: auto; padding-right: 4px; }
+.claims-list li { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; min-height: 36px; }
+.claims-list li > .note { grid-column: 2 / -1; margin: 0; }
+.claim-why { font-size: 13px; color: var(--muted); }
+.claim-text { font-size: 15px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.claim-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.claims-where { margin: 0 0 4px; }
+@media (max-width: 560px) {
+  .claims-list li { grid-template-columns: minmax(0, 1fr); padding: 4px 0; }
+  .claims-list li > .note { grid-column: 1; }
+}
