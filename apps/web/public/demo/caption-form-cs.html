@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hlášení závad | Obec Lhota u Lesa</title>
+<style>
+body{font:16px/1.5 Arial,sans-serif;max-width:860px;margin:0 auto;padding:0 1rem;color:#222}
+header,nav,footer{background:#eef2ee;padding:.6rem;margin:.5rem 0;font-size:.9rem}
+fieldset{border:1px solid #bbb;margin:1rem 0;padding:.6rem 1rem}
+label{display:block;margin-top:.6rem;font-weight:bold}
+label.inline{display:inline;font-weight:normal}
+input[type=text],input[type=email],select,textarea{width:100%;font:inherit;padding:.3rem;box-sizing:border-box}
+.hint{color:#555;font-size:.85rem;display:block}
+.error-message{color:#b00020;display:block}
+.req{color:#b00020}
+button,input[type=submit]{font:inherit;padding:.4rem 1rem;margin-top:1rem}
+</style>
+</head>
+<body>
+<header><strong>Obec Lhota u Lesa</strong> <form id="search" role="search" action="#"><input name="q" placeholder="Hledat na webu"><input name="kde" placeholder="Kde"></form></header>
+<nav><a href="#">Úvod</a> | <a href="#">Úřad</a> | <a href="#">Hlášení závad</a></nav>
+<main>
+<h1>Hlášení závad</h1>
+<p>Pomocí tohoto formuláře nám můžete nahlásit závadu na veřejném osvětlení, silnici nebo jiném majetku obce.</p>
+<form id="report" action="/odeslat" method="post">
+  <fieldset>
+    <legend>Kdo závadu hlásí</legend>
+    <label for="jmeno">Jméno a příjmení <span class="req">*</span></label>
+    <input type="text" id="jmeno" name="jmeno" placeholder="Jan Novák" required>
+    <label for="email">E-mail</label>
+    <input type="email" id="email" name="email" placeholder="jan@example.cz" aria-describedby="email-hint">
+    <span class="hint" id="email-hint">Na tento e-mail vám pošleme odpověď.</span>
+    <span class="error-message" id="email-err" aria-live="polite"></span>
+  </fieldset>
+  <fieldset>
+    <legend>Co se stalo</legend>
+    <label for="druh">Druh závady</label>
+    <select id="druh" name="druh" aria-label="Vyberte druh závady">
+      <option value="">-- vyberte --</option>
+      <option value="osvetleni">Nesvítí lampa</option>
+      <optgroup label="Silnice a chodníky">
+        <option>Díra v silnici</option>
+        <option>Rozbitý chodník</option>
+      </optgroup>
+    </select>
+    <p>Jak je to naléhavé?</p>
+    <label class="inline"><input type="radio" name="nalehavost" value="hned"> Hned</label>
+    <label class="inline"><input type="radio" name="nalehavost" value="tyden" checked> Do týdne</label>
+    <label for="popis">Popis závady</label>
+    <textarea id="popis" name="popis" rows="3" placeholder="Popište, kde přesně závada je"></textarea>
+    <label class="inline"><input type="checkbox" name="souhlas" value="ano"> Souhlasím se zpracováním osobních údajů</label>
+  </fieldset>
+  <input type="submit" id="send" name="akce" value="Odeslat hlášení">
+  <button type="reset" id="clear">Vymazat formulář</button>
+</form>
+</main>
+<footer>© Obec Lhota u Lesa. Úřední deska. Kontakty.</footer>
+<script>
+// The demo's own checking and sending: every submission's data is kept for the test (nothing is sent anywhere).
+window.__submissions = [];
+document.getElementById("report").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const email = document.getElementById("email");
+  const err = document.getElementById("email-err");
+  if (email.value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)) {
+    err.textContent = "Adresa „" + email.value + "“ není platná e-mailová adresa.";
+    email.setAttribute("aria-invalid", "true");
+    email.setAttribute("aria-describedby", "email-hint email-err");
+    return;
+  }
+  err.textContent = "";
+  email.removeAttribute("aria-invalid");
+  email.setAttribute("aria-describedby", "email-hint");
+  window.__submissions.push(Array.from(new FormData(form, e.submitter).entries()).map(([k, v]) => k + "=" + v));
+});
+</script>
+</body>
+</html>
