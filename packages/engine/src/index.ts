@@ -28,5 +28,5 @@ export { READING, columnWidth, dominantSize, isLargeText, lineHeightFor, measure
 export { findClaimCandidates, parseClaims, CLAIM_WHY, type Claim, type ClaimPick, type ClaimWhy } from "./claims.js";
 export { parseCheck, CLAIM_VERDICTS, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
 export { parseGist, GIST_POINTS, type Gist, type GistPoint } from "./gist.js";
-export { keepsFacts, parsePlain, type PlainResult } from "./plain.js";
+export { keepsFacts, missingFacts, parsePlain, type Fact, type FactKind, type PlainResult } from "./plain.js";
 export { describeLink, type LinkNote } from "./links.js";
