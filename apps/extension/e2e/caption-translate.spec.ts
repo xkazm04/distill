@@ -69,9 +69,10 @@ test("translate: a Czech page is translated in place on its own; Keep Czech, Ori
   const translated = await page.locator("[data-distill-translated]").count();
   expect(translated).toBeGreaterThanOrEqual(12);
 
-  // The form is never touched: its words, its fields and what the person typed stay as they are.
-  await expect(page.locator("#comment p")).toHaveText("Napište nám připomínku");
-  await expect(page.locator("label[for=jmeno]")).toHaveText("Jméno");
+  // r4-04: the form in the main area has its own words translated (labels, its line, its button); its fields and what
+  // the person typed stay exactly as they are (caption-form-translate.spec.ts checks the form in full).
+  await expect(page.locator("#comment p")).toHaveText("[EN] Napište nám připomínku");
+  await expect(page.locator("label[for=jmeno]")).toHaveText("[EN] Jméno");
   await expect(page.locator("#jmeno")).toHaveValue("Zkouška Hodnoty");
   await expect(page.locator("#pripominka")).toHaveValue("Moje připomínka 4711");
   expect(await page.locator("article").innerHTML()).not.toContain("[EN] Zkouška");
