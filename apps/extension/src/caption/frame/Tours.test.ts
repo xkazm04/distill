@@ -87,6 +87,11 @@ describe("buildTours", () => {
   it("a page with only hidden contacts offers no call tour", () => {
     expect(buildTours({ ...none, contacts: [contact("k0", "phone", "123", { hidden: true })] }, NOW)).toEqual([]);
   });
+  it("things to do in a part Clean hid (r4-01) are left out: a tour steps over the page as Distill shows it", () => {
+    const hidden = { hidden: true };
+    const actions = [act("a0", "contact", "Call 793 987 362", { ...hidden, href: "tel:793987362" }), act("a1", "contact", "Address: Hlavní 1", hidden)];
+    expect(buildTours({ ...none, actions }, NOW)).toEqual([]);
+  });
 });
 
 describe("stepLine", () => {

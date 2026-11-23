@@ -98,14 +98,17 @@ export function buildTours(input: TourInput, now = new Date()): Tour[] {
   if (by && facts.length) facts.push({ label: by, step: null });
   add("facts", facts);
 
-  const reach = input.actions.filter((a) => (a.kind === "contact" && !isAddress(a)) || a.kind === "hours");
+  // A thing to do in a part Clean hid (r4-01) has no place on the page as Distill shows it: a tour steps over the
+  // page as it is, so it is left out (More lists it, and its Show me opens the original there).
+  const shown = input.actions.filter((a) => !a.hidden);
+  const reach = shown.filter((a) => (a.kind === "contact" && !isAddress(a)) || a.kind === "hours");
   add("call", [
     ...reach.map((a) => ({ label: actionLabel(a), step: { kind: "action", id: a.id } as TourStep })),
     ...extraContacts(input, ["phone", "email", "hours", "contactPage"], reach),
   ]);
 
   // A sum to pay counts when it has a date to pay by ("Pay 800 Kč ... by 31. 3. 2027").
-  const go = input.actions.filter((a) => a.kind === "deadline" || a.kind === "bring" || isAddress(a) || (a.kind === "payment" && / by /.test(a.text)));
+  const go = shown.filter((a) => a.kind === "deadline" || a.kind === "bring" || isAddress(a) || (a.kind === "payment" && / by /.test(a.text)));
   add("before", [
     ...go.map((a) => ({ label: actionLabel(a), step: { kind: "action", id: a.id } as TourStep })),
     ...extraContacts(input, ["address"], go.filter(isAddress)),
