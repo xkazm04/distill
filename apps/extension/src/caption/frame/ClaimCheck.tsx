@@ -7,7 +7,7 @@
 // person is asked once; the answer stays on this device (chrome.storage.local). After yes, the first three claims of
 // an article are checked by themselves (once per page) unless the switch in More is off; every other claim on a click.
 import { useEffect, useSyncExternalStore } from "react";
-import { parseCheck, prompts, route, type Claim, type ClaimCheck as Check, type ClaimVerdict, type InferenceSource } from "@distill/engine";
+import { parseCheck, prompts, route, topClaims, type Claim, type ClaimCheck as Check, type ClaimVerdict, type InferenceSource } from "@distill/engine";
 import { entryPointOf, isOnDeviceOnlyBuild, runGrounded, toAiError, AI_WORDS, type AiFailure, type GroundedResult } from "@distill/web/ai";
 import { send } from "./send";
 import { readerLang } from "./Translate";
@@ -229,7 +229,7 @@ function request(claims: readonly Claim[], ask: string): void {
 function maybeAuto(): void {
   if (autoDone || !state.loaded || !state.consent || !state.auto || !state.available || !claimsNow.length) return;
   autoDone = true;
-  enqueue(claimsNow.slice(0, AUTO_TOP));
+  enqueue(topClaims(claimsNow, AUTO_TOP)); // r4-03: the ones the model found most important, not the first in the page
 }
 
 const actions = {
