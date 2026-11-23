@@ -33,7 +33,7 @@ describe("plainRun", () => {
     let calls = 0;
     const r = await plainRun(many, "cs", async (_p, batch) => {
       if (calls++) throw new Error("busy");
-      return ok({ blocks: batch.map((b) => ({ id: b.id, text: b.text })) });
+      return ok({ blocks: batch.map((b) => ({ id: b.id, text: `Jednoduše: ${b.text}` })) }); // a block sent back unchanged is not put (r4-03)
     }, async (b) => b.length);
     expect(r.applied).toBe(20);
     expect(r.error).toBeInstanceOf(Error);

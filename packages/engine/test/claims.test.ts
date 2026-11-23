@@ -96,9 +96,9 @@ const CANDIDATES: Claim[] = [
 ];
 
 describe("parseClaims (the door for findClaims)", () => {
-  it("keeps candidates by id, in document order, with the model's reason from the closed set", () => {
+  it("keeps candidates by id, in document order, with the model's reason from the closed set and its rank", () => {
     const r = parseClaims({ claims: [{ id: "c2", why: "quote" }, { id: "c0", why: "date" }] }, CANDIDATES);
-    expect(r).toEqual({ claims: [{ id: "c0", blockId: "t0", text: "A", why: "date" }, { id: "c2", blockId: "t2", text: "C", why: "quote" }], dropped: 0 });
+    expect(r).toEqual({ claims: [{ id: "c0", blockId: "t0", text: "A", why: "date", rank: 1 }, { id: "c2", blockId: "t2", text: "C", why: "quote", rank: 0 }], dropped: 0 });
   });
   it("drops an unknown id, a repeat, a reason outside the set, and a non-object; counts each", () => {
     const r = parseClaims({ claims: [{ id: "c9", why: "number" }, { id: "c1", why: "source" }, { id: "c1", why: "source" }, { id: "c0", why: "opinion" }, "c2", { id: "c2" }] }, CANDIDATES);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { keepsFacts, parsePlain, prompts, type TranslateBlock } from "../src/index.js";
-import { missingFacts, numberValues } from "../src/plain.js";
+import { compareWords, missingFacts, misspelled, notPlainer, numberValues } from "../src/plain.js";
 
 const kinds = (src: string, rw: string) => missingFacts(src, rw).map((f) => f.kind);
 
@@ -159,6 +159,54 @@ describe("parsePlain (the one door for plain words)", () => {
   it("answers nothing for an answer of the wrong shape", () => {
     expect(parsePlain(null, SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], lostIds: [], dropped: 0 });
     expect(parsePlain("Sure!", SOURCE)).toEqual({ blocks: [], lostFacts: 0, lostKinds: [], lostIds: [], dropped: 1 });
+  });
+
+  // r4-03: the real run of 2026-11-23 on Deník (gemini-3.5-flash-lite, plain words in Czech) answered with near copies
+  // that misspelled the page; the facts check passed all of them.
+  const DENIK: TranslateBlock[] = [
+    { id: "t1", text: "Řada lidí nechává peníze ležet na ulici. Jde například o příspěvek na bydlení, který může dosáhnout i několik tisíc korun. Nárok na něj mají ti, jimž náklady na bydlení stojí víc než 30 procent čistých příjmů. O příspěvek přitom nemusí žádat jen nájemník, ale třeba i majitel domu, OSVČ nebo lidé, kteří splácejí hypotéku." },
+    { id: "t2", text: "Požádat o příspěvek na bydlení není ostuda. Tvrdí to ministr práce a sociálních věcí Marian Jurečka (KDU-ČSL). „Nejvíce se zdražování dotkne jednočlenných a dvoučlenných domácností s nízkým příjmem, které vydají většinu peněz právě za bydlení a náklady s ním související. Typicky se jedná o samoživitele, osamělé seniory nebo lidi s handicapem,“ řekl nedávno ministr." },
+    { id: "t0", text: "Příspěvek na bydlení 2024: Jak podat žádost, kdo na něj má nárok, jaká je výše" },
+  ];
+  const REAL = { blocks: [
+    { id: "t0", text: "Příspěvek na bydlení 2024: Jak podat žádost, kdo na něj má nárok, jaká je výše" },
+    { id: "t1", text: "Řada lidí nechává peníze ležet na ulici. Jde například o příspěvek na bydlení, kter½ může dosáhnout i několik tísíc korun. Nárok na něj mávají ti, jimž náklady na bydlení stojí víc než 30 procent čistých příjmů. O příspěvek přitom nemusí žádat jen nájemník, ale třeba i majitel domu, OSVČ nebo lidí, kteří splácejí hypotéku." },
+    { id: "t2", text: "Požádat o příspěvek na bydlení nensí ostuda. Tvrdí to ministr práce a sociálních věci Marian Jurečka (KDU-ČSL). Nejvíce se zdražování dotkne jednočlenných a dvoučlenných domácností s nízkým příjmem, které vydají většinu penězi právě za bydlení a náklady s ním související. Typicky se jedná o samoživitele, osamělé seniory nebo lidi s handicapem, řekl nedávno ministr." },
+  ] };
+
+  it("refuses a near copy that misspells the page, and one with a symbol the page does not have (the real Deník answer)", () => {
+    expect(keepsFacts(DENIK[0]!.text, REAL.blocks[1]!.text)).toBe(true); // the facts door alone let it through
+    expect(notPlainer(DENIK[0]!.text, REAL.blocks[1]!.text)).toBe("odd");
+    expect(notPlainer(DENIK[1]!.text, REAL.blocks[2]!.text)).toBe("misspelled");
+    const r = parsePlain(REAL, DENIK);
+    expect(r.blocks).toEqual([]);
+    expect(r.dropped).toBe(2); // the unchanged headline is left alone, not counted
+    expect(r.lostFacts).toBe(0);
+  });
+
+  it("tells a misspelling from grammar: the start and the end stay, a letter or two inside changes", () => {
+    expect(misspelled("tisíc", "tísíc")).toBe(true);
+    expect(misspelled("mají", "mávají")).toBe(true);
+    expect(misspelled("není", "nensí")).toBe(true);
+    expect(misspelled("lidé", "lidí")).toBe(false); // another case ending
+    expect(misspelled("peněz", "penězi")).toBe(false);
+    expect(misspelled("benešov", "benešově")).toBe(false);
+    expect(misspelled("poplatek", "platba")).toBe(false); // another word
+    expect(compareWords("a b c d", "a b c d").similarity).toBe(1);
+  });
+
+  it("passes a near copy that swaps a hard word for an easy one, and a real rewrite", () => {
+    const src = SOURCE[1]!.text;
+    expect(parsePlain({ blocks: [{ id: "t1", text: "Správní poplatek ve výši 500 Kč se platí v hotovosti nebo převodem na účet obce." }] }, SOURCE).blocks).toHaveLength(1);
+    expect(notPlainer(src, "Poplatek je 500 Kč. Zaplaťte ho v hotovosti nebo na účet obce.")).toBeNull();
+    // The e2e stand-in ("[PLAIN] " + the block) is a near copy without misspellings: it passes.
+    expect(notPlainer(src, `[PLAIN] ${src}`)).toBeNull();
+  });
+
+  it("the prompt asks for correct words and lets a plain block stay as it is", () => {
+    const p = prompts.plainBlocks(DENIK, "cs");
+    expect(p).toContain("correct spelling");
+    expect(p).toContain("already plain");
   });
 
   it("the prompt asks for the facts to stay and the blocks to stay apart", () => {

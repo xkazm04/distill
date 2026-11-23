@@ -19,6 +19,7 @@ import fixtureList from "../../proof/fixtures/fixtures.json";
 import denik from "../../proof/fixtures/denik.html?raw";
 import aktualne from "../../proof/fixtures/aktualne.html?raw";
 import praslavice from "../../proof/fixtures/praslavice.html?raw";
+import { SearchSuggestions } from "../caption/frame/SearchSuggestions";
 import { runFixture, type Fixture } from "./run";
 import { answerLine, cleanLine, PROOF_KIND, toMarkdown, type FixtureResult, type ProofReport, type TaskResult } from "./report";
 
@@ -65,7 +66,7 @@ function TaskRow(props: { t: TaskResult }) {
   );
 }
 
-function FixtureCard(props: { f: FixtureResult }) {
+function FixtureCard(props: { f: FixtureResult; suggestions?: string }) {
   const { f } = props;
   return (
     <section className="fx" data-testid="proof-fixture" data-fixture={f.id}>
@@ -75,6 +76,8 @@ function FixtureCard(props: { f: FixtureResult }) {
         <thead><tr><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Where it ran</th><th scope="col">Time</th><th scope="col">Door left out</th><th scope="col">Answer</th></tr></thead>
         <tbody>{f.tasks.map((t) => <TaskRow key={t.task} t={t} />)}</tbody>
       </table>
+      {/* r4-03: the first web check's Google Search Suggestions, sealed as the strip shows them (r3-02). */}
+      <SearchSuggestions html={props.suggestions} />
     </section>
   );
 }
@@ -85,6 +88,7 @@ function Proof() {
   const [running, setRunning] = useState(false);
   const [now, setNow] = useState("");
   const [results, setResults] = useState<FixtureResult[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, string>>({});
   const [report, setReport] = useState<ProofReport | null>(null);
 
   if (isOnDeviceOnlyBuild()) return <main className="proof"><h1>Not in this build</h1></main>;
@@ -104,6 +108,7 @@ function Proof() {
   const run = async () => {
     setRunning(true);
     setResults([]);
+    setSuggestions({});
     setReport(null);
     const startedAt = new Date().toISOString();
     const before = await modelNow();
@@ -111,7 +116,11 @@ function Proof() {
     const all: FixtureResult[] = [];
     for (const f of FIXTURES) {
       setNow(`${f.title}: reading...`);
-      const r = await runFixture(f, mount, { canRun, onTask: (t) => setNow(`${f.title}: ${t.task} ${t.status} (${t.ms} ms)`) });
+      const r = await runFixture(f, mount, {
+        canRun,
+        onTask: (t) => setNow(`${f.title}: ${t.task} ${t.status} (${t.ms} ms)`),
+        onSuggestions: (html) => setSuggestions((s) => (s[f.id] ? s : { ...s, [f.id]: html })),
+      });
       all.push(r);
       setResults([...all]);
     }
@@ -149,7 +158,7 @@ function Proof() {
           {report.available ? "" : " No model could answer in this copy: every AI task was skipped."}
         </p>
       )}
-      {results.map((f) => <FixtureCard key={f.id} f={f} />)}
+      {results.map((f) => <FixtureCard key={f.id} f={f} suggestions={suggestions[f.id]} />)}
       <h2 className="sub">The page being read</h2>
       {/* No allow-scripts: the saved page's own scripts (none are kept) could never run; allow-same-origin lets
           Distill's page-side code read it as it reads a tab's page. */}

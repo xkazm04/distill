@@ -5,7 +5,7 @@
 // (parseTranslation, parseClaims, parseGist, parsePlain, parseCheck, entryPointOf). The fixture document stands in for
 // the page: it sits in a same-origin, script-free frame of the proof page, where the page-side modules read and change
 // it as they would a tab's page.
-import type { InferenceSource } from "@distill/engine";
+import { topClaims, type InferenceSource } from "@distill/engine";
 import { toAiError } from "@distill/web/ai";
 import type { CleanContext } from "../caption/context";
 import { hideRemoved, readForClean } from "../caption/page";
@@ -49,7 +49,7 @@ const skipped = (task: ProofTask, note: string): TaskResult => ({ task, status: 
 
 /** Every task on one fixture, in the strip's order: Clean, Translate, then claims and the gist on the main text as the
  *  page shows it, plain words, and the web check of the top claims (AUTO_TOP, as the strip checks them by itself). */
-export async function runFixture(f: Fixture, mount: Mount, opts: { canRun: boolean; onTask?: (r: TaskResult) => void }): Promise<FixtureResult> {
+export async function runFixture(f: Fixture, mount: Mount, opts: { canRun: boolean; onTask?: (r: TaskResult) => void; onSuggestions?: (html: string) => void }): Promise<FixtureResult> {
   const tasks: TaskResult[] = [];
   const done = (r: TaskResult) => { tasks.push(r); opts.onTask?.(r); return r; };
   const { doc, win } = await mount(f);
@@ -158,10 +158,11 @@ export async function runFixture(f: Fixture, mount: Mount, opts: { canRun: boole
       let dropped = 0;
       let failed = 0;
       let lastError: TaskError | undefined;
-      for (const claim of claims.slice(0, AUTO_TOP)) {
+      for (const claim of topClaims(claims, AUTO_TOP)) {
         try {
           const r = await checkClaim(claim, page);
           sources.push(r.source);
+          if (r.entry !== undefined) opts.onSuggestions?.(r.entry); // r4-03: shown on the proof page in the strip's sealed frame
           dropped += r.dropped;
           checks.push({
             claim: claim.text, ms: r.ms, source: r.source, dropped: r.dropped,

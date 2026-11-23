@@ -17,6 +17,9 @@ export interface Claim {
   /** The sentence exactly as the page has it (whitespace collapsed). */
   text: string;
   why: ClaimWhy;
+  /** r4-03: where the model put it in its answer (0 = the one it found most important). Only on claims the model kept;
+   *  the list stays in document order, and topClaims reads this. */
+  rank?: number;
 }
 
 /** The model keeps at most this many (the prompt asks for 12); more are counted as dropped. */
@@ -118,12 +121,53 @@ export function claimWhy(sentence: string): ClaimWhy | null {
   return null;
 }
 
+/**
+ * How a sentence leaves its quotation marks: `closes` when it closes a quote it did not open (the tail of a quote that
+ * began in an earlier sentence), `opens` when it opens one it does not close. Czech „…“, English “…”, «…», »…« and
+ * straight quotes.
+ */
+export function quoteEnds(s: string): { opens: boolean; closes: boolean } {
+  const stack: string[] = [];
+  let closes = false;
+  const chars = [...s];
+  chars.forEach((ch, i) => {
+    const top = stack[stack.length - 1];
+    // A mark right after a word or a stop closes; after a space or at the start it opens.
+    const afterWord = i > 0 && !/\s/u.test(chars[i - 1] as string);
+    const close = (opener: string) => { if (top === opener) stack.pop(); else if (!stack.length) closes = true; else stack.pop(); };
+    if (ch === "„" || ch === "«") stack.push(ch);
+    else if (ch === "“") { if (top === "„") stack.pop(); else if (afterWord && !stack.length) closes = true; else stack.push(ch); }
+    else if (ch === "”") close("“");
+    else if (ch === "»") close("«");
+    else if (ch === '"') { if (top === '"') stack.pop(); else if (afterWord && !stack.length) closes = true; else stack.push(ch); }
+  });
+  return { opens: stack.length > 0, closes };
+}
+
+/** A quote that runs over several sentences ends in its tail ("…,“ řekl ministr."): the tail alone is a scrap of the
+ *  quote. The sentences from the one that opened it (at most three back) to the tail become one, while that is at most
+ *  MAX_CHARS long; joined with one space, as the whitespace-collapsed block has them. */
+export function wholeQuotes(sentences: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const s of sentences) {
+    if (quoteEnds(s).closes) {
+      const back = [1, 2, 3].find((n) => n <= out.length && quoteEnds(out[out.length - n] as string).opens);
+      if (back) {
+        const joined = [...out.slice(out.length - back), s].join(" ");
+        if (joined.length <= MAX_CHARS) { out.splice(out.length - back, back, joined); continue; }
+      }
+    }
+    out.push(s);
+  }
+  return out;
+}
+
 /** Engine pass: candidate sentences of the main text, in document order, at most `max`. */
 export function findClaimCandidates(blocks: readonly TranslateBlock[], max = 40): Claim[] {
   const out: Claim[] = [];
   const seen = new Set<string>();
   for (const b of blocks) {
-    for (const text of splitSentences(b.text.replace(/\s+/g, " ").trim())) {
+    for (const text of wholeQuotes(splitSentences(b.text.replace(/\s+/g, " ").trim()))) {
       if (out.length >= max) return out;
       const why = claimWhy(text);
       if (!why || seen.has(text)) continue;
@@ -143,14 +187,15 @@ export interface ClaimPick {
 
 /**
  * The door for findClaims' answer ({claims: [{id, why}]}, or a bare list). Keeps only ids of `candidates`, once each,
- * with a `why` from CLAIM_WHY, at most MAX_CLAIMS; the text always comes from the candidate, never from the model.
+ * with a `why` from CLAIM_WHY, at most MAX_CLAIMS; the text always comes from the candidate, never from the model. Each
+ * kept claim carries its `rank` (its place among the entries the door kept).
  * Everything refused is counted.
  */
 export function parseClaims(answer: unknown, candidates: readonly Claim[]): ClaimPick {
   const list: unknown[] | null = Array.isArray(answer) ? answer : isObj(answer) && Array.isArray(answer.claims) ? answer.claims : null;
   if (!list) return { claims: [], dropped: answer === undefined || answer === null ? 0 : 1 };
   const byId = new Map(candidates.map((c) => [c.id, c]));
-  const kept = new Map<string, ClaimWhy>();
+  const kept = new Map<string, { why: ClaimWhy; rank: number }>();
   let dropped = 0;
   for (const item of list) {
     const { id, why } = (isObj(item) ? item : {}) as { id?: unknown; why?: unknown };
@@ -158,8 +203,22 @@ export function parseClaims(answer: unknown, candidates: readonly Claim[]): Clai
       dropped++;
       continue;
     }
-    kept.set(id, why as ClaimWhy);
+    kept.set(id, { why: why as ClaimWhy, rank: kept.size });
   }
-  const claims = candidates.filter((c) => kept.has(c.id)).map((c) => ({ ...c, why: kept.get(c.id) as ClaimWhy }));
+  const claims = candidates.filter((c) => kept.has(c.id)).map((c) => ({ ...c, ...(kept.get(c.id) as { why: ClaimWhy; rank: number }) }));
   return { claims, dropped };
+}
+
+/**
+ * The `n` claims the model found most important (its own order, which the prompt asks for), for the web check the strip
+ * runs by itself. The real run of 2026-11-23 showed why document order is not enough: on Deník the first three in the
+ * page included "Tvrdí to ministr..." ("The minister says so"), which says nothing on its own. Claims without a rank
+ * come after, in document order.
+ */
+export function topClaims<C extends Pick<Claim, "rank">>(claims: readonly C[], n: number): C[] {
+  return claims
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => (a.c.rank ?? Infinity) - (b.c.rank ?? Infinity) || a.i - b.i)
+    .slice(0, n)
+    .map((x) => x.c);
 }

@@ -499,6 +499,34 @@ Live, 2026-11-23:
   - cs.wikipedia does not switch to its own dark mode under a dark scheme for an anonymous reader, so Distill darkens
     it.
 
+## Round 4, r4-03: the AI tuned from the proof report (2026-11-23)
+
+The Director ran the proof page with the owner's own build and Firebase project in Playwright's Chromium. That browser
+has no Gemini Nano, so every task ran in the cloud (`gemini-3.5-flash-lite`). Evidence, with every attempt:
+`.spark/Spark/evidence/r4/r4-03-*`. The before and after answers side by side: `r4-03-compare.md`.
+
+What the real answers showed, and what changed:
+- **Plain words** (Deník in Czech): near copies with misspellings ("tísíc", "mávají", "nensí", "kter½"), all passed by
+  the facts check. `parsePlain` now also asks `notPlainer`. A symbol the source does not have, or a near copy (80% of
+  the words the same) with a word misspelled inside it (start and end kept, a letter or two changed), is refused and
+  counted. A block sent back unchanged is left alone. A changed ending (a Czech case) or a hard word swapped for an
+  easy one still passes.
+- **Claims**: "Tvrdí to ministr..." ("The minister says so"), the tail of a two-sentence quote, and the sums of one
+  example household. `wholeQuotes` joins a quote over several sentences with who said it (`quoteEnds` reads „…“, “…”,
+  «…» and straight quotes). The prompt asks for sentences that make sense on their own and no worked examples. Each kept
+  claim carries the model's `rank`, and the strip's automatic check takes `topClaims(claims, AUTO_TOP)`, not the first
+  three in the page.
+- **Gist**: a point rested on a quote that did not say it. The prompt asks for a sentence that states the point.
+- **Translate**: good where it answered; unchanged. **Limits** (`TASK_CHARS`): unchanged.
+- **The web check never answered**: a 429 from the project's free-tier quota on every attempt. The proof page now shows
+  a check's Search Suggestions in the strip's sealed frame, for the run that gets them.
+
+What a run on this project meets, whatever the code:
+- 500 "high demand" on flash-lite.
+- 429 at 15 requests a minute (`GenerateRequestsPerMinutePerProjectPerModel-FreeTier`). An article page alone makes
+  about 10 to 14 calls: two translate batches, claims, gist, three checks and the retries.
+- After a 5xx, Chromium throttles the extension's requests, and the strip then says "something went wrong", not "busy".
+
 ## Code map
 
 | File | Role |

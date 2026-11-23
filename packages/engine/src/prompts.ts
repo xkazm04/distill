@@ -242,7 +242,9 @@ export const prompts = {
   findClaims: (candidates: readonly { id: string; text: string }[]): string =>
     [
       "Below are sentences from a news article or a web page. Keep only the ones that state a fact a reader could check with other sources: a number, a date, a quote attributed to someone, a study or report, or a claimed cause. Leave out opinions, questions, predictions and plain descriptions.",
-      "Answer with JSON only: {\"claims\": [{\"id\": \"<id>\", \"why\": \"number\" | \"date\" | \"quote\" | \"source\" | \"cause\"}]}, at most 12 entries, the most important first.",
+      // r4-03: the real run kept "Tvrdí to ministr..." ("The minister says so") and five sums of one example household.
+      "Each kept sentence must make sense on its own: leave out one that only points back to an earlier sentence (\"The minister says so.\", \"He agrees with her.\"). Leave out worked examples and sample calculations about one household or an unnamed person (\"A widow in a small town gets 2,660 a month.\"): no other source can confirm them. Prefer the rules, official figures, statistics and statements of fact by named people or bodies that a reader would most want confirmed.",
+      "Answer with JSON only: {\"claims\": [{\"id\": \"<id>\", \"why\": \"number\" | \"date\" | \"quote\" | \"source\" | \"cause\"}]}, at most 12 entries, the most important first. Fewer is better than weak ones; an empty list is a fine answer.",
       GUARD,
       "<sentences>",
       ...candidates.map((c) => `[${c.id}] ${oneLine(c.text)}`),
@@ -265,6 +267,8 @@ export const prompts = {
   gist: (blocks: readonly TranslateBlock[], readerLang = "en"): string =>
     [
       `Write the three most important points of this article in ${langName(readerLang)}, each one short plain sentence. For each point give the id of the block it came from and copy the one sentence of that block it rests on exactly as written.`,
+      // r4-03: the real run rested "Many people do not apply although they are entitled" on the quote "They see it as begging."
+      "That sentence must itself state the point, so a reader who reads only it sees the point is true; a quote or a sentence next to it is not enough. Each point says something new: do not repeat the headline, and do not give two points from the same fact.",
       "Answer with JSON only: {\"points\": [{\"text\": \"<point>\", \"blockId\": \"<id>\", \"sentence\": \"<exact sentence>\"}]}. Plain text only.",
       GUARD,
       "<blocks>",
@@ -309,6 +313,8 @@ export const prompts = {
   plainBlocks: (blocks: readonly TranslateBlock[], lang = "und"): string =>
     [
       `Rewrite each block below in plain words${lang === "und" ? "" : `, in ${langName(lang)}`}: short sentences, common words, the same meaning. Keep every number, date, amount, name and address exactly as written. Do not add, explain or leave out anything.`,
+      // r4-03: the real run answered Czech blocks with near copies that misspelled the page's words.
+      "Split long sentences and replace hard words with everyday ones; do not just copy the block. Write with correct spelling and grammar. A block that is already plain (a heading, a short line) may stay exactly as it is.",
       "Answer with JSON only: {\"blocks\": [{\"id\": \"<id>\", \"text\": \"<rewrite>\"}]}, one entry per block. Plain text only: no HTML, no markdown.",
       GUARD,
       "<blocks>",
