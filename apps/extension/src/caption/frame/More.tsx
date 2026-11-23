@@ -192,10 +192,10 @@ export function More(props: MoreProps) {
           const n = props.counts?.[p];
           return (
             <button key={p} type="button" role="tab" id={`cap-tab-${p}`} aria-controls={`cap-part-${p}`} aria-selected={p === active}
-              tabIndex={p === active ? 0 : -1} className="more-tab" aria-label={`${PART_LABEL[p].long}${n ? ` (${n})` : ""}`} data-testid={`cap-tab-${p}`} ref={(el) => { tabs.current[p] = el; }}
+              tabIndex={p === active ? 0 : -1} className="more-tab" data-testid={`cap-tab-${p}`} ref={(el) => { tabs.current[p] = el; }}
               onClick={() => choose(p)}>
               <span className="tab-long">{PART_LABEL[p].long}</span><span className="tab-short">{PART_LABEL[p].short}</span>
-              {n !== undefined && n > 0 && <span className="k-count" aria-hidden="true">{n}</span>}
+              {n !== undefined && n > 0 && <span className="k-count"><span className="vh"> (</span>{n}<span className="vh">)</span></span>}
             </button>
           );
         })}

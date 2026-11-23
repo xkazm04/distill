@@ -62,12 +62,12 @@ export function FirstLine(props: { sentence: Sentence; chips: FactChip[]; full: 
         <span className="fl-sentence" aria-hidden="true" data-testid="cap-sentence">{layout.short ? props.sentence.short : props.sentence.long}</span>
         {shown.map((c) => (
           <button key={c.id} type="button" className="fact" data-testid="cap-fact" data-fact={c.id} data-part={c.part} title={c.title}
-            aria-label={c.title} onClick={() => props.open(c.part)}><span className="fact-in">{c.text}</span></button>
+            onClick={() => props.open(c.part)}><span className="fact-in">{c.text}</span></button>
         ))}
         {folded.length > 0 && (
           <button type="button" className="fact fact-more" data-testid="cap-fact-more" data-part={folded[0]?.part}
-            title={folded.map((c) => c.text).join(", ")} aria-label={`${folded.length} more: ${folded.map((c) => c.text).join(", ")}. Open More.`}
-            onClick={() => props.open(folded[0]?.part ?? "page")}><span className="fact-in">+{folded.length}</span></button>
+            title={folded.map((c) => c.text).join(", ")}
+            onClick={() => props.open(folded[0]?.part ?? "page")}><span className="fact-in">+{folded.length}<span className="vh"> more: {folded.map((c) => c.text).join(", ")}. Open More.</span></span></button>
         )}
       </span>
       {/* The same pieces, unseen, to measure them (fonts and sizes as drawn). */}

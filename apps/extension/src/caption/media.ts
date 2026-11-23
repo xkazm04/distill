@@ -273,14 +273,18 @@ function fold(g: { container: Element; items: Element[] }, doc: Document): void 
   const button = doc.createElement("button");
   button.type = "button";
   button.textContent = `+${n} ${n === 1 ? "photo" : "photos"}`;
-  button.setAttribute("aria-label", `Show ${n} more ${n === 1 ? "photo" : "photos"}`);
+  // Its name is its words (r5-10: a spoken name that differs from the visible one fails voice control).
+  button.title = `Show ${n} more ${n === 1 ? "photo" : "photos"}`;
   button.setAttribute("aria-expanded", "false");
   for (const [k, v] of Object.entries({
-    font: "inherit", "font-size": "1em", "line-height": "1.4", color: "inherit", background: "transparent",
+    font: "inherit", "font-size": "1em", color: "inherit", background: "transparent",
     border: "1px solid currentColor", "border-radius": "999px", padding: "0.35em 0.9em", margin: "0.5em 0", cursor: "pointer",
     display: "inline-block", width: "auto", height: "auto", "min-height": "44px", "align-self": "start", "justify-self": "start",
-    "text-transform": "none", "letter-spacing": "normal", opacity: "1", visibility: "visible", position: "static",
+    "text-transform": "none", opacity: "1", visibility: "visible", position: "static",
   })) button.style.setProperty(k, v, "important");
+  // Text spacing stays the reader's to change (WCAG 1.4.12): set, never !important (axe avoid-inline-spacing).
+  button.style.setProperty("line-height", "1.4");
+  button.style.setProperty("letter-spacing", "normal");
   // In a list, a list item holds the button.
   const list = /^(ul|ol)$/.test(g.container.localName);
   const opener = list ? doc.createElement("li") : button;
