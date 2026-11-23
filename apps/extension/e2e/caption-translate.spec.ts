@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { BAR, baseline, captionFrame, firstSight, measure, startCaption } from "./caption";
+import { BAR, baseline, captionFrame, firstSight, measure, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** caption/frame/Translate.tsx E2E_FAKE_AI_KEY: the fake model's switch, read by the e2e build only. */
@@ -52,7 +52,7 @@ test("translate: a Czech page is translated in place on its own; Keep Czech, Ori
   await expect(chip).toHaveAttribute("data-src", "on_device");
   await expect(chip).toHaveAttribute("title", /translation from Czech ran on this device/);
   await expect(frame.getByTestId("cap-keep-source")).toHaveText("Keep Czech");
-  await expect(frame.getByRole("button")).toHaveCount(4); // Keep Czech, Plain (r2-04), More, Original
+  await expect(frame.getByTestId("cap-row").locator(":scope > button")).toHaveCount(4); // Keep Czech, Plain (r2-04), More, Original
 
   // The text is replaced block by block; links, bold, list items and table cells survive with their words.
   const page = tab.page;
@@ -211,6 +211,7 @@ test("translate: text the page adds or rewrites later is translated too; Keep Cz
 
   // The comments Clean removed, brought back from More: translated too.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Comments again" }).click();
   await frame.getByTestId("cap-more-btn").click();
   await expect(page.locator("#komentare")).toBeVisible();

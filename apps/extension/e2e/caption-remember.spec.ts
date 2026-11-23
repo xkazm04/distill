@@ -9,7 +9,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** Screenshots for the review: e2e/out always, and SPARK_EVIDENCE (a folder) as JPG when set. */
@@ -48,6 +48,7 @@ async function rememberSite(worker: Worker, tab: { page: Page; id: number }): Pr
 }
 
 async function switchOn(frame: Frame, site: string) {
+  await showPart(frame, "cap-remember-switch"); // r5-02: Settings
   const sw = frame.getByTestId("cap-remember-switch");
   await expect(sw).not.toBeChecked();
   await sw.click();
@@ -80,6 +81,7 @@ test("remember: switched on, the next load opens the strip by itself, Clean runs
   await firstSight(frame);
   const clickMs = Date.now() - t0;
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
 
   // Show one removed item again, then remember the site.
   const items = frame.getByTestId("cap-removed-item");
@@ -102,6 +104,7 @@ test("remember: switched on, the next load opens the strip by itself, Clean runs
   await settled(tab.page);
   await shot(tab.page, "reload"); // the strip came by itself; the item shown again is on the page
   await again.getByTestId("cap-more-btn").click();
+  await showPart(again, "cap-removed-item"); // r5-02: its part of More
   const back = again.getByTestId("cap-removed-item").filter({ hasText: label });
   await expect(back.first()).toContainText("Back on the page");
   await expect(again.getByTestId("cap-remember-switch")).toBeChecked();
@@ -158,6 +161,7 @@ test("remember: Easier to read switched off stays off on the next load, and its 
   const tab = await distill.openTab("caption-comfort");
   await tab.page.setViewportSize({ width: 1440, height: 900 });
   const frame = await rememberSite(distill.worker, tab);
+  await showPart(frame, "cap-comfort"); // r5-02: Settings
   await frame.getByTestId("cap-comfort").click();
   await expect(frame.getByTestId("cap-comfort")).not.toBeChecked();
   await switchOn(frame, new URL(demo.origin).host);
@@ -165,6 +169,7 @@ test("remember: Easier to read switched off stays off on the next load, and its 
 
   const { frame: again } = await reloadToStrip(tab.page);
   await again.getByTestId("cap-more-btn").click();
+  await showPart(again, "cap-comfort"); // r5-02: its part of More
   await expect(again.getByTestId("cap-comfort")).not.toBeChecked();
   await expect(tab.page.locator("html")).toHaveAttribute("data-distill-comfort-off", "");
 });
@@ -174,6 +179,7 @@ test("remember: Forget gives the site back; the next load opens nothing", async 
   const tab = await distill.openTab("article");
   const frame = await rememberSite(distill.worker, tab);
   await switchOn(frame, new URL(demo.origin).host);
+  await showPart(frame, "cap-remember-forget"); // r5-02: its part of More
   await frame.getByTestId("cap-remember-forget").click();
   await expect(frame.getByTestId("cap-remember-switch")).not.toBeChecked();
   await expect(frame.getByTestId("cap-remember-note")).toHaveCount(0);
@@ -203,6 +209,7 @@ test("remember: closed on an auto-opened page it stays closed until the next loa
   await switchOn(frame, new URL(demo.origin).host);
   const { frame: again } = await reloadToStrip(tab.page);
   await again.getByTestId("cap-more-btn").click();
+  await showPart(again, "cap-close"); // r5-02: its part of More
   await again.getByTestId("cap-close").click();
   await expect(tab.page.locator("distill-caption")).toHaveCount(0);
   await expect(tab.page.locator("[data-distill-hide]")).toHaveCount(0); // everything back, as today

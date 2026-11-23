@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -42,9 +42,11 @@ test("loose ends: hidden contacts count and Show me opens the original; empty bo
   for (const sel of ["#bar", "#tip"]) expect(await shown(page, sel), sel).toBe(false);
   for (const sel of ["#p1", "#p2", "#p3", "#photo", "#adresa", "#hlaseni"]) expect(await shown(page, sel), sel).toBe(true);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   const removed = await frame.getByTestId("cap-removed-item").allTextContents();
   expect(removed.filter((t) => t.startsWith("Empty space"))).toHaveLength(2);
   // The "read also" link brought back comes back in its frame (the Empty space that held it comes back with it).
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Related links again" }).click();
   await expect.poll(() => shown(page, "#tip .related")).toBe(true);
   expect(await shown(page, "#bar")).toBe(false);
@@ -78,6 +80,7 @@ test("loose ends: hidden contacts count and Show me opens the original; empty bo
 
   // 2. Dark page, then a box that opens by its class later: darkened too, its text still reads.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-dark"); // r5-02: its part of More
   await frame.getByTestId("cap-dark").click();
   await expect(frame.getByTestId("cap-dark")).toBeChecked();
   await frame.getByTestId("cap-more-btn").click();

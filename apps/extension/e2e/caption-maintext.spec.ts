@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -49,6 +49,7 @@ test("main text: starts with the lead, leaves out the headline, credit, caption,
 
   // More lists what went, the promo by its own name, and each can be shown again.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   const items = frame.getByTestId("cap-removed-item");
   await expect(items.filter({ hasText: "Site promotion" })).toHaveCount(1);
   expect(await items.filter({ hasText: "Advert" }).count()).toBeGreaterThanOrEqual(2);

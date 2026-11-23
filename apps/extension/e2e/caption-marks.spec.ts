@@ -8,7 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 import { contrastOf, markColours, marksNow } from "./marks";
 
@@ -21,9 +21,11 @@ const shot = async (page: Page, name: string) => {
 async function fakeModel(worker: Worker) {
   await worker.evaluate(async () => { await chrome.storage.session.set({ "distill:e2e:fakeAi": {} }); });
 }
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 const unwrapTerms = (html: string) => html.replace(/<span data-distill-term="[a-z]+" data-distill-term-add="[^"]*" title="[^"]*">([^<]*)<\/span>/g, "$1");
 const article = (page: Page) => page.locator("article").evaluate((el) => el.innerHTML)
@@ -63,7 +65,7 @@ test("marks: things to do get the quiet wash, Show me and a place get the active
   expect(texts).toContain("Kdo žádá o osvobození od poplatku, musí žádost podat do 28. 2. 2027.");
 
   // The key in More, in the Things to do section.
-  await openMore(frame);
+  await openMore(frame, "cap-actions");
   const key = frame.getByTestId("cap-actions").getByTestId("cap-marks-key");
   await expect(key).toBeVisible();
   await expect(key).toContainText("On the page:");
@@ -105,6 +107,7 @@ test("marks: things to do get the quiet wash, Show me and a place get the active
   expect([light!.colours.mark, light!.colours.markText]).toEqual(["rgb(255, 255, 0)", "rgb(0, 0, 0)"]);
 
   // Dark page on: the wash is weighed again on the new colours and the text on it still reads.
+  await showPart(frame, "cap-dark"); // r5-02: Settings
   await frame.getByTestId("cap-dark").click();
   await expect(frame.getByTestId("cap-dark")).toBeChecked();
   await page.waitForTimeout(500);
@@ -114,9 +117,11 @@ test("marks: things to do get the quiet wash, Show me and a place get the active
   expect(now.wash).toBe(dark!.wash);
   expect(dark!.textOnWash).toBeGreaterThanOrEqual(Math.min(4.5, dark!.text));
   expect(dark!.ring).toBeGreaterThanOrEqual(4.4);
+  await showPart(frame, "cap-actions");
   await items.nth(5).getByTestId("cap-action-show").click();
   await page.waitForTimeout(400);
   await shot(page, "r5-07-demo-darkpage");
+  await showPart(frame, "cap-dark");
   await frame.getByTestId("cap-dark").click();
   await expect(frame.getByTestId("cap-dark")).not.toBeChecked();
 
@@ -128,6 +133,7 @@ test("marks: things to do get the quiet wash, Show me and a place get the active
 
   // Close: nothing is left, and the article is as it was (a ring still up included).
   if (!(await frame.getByTestId("cap-more").isVisible())) await openMore(frame);
+  await showPart(frame, "cap-contact");
   await contact.getByRole("button", { name: "Show on page" }).click();
   await expect(page.locator("[data-distill-place]")).toHaveCount(1);
   expect(await startCaption(distill.worker, tab.id)).toBe(false);
@@ -154,7 +160,8 @@ test("marks: on a page dark already with grey text the wash is fainter and the t
   expect(now.wash).toBe(dark!.wash);
   expect(now.wash).toBeLessThan(32);
   expect(dark!.textOnWash).toBeGreaterThanOrEqual(4.5);
-  await openMore(frame);
+  await openMore(frame, "cap-actions");
+  await showPart(frame, "cap-action"); // r5-02: its part of More
   await frame.getByTestId("cap-action").first().getByTestId("cap-action-show").click();
   await page.waitForTimeout(400);
   await shot(page, "r5-07-demo-dark");
@@ -181,13 +188,14 @@ test("marks: claims are underlined quietly with one line style per verdict, the 
     expect(css).toContain(`::highlight(${name}) { text-decoration: underline ${line};`);
   }
 
-  await openMore(frame);
+  await openMore(frame, "cap-claims");
   const key = frame.getByTestId("cap-claims").getByTestId("cap-marks-key");
   await expect(key).toBeVisible();
   expect(await key.locator("[data-mark]").evaluateAll((els) => els.map((e) => e.getAttribute("data-mark")))).toEqual(["claim", "supported", "disputed", "mixed", "notFound", "active"]);
   // A screen reader hears how each sample looks.
   await expect(key).toContainText("wavy underline: disputed");
 
+  await showPart(frame, "cap-claim-show"); // r5-02: its part of More
   await frame.getByTestId("cap-claim-show").nth(1).click();
   await expect.poll(async () => (await marksNow(page)).ranges["distill-show"]).toBe(1);
   expect((await marksNow(page)).priority["distill-show"]).toBe(2);

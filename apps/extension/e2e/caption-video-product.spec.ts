@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -32,6 +32,7 @@ test("video: chapters from the description in More, a chapter moves the player, 
   await expect(frame.getByTestId("cap-video-skip")).toHaveCount(0);
 
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-chapter"); // r5-02: its part of More
   const chapters = frame.getByTestId("cap-chapter");
   await expect(chapters).toHaveCount(6);
   expect(await chapters.evaluateAll((els) => els.map((e) => [e.getAttribute("data-start"), e.querySelector(".video-title")?.textContent, e.hasAttribute("data-sponsor")]))).toEqual([
@@ -98,6 +99,7 @@ test("product (Czech shop): one card first in More, the page's words over the da
   const frame = await captionFrame(page);
   await firstSight(frame);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-product"); // r5-02: its part of More
   const card = frame.getByTestId("cap-product");
   await expect(card).toBeVisible();
   // First in More after Ask: nothing between them.
@@ -127,6 +129,7 @@ test("product (Czech shop): one card first in More, the page's words over the da
   await expect.poll(() => located(page), { timeout: 5_000 }).toEqual([]);
   await frame.locator("[data-testid=cap-product-fact][data-kind=price] [data-testid=cap-product-show]").click();
   await expect.poll(() => located(page)).toEqual(["price"]);
+  await showPart(frame, "cap-product-specs"); // r5-02: its part of More
   await frame.getByTestId("cap-product-specs").click();
   await frame.locator("[data-testid=cap-product-fact][data-kind=spec] [data-testid=cap-product-show]").first().click();
   await expect.poll(() => page.evaluate(() => document.querySelector("[data-distill-locate]")?.textContent)).toBe("1,7 l");
@@ -142,6 +145,7 @@ test("product (English shop, no structured data): price and old price, stock, pe
   const frame = await captionFrame(tab.page);
   await firstSight(frame);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-product"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-product")).toBeVisible();
   expect(await facts(frame)).toEqual([
     ["price", "£29.99", "page"],

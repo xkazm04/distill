@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -58,6 +58,7 @@ test("byline and actions: the strip says when and how much there is to do; More 
 
   // More: the byline from the structured data (the meta tag's 2001 date and author lose to it).
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-byline"); // r5-02: This page
   const byline = frame.getByTestId("cap-byline");
   await expect(byline).toHaveAttribute("data-from", "data");
   await expect(frame.getByTestId("cap-byline-published")).toContainText(/10 January 2023, 09:00 \((?:a year|\d+ years) ago\)/);
@@ -67,7 +68,8 @@ test("byline and actions: the strip says when and how much there is to do; More 
   await expect(byline).not.toContainText("2001");
   await expect(byline).not.toContainText("Meta-Autorová");
 
-  // The list, in reading order, each in the page's words with a few English ones.
+  // The list (r5-02: in Do), in reading order, each in the page's words with a few English ones.
+  await showPart(frame, "cap-actions");
   const items = frame.getByTestId("cap-action");
   await expect(items).toHaveCount(7);
   expect(await items.evaluateAll((els) => els.map((e) => e.getAttribute("data-kind")))).toEqual(["payment", "bring", "deadline", "bring", "hours", "contact", "contact"]);
@@ -116,6 +118,7 @@ test("byline and actions: a news article without a date says so in More only, an
   await tab.page.waitForTimeout(800);
   await expect(frame.getByTestId("cap-status")).not.toHaveText(/things? to do|Published/);
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-byline");
   await expect(frame.getByTestId("cap-byline-nodate")).toHaveText("No date on this page.");
   await expect(frame.getByTestId("cap-actions")).toHaveCount(0);
   expect((await highlights(tab.page)).ranges).toBe(0);

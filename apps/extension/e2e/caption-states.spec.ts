@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -14,9 +14,11 @@ async function fakeModel(worker: Worker, opts: { fail?: string; delayMs?: number
   await worker.evaluate(async (o) => { await chrome.storage.session.set({ "distill:e2e:fakeAi": o }); }, opts);
 }
 
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 
 const shot = async (page: Page, name: string) => {
@@ -64,6 +66,7 @@ test("waiting: the gist and the claims wait in their own shape, then answer; Ask
   // The web check waits beside its claim (after the one consent question).
   const first = frame.locator('[data-testid="cap-check"][data-claim]').nth(3);
   await first.getByTestId("cap-check-btn").click();
+  await showPart(frame, "cap-check-agree"); // r5-02: its part of More
   await frame.getByTestId("cap-check-agree").first().click();
   await expect(frame.getByTestId("cap-check-waiting").first()).toBeVisible();
   await expect(frame.getByTestId("cap-check-waiting").first()).toContainText("Checking...");
@@ -78,8 +81,10 @@ test("waiting: Ask this page waits in the shape of an answer, then answers", asy
   expect(await startCaption(distill.worker, tab.id)).toBe(true);
   const frame = await captionFrame(page);
   await firstSight(frame);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
+  await showPart(frame, "cap-ask-input"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-input").fill("When does the library open on Saturdays?");
+  await showPart(frame, "cap-ask-go"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-go").click();
   await expect(frame.getByTestId("cap-ask")).toHaveAttribute("data-phase", "asking");
   await expect(frame.getByTestId("cap-ask-waiting")).toContainText("Reading the page on this device...");
@@ -109,9 +114,11 @@ test("failed: the gist and the claims say why in one line, and Try again works o
 
   // The AI answers again: Try again brings the gist, then the claims (underlined and counted).
   await fakeModel(distill.worker, {});
+  await showPart(frame, "cap-gist-retry");
   await frame.getByTestId("cap-gist-retry").click();
   await expect(gist).toHaveAttribute("data-phase", "ready", { timeout: 10_000 });
   await expect(frame.getByTestId("cap-gist-point")).toHaveCount(3);
+  await showPart(frame, "cap-claims-retry");
   await frame.getByTestId("cap-claims-retry").click();
   await expect(claims).toHaveAttribute("data-phase", "ready", { timeout: 10_000 });
   await expect(frame.getByTestId("cap-claim")).toHaveCount(6);
@@ -127,16 +134,20 @@ test("failed: Ask says why and asks again with Try again; a missing model offers
   expect(await startCaption(distill.worker, tab.id)).toBe(true);
   const frame = await captionFrame(page);
   await firstSight(frame);
-  await openMore(frame);
+  await openMore(frame, "cap-ask");
+  await showPart(frame, "cap-ask-input"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-input").fill("When does the library open on Saturdays?");
+  await showPart(frame, "cap-ask-go"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-go").click();
   await expect(frame.getByTestId("cap-ask-failed")).toContainText("No answer: the AI is busy right now.", { timeout: 10_000 });
   await fakeModel(distill.worker, {});
+  await showPart(frame, "cap-ask-retry"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-retry").click();
   await expect(frame.getByTestId("cap-ask-answer")).toBeVisible({ timeout: 10_000 });
 
   // A model that is not there: trying again cannot help, so there is no Try again.
   await fakeModel(distill.worker, { fail: "device" });
+  await showPart(frame, "cap-ask-go"); // r5-02: its part of More
   await frame.getByTestId("cap-ask-go").click();
   await expect(frame.getByTestId("cap-ask-failed")).toBeVisible({ timeout: 10_000 });
   await expect(frame.getByTestId("cap-ask-retry")).toHaveCount(0);
@@ -167,7 +178,7 @@ test("reduced motion: the waiting placeholder holds still; with motion welcome i
   expect(await startCaption(distill.worker, tab.id)).toBe(true);
   const frame = await captionFrame(page);
   await firstSight(frame);
-  await openMore(frame);
+  await openMore(frame, "cap-gist");
   const bar = frame.getByTestId("cap-gist-waiting").locator(".k-wait-bar").first();
   await expect(bar).toBeVisible();
   expect(await bar.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);

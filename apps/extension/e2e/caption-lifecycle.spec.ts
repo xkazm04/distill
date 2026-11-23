@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** A picture of the moment for the review (e2e/out, git-ignored). */
@@ -49,6 +49,7 @@ test("caption-lifecycle: Calm pauses a second video that started by itself; only
   await settled(tab.page);
   await snap(tab.page, "second-video-paused");
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-calm"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-calm")).toContainText("Paused 1 video");
 });
 
@@ -63,6 +64,7 @@ test("caption-lifecycle: a small form of the article stays, a sign-up and a sear
   await expect(tab.page.locator("form.newsletter")).toBeHidden();
   await expect(tab.page.locator("header.site")).toBeHidden();
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   const labels = await frame.getByTestId("cap-removed-item").locator("span:first-child").allTextContents();
   expect(labels).toContain("Newsletter sign-up");
   expect(labels).not.toContain("Comments");
@@ -79,6 +81,7 @@ test("caption-lifecycle: a tall sticky header brought back from More scrolls wit
   await expect(header).toBeHidden();
 
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Site header again" }).click();
   await expect(header).toBeVisible();
   await expect(header).toHaveAttribute("data-distill-unstick", "sticky");
@@ -96,6 +99,7 @@ test("caption-lifecycle: a tall sticky header brought back from More scrolls wit
   // Show everything again: the same.
   await tab.page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show everything again" }).click();
   await expect(header).toHaveAttribute("data-distill-unstick", "sticky");
 
@@ -112,9 +116,11 @@ test("caption-lifecycle: after Play again, the next report reads no paused video
   const { frame, status } = await open(distill, tab);
   expect(status).toContain("Paused 1 video");
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-play"); // r5-02: its part of More
   await frame.getByTestId("cap-play").click();
   await expect(frame.getByTestId("cap-calm")).toHaveCount(0);
   // Right away (Stay clean has not looked again yet): bring an item back; its report must not say "Paused".
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   await frame.getByTestId("cap-removed-item").getByRole("button").first().click();
   const line = frame.getByTestId("cap-status");
   await expect(line).toContainText("1 back");
@@ -134,6 +140,7 @@ test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date,
   await expect(tab.page.locator(".reklama")).toBeHidden();
   await expect(tab.page.locator(".ticker marquee")).toHaveAttribute("data-distill-stopped", "", { timeout: 3_000 });
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-calm"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-calm")).toContainText("Paused 1 video and 2 moving parts");
   await frame.getByTestId("cap-more-btn").click();
   // More closes with a 220 ms slide: until the strip has settled it still covers the bottom of the window, and a click
@@ -151,6 +158,7 @@ test("caption-lifecycle: Stay clean keeps Calm and the reading layer up to date,
   await expect.poll(size, { timeout: 5_000 }).toBeGreaterThanOrEqual(16);
   await expect(tab.page.locator("article.partner marquee")).toHaveAttribute("data-distill-stopped", "");
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-comfort"); // r5-02: its part of More
   const sw = frame.getByTestId("cap-comfort");
   await expect(sw).toBeChecked();
   await settled(tab.page);
@@ -221,6 +229,7 @@ test("caption-lifecycle: the headline above the columns follows the centred colu
 
   // The sidebar back: the column and the headline take their own place again.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Sidebar again" }).click();
   await expect.poll(async () => (await headline(tab.page)).h1Left).toBe(before.h1Left);
   expect((await headline(tab.page)).textLeft).toBe(before.textLeft);

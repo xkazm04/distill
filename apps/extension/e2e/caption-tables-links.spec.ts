@@ -4,7 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, firstSight, settled, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 const EVIDENCE = process.env.E2E_EVIDENCE_DIR || join(OUT, "evidence");
@@ -89,6 +89,7 @@ test("caption tables: the header stays in view, a wide table scrolls inside itse
   expect(Math.abs(head.top - head.barBottom)).toBeLessThanOrEqual(2);
   // The person brings the site's slim sticky bar back: the table's header now sticks just below it, never under it.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Site header again" }).click();
   await frame.getByTestId("cap-more-btn").click();
   await settled(page);
@@ -112,6 +113,7 @@ test("caption tables: the header stays in view, a wide table scrolls inside itse
 
   // The switch in More: "Readable tables (3)", off shows the tables as the page made them, on brings them back.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-tables"); // r5-02: its part of More
   const box = frame.getByTestId("cap-tables");
   await expect(frame.getByTestId("cap-tables-section")).toContainText("Readable tables (3)");
   await expect(box).toBeChecked();
@@ -202,6 +204,7 @@ test("caption links: a note says where each link goes, Copy clean link, none on 
   // took away: brought back from More for this).
   await away();
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show everything again" }).click();
   await frame.getByTestId("cap-more-btn").click();
   await expect(page.locator("#menu")).toBeVisible();
@@ -238,6 +241,7 @@ test("caption links: a note says where each link goes, Copy clean link, none on 
   // The switch in More: off, no notes; on again.
   await away();
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-links"); // r5-02: its part of More
   const sw = frame.getByTestId("cap-links");
   await expect(sw).toBeChecked();
   await sw.click();

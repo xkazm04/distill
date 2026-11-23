@@ -1,6 +1,6 @@
 // The caption on the demo pages: the strip on the page itself (docs/caption.md, slice 1). Hermetic, like the rest of
 // this folder; the same measurements run on real sites in live/ (npm run e2e:live).
-import { BAR, baseline, captionFrame, firstSight, measure, settled, shownAgain, startCaption, stripFont } from "./caption";
+import { BAR, baseline, captionFrame, firstSight, measure, settled, shownAgain, showPart, startCaption, stripFont } from "./caption";
 import { expect, test } from "./harness";
 
 test("caption: the icon cleans the article in place, says what it did, and everything comes back", async ({ distill }) => {
@@ -16,7 +16,10 @@ test("caption: the icon cleans the article in place, says what it did, and every
   // r3-09: the article asks riders to send comments until 15 January: one thing to do.
   await expect(frame.getByTestId("cap-status")).toHaveText("Removed 6 distractions · 1 thing to do");
   await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
-  await expect(frame.getByRole("button")).toHaveCount(2); // More, Original
+  await expect(frame.getByTestId("cap-row").locator(":scope > button")).toHaveCount(2); // More, Original
+  // r5-03: what the eye reads: a sentence and the facts as chips (each opens its part of More).
+  await expect(frame.getByTestId("cap-sentence")).toHaveText("Page cleaned");
+  await expect(frame.getByTestId("cap-fact")).toHaveText(["6 removed", "1 to do"]);
   expect(await stripFont(frame)).toContain("Atkinson Hyperlegible Next");
 
   // The cookie banner, menu, ads and footer are gone; the article is all there.
@@ -34,9 +37,11 @@ test("caption: the icon cleans the article in place, says what it did, and every
 
   // More: the strip grows upward with what was removed; one item comes back.
   await frame.getByTestId("cap-more-btn").click();
+  await showPart(frame, "cap-removed-item"); // r5-02: its part of More
   await expect(frame.getByTestId("cap-more")).toBeVisible();
   await expect(frame.getByTestId("cap-removed-item")).toHaveCount(6);
   await expect(frame.getByTestId("cap-model")).toHaveAttribute("data-state", /^(available|downloadable|downloading|unavailable)$/);
+  await showPart(frame, "cap-removed"); // r5-02: What was removed
   await frame.getByRole("button", { name: "Show Cookie notice again" }).click();
   await expect(tab.page.locator(".banner")).toBeVisible();
   await expect(frame.getByTestId("cap-status")).toHaveText("Removed 6 distractions · 1 back · 1 thing to do");
@@ -70,11 +75,13 @@ test("caption: a Czech form keeps its form, and the strip offers only the form's
   expect(await firstSight(frame)).toBe("Nothing to remove · Page in Czech");
   // Ready to send? (#9, round 1): the form's progress and its next empty field are the one thing added. No tour or
   // other next step is suggested (owner decision 3).
-  await expect(frame.getByRole("button")).toHaveCount(3); // Form · Next, More, Original
-  await expect(frame.getByTestId("cap-form-next")).toBeVisible();
+  // r5-08: on a phone the row keeps More and Original, and the form's next field waits first in the sheet.
+  await expect(frame.getByTestId("cap-row").locator(":scope > button")).toHaveCount(2); // More, Original
   await expect(tab.page.locator("#jmeno")).toBeVisible();
   const m = await measure(tab.page, base);
   expect(m.strip.share).toBeLessThanOrEqual(BAR.sharePhone);
   expect(m.strip.onTop).toBe(true);
   expect(m.overflow).toBe(false);
+  await frame.getByTestId("cap-more-btn").click();
+  await expect(frame.getByTestId("cap-sheet-acts").getByTestId("cap-form-next")).toBeVisible();
 });

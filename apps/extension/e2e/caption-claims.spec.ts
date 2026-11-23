@@ -6,7 +6,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { captionFrame, firstSight, startCaption } from "./caption";
+import { captionFrame, firstSight, showPart, startCaption } from "./caption";
 import { expect, OUT, test } from "./harness";
 
 /** Screenshots for the spark board, outside the repo on purpose. */
@@ -35,9 +35,11 @@ const shot = async (page: Page, name: string) => {
   } catch { /* the evidence folder is a convenience of the owner's machine */ }
 };
 
-async function openMore(frame: Frame) {
+async function openMore(frame: Frame, part?: string) {
   await frame.getByTestId("cap-more-btn").click();
   await expect(frame.getByTestId("cap-more")).toBeVisible();
+  // r5-02: More is in parts; the section asked for is in its part.
+  if (part) await showPart(frame, part);
 }
 
 test("claims and gist: an English article gets its claims underlined, counted, listed with Show me, and its gist first", async ({ distill }) => {
@@ -79,8 +81,11 @@ test("claims and gist: an English article gets its claims underlined, counted, l
   await shot(page, "r2-01-demo");
   await page.evaluate(() => scrollTo(0, 0));
 
-  // More opens with the gist: three points, each from a sentence of the article, and where it was written.
+  // More, This page: the gist, three points, each from a sentence of the article, and where it was written. (r5-02:
+  // an article with claims opens More on Check; the gist leads This page.)
   await openMore(frame);
+  await expect(frame.getByTestId("cap-tab-check")).toHaveAttribute("aria-selected", "true");
+  await showPart(frame, "cap-gist");
   const gist = frame.getByTestId("cap-gist");
   await expect(gist).toHaveAttribute("data-phase", "ready");
   await expect(frame.getByTestId("cap-gist-point")).toHaveCount(3);
@@ -88,16 +93,18 @@ test("claims and gist: an English article gets its claims underlined, counted, l
   await expect(frame.getByTestId("cap-gist-point").first()).toContainText("[GIST] The city council voted on Tuesday to build a tram line");
   await expect(gist).not.toContainText("Riverside tram line approved");
   await expect(frame.getByTestId("cap-gist-where")).toContainText("Written on this device");
-  // The gist is the first thing in More.
-  expect(await frame.locator("#cap-more > *").first().getAttribute("data-testid")).toBe("cap-gist");
+  // The gist is the first thing in This page.
+  expect(await frame.locator("#cap-part-page > *").first().getAttribute("data-testid")).toBe("cap-gist");
 
   // Show me on the gist's third point: the page scrolls to it and highlights the sentence a moment.
+  await showPart(frame, "cap-gist-show"); // r5-02: its part of More
   await frame.getByTestId("cap-gist-show").nth(2).click();
   await expect.poll(async () => (await marks(page)).show).toBe(true);
   await page.waitForTimeout(600);
   await shot(page, "r2-10-demo");
 
-  // The claims in More: six, each with its reason and Show me.
+  // The claims in More (Check): six, each with its reason and Show me.
+  await showPart(frame, "cap-claims");
   const claims = frame.getByTestId("cap-claims");
   await expect(claims).toHaveAttribute("data-phase", "ready");
   await expect(frame.getByTestId("cap-claim")).toHaveCount(6);
@@ -106,6 +113,7 @@ test("claims and gist: an English article gets its claims underlined, counted, l
   await page.evaluate(() => scrollTo(0, 0));
   await page.waitForTimeout(2600); // the gist's highlight goes
   expect((await marks(page)).show).toBe(false);
+  await showPart(frame, "cap-claim-show"); // r5-02: its part of More
   await frame.getByTestId("cap-claim-show").nth(5).click();
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
   await expect.poll(async () => (await marks(page)).show).toBe(true);
@@ -192,13 +200,13 @@ test("claims: with no model nothing is shown as a claim, and More says why; no g
   await expect(frame.getByTestId("cap-chip")).toHaveText("No AI used");
   expect((await marks(tab.page)).ranges).toBe(0);
   await expect(tab.page.locator("[data-distill-claim]")).toHaveCount(0);
-  await openMore(frame);
+  await openMore(frame, "cap-claims");
   await expect(frame.getByTestId("cap-claims")).toContainText("needs an AI model, and none can run here");
   await expect(frame.getByTestId("cap-claim")).toHaveCount(0);
   await expect(frame.getByTestId("cap-gist")).toHaveCount(0);
 });
 
-test("claims: the phone status keeps to two lines with the count", async ({ distill }) => {
+test("claims: the phone status keeps the count, its first line one line and never cut", async ({ distill }) => {
   const tab = await distill.openTab("caption-claims");
   await tab.page.setViewportSize({ width: 390, height: 844 });
   await fakeModel(distill.worker);
@@ -206,7 +214,14 @@ test("claims: the phone status keeps to two lines with the count", async ({ dist
   const frame = await captionFrame(tab.page);
   const status = frame.getByTestId("cap-status");
   await expect(status).toHaveText(/6 claims to check$/, { timeout: 15_000 });
-  const lines = await status.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
-  expect(lines).toBeLessThanOrEqual(2);
+  // r5-03: the full status is read out (cap-status); the eye reads one line of a sentence and chips, the count a chip
+  // or folded into "+n", nothing cut.
+  const line = frame.getByTestId("cap-line");
+  const box = await line.boundingBox();
+  expect(box?.height ?? 99).toBeLessThanOrEqual(46);
+  expect(await line.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  const more = frame.getByTestId("cap-fact-more");
+  const said = `${(await frame.getByTestId("cap-fact").allTextContents()).join(", ")}, ${(await more.count()) ? await more.getAttribute("title") : ""}`;
+  expect(said).toContain("6 claims");
   await shot(tab.page, "r2-01-demo-390");
 });

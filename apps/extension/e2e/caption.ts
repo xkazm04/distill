@@ -200,7 +200,12 @@ export async function showPart(frame: Frame, testid: string, timeout = 10_000): 
   await panel.waitFor({ state: "attached", timeout });
   const id = await panel.getAttribute("id");
   const tab = frame.locator(`[role="tab"][aria-controls="${id}"]`);
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click();
+  if ((await tab.getAttribute("aria-selected")) !== "true") {
+    await tab.click();
+    await frame.locator(`#${id}:not([hidden])`).waitFor({ timeout });
+    // A taller part grows the strip upward: wait until it holds still, so the next click lands where it aims.
+    await settled(frame.page()).catch(() => undefined);
+  }
   await frame.locator(`#${id}:not([hidden])`).waitFor({ timeout });
 }
 

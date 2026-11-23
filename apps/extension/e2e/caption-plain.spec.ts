@@ -5,7 +5,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Frame, Page, Worker } from "playwright/test";
-import { BAR, baseline, captionFrame, measure, startCaption } from "./caption";
+import { BAR, baseline, captionFrame, measure, settled, startCaption } from "./caption";
 import { expect, test } from "./harness";
 
 /** Evidence for the spark round (screenshots as JPG), outside the repo. */
@@ -85,7 +85,7 @@ test("plain: Plain rewrites the long blocks in place; a rewrite that loses a num
   await expect(chip).toHaveAttribute("title", /^The plain words ran on this device\./);
   await expect(chip).toHaveAttribute("data-plain-blocks", "6/7");
   await expect(chip).toHaveAttribute("data-plain-lost", "1");
-  await expect(frame.getByRole("button")).toHaveCount(3); // As written, More, Original
+  await expect(frame.getByTestId("cap-row").locator(":scope > button")).toHaveCount(3); // As written, More, Original
 
   const m = await measure(page, base);
   expect(m.strip.share).toBeLessThanOrEqual(BAR.shareDesktop);
@@ -130,7 +130,10 @@ test("plain: after Translate, Plain rewrites the translation; Keep Czech shows t
   const frame = await captionFrame(page);
   const status = frame.getByTestId("cap-status");
   await expect(status).toContainText("Translated from Czech", { timeout: 15_000 });
-  const plain = frame.getByTestId("cap-plain");
+  // r5-08: on a phone the row keeps More and Original; Plain and Keep Czech are in the sheet.
+  await expect(frame.getByTestId("cap-row").getByTestId("cap-plain")).toHaveCount(0);
+  await frame.getByTestId("cap-more-btn").click();
+  const plain = frame.getByTestId("cap-sheet-acts").getByTestId("cap-plain");
   await expect(plain).toHaveText("Plain");
   await expect(page.locator("#sazba")).toHaveText(/^\[EN\] Na základě/);
 
@@ -145,7 +148,9 @@ test("plain: after Translate, Plain rewrites the translation; Keep Czech shows t
   await expect(chip).toHaveAttribute("title", /plain words ran on this device.*translation from Czech ran on this device/);
   await expect(frame.getByTestId("cap-keep-source")).toHaveText("Keep Czech");
 
-  // The phone strip: within its share, nothing pushed out sideways.
+  // The phone strip, the sheet shut: within its share, nothing pushed out sideways.
+  await frame.getByTestId("cap-sheet-close").click();
+  await settled(page);
   const m = await measure(page, base);
   expect(m.strip.share).toBeLessThanOrEqual(BAR.sharePhone);
   expect(m.strip.onTop).toBe(true);
@@ -154,6 +159,7 @@ test("plain: after Translate, Plain rewrites the translation; Keep Czech shows t
   await evidence(page, "r2-04-demo-390");
 
   // Keep Czech: the page's own words, as written; plain words go off with it.
+  await frame.getByTestId("cap-more-btn").click();
   await frame.getByTestId("cap-keep-source").click();
   await expect(frame.getByTestId("cap-keep-source")).toHaveText("Show English");
   expect(await article(page)).toBe(before);
