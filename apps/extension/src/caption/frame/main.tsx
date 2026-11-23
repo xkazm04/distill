@@ -34,7 +34,7 @@ import { DarkSection, useDark } from "./Dark";
 import { ConsentSection } from "./Consent";
 import { ProductSection } from "./Product";
 import { VideoSection } from "./Video";
-import { ToursSection } from "./Tours";
+import { ToursSection, TourRow, useTours } from "./Tours";
 import { useExplain } from "./Explain";
 
 const MODEL_WORDS: Record<LocalModelState, string> = {
@@ -125,13 +125,26 @@ function Caption() {
   const actions = useActions(report);
   // Round 4: explain this word (r4-05) answers the page's Explain button, More open or not.
   useExplain(report);
+  // Round 4: tours, started by hand only (r4-08).
+  const tours = useTours(report, gist, claims);
+  const touring = tours.run !== null;
+  const endTour = tours.end;
+  // A tour shows the page: More closes when one starts, and focus comes back to More when it ends.
+  const wasTouring = useRef(false);
+  useEffect(() => {
+    if (touring) setMore(false);
+    else if (wasTouring.current) moreBtn.current?.focus();
+    wasTouring.current = touring;
+  }, [touring]);
 
   const toggleOriginal = useCallback(async () => {
     const on = !original;
+    // The original page shows nothing of Distill's: a tour that runs ends.
+    if (on && touring) endTour();
     await send({ type: "distill:caption:original", on });
     setOriginal(on);
     setMore(false);
-  }, [original]);
+  }, [original, touring, endTour]);
 
   const restore = useCallback(async (id: string) => {
     setReport(await send<"distill:caption:restore">({ type: "distill:caption:restore", id }));
@@ -147,15 +160,16 @@ function Caption() {
     }
   }, []);
 
-  // Esc closes More first, then shows the page as Distill made it again.
+  // Esc ends a tour (so does the End key), else closes More, then shows the page as Distill made it again.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (touring && (e.key === "Escape" || e.key === "End")) { e.preventDefault(); endTour(); return; }
       if (e.key !== "Escape") return;
       if (more) { setMore(false); moreBtn.current?.focus(); } else if (original) void toggleOriginal();
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [more, original, toggleOriginal]);
+  }, [more, original, toggleOriginal, touring, endTour]);
 
   const removed = report ? report.items.length - report.restored.length : 0;
   const status = problem ?? (!report ? "Cleaning the page..." : withActions(withByline(withPlain(statusLine(report, translate.state, claims.phase === "ready" ? claims.claims.length : 0), plain.state), byline), actions));
@@ -169,7 +183,7 @@ function Caption() {
             <AskSection report={report} setReport={setReport} />
             <ProductSection report={report} setReport={setReport} />
             <VideoSection report={report} setReport={setReport} />
-            <ToursSection report={report} setReport={setReport} />
+            <ToursSection report={report} setReport={setReport} tours={tours} />
             <div className="more-cols">
               <div>
                 <h2>What was removed ({removed} of {report.items.length})</h2>
@@ -224,6 +238,12 @@ function Caption() {
             <span className="status" role="status">Showing the original page</span>
             <span className="sp" />
             <button type="button" className="btn primary" onClick={() => void toggleOriginal()} data-testid="cap-back">Back to Distill</button>
+          </div>
+        ) : touring ? (
+          <div className="row" data-testid="cap-row">
+            <img className="mark" src="icons/icon-32.png" alt="Distill" />
+            <TourRow tours={tours} />
+            <button type="button" className="btn quiet" onClick={() => void toggleOriginal()} data-testid="cap-original">Original</button>
           </div>
         ) : (
           <div className="row" data-testid="cap-row">

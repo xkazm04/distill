@@ -210,6 +210,15 @@ export function showText(doc: Document, blockId: string, sentence: string): bool
   return true;
 }
 
+/** Where a tour (r4-08) steps for `sentence` of block `blockId`: a range over its words as they stand now, or the block
+ *  itself when its words changed (a translation shows); null when the block is gone. */
+export function textTarget(doc: Document, blockId: string, sentence: string): { range: Range } | { el: Element } | null {
+  const k = blocks.get(blockId);
+  if (!k?.el.isConnected) return null;
+  const range = rangeOf(doc, k, sentence);
+  return range ? { range } : { el: k.el };
+}
+
 /** Takes every claim mark off (and Show me's highlight, and the style): the page as it was. */
 export function clearClaims(doc: Document): void {
   if (marks?.observer) marks.observer.disconnect();

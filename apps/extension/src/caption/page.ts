@@ -14,6 +14,7 @@ import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
 import { clearActions } from "./actions";
+import { tourStep } from "./tour";
 import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
@@ -129,6 +130,7 @@ export function close(doc: Document): void {
   clearTranslation();
   clearClaims(doc);
   clearActions(doc);
+  tourStep(doc, null); // r4-08: a tour that runs ends with the strip
   clearTables(doc);
   clearLinks(doc);
   clearDark(doc);

@@ -272,6 +272,16 @@ export function showAction(doc: Document, id: string): boolean {
   return true;
 }
 
+/** Where a tour (r4-08) steps for action `id`: a range over its exact words, or its place when they are not there as
+ *  written; null when that part of the page is gone or hidden (as showAction). */
+export function actionTarget(doc: Document, id: string): { range: Range } | { el: Element } | null {
+  const k = known.get(id);
+  if (!k?.where.el.isConnected) return null;
+  if (!doc.documentElement.hasAttribute(ORIGINAL) && !visible(k.where.el)) return null;
+  const range = rangeOfQuote(doc, k.where, k.item.quote);
+  return range ? { range } : { el: k.where.el };
+}
+
 /** Takes every highlight off and forgets what was found: the page as it was. */
 export function clearActions(doc: Document): void {
   markActions(doc, false);
