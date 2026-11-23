@@ -131,6 +131,26 @@ function bringIntoView(doc: Document, r: DOMRect): void {
   win.scrollTo({ top: Math.max(0, r.top + win.scrollY - win.innerHeight / 3), behavior: instant ? "auto" : "smooth" });
 }
 
+const LETTER = /[\p{L}\p{N}]/u;
+/** Widens `range` to whole words inside its end nodes: a quote cut mid-word ("9-18 h" of "9-18 hodin", as the hours
+ *  finder words it) is highlighted to the word's end. Exported for the tests. */
+export function wholeWords(range: Range): void {
+  const s = range.startContainer;
+  if (s.nodeType === 3) {
+    const v = s.nodeValue ?? "";
+    let i = range.startOffset;
+    while (i > 0 && LETTER.test(v[i - 1] as string) && LETTER.test(v[i] ?? "")) i--;
+    if (i !== range.startOffset) range.setStart(s, i);
+  }
+  const e = range.endContainer;
+  if (e.nodeType === 3) {
+    const v = e.nodeValue ?? "";
+    let i = range.endOffset;
+    while (i < v.length && i > 0 && LETTER.test(v[i - 1] as string) && LETTER.test(v[i] as string)) i++;
+    if (i !== range.endOffset) range.setEnd(e, i);
+  }
+}
+
 /** Highlights the current step as the page stands now; scrolls to it when asked. False when it is not on the page. */
 function paint(doc: Document, scroll: boolean): boolean {
   unpaint(doc);
@@ -140,6 +160,7 @@ function paint(doc: Document, scroll: boolean): boolean {
   const reg = registry(doc);
   const H = HighlightOf(doc);
   if ("range" in target && reg && H) {
+    wholeWords(target.range);
     const h = new H(target.range);
     h.priority = 2;
     reg.set(TOUR_HIGHLIGHT, h);

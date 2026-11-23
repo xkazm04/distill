@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readContacts } from "./contact";
 import { TEXT_SPLIT_EVENT } from "./textSplit";
-import { quoteRange, TOUR_ATTR, TOUR_HIGHLIGHT, tourShown, tourStep } from "./tour";
+import { quoteRange, TOUR_ATTR, TOUR_HIGHLIGHT, tourShown, tourStep, wholeWords } from "./tour";
 
 /** A stand-in for the browser's CSS highlight registry (happy-dom has none). */
 class FakeHighlight extends Set<Range> { priority = 0; constructor(...r: Range[]) { super(r); } }
@@ -32,6 +32,19 @@ describe("quoteRange", () => {
     const addr = document.getElementById("addr") as Element;
     expect(quoteRange(document, addr, "Hlavní 1 330 11 Lipová Lhota")).not.toBeNull();
     expect(quoteRange(document, office, "nowhere")).toBeNull();
+  });
+});
+
+describe("wholeWords", () => {
+  it("widens a quote cut mid-word to the word's ends, and leaves whole words alone", () => {
+    document.body.innerHTML = "<p id='h'>Pondělí-Pátek 9-18 hodin, Sobota</p>";
+    const h = document.getElementById("h") as Element;
+    const cut = quoteRange(document, h, "dělí-Pátek 9-18 h") as Range;
+    wholeWords(cut);
+    expect(cut.toString()).toBe("Pondělí-Pátek 9-18 hodin");
+    const whole = quoteRange(document, h, "Sobota") as Range;
+    wholeWords(whole);
+    expect(whole.toString()).toBe("Sobota");
   });
 });
 
