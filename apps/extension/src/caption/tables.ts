@@ -290,6 +290,11 @@ export function readableTables(ctx: CleanContext): number {
   return tables.length;
 }
 
+/** Reads the window again (a header that sticks came back): which tables are wide and tall, and where the top is. */
+export function remeasureTables(): void {
+  measure();
+}
+
 /** The switch in More: on (true) or off. Returns how many tables are changed now (0 while off). */
 export function setTables(doc: Document, on: boolean): number {
   doc.documentElement.toggleAttribute(OFF, !on);

@@ -13,7 +13,7 @@ import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
-import { clearTables, readableTables } from "./tables";
+import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearLinks, linkNotes } from "./links";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
@@ -523,7 +523,11 @@ export function restore(id: string): CleanReport {
   const back = els.filter((el) => el.hasAttribute(HIDE));
   for (const el of els) el.removeAttribute(HIDE);
   const ctx = state.ctx;
-  if (ctx && back.some((el) => floats(el, ctx.win))) state.report = { ...state.report, unstuck: unstick(ctx) };
+  if (ctx && back.some((el) => floats(el, ctx.win))) {
+    state.report = { ...state.report, unstuck: unstick(ctx) };
+    // A header that sticks again: a table's header row sticks below it, not under it (r2-05).
+    remeasureTables();
+  }
   return current();
 }
 
