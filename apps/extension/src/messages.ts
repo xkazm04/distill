@@ -133,7 +133,13 @@ export type TourStep =
   | { kind: "product"; id: string };
 
 /** The video's chapters (r4-06): the description's words and times only. */
-export interface VideoInfo { chapters: Chapter[]; duration?: number }
+export interface VideoInfo {
+  chapters: Chapter[];
+  duration?: number;
+  /** Where the main video is now (seconds), so the strip can mark the chapter playing and offer Skip in a sponsor part.
+   *  Omitted while the site plays its own advert in the player. */
+  currentTime?: number;
+}
 
 /** Content script -> this tab's caption frame (r4-05): the person selected words in the main text and pressed Explain.
  *  The words and their sentence are page text; the frame runs the on-device model (explainTerm, values) or answers
