@@ -115,6 +115,8 @@ a.btn { text-decoration: none; }
 /* #8 Calm the page: "Motion" in More, what Calm paused and Play again */
 .more-extra > section[data-testid="cap-calm"] { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .more-extra > section[data-testid="cap-calm"] h2 { margin-bottom: 0; }
+/* r2-05, r2-07: readable tables and link notes, one switch under the other. */
+.more-extra > section[data-testid="cap-tables-section"] { display: flex; flex-direction: column; align-items: flex-start; }
 .calm-line { margin: 0; font-size: 15px; color: var(--fg); }
 /* Round 2, r2-10 The gist first: three points at the top of More, each with Show me. */
 .more > .gist { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }

@@ -29,4 +29,4 @@ export { findClaimCandidates, parseClaims, splitSentences, claimWhy, CLAIM_WHY, 
 export { parseCheck, CLAIM_VERDICTS, REASON_MAX, SOURCES_MAX, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
 export { parseGist, findSentence, GIST_POINTS, GIST_POINT_MAX, type Gist, type GistPoint } from "./gist.js";
 export { keepsFacts, missingFacts, parsePlain, type Fact, type FactKind, type PlainResult } from "./plain.js";
-export { describeLink, type LinkNote } from "./links.js";
+export { describeLink, readableHost, registrableDomain, PROGRAM_FILE_TYPES, TRACKING_PARAMS, type LinkNote } from "./links.js";

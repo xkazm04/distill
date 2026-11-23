@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poplatky a svoz odpadu 2026 | Obec Lhota pod Hůrkou</title>
+<!-- Readable tables (r2-05): a village office page with a slim sticky header, one tall table (the waste collection
+     timetable), one wide table (the fee list), one 3-column table (office hours) and a layout table (the mayor's
+     word, a picture beside text) that Distill must never touch. -->
+<style>
+body{font:16px/1.55 Verdana,Arial,sans-serif;margin:0;background:#fff;color:#1d2a1d}
+.top{position:sticky;top:0;z-index:10;height:52px;box-sizing:border-box;background:#2f5d2f;color:#fff;display:flex;align-items:center;gap:1.2rem;padding:0 16px}
+.top b{font-size:17px}
+.top nav a{color:#fff;margin-right:1rem;font-size:14px}
+.wrap{display:flex;gap:24px;max-width:1100px;margin:0 auto;padding:0 16px}
+main{flex:1 1 auto;min-width:0;max-width:760px}
+aside.side{flex:0 0 260px;font-size:14px;background:#eef3ea;padding:12px;align-self:flex-start;margin-top:24px}
+h1{font-size:1.6rem;line-height:1.25;margin:1.4rem 0 .6rem}
+h2{font-size:1.2rem;margin:1.8rem 0 .5rem}
+table.data{border-collapse:collapse;margin:.6rem 0 1rem;font-size:14px}
+table.data th,table.data td{border:1px solid #9bb59b;padding:5px 9px;text-align:left}
+table.data th{background:#dfe9dc}
+#fees td,#fees th{white-space:nowrap}
+.layout td{vertical-align:top}
+.cookie{position:fixed;left:0;right:0;bottom:0;background:#222;color:#fff;padding:14px 16px;font-size:14px;z-index:20}
+footer{background:#2f5d2f;color:#fff;padding:16px;margin-top:2rem;font-size:14px}
+@media (max-width:700px){.wrap{display:block}aside.side{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><b>Obec Lhota pod Hůrkou</b><nav><a href="/">Úvod</a><a href="/urad">Úřad</a><a href="/odpady">Odpady</a></nav></header>
+<div class="wrap">
+<main>
+<h1>Poplatky a svoz odpadu v roce 2026</h1>
+<p>Obecní úřad zveřejňuje přehled místních poplatků na rok 2026 a harmonogram svozu odpadu. Poplatky lze uhradit v hotovosti na obecním úřadě v úředních hodinách nebo převodem na účet obce. Jako variabilní symbol uveďte číslo popisné.</p>
+
+<h2>Úřední hodiny</h2>
+<table class="data" id="hours">
+  <thead><tr><th>Den</th><th>Dopoledne</th><th>Odpoledne</th></tr></thead>
+  <tbody>
+    <tr><td>Pondělí</td><td>8:00–11:30</td><td>12:30–17:00</td></tr>
+    <tr><td>Středa</td><td>8:00–11:30</td><td>12:30–17:00</td></tr>
+    <tr><td>Pátek</td><td>8:00–11:00</td><td>zavřeno</td></tr>
+  </tbody>
+</table>
+
+<h2>Ceník místních poplatků</h2>
+<p>Poplatek za obecní systém odpadového hospodářství se platí za každou fyzickou osobu přihlášenou v obci a za každou stavbu pro rodinnou rekreaci.</p>
+<table class="data" id="fees">
+  <thead><tr><th>Poplatek</th><th>Sazba na rok</th><th>Snížená sazba</th><th>Splatnost</th><th>Kdo platí</th><th>Osvobození</th><th>Vyhláška</th></tr></thead>
+  <tbody>
+    <tr><td>Odpadové hospodářství</td><td>780 Kč za osobu</td><td>390 Kč (děti do 6 let)</td><td>31. března 2026</td><td>každá přihlášená osoba</td><td>osoby v domově pro seniory</td><td>OZV č. 2/2025</td></tr>
+    <tr><td>Rekreační stavba</td><td>780 Kč za stavbu</td><td>bez slevy</td><td>31. března 2026</td><td>vlastník stavby</td><td>žádné</td><td>OZV č. 2/2025</td></tr>
+    <tr><td>Ze psů – první pes</td><td>200 Kč</td><td>100 Kč (důchodci)</td><td>30. dubna 2026</td><td>držitel psa</td><td>asistenční psi</td><td>OZV č. 1/2024</td></tr>
+    <tr><td>Ze psů – každý další</td><td>300 Kč</td><td>150 Kč (důchodci)</td><td>30. dubna 2026</td><td>držitel psa</td><td>asistenční psi</td><td>OZV č. 1/2024</td></tr>
+    <tr><td>Užívání veřejného prostranství</td><td>10 Kč za m² a den</td><td>5 Kč (spolky)</td><td>před zahájením užívání</td><td>uživatel prostranství</td><td>akce obce</td><td>OZV č. 3/2023</td></tr>
+  </tbody>
+</table>
+
+<h2>Slovo starosty</h2>
+<table class="layout" id="layout" width="100%" cellpadding="6">
+  <tr>
+    <td width="200"><img alt="Starosta obce" width="200" height="240" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='240'%3E%3Crect width='200' height='240' fill='%23b8c9b0'/%3E%3C/svg%3E" style="max-width:100%;height:auto"></td>
+    <td><p>Vážení spoluobčané, i letos zůstává poplatek za odpady na stejné výši jako loni. Děkuji všem, kdo poctivě třídí: díky vám obec dostává od společnosti EKO-KOM odměnu, která pokrývá téměř třetinu nákladů na svoz.</p>
+      <p>Prosím, nepřeplňujte kontejnery na plast a papír a krabice před vhozením sešlapejte. Velkoobjemový odpad můžete odvézt na sběrný dvůr v sousední obci zdarma.</p></td>
+  </tr>
+</table>
+
+<h2>Harmonogram svozu odpadu 2026</h2>
+<p>Popelnice a pytle připravte k silnici nejpozději v 6:00 ráno v den svozu.</p>
+<table class="data" id="waste">
+  <thead><tr><th>Datum</th><th>Den</th><th>Směsný odpad</th><th>Plast</th><th>Papír</th></tr></thead>
+  <tbody>
+    <tr><td>6. 1.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>13. 1.</td><td>úterý</td><td>ano</td><td>–</td><td>ano</td></tr>
+    <tr><td>20. 1.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>27. 1.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>3. 2.</td><td>úterý</td><td>ano</td><td>ano</td><td>ano</td></tr>
+    <tr><td>10. 2.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>17. 2.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>24. 2.</td><td>úterý</td><td>ano</td><td>–</td><td>ano</td></tr>
+    <tr><td>3. 3.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>10. 3.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>17. 3.</td><td>úterý</td><td>ano</td><td>ano</td><td>ano</td></tr>
+    <tr><td>24. 3.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>31. 3.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>7. 4.</td><td>úterý</td><td>ano</td><td>–</td><td>ano</td></tr>
+    <tr><td>14. 4.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>21. 4.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>28. 4.</td><td>úterý</td><td>ano</td><td>ano</td><td>ano</td></tr>
+    <tr><td>5. 5.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>12. 5.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>19. 5.</td><td>úterý</td><td>ano</td><td>–</td><td>ano</td></tr>
+    <tr><td>26. 5.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>2. 6.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>9. 6.</td><td>úterý</td><td>ano</td><td>ano</td><td>ano</td></tr>
+    <tr><td>16. 6.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>23. 6.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>30. 6.</td><td>úterý</td><td>ano</td><td>–</td><td>ano</td></tr>
+    <tr><td>7. 7.</td><td>úterý</td><td>ano</td><td>ano</td><td>–</td></tr>
+    <tr><td>14. 7.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+    <tr><td>21. 7.</td><td>úterý</td><td>ano</td><td>ano</td><td>ano</td></tr>
+    <tr><td>28. 7.</td><td>úterý</td><td>ano</td><td>–</td><td>–</td></tr>
+  </tbody>
+</table>
+<p>Svoz bioodpadu probíhá od dubna do listopadu každý druhý čtvrtek. Hnědé nádoby si můžete vyzvednout na obecním úřadě.</p>
+<p>V případě dotazů volejte obecní úřad na čísle 377 123 456 nebo pište na podatelna@lhota-hurka.example.</p>
+</main>
+<aside class="side" id="sidebar">
+  <h3>Aktuality</h3>
+  <ul><li><a href="/a/1">Rozpis služeb lékáren</a></li><li><a href="/a/2">Uzavírka silnice III/1171</a></li><li><a href="/a/3">Masopust 2026</a></li></ul>
+</aside>
+</div>
+<footer>Obec Lhota pod Hůrkou · Náves 1 · 335 01</footer>
+<div class="cookie" id="cookie">Tento web používá soubory cookie k měření návštěvnosti. <button>Rozumím</button></div>
+</body>
+</html>

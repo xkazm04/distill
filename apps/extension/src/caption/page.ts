@@ -13,7 +13,7 @@ import { unwiden, widen } from "./reflow";
 import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
-import { clearTables, readableTables } from "./tables";
+import { clearTables, readableTables, remeasureTables } from "./tables";
 import { clearLinks, linkNotes } from "./links";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
@@ -305,13 +305,15 @@ async function recheckOnce(doc: Document, win: Window): Promise<boolean> {
  * Stay clean changed the page (#3): new items went, or a single-page app showed its next view. What Clean did from the
  * page's layout and text follows: the column grows into a hole a late sidebar advert left (#1), tall headers scroll
  * (#4), the reading layer covers the new text (#6, the person's switch kept), new moving parts stop (#8, never media
- * the person played). While the original is shown it waits for the next look (Back to Distill brings one).
+ * the person played), new data tables become readable and link notes follow the new main text (r2-05, r2-07). While
+ * the original is shown it waits for the next look (Back to Distill brings one).
  */
 function follow(s: State, ctx: CleanContext): void {
   if (!s.report || originalOn(ctx.doc)) return;
   s.stale = false;
   const t0 = performance.now();
-  s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx) };
+  s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx), tables: readableTables(ctx) };
+  linkNotes(ctx);
   spent(performance.now() - t0);
 }
 
@@ -521,7 +523,11 @@ export function restore(id: string): CleanReport {
   const back = els.filter((el) => el.hasAttribute(HIDE));
   for (const el of els) el.removeAttribute(HIDE);
   const ctx = state.ctx;
-  if (ctx && back.some((el) => floats(el, ctx.win))) state.report = { ...state.report, unstuck: unstick(ctx) };
+  if (ctx && back.some((el) => floats(el, ctx.win))) {
+    state.report = { ...state.report, unstuck: unstick(ctx) };
+    // A header that sticks again: a table's header row sticks below it, not under it (r2-05).
+    remeasureTables();
+  }
   return current();
 }
 
