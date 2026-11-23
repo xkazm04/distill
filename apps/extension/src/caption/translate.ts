@@ -784,3 +784,9 @@ function tell(w: Watch, count: number): void {
     if (state) stopWatching(state); // the extension went away: this copy of the script is orphaned
   }
 }
+
+/** Round 3 (r3-07, prices and dates in your terms): runs another module's change to the main text's text nodes so the
+ *  text watcher never takes it for the page's own. */
+export function quietly<T>(write: () => T): T {
+  return quiet(write);
+}

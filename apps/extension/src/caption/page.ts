@@ -14,6 +14,7 @@ import { clearTranslation, originalShown } from "./translate";
 import { inUse, sincePress, spent, watchForClutter } from "./watch";
 import { clearClaims } from "./claims";
 import { clearTables, readableTables, remeasureTables } from "./tables";
+import { clearTerms } from "./terms";
 import { clearLinks, linkNotes } from "./links";
 
 /** On each removed element: its item id. On <html>: the original is shown, or the page may scroll again. */
@@ -115,6 +116,7 @@ export function close(doc: Document): void {
   clearComfort(doc);
   clearCalm(doc);
   restick(doc);
+  clearTerms(doc); // r3-07: before the translation goes, so its text nodes are whole again
   clearTranslation();
   clearClaims(doc);
   clearTables(doc);

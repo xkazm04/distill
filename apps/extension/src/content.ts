@@ -19,7 +19,7 @@ import { applyPlain, plainBlocks, plainShown } from "./caption/translate";
 import { readByline } from "@distill/engine";
 import { setConsent } from "./caption/consent";
 import { setDark } from "./caption/dark";
-import { setTerms } from "./caption/terms";
+import { setTerms, termsAside } from "./caption/terms";
 import { markActions, readActions, showAction } from "./caption/actions";
 
 declare global {
@@ -84,7 +84,7 @@ async function handle(req: ContentRequest): Promise<unknown> {
       return { open: true };
     case "distill:caption:clean": return caption.clean(document, window);
     case "distill:caption:restore": return caption.restore(req.id);
-    case "distill:caption:original": caption.showOriginal(document, req.on); return { ok: true };
+    case "distill:caption:original": termsAside(caption.context, () => caption.showOriginal(document, req.on)); return { ok: true };
     case "distill:caption:size": return { height: caption.resize(req.height, window) };
     case "distill:caption:close": caption.close(document); closedByPerson = true; return { ok: true };
     // ---- round 1 (spark universal-core) ----
@@ -96,11 +96,13 @@ async function handle(req: ContentRequest): Promise<unknown> {
     case "distill:caption:nextField": return nextField(document);
     case "distill:caption:blocks": {
       const ctx = caption.context();
-      return ctx ? textBlocks(ctx) : [];
+      return ctx ? termsAside(caption.context, () => textBlocks(ctx)) : [];
     }
-    case "distill:caption:translated": return { applied: applyTranslation(req.blocks) };
-    case "distill:caption:sourceText": showSource(req.on); return { ok: true };
+    case "distill:caption:translated": return { applied: termsAside(caption.context, () => applyTranslation(req.blocks)) };
+    case "distill:caption:sourceText": termsAside(caption.context, () => showSource(req.on)); return { ok: true };
     case "distill:caption:watchText": watchText(req.tabId, caption.context); return { ok: true };
+    // r3-07: Translate, Plain and Original change the main text's own text nodes; prices and dates in your terms step
+    // aside while they do (caption/terms.ts termsAside).
     // ---- round 2 ----
     case "distill:caption:pageInfo": return { title: document.title, url: location.href, origin: location.origin };
     case "distill:caption:markClaims": return { marked: markClaims(document, req.claims) };
@@ -115,10 +117,10 @@ async function handle(req: ContentRequest): Promise<unknown> {
     // ---- round 2: plain words (r2-04) ----
     case "distill:caption:plainBlocks": {
       const ctx = caption.context();
-      return ctx ? plainBlocks(ctx) : [];
+      return ctx ? termsAside(caption.context, () => plainBlocks(ctx)) : [];
     }
-    case "distill:caption:plainText": return { applied: applyPlain(req.blocks) };
-    case "distill:caption:plainShown": return { shown: plainShown(req.on) };
+    case "distill:caption:plainText": return { applied: termsAside(caption.context, () => applyPlain(req.blocks)) };
+    case "distill:caption:plainShown": return { shown: termsAside(caption.context, () => plainShown(req.on)) };
     // ---- round 3 ----
     case "distill:caption:consent": return { consent: setConsent(document, req.on) };
     case "distill:caption:dark": return setDark(document, window, req.on);
