@@ -23,6 +23,7 @@ import { clearLinks, linkNotes } from "./links";
 import { clearExplain, explainWords } from "./explain";
 import { clearConsent, consentAfterClean, loadConsentPrefs, onConsentLater, setConsent } from "./consent";
 import { clearDark } from "./dark";
+import { applyMedia, clearMedia, wakeMedia } from "./media";
 
 /** The consent switch for this site as Clean read it (r3-04): late banners are answered only while it is on. */
 let consentOn = false;
@@ -184,6 +185,7 @@ export function close(doc: Document): void {
   clearLinks(doc);
   clearExplain(doc);
   clearDark(doc);
+  clearMedia(doc); // r5-06: the pictures' addresses it set go back too
   clearConsent();
   onConsentLater(null);
   for (const el of state.removed.values()) { el.removeAttribute(HIDE); el.removeAttribute(FADE); }
@@ -391,6 +393,8 @@ function follow(s: State, ctx: CleanContext): void {
   s.report = { ...s.report, unstuck: unstick(ctx), widened: widen(ctx), comfort: applyComfort(ctx), calm: calmMore(ctx), tables: readableTables(ctx) };
   linkNotes(ctx); // r4-05: and the Explain button follows the new main text too
   explainWords(ctx, s.tabId);
+  applyMedia(ctx); // r5-06: pictures that came with the new text
+  wakeMedia();
   spent(performance.now() - t0);
 }
 
@@ -628,6 +632,11 @@ async function cleanOnce(doc: Document, win: Window): Promise<CleanReport> {
   };
   linkNotes(ctx);
   explainWords(ctx, state.tabId);
+  // r5-06: pictures in the main column fit it in the same frame as Clean's own change (one move, not two); lazy ones
+  // load once the strip has shown its first line (first sight stays as fast).
+  applyMedia(ctx);
+  const shown = state;
+  void afterFirstSight().then(() => { if (state === shown && shown.ctx === ctx) wakeMedia(); });
   // r3-04: after Clean, in the top frame, once per page load: a cookie banner's reject button pressed (never Accept).
   const s = state;
   const answered = await consentAfterClean(doc, cookieBanners(items, removed), prefs);

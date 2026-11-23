@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Výlet na rozhlednu Hůrka: trasa, ceny a fotky | Lhotecký zpravodaj</title>
+<!-- r5-05 and r5-06: a local news page whose main column needs a typesetter and a picture editor. A photo set wider
+     than the column (it pushes the page sideways on a phone) with a tiny caption stuck to it; a heading that sits closer
+     to the paragraph above it than to its own text; paragraphs that touch; a list whose markers hang out of the column;
+     a quote nothing sets apart; a price table with its numbers left-aligned; a gallery of 12 photos in a grid; a lazy
+     photo that never loaded (a placeholder gif and data-src); an empty picture box; a logo and an icon that stay. -->
+<style>
+body{margin:0;background:#f4f2ee;color:#222;font:16px/1.5 Georgia,"Times New Roman",serif}
+.top{background:#5b3a29;color:#fff;font-family:Arial,sans-serif;padding:10px 16px;display:flex;align-items:center;gap:16px}
+.top img{display:block}
+.top a{color:#fff;font-size:14px}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px;display:grid;grid-template-columns:minmax(0,680px) 300px;gap:40px;background:#fff}
+article{min-width:0}
+h1{font-size:32px;line-height:1.2;margin:0 0 12px}
+h2{font-size:22px;line-height:1.25;margin:4px 0 28px}
+article p{margin:0 0 16px}
+figure{margin:0 0 16px}
+figure.wide img{width:1200px;height:675px}
+figcaption{font:11px/1.1 Arial,sans-serif;color:#555;margin:0}
+.tight p{margin:0}
+ul.body{padding:0;margin:0 0 16px}
+blockquote{margin:0 0 16px;padding:0}
+table.ceny{border-collapse:collapse;margin:0 0 16px;font-family:Arial,sans-serif;font-size:15px}
+table.ceny th,table.ceny td{border:1px solid #ccc;padding:4px 10px;text-align:left}
+.galerie{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 16px}
+.galerie img{display:block;width:100%;height:auto}
+img.lazy{display:block;width:100%}
+.prazdne{display:block;width:100%;height:240px;background:#eee;margin:0 0 16px}
+aside{font-family:Arial,sans-serif;font-size:14px}
+aside .ad{height:250px;background:#ffe9a8;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+footer{max-width:1040px;margin:0 auto;padding:16px;font:13px Arial,sans-serif;color:#555}
+@media (max-width:760px){.wrap{display:block}aside{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><img class="logo" src="media/vylet.png" width="40" height="30" alt="Lhotecký zpravodaj"><b>Lhotecký zpravodaj</b><a href="#">Zprávy</a><a href="#">Výlety</a><a href="#">Inzerce</a></header>
+<div class="wrap">
+<article>
+<h1>Výlet na rozhlednu Hůrka: trasa, ceny a fotky</h1>
+<p>Rozhledna na vrchu Hůrka je po opravě znovu otevřená. Nový ochoz nabízí výhled na celé údolí Bystřice, za dobrého počasí až na hřebeny Jeseníků. Cesta z obce zabere pěšky asi hodinu a vede po značené stezce lesem.</p>
+<figure class="wide"><img id="wide" src="media/rozhledna.png" width="2400" height="1350" alt="Rozhledna Hůrka nad údolím"><figcaption id="cap">Rozhledna Hůrka po opravě. Foto: obecní úřad.</figcaption></figure>
+<p>Oprava trvala dva roky a stála přes čtyři miliony korun. Většinu peněz dal kraj, zbytek obec a sbírka mezi místními. Na ochoz vede 112 schodů, nahoře je nová stříška a tabule s popisem okolních vrcholů.</p>
+<h2 id="h-trasa">Kudy se vydat</h2>
+<div class="tight">
+<p id="p1">Nejkratší cesta začíná u hasičské zbrojnice. Po žluté značce projdete kolem rybníka a lesem stoupáte k vrcholu, celkem asi tři kilometry a dvě stě metrů převýšení.</p>
+<p id="p2">Delší okruh vede po modré přes Horní Lhotu a vrací se po žluté. Měří osm kilometrů a hodí se i pro rodiny s kočárkem, protože nemá žádné schody ani prudké stoupání.</p>
+</div>
+<ul class="body" id="list">
+<li>U rozhledny je lavička a stojan na kola, ale žádný obchod ani občerstvení, takže si vezměte vodu s sebou.</li>
+<li>Psi mohou nahoru jen v náručí, schodiště má mezery mezi stupni a malým tlapkám nesvědčí.</li>
+<li>V zimě se otevírá jen o víkendech, když není na schodech led, aktuální stav hlásí obecní web.</li>
+</ul>
+<blockquote id="quote"><p>Kdo jednou vyjde nahoru za jasného rána, ten se vrátí. Takový výhled jinde v okrese nenajdete, říká kastelán rozhledny Josef Mareš.</p></blockquote>
+<h2>Vstupné</h2>
+<table class="ceny" id="ceny">
+<thead><tr><th>Vstupenka</th><th>Cena</th><th>Platnost</th></tr></thead>
+<tbody>
+<tr><td>Dospělí</td><td>60 Kč</td><td>1 den</td></tr>
+<tr><td>Děti a senioři</td><td>30 Kč</td><td>1 den</td></tr>
+<tr><td>Rodinná</td><td>150 Kč</td><td>1 den</td></tr>
+<tr><td>Permanentka</td><td>1 200 Kč</td><td>365 dní</td></tr>
+</tbody>
+</table>
+<h2>Fotky z otevření</h2>
+<div class="galerie" id="galerie">
+<a href="#f1"><img src="media/vylet.png?n=1" width="800" height="600" alt="Fotka 1"></a>
+<a href="#f2"><img src="media/vylet.png?n=2" width="800" height="600" alt="Fotka 2"></a>
+<a href="#f3"><img src="media/vylet.png?n=3" width="800" height="600" alt="Fotka 3"></a>
+<a href="#f4"><img src="media/vylet.png?n=4" width="800" height="600" alt="Fotka 4"></a>
+<a href="#f5"><img src="media/vylet.png?n=5" width="800" height="600" alt="Fotka 5"></a>
+<a href="#f6"><img src="media/vylet.png?n=6" width="800" height="600" alt="Fotka 6"></a>
+<a href="#f7"><img src="media/vylet.png?n=7" width="800" height="600" alt="Fotka 7"></a>
+<a href="#f8"><img src="media/vylet.png?n=8" width="800" height="600" alt="Fotka 8"></a>
+<a href="#f9"><img src="media/vylet.png?n=9" width="800" height="600" alt="Fotka 9"></a>
+<a href="#f10"><img src="media/vylet.png?n=10" width="800" height="600" alt="Fotka 10"></a>
+<a href="#f11"><img src="media/vylet.png?n=11" width="800" height="600" alt="Fotka 11"></a>
+<a href="#f12"><img src="media/vylet.png?n=12" width="800" height="600" alt="Fotka 12"></a>
+</div>
+<p>Při slavnostním otevření přišlo na vrch přes tři sta lidí. Hrála dechovka, děti soutěžily v hledání pokladu a starostka přestřihla pásku spolu s nejstarší občankou obce, které je devadesát čtyři let.</p>
+<h2>Most přes Bystřici</h2>
+<img class="lazy" id="lazy" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="media/most.png" data-width="1200" data-height="800" alt="Most přes Bystřici pod rozhlednou">
+<p>Na cestě k rozhledně přejdete opravený most přes Bystřici. Od jara na něm platí zákaz vjezdu aut, pěší a cyklisté ho mohou používat bez omezení. <img id="icon" src="media/vylet.png" width="24" height="18" alt=""></p>
+<img class="prazdne" id="empty" alt="">
+<p>Další výlety po okolí najdete v rubrice Výlety. Tipy a fotky z vašich cest posílejte na adresu redakce, nejlepší zveřejníme v příštím čísle zpravodaje.</p>
+</article>
+<aside>
+<div class="ad">Reklama: Pekařství U Mlýna</div>
+<h2>Nejčtenější</h2>
+<ul><li><a href="#">Hasiči slaví 120 let</a></li><li><a href="#">Nová lékárna</a></li></ul>
+</aside>
+</div>
+<footer>© Lhotecký zpravodaj. Ukázková stránka projektu Distill.</footer>
+</body>
+</html>

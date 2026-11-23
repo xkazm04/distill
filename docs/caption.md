@@ -709,6 +709,54 @@ line and Try again working once the stand-in model answers again; Translate's Tr
 `e2e/live/probes/kit.live.ts` does the same on Přáslavice and Aktuálně (run once on the round-4 strip, once on the
 kit). Its `E2E_KIT_SLOW=1` did not catch a placeholder live: on these Czech pages Translate runs first, so the gist and
 the claims have not started when the picture is taken; the waiting pictures are the hermetic ones.
+## Round 5, r5-05 and r5-06: the cleaned page typeset, and its pictures (2026-11-23)
+
+**r5-05, typeset** (`caption/typeset.ts`, called from `comfort.ts`, numbers in engine `reading.ts`). Part of the
+reading layer: the "Easier to read" switch and Original take it back, Close removes it (`data-distill-comfort-type`).
+Only spacing and sizes, never fonts or colours, and only outside the comfortable range:
+
+- line height follows the size (`leadingFor`: 1.5 up to 18 px, 1.3 from 32 px); paragraphs above 2.2 are pulled in;
+- a heading closer to the text before it than to its own text, or cramped, gets about 1.6 lines above and half a line
+  below (`headingSpace`; equal space, the browser's default, is left alone); a wrapped heading whose line height is
+  under 1.0 or over 1.7 gets 1.25;
+- paragraphs that touch (gap under 0.4 em) get 0.8 em; list items that wrap get a paragraph's line height;
+- a list whose markers hang out of the column gets 1.4 em of inset; a quote nothing sets apart gets an inset and a
+  rule in its own text colour (`color-mix` of `currentColor`);
+- data tables (round 2's `dataTable`) with a numeric column get `tabular-nums` and that column right-aligned
+  (`numericColumns`: 80% of filled cells are amounts, counts, shares or measurements; a dash counts as empty).
+
+The measure (75 characters past 85) and the 16 px floor are round 1's and did not change.
+
+**r5-06, pictures** (`caption/media.ts`, wired in `page.ts`). The layout part runs in Clean's own frame (one move,
+not two); the network part (`wakeMedia`) after first sight; both again when Stay clean follows and on a resize.
+
+- A picture wider than the column gets `max-width: 100%` (and `height: auto` when it is not `object-fit`), boxes around
+  it set wider than the column too; a stretched one (5% off its own proportions) gets `height: auto`.
+- A caption under 14 px gets 14 px, at least 1.4 line height, and a little room from its picture.
+- A gallery (4+ children, each a picture with little text, side by side) shows its first item (the whole row in a grid
+  or flex row, when its file is big enough) and a button "+N photos" that opens the rest in place and moves the focus
+  to the first one opened. Opened galleries stay open through Stay clean.
+- A lazy picture showing a stand-in (no src, data:, a blank/spacer file, a 1-2 px picture) gets the page's own
+  `data-src`/`data-srcset` (http(s) only); a native lazy one with no box yet loads now. Its space is reserved first from
+  its width and height (or `data-width`/`data-height`), explicitly for stand-ins (a loaded 1x1 gif makes
+  `auto w / h` square).
+- A picture that never loaded, has nothing to load and shows no alt text loses its box.
+- Logos and icons stay: under 120 px both ways, named logo/icon/avatar/badge..., or in the header, menu or footer.
+- Close puts back every attribute set, the stand-in addresses included (unless the page changed them since).
+
+Live, both builds side by side (`e2e/live/probes/typeset-media.live.ts`, metrics in
+`e2e/out/live/probes/typeset-media/metrics.json`, pictures `r5-05-*` and `r5-06-*` in the r5 evidence folder): the
+same items were removed on all 9 sites with both builds. Most sites already read within the range, so the pass leaves
+them as they were: Deník (75 characters, line height 1.56, 1.33 em between paragraphs), Aktuálně (72, 1.71, 1.41),
+Přáslavice and the demo article are unchanged by r5-05, and no picture there needed fitting. Půjčovna Šmíd gets its
+squashed photos back in shape (5 pictures), 25 typeset marks, and no layout shift after Clean. CLS during Clean was
+the same with both builds on 7 sites; after Clean (3 s idle and a scroll through the page) it was the same on all 9
+(0 on 8; YouTube Pohlreich 0.167 with both builds, YouTube's own). The demo page `caption-media.html` (e2e
+`caption-media.spec.ts`) has every case, with CLS after Clean under 0.01.
+
+Still open: the site's banner on Půjčovna Šmíd (`logo11.jpg`) is squeezed at 390 px and stays so (its file is named
+logo); Přáslavice has one 135-character paragraph that the measure does not reach (round 1's rule, unchanged); no live
+site had a gallery or a never-loaded lazy picture in its main column, so those are proven on the demo page only.
 
 ## Code map
 
@@ -727,3 +775,5 @@ the claims have not started when the picture is taken; the waiting pictures are 
 | `apps/extension/src/caption/sites.ts`, `sitePermission.ts`, `autoOpen.ts`, `frame/Remember.tsx` | r2-08 Remember this site: `distill:sites` in chrome.storage.local, the one `<origin>/*` permission asked from the strip's frame, the service worker's automatic open (tabs.onUpdated, no new permission; top frame only; not after Close until the next load; dropped on `permissions.onRemoved`) |
 | `apps/extension/src/caption/frame/SearchSuggestions.tsx`, `apps/web/src/ai.ts` `entryPointOf` | r3-02 Google's search suggestions: the door (string, at most 32,000 characters) and the sealed-off frame (sandbox without scripts or same origin, srcdoc behind its own CSP, links to a new tab) |
 | `apps/extension/proof.html`, `src/proof/`, `proof/fixtures/` | r3-03 the proof page (own build only): the page tasks with the real models on saved copies of three real pages, through the strip's code; the report as JSON and Markdown |
+| `apps/extension/src/caption/typeset.ts`, engine `reading.ts` (`leadingFor`, `headingSpace`, `paragraphGap`, `numericColumns`) | r5-05 the typesetter's pass of the reading layer |
+| `apps/extension/src/caption/media.ts` | r5-06 pictures in the cleaned page: fit, captions, galleries, lazy pictures |
