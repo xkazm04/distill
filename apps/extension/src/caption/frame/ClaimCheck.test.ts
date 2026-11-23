@@ -196,6 +196,43 @@ describe("a verdict", () => {
   });
 });
 
+describe("Google's Search Suggestions (r3-02)", () => {
+  beforeEach(() => { local[CHECKS_KEY] = { consent: "yes", auto: false }; });
+  const hostile = `<script>parent.document.body.innerHTML='x'</script><img src=x onerror="parent.document.body.innerHTML='x'"><a href="https://evil.example" target="_top">top</a>`;
+
+  it("shows the suggestions only inside a sandboxed frame: no scripts, no same origin, links to a new tab", async () => {
+    runGrounded.mockImplementation(async () => ({ ...answer(), entryPoint: hostile }));
+    await render();
+    await click(row("c0").querySelector('[data-testid="cap-check-btn"]'));
+    const box = row("c0").querySelector('[data-testid="cap-check-suggestions"]')!;
+    expect(box.textContent).toContain("Search on Google");
+    const frame = box.querySelector("iframe")!;
+    expect(frame.getAttribute("sandbox")).toBe("allow-popups allow-popups-to-escape-sandbox");
+    expect(frame.getAttribute("sandbox")).not.toMatch(/allow-scripts|allow-same-origin|allow-top-navigation|allow-forms/);
+    expect(frame.getAttribute("src")).toBeNull();
+    const doc = frame.getAttribute("srcdoc")!;
+    expect(doc).toContain(hostile); // unchanged, as Google's terms ask, but only inside the frame's own document
+    expect(doc.indexOf("Content-Security-Policy")).toBeLessThan(doc.indexOf(hostile));
+    expect(doc).toContain("default-src 'none'");
+    expect(doc).toContain('<base target="_blank">');
+    // The strip's own document holds none of it as markup.
+    expect(el.querySelector("script, img, a[target=_top]")).toBeNull();
+    expect(document.body.innerHTML).not.toBe("x");
+  });
+
+  it("an answer without suggestions shows no frame; one the door refused shows none and is counted", async () => {
+    await render();
+    await click(row("c0").querySelector('[data-testid="cap-check-btn"]'));
+    expect(row("c0").querySelector('[data-testid="cap-check-suggestions"]')).toBeNull();
+    expect(row("c0").querySelector('[data-testid="cap-check-dropped"]')?.textContent).toBe("Distill left out 1 part of the answer it could not trust.");
+    runGrounded.mockImplementation(async () => ({ ...answer(), entryRefused: true }));
+    await click(row("c1").querySelector('[data-testid="cap-check-btn"]'));
+    expect(row("c1").querySelector('[data-testid="cap-check-suggestions"]')).toBeNull();
+    // The http source and the refused suggestions: two parts left out.
+    expect(row("c1").querySelector('[data-testid="cap-check-dropped"]')?.textContent).toBe("Distill left out 2 parts of the answer it could not trust.");
+  });
+});
+
 describe("the strip's source chip", () => {
   const none = { src: "none", text: "No AI used", title: "Clean reads the page's own structure on this device. No AI is used and nothing is sent anywhere.", data: { "data-translate": "idle" } };
   const check = { claimId: "c0", verdict: "supported" as const, reason: "", sources: [] };

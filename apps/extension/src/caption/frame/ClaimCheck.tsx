@@ -8,10 +8,11 @@
 // an article are checked by themselves (once per page) unless the switch in More is off; every other claim on a click.
 import { useEffect, useSyncExternalStore } from "react";
 import { parseCheck, prompts, route, type Claim, type ClaimCheck as Check, type ClaimVerdict, type InferenceSource } from "@distill/engine";
-import { isOnDeviceOnlyBuild, runGrounded, toAiError, AI_WORDS, type AiFailure, type GroundedResult } from "@distill/web/ai";
+import { entryPointOf, isOnDeviceOnlyBuild, runGrounded, toAiError, AI_WORDS, type AiFailure, type GroundedResult } from "@distill/web/ai";
 import { send } from "./send";
 import { readerLang } from "./Translate";
 import { canRunTask, e2eFake } from "./runTask";
+import { SearchSuggestions } from "./SearchSuggestions";
 
 /** The verdicts so far, by claim id, and the switch "check the top claims by themselves". */
 export interface ChecksState {
@@ -22,7 +23,11 @@ export interface ChecksState {
 }
 
 /** Where a check ran and what its door refused, by claim id. */
-export interface CheckMeta { source: InferenceSource; why: string; dropped: number }
+export interface CheckMeta {
+  source: InferenceSource; why: string; dropped: number;
+  /** Google's Search Suggestions for this check (r3-02), shown only inside SearchSuggestions' sealed-off frame. */
+  entry?: string;
+}
 /** Why a check failed, in plain words, and whether trying again can help. */
 export interface CheckProblem { words: string; retry: boolean }
 
@@ -134,29 +139,54 @@ async function grounded(prompt: string, claim: Claim): Promise<GroundedResult<un
       const { fakeRun, fakeGrounding } = await import("../../../../web/src/dev/fake-ai");
       if (fake.delayMs) await new Promise((r) => setTimeout(r, Math.min(fake.delayMs ?? 0, 10_000)));
       try {
+        const started = performance.now();
         const data = fakeRun("checkClaim", { claim: claim.text }, fake.fail);
-        return { data, ...fakeGrounding(), source: fake.source ?? "in_cloud", ms: 0, reason: `${route("checkClaim").reason} (Fake AI, e2e build only)` };
+        // The stand-in suggestions come raw, as the service sends them, and pass the same door as a real answer's.
+        const g = fakeGrounding(fake.entry);
+        return {
+          data, grounding: g.grounding, queries: g.queries, ...entryPointOf(g), source: fake.source ?? "in_cloud",
+          ms: Math.round(performance.now() - started), reason: `${route("checkClaim").reason} (Fake AI, e2e build only)`,
+        };
       } catch (e) { throw toAiError(e); }
     }
   }
   return runGrounded("checkClaim", prompt, { claim: claim.text });
 }
 
+/** One claim checked on the web: the real prompt, the grounded run and its door (parseCheck), plus the Search
+ *  Suggestions door's refusal in `dropped`. The strip's checks and the proof page (r3-03) both come through here. */
+export interface CheckRun {
+  check: Check | null;
+  dropped: number;
+  source: InferenceSource;
+  reason: string;
+  ms: number;
+  /** Google's Search Suggestions markup, when the answer had one the door accepted (shown only in a sealed frame). */
+  entry?: string;
+}
+export async function checkClaim(claim: Claim, page: { title: string; url: string }): Promise<CheckRun> {
+  const r = await grounded(prompts.checkClaim(claim.text, page.title, page.url, readerLang()), claim);
+  const out = parseCheck(r.data, r.grounding, claim.id);
+  return {
+    check: out.check ?? null, dropped: out.dropped + (r.entryRefused ? 1 : 0), source: r.source, reason: r.reason, ms: r.ms,
+    ...(r.entryPoint !== undefined ? { entry: r.entryPoint } : {}),
+  };
+}
+
 async function runCheck(claim: Claim): Promise<void> {
   try {
-    const page = await info();
-    const r = await grounded(prompts.checkClaim(claim.text, page.title, page.url, readerLang()), claim);
-    const out = parseCheck(r.data, r.grounding, claim.id);
+    const out = await checkClaim(claim, await info());
+    const meta: CheckMeta = { source: out.source, why: out.reason, dropped: out.dropped, ...(out.entry !== undefined && out.check ? { entry: out.entry } : {}) };
     if (!out.check) {
       set((s) => ({
         checks: { ...s.checks, [claim.id]: "failed" },
         problems: { ...s.problems, [claim.id]: { words: "The AI's answer could not be used.", retry: true } },
-        meta: { ...s.meta, [claim.id]: { source: r.source, why: r.reason, dropped: out.dropped } },
+        meta: { ...s.meta, [claim.id]: meta },
       }));
       return;
     }
     const check = out.check;
-    set((s) => ({ checks: { ...s.checks, [claim.id]: check }, meta: { ...s.meta, [claim.id]: { source: r.source, why: r.reason, dropped: out.dropped } } }));
+    set((s) => ({ checks: { ...s.checks, [claim.id]: check }, meta: { ...s.meta, [claim.id]: meta } }));
   } catch (e) {
     set((s) => ({ checks: { ...s.checks, [claim.id]: "failed" }, problems: { ...s.problems, [claim.id]: problemOf(e) } }));
   }
@@ -318,6 +348,7 @@ export function ClaimCheck(props: { claim: Claim; checks: Checks }) {
           ))}
         </ul>
       )}
+      <SearchSuggestions html={meta?.entry} />
       {!!meta?.dropped && <span className="ck-dropped" data-testid="cap-check-dropped">{refused(meta.dropped)}</span>}
     </div>
   );

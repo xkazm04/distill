@@ -10,7 +10,7 @@ vi.mock("./firebase", () => ({
   remoteValue: (_s: unknown, key: string) => (key === "inference_mode" ? "prefer_on_device" : "a-cloud-model"),
 }));
 
-const { runGrounded, groundingOf, lenientJson, AiError } = await import("./ai");
+const { runGrounded, groundingOf, lenientJson, entryPointOf, ENTRY_POINT_MAX, AiError } = await import("./ai");
 
 const redirect = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZ1";
 function respond(text: string, extra: object = {}) {
@@ -83,6 +83,33 @@ describe("runGrounded", () => {
     });
     const err = await runGrounded("checkClaim", "p").then(() => null, (e: unknown) => e);
     expect((err as InstanceType<typeof AiError>).kind).toBe("not-genuine");
+  });
+});
+
+describe("Google's Search Suggestions (r3-02: the searchEntryPoint door)", () => {
+  afterEach(() => { getGenerativeModel.mockReset(); });
+
+  it("a grounded answer carries the renderedContent as it is", async () => {
+    respond('{"verdict":"supported","reason":"Yes."}');
+    const r = await runGrounded("checkClaim", "prompt");
+    expect(r.entryPoint).toBe("<div>chip</div>");
+    expect("entryRefused" in r).toBe(false);
+  });
+
+  it("no entry point: the field is omitted, not null, and nothing is counted", () => {
+    expect(groundingOf({ candidates: [{ groundingMetadata: {} }] })).toEqual({ grounding: [], queries: [] });
+    expect(entryPointOf(undefined)).toEqual({});
+    expect(entryPointOf({ searchEntryPoint: null })).toEqual({});
+    expect(entryPointOf({ searchEntryPoint: {} })).toEqual({});
+    expect("entryPoint" in groundingOf({ candidates: [{ groundingMetadata: {} }] })).toBe(false);
+  });
+
+  it("accepts only a non-empty string up to the cap; anything else is refused and counted", () => {
+    expect(entryPointOf({ searchEntryPoint: { renderedContent: "x".repeat(ENTRY_POINT_MAX) } }).entryPoint).toHaveLength(ENTRY_POINT_MAX);
+    for (const bad of ["x".repeat(ENTRY_POINT_MAX + 1), "", "   ", 42, { html: "<b>" }, ["<a>"]]) {
+      expect(entryPointOf({ searchEntryPoint: { renderedContent: bad } }), JSON.stringify(bad).slice(0, 20)).toEqual({ entryRefused: true });
+    }
+    expect(entryPointOf({ searchEntryPoint: 7 })).toEqual({ entryRefused: true });
   });
 });
 
