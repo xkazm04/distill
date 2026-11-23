@@ -224,17 +224,95 @@ export function keepsFacts(source: string, rewrite: string): boolean {
   return missingFacts(source, rewrite).length === 0;
 }
 
-/** The door for a plain-words answer ({blocks: [{id, text}]}, schemas.translate's shape). */
+// ---- Not plainer (r4-03) -----------------------------------------------------------------------------------------
+//
+// The real run of 2026-11-23 (gemini-3.5-flash-lite, Deník in Czech) answered every block with a near copy of it that
+// carried misspellings the page never had ("který" -> "kter½", "tisíc" -> "tísíc", "mají" -> "mávají", "není" ->
+// "nensí"), and the facts check let all 17 through. Such a "rewrite" is not plainer and is worse than the page: it
+// stays as written. A near copy that only swaps a hard word for an easy one, or changes an ending (a Czech case), passes.
+
+/** A rewrite whose words are at least this similar to the source's (in order) is a near copy of it. */
+export const NEAR_COPY = 0.8;
+/** Symbols a rewrite may not bring in when its source has none of them (a fraction sign inside a word, a private-use
+ *  glyph, the replacement character): broken text, not plain words. */
+const ODD = /[\p{No}\p{So}\p{Co}�]/gu;
+
+const wordsOf = (s: string): string[] => (tidy(s).toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) ?? []);
+
+/** `w` is `s` misspelled: a letter or two changed, added or dropped inside the word, its start and its end the same
+ *  ("tisíc" -> "tísíc", "mají" -> "mávají"). A changed ending is grammar, not a misspelling ("lidé" -> "lidí"). */
+export function misspelled(s: string, w: string): boolean {
+  if (s === w || s.length < 3 || w.length < 3 || /\p{N}/u.test(s + w)) return false;
+  const a = [...s];
+  const b = [...w];
+  let p = 0;
+  while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  let q = 0;
+  while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++;
+  return p >= 1 && q >= 1 && a.length - p - q <= 2 && b.length - p - q <= 2;
+}
+
+/** How alike two texts' words are, in order (2 * LCS / (n + m), 0 to 1), and how many words of `b` are words of `a`
+ *  misspelled (an unmatched word of `b` against the unmatched words of `a` between the same matched words). */
+export function compareWords(a: string, b: string): { similarity: number; misspellings: number } {
+  const x = wordsOf(a);
+  const y = wordsOf(b);
+  if (!x.length && !y.length) return { similarity: 1, misspellings: 0 };
+  const L: number[][] = Array.from({ length: x.length + 1 }, () => new Array<number>(y.length + 1).fill(0));
+  for (let i = x.length - 1; i >= 0; i--) {
+    for (let j = y.length - 1; j >= 0; j--) {
+      L[i]![j] = x[i] === y[j] ? L[i + 1]![j + 1]! + 1 : Math.max(L[i + 1]![j]!, L[i]![j + 1]!);
+    }
+  }
+  let misspellings = 0;
+  let gapA: string[] = [];
+  let gapB: string[] = [];
+  const close = () => { for (const w of gapB) if (gapA.some((s) => misspelled(s, w))) misspellings++; gapA = []; gapB = []; };
+  let i = 0;
+  let j = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { close(); i++; j++; }
+    else if (L[i + 1]![j]! >= L[i]![j + 1]!) gapA.push(x[i++] as string);
+    else gapB.push(y[j++] as string);
+  }
+  gapA.push(...x.slice(i));
+  gapB.push(...y.slice(j));
+  close();
+  return { similarity: (2 * L[0]![0]!) / (x.length + y.length), misspellings };
+}
+
+/** Why a rewrite that kept its facts is still no use, or null: "same" (the block unchanged: nothing to show), "odd"
+ *  (symbols its source does not have) or "misspelled" (a near copy that misspells the source's words). */
+export function notPlainer(source: string, rewrite: string): "same" | "odd" | "misspelled" | null {
+  if (tidy(source).replace(/\s+/g, " ").trim() === tidy(rewrite).replace(/\s+/g, " ").trim()) return "same";
+  const had = new Set(source.match(ODD) ?? []);
+  if ((rewrite.match(ODD) ?? []).some((c) => !had.has(c))) return "odd";
+  const c = compareWords(source, rewrite);
+  if (c.similarity >= NEAR_COPY && c.misspellings > 0) return "misspelled";
+  return null;
+}
+
+/**
+ * The door for a plain-words answer ({blocks: [{id, text}]}, schemas.translate's shape): the translation door first,
+ * then every fact kept (missingFacts), then plainer than the source (notPlainer). A block the model returned unchanged
+ * is left alone and not counted; a near copy that misspells it, or one with odd symbols, is refused and counted in
+ * `dropped`.
+ */
 export function parsePlain(answer: unknown, source: readonly TranslateBlock[]): PlainResult {
   const t = parseTranslation(answer, source);
   const src = new Map(source.map((b) => [b.id, b.text]));
   const blocks: TranslateBlock[] = [];
   const lostKinds: FactKind[] = [];
   const lostIds: string[] = [];
+  let dropped = t.dropped;
   for (const b of t.blocks) {
-    const lost = missingFacts(src.get(b.id) ?? "", b.text);
+    const from = src.get(b.id) ?? "";
+    const lost = missingFacts(from, b.text);
     if (lost.length) { lostKinds.push((lost[0] as Fact).kind); lostIds.push(b.id); continue; }
+    const no = notPlainer(from, b.text);
+    if (no === "same") continue;
+    if (no) { dropped++; continue; }
     blocks.push(b);
   }
-  return { blocks, lostFacts: lostKinds.length, lostKinds, lostIds, dropped: t.dropped };
+  return { blocks, lostFacts: lostKinds.length, lostKinds, lostIds, dropped };
 }
