@@ -274,6 +274,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
           throw new Error(`The extension did not load in channel "${LAUNCH.channel}". Branded Google Chrome ignores `
             + "--load-extension since Chrome 137; use the default (Playwright's Chromium) or E2E_CHANNEL=msedge.");
         });
+      // r3-07: hermetic - the service worker's ECB download never reaches the real ECB. A spec that needs rates routes it
+      // to its own stub (caption-terms.spec.ts); a later route wins.
+      await context.route("https://www.ecb.europa.eu/**", (r) => r.fulfill({ status: 503, body: "hermetic e2e: no ECB" }));
       const extensionId = new URL(worker.url()).host;
       const d = new Distill(context, worker, extensionId, demo.origin);
       await use(d);
