@@ -78,6 +78,13 @@ describe("findActions: contacts and opening hours", () => {
     expect(items[2]).toMatchObject({ href: "mailto:obec@stahlavy.cz" });
   });
 
+  it("hours written one range after another are one item, quoting the page's exact words", () => {
+    const text = "Po - Pá: 7.00 - 16.30 So: 8.00 - 11.00 (jen pneuservis)";
+    const items = find([text]);
+    expect(brief(items)).toEqual([["hours", "Hours: Po - Pá: 7.00 - 16.30; So: 8.00 - 11.00"]]);
+    expect(text).toContain(items[0]?.quote ?? "?");
+  });
+
   it("a bank account, a price and a date are not phones; the same number twice is listed once", () => {
     expect(find(["IČO: 12345678, č. ú. 1234567890/0800."])).toEqual([]);
     expect(find(["Volejte 602 123 456.", "Nebo znovu 602 123 456."]).length).toBe(1);

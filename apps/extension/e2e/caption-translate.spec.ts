@@ -41,7 +41,8 @@ test("translate: a Czech page is translated in place on its own; Keep Czech, Ori
   await expect(frame.getByTestId("cap-keep-source")).toHaveCount(0); // while translating, the status says it; no button
   await expect(status).toContainText("Translated from Czech", { timeout: 15_000 });
   // The claims to check (r2-01) follow the translation and may already be on the line.
-  expect(await firstSight(frame)).toMatch(/^Removed \d+ distractions · Translated from Czech( · \d+ claims? to check)?$/);
+  // r3-09: the page asks for comments by 15 January, one thing to do; it may be on the line already.
+  expect(await firstSight(frame)).toMatch(/^Removed \d+ distractions · Translated from Czech( · \d+ claims? to check)?( · 1 thing to do)?$/);
 
   // Where it ran, from the run's own answer; one quiet button; at most 5 controls.
   const chip = frame.getByTestId("cap-chip");
@@ -140,9 +141,10 @@ test("translate: a page in the reader's language and a copy with AI off do not s
   const tab = await distill.openTab("caption-translate");
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
-  expect(await firstSight(frame)).toMatch(/· Page in Czech$/);
+  expect(await firstSight(frame)).toMatch(/· Page in Czech(?: · 1 thing to do)?$/);
   await tab.page.waitForTimeout(500);
-  await expect(frame.getByTestId("cap-status")).toHaveText(/· Page in Czech$/);
+  // The page asks for comments by 15 January (r3-09): one thing to do, after the language.
+  await expect(frame.getByTestId("cap-status")).toHaveText(/· Page in Czech · 1 thing to do$/);
   await expect(tab.page.locator("[data-distill-translated]")).toHaveCount(0);
 
   const en = await distill.openTab("article");
@@ -150,7 +152,7 @@ test("translate: a page in the reader's language and a copy with AI off do not s
   await startCaption(distill.worker, en.id);
   const enFrame = await captionFrame(en.page);
   // (The stand-in model is on, so the claims to check (r2-01) may join the line and the chip: Translate stays idle.)
-  expect(await firstSight(enFrame)).toMatch(/^Removed 6 distractions( · \d+ claims? to check)?$/);
+  expect(await firstSight(enFrame)).toMatch(/^Removed 6 distractions( · \d+ claims? to check)?( · 1 thing to do)?$/);
   await en.page.waitForTimeout(500);
   await expect(en.page.locator("[data-distill-translated]")).toHaveCount(0);
   await expect(enFrame.getByTestId("cap-chip")).toHaveAttribute("data-translate", "idle");

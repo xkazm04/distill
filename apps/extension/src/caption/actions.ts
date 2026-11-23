@@ -82,6 +82,13 @@ export function readActions(ctx: CleanContext): ActionItem[] {
     if (c.href) item.href = c.href;
     const k = keyOf(item);
     if (have.has(k)) continue;
+    // The finder joins lines of hours into one ("Po - Pá: 7.00 - 16.30; So: 8.00 - 11.00"): one already listed in part
+    // is the same hours.
+    if (item.kind === "hours") {
+      const flat = (s: string) => s.toLowerCase().replace(/[\s.,;:–-]+/g, "");
+      const all = flat(c.text);
+      if (found.some((f) => f.item.kind === "hours" && all.includes(flat(f.item.value ?? f.item.quote)))) continue;
+    }
     have.add(k);
     added++;
     found.push({ item, where: { el, nodes: [] }, at: 0 });

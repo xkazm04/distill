@@ -143,7 +143,8 @@ test("claims: the marks follow a translation in and out (Keep Czech, Show Englis
   const frame = await captionFrame(page);
   const status = frame.getByTestId("cap-status");
   // Claims wait for the translation, and are found in the words the person sees.
-  await expect(status).toHaveText(/^Removed \d+ distractions · Translated from Czech · \d+ claims? to check$/, { timeout: 15_000 });
+  // The page asks for comments by 15 January (r3-09): one thing to do.
+  await expect(status).toHaveText(/^Removed \d+ distractions · Translated from Czech · \d+ claims? to check · 1 thing to do$/, { timeout: 15_000 });
   const n = Number(/(\d+) claims? to check/.exec((await status.textContent()) ?? "")?.[1]);
   expect(n).toBeGreaterThanOrEqual(2);
   await expect.poll(async () => (await marks(page)).ranges).toBe(n);

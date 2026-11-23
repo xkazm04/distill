@@ -22,7 +22,9 @@ test("caption find: an old Czech site with no lang attribute is named Czech from
   await startCaption(distill.worker, tab.id);
   const frame = await captionFrame(tab.page);
   // #2: the page says nothing about its language; its words do.
-  expect(await firstSight(frame)).toMatch(/· Page in Czech$/);
+  expect(await firstSight(frame)).toMatch(/· Page in Czech(?: · \d+ things? to do)?$/);
+  // r3-09: the phone in the text and the opening hours are the things to do (the hidden footer's are not counted).
+  await expect(frame.getByTestId("cap-status")).toHaveText(/· Page in Czech · 2 things to do$/);
   await expect(tab.page.locator("footer")).toBeHidden(); // Clean took the footer, where most of the contacts are
 
   // #5: More lists the contacts, phones and e-mails first; nothing on the price list or the company ids is a phone.

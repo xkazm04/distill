@@ -1,7 +1,7 @@
 // Round 3, card 9 (r3-09): what this page asks of you. Deadlines, sums to pay (with the account number), what to bring,
 // how to reach someone and opening hours, found in the main text by patterns (no AI). Pure: text in, items out. The
 // items are the page's own words with a few English words around them ("Pay", "By", "Bring"); nothing is made up.
-import { contactsInText } from "./contact.js";
+import { contactsInText, type TextContact } from "./contact.js";
 import { CZ_MONTHS, EN_MONTHS } from "./byline.js";
 
 export const ACTION_KINDS = ["deadline", "payment", "bring", "contact", "hours"] as const;
@@ -117,7 +117,16 @@ export function findActions(blocks: readonly { id: string; text: string }[], lan
       const h = sentenceHit(s.text);
       if (h) hits.push({ ...h, at: s.at + s.text.indexOf(h.quote), key: `${h.kind}:${h.quote.toLowerCase()}` });
     }
+    // Hours written one day-range after another ("Po - Pá: 7.00 - 16.30 So: 8.00 - 11.00") are one item.
+    const contacts: TextContact[] = [];
     for (const c of contactsInText(b.text, czech)) {
+      const prev = contacts[contacts.length - 1];
+      if (prev?.kind === "hours" && c.kind === "hours" && /^[\s,;/|]*$/.test(b.text.slice(prev.at + prev.quote.length, c.at))) {
+        prev.quote = b.text.slice(prev.at, c.at + c.quote.length);
+        prev.text = `${prev.text}; ${c.text}`;
+      } else contacts.push({ ...c });
+    }
+    for (const c of contacts) {
       const hit: Hit = c.kind === "hours"
         ? { kind: "hours", at: c.at, quote: c.quote, text: `Hours: ${c.text}`, value: c.text, key: `hours:${c.text.toLowerCase().replace(/\s+/g, "")}` }
         : { kind: "contact", at: c.at, quote: c.quote, text: c.kind === "phone" ? `Call ${c.text}` : `Write to ${c.text}`, value: c.text, key: `contact:${c.href ?? c.text}` };
