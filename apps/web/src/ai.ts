@@ -30,7 +30,7 @@ export const ON_DEVICE_ONLY_NOTE = "This version of Distill works only with the 
 
 /** What went wrong, as a kind the surfaces can design for. The message is always plain words. */
 export type AiFailure =
-  | "busy" | "not-genuine" | "device-only" | "not-configured" | "other"
+  | "busy" | "not-genuine" | "device-only" | "not-configured" | "other" | "needs-cloud"
   | "agent-timeout" | "agent-cancelled" | "agent-stale" | "agent-gone";
 
 /** Every sentence a person can see about a failed AI call. Raw SDK text never reaches the screen. */
@@ -41,6 +41,7 @@ export const AI_WORDS: Record<AiFailure, string> = {
     ? "This version of Distill uses only the AI model on this device, and it is not ready on this device."
     : "Suggestions and checks only run on this device, and this device has no model for them. Type your answers instead.",
   "not-configured": "AI features are off in this copy of Distill.",
+  "needs-cloud": "Checking on the web needs the cloud; this version of Distill uses only the AI on this device.",
   other: "Something went wrong with the AI.",
   "agent-timeout": "Your agent did not answer in time.",
   "agent-cancelled": "You stopped waiting for your agent.",
@@ -151,6 +152,8 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
 
   // The on-device-only build asks the Sieve for its own only_on_device mode for every task (its words say so on hover).
   const onDeviceOnly = isOnDeviceOnlyBuild();
+  // A task the Sieve keeps in the cloud whatever is configured (the web check) has no on-device form: say so plainly.
+  if (onDeviceOnly && engine.route(task).mode === "only_in_cloud") throw new AiError("needs-cloud");
   const decision = await engine.route(task, onDeviceOnly ? VALUES_TASK_MODE : remoteValue(services, "inference_mode"));
   const isValues = decision.promptClass === "values";
   const pinned = isValues || onDeviceOnly;
@@ -192,6 +195,91 @@ async function runRaw<T>(task: Task, prompt: string, schema: object | null, devC
   const text = result.response.text();
   const data = (schema ? JSON.parse(stripFence(text)) : text) as T;
   return { data, source: sourceOf(result.response.inferenceSource, decision, mode), ms: Math.round(performance.now() - started), reason: decision.reason };
+}
+
+// ---- grounded in Google Search (round 2: the web check) ----------------------------------------------------------
+
+/** A web page the search behind a grounded answer used, as the service reported it (untrusted until a door). */
+export interface GroundingSource { title: string; url: string }
+
+export interface GroundedResult<T> extends RunResult<T> {
+  /** From `candidates[0].groundingMetadata.groundingChunks[].web`: the service's own search results, never the
+   *  model's text. A door (parseCheck) still checks them. */
+  grounding: GroundingSource[];
+  /** The searches the service ran, for a "search it yourself" link. */
+  queries: string[];
+}
+
+/** The model reply as JSON, leniently: a fence or words around it are tolerated. Unparseable text comes back as the
+ *  text itself, for the door to refuse (with the search tool on, a JSON schema cannot be relied on). */
+export function lenientJson(text: string): unknown {
+  const t = stripFence(text);
+  try { return JSON.parse(t); } catch { /* below */ }
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try { return JSON.parse(t.slice(start, end + 1)); } catch { /* below */ }
+  }
+  return text;
+}
+
+type GroundingShape = { groundingChunks?: { web?: { uri?: string; title?: string; domain?: string } }[]; webSearchQueries?: string[] } | undefined;
+
+/** The grounding sources and searches of a response (`candidates[0].groundingMetadata`). */
+export function groundingOf(response: { candidates?: { groundingMetadata?: unknown }[] }): { grounding: GroundingSource[]; queries: string[] } {
+  const meta = response.candidates?.[0]?.groundingMetadata as GroundingShape;
+  const grounding = (meta?.groundingChunks ?? []).flatMap((c) => {
+    const w = c?.web;
+    if (!w || typeof w.uri !== "string") return [];
+    return [{ url: w.uri, title: typeof w.title === "string" && w.title ? w.title : typeof w.domain === "string" ? w.domain : "" }];
+  });
+  const queries = (meta?.webSearchQueries ?? []).filter((q): q is string => typeof q === "string").slice(0, 3);
+  return { grounding, queries };
+}
+
+/**
+ * Run one task with Google Search grounding on the cloud model (the web check). Only a task the Sieve routes
+ * only_in_cloud may come here, and never a values task. The on-device-only build refuses before anything exists, in
+ * plain words. `prompt` asks for JSON in words: no response schema is set, because the search tool and a JSON schema
+ * do not combine on every model; the reply is parsed leniently and a door checks it.
+ */
+export async function runGrounded<T = unknown>(task: Task, prompt: string, devContext: RunContext = {}): Promise<GroundedResult<T>> {
+  try {
+    if (isOnDeviceOnlyBuild()) throw new AiError("needs-cloud");
+    const decision = engine.route(task);
+    if (decision.promptClass === "values" || decision.mode !== "only_in_cloud") {
+      throw new Error(`runGrounded: task "${task}" is not a cloud-only page task; refusing to send it.`);
+    }
+    const started = performance.now();
+
+    if (import.meta.env.DEV && !isFirebaseConfigured()) {
+      const fake = await import("./dev/fake-ai");
+      await fake.fakeDelay(globalThis.location?.search);
+      const data = fake.fakeRun(task, devContext, new URLSearchParams(globalThis.location?.search ?? "").get("aifail")) as T;
+      return { data, ...fake.fakeGrounding(), source: "in_cloud", ms: Math.round(performance.now() - started), reason: `${decision.reason} (Fake AI, dev only)` };
+    }
+
+    const services = await getFirebase();
+    if (!services) throw new NotConfiguredError();
+    const model = getGenerativeModel(
+      services.ai,
+      { mode: "only_in_cloud", inCloudParams: { model: remoteValue(services, "cloud_model"), tools: [{ googleSearch: {} }] } },
+      { timeout: CLOUD_TIMEOUT_MS },
+    );
+    const result = await withRetry(() => model.generateContent(prompt));
+    const text = result.response.text();
+    return {
+      data: lenientJson(text) as T,
+      ...groundingOf(result.response),
+      source: sourceOf(result.response.inferenceSource, decision, "only_in_cloud"),
+      ms: Math.round(performance.now() - started),
+      reason: decision.reason,
+    };
+  } catch (e) {
+    const err = toAiError(e);
+    if (err !== e) console.warn(`[distill] grounded AI task "${task}" failed (${err.kind}):`, e);
+    throw err;
+  }
 }
 
 const CLOUD_TIMEOUT_MS = 25_000;

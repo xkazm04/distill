@@ -54,6 +54,20 @@ export function fakeDelay(search: string | undefined): Promise<void> {
   return ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve();
 }
 
+/** The stand-in grounded run's "search results" (checkClaim): two https pages, the second one twice (the service
+ *  repeats pages), and one plain-http page the door must refuse, so its rules and the links are exercised. */
+export function fakeGrounding(): { grounding: { title: string; url: string }[]; queries: string[] } {
+  return {
+    grounding: [
+      { title: "Example News: the figures checked", url: "https://example.com/fact-check" },
+      { title: "Example Encyclopedia", url: "https://example.org/wiki/claim" },
+      { title: "Example Encyclopedia", url: "https://example.org/wiki/claim" },
+      { title: "Plain-http page", url: "http://example.net/insecure" },
+    ],
+    queries: ["stand-in search"],
+  };
+}
+
 export function fakeRun(task: Task, ctx: FakeContext, fail?: string | null): unknown {
   const empty = failFor(task, fail) === "empty";
   const blocks = ctx.page?.blocks ?? [];
