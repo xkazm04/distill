@@ -62,14 +62,16 @@ export function FirstLine(props: { sentence: Sentence; chips: FactChip[]; full: 
         <span className="fl-sentence" aria-hidden="true" data-testid="cap-sentence">{layout.short ? props.sentence.short : props.sentence.long}</span>
         {shown.map((c) => (
           <button key={c.id} type="button" className="fact" data-testid="cap-fact" data-fact={c.id} data-part={c.part} title={c.title}
-            aria-label={c.title} onClick={() => props.open(c.part)}><span className="fact-in">{c.text}</span></button>
+            onClick={() => props.open(c.part)}><span className="fact-in">{c.text}</span></button>
         ))}
         {folded.length > 0 && (
           <button type="button" className="fact fact-more" data-testid="cap-fact-more" data-part={folded[0]?.part}
-            title={folded.map((c) => c.text).join(", ")} aria-label={`${folded.length} more: ${folded.map((c) => c.text).join(", ")}. Open More.`}
+            title={folded.map((c) => c.text).join(", ")} aria-describedby="cap-fact-more-what"
             onClick={() => props.open(folded[0]?.part ?? "page")}><span className="fact-in">+{folded.length}</span></button>
         )}
       </span>
+      {/* r5-10: the +n chip's name is what it shows ("+3"); what it holds is its description, read after the name. */}
+      {folded.length > 0 && <span className="vh" id="cap-fact-more-what">{folded.length} more: {folded.map((c) => c.text).join(", ")}. Opens More.</span>}
       {/* The same pieces, unseen, to measure them (fonts and sizes as drawn). */}
       <span className="fl-measure" ref={measure} aria-hidden="true">
         <span className="fl-sentence fl-m-long">{props.sentence.long}</span>

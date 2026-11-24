@@ -117,8 +117,8 @@ const PAGES: { name: string; size: "desktop" | "phone"; model?: boolean; why: st
   { name: "caption-comfort", size: "desktop", why: "an old small-type company page made easier to read" },
   { name: "caption-shop", size: "desktop", why: "a shop page: product facts, its clutter gone" },
   { name: "caption-shop", size: "phone", why: "the same at phone width" },
-  // Not caption-tables: its column comes out 860 or 900 px wide depending on timing (3 runs in 12, round 5), and 764 px
-  // after a resize; a picture of it would fail by chance. Reported; add it back once the width is settled.
+  // r5-10: its column used to come out 860 or 900 px wide depending on timing, 764 px after a resize; now one width.
+  { name: "caption-tables", size: "desktop", why: "a village office page: its tables readable, the column in the middle" },
   { name: "caption-consent", size: "desktop", why: "a library page after its cookie banner was answered" },
   { name: "caption-reflow", size: "desktop", why: "a news page reflowed to one column" },
   { name: "caption-video", size: "desktop", why: "a video page (the video itself masked)" },

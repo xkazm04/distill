@@ -214,6 +214,17 @@ export async function showPart(frame: Frame, testid: string, timeout = 10_000): 
   await frame.locator(`#${id}:not([hidden])`).waitFor({ timeout });
 }
 
+/** r5-10: chooses More's tab `tabTestid` (cap-tab-<part>) once the strip holds still, and again if a click missed. */
+export async function chooseTab(frame: Frame, tabTestid: string, timeout = 10_000): Promise<void> {
+  const tab = frame.getByTestId(tabTestid);
+  await settled(frame.page()).catch(() => undefined);
+  await expect(async () => {
+    if ((await tab.getAttribute("aria-selected")) !== "true") await tab.click({ timeout: 2_000 });
+    expect(await tab.getAttribute("aria-selected")).toBe("true");
+  }).toPass({ timeout });
+  await settled(frame.page()).catch(() => undefined);
+}
+
 /** r5-02: opens More (if it is shut) on the part that holds the section `testid`. */
 export async function openMoreAt(frame: Frame, testid: string, timeout = 10_000): Promise<void> {
   const btn = frame.getByTestId("cap-more-btn");

@@ -18,6 +18,8 @@ const CARDS = "data-distill-table-cards";
 const LABEL = "data-distill-label";
 /** On a table wider than its column now: it scrolls inside itself. */
 const WIDE = "data-distill-table-wide";
+/** r5-10: on a wide table Distill gave a tabindex, so the keyboard can scroll it (it scrolls inside itself now). */
+const FOCUS = "data-distill-table-focus";
 /** On a table taller than half the window now: its header stays in view. */
 const TALL = "data-distill-table-tall";
 /** On <html> while the person has turned readable tables off. */
@@ -237,11 +239,16 @@ function css(tables: Table[], top: number): string {
   return rules.join("\n");
 }
 
+/** Takes back the tabindex Distill gave a wide table. */
+function unfocusable(el: Element): void {
+  if (el.hasAttribute(FOCUS)) { el.removeAttribute("tabindex"); el.removeAttribute(FOCUS); }
+}
+
 /** Which tables are wide and tall in the window as it is now (run again on every resize). */
 function measure(): void {
   if (!state) return;
   const { doc, win, tables, style } = state;
-  for (const t of tables) { t.el.removeAttribute(WIDE); t.el.removeAttribute(TALL); }
+  for (const t of tables) { t.el.removeAttribute(WIDE); t.el.removeAttribute(TALL); unfocusable(t.el); }
   const phone = win.innerWidth <= PHONE_MAX;
   // Read every size first, then write (one layout).
   const sizes = tables.map((t) => {
@@ -251,7 +258,11 @@ function measure(): void {
   tables.forEach((t, i) => {
     const s = sizes[i] as { wide: boolean; tall: boolean };
     const carded = phone && t.cards;
-    if (s.wide && !carded) t.el.setAttribute(WIDE, "");
+    if (s.wide && !carded) {
+      t.el.setAttribute(WIDE, "");
+      // A box that scrolls must be reachable by the keyboard to scroll it (axe scrollable-region-focusable).
+      if (!t.el.hasAttribute("tabindex")) { t.el.setAttribute("tabindex", "0"); t.el.setAttribute(FOCUS, ""); }
+    }
     if (s.tall && !carded) t.el.setAttribute(TALL, "");
   });
   state.top = stuckAtTop(doc, win);
@@ -342,6 +353,7 @@ export function clearTables(doc: Document): void {
     state = null;
   }
   doc.querySelectorAll('style[data-distill="tables"]').forEach((s) => s.remove());
+  doc.querySelectorAll(`[${FOCUS}]`).forEach(unfocusable);
   for (const attr of [MARK, HEAD, CARDS, LABEL, WIDE, TALL]) doc.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   doc.documentElement.removeAttribute(OFF);
 }

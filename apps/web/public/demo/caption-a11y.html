@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obec Javorník otevírá novou knihovnu v budově staré školy</title>
+<style>
+  /* r5-10: a page that cares for its keyboard and screen reader readers: a skip link that shows on focus inside the
+     site header (which Clean removes as a menu), landmarks, one h1, a visible focus ring. Distill must not take any of
+     that away. */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fafaf7; color: #1b1d1f; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+  :focus-visible { outline: 3px solid #0a58ca; outline-offset: 2px; }
+  .skip { position: absolute; left: -10000px; top: 8px; background: #fff; color: #0a3d91; padding: 8px 14px; font: 600 16px Arial, sans-serif; z-index: 10; }
+  .skip:focus { left: 8px; }
+  header.site { background: #23384f; color: #fff; font-family: Arial, sans-serif; }
+  header.site .in { max-width: 1000px; margin: 0 auto; padding: 12px 20px; display: flex; gap: 22px; align-items: center; }
+  header.site a { color: #fff; text-decoration: none; font-size: 15px; }
+  header.site .brand { font-size: 20px; font-weight: 700; margin-right: auto; }
+  .layout { max-width: 1000px; margin: 24px auto; padding: 24px 20px; background: #fff; display: grid; grid-template-columns: 560px 300px; gap: 40px; }
+  main h1 { font-size: 32px; line-height: 1.2; margin: 0 0 12px; }
+  main .meta { color: #555; font: 14px Arial, sans-serif; margin: 0 0 16px; }
+  aside.side { font-family: Arial, sans-serif; font-size: 15px; }
+  aside.side section { border: 1px solid #ddd; padding: 12px; margin-bottom: 16px; }
+  aside.side h2 { font-size: 16px; margin: 0 0 8px; }
+  aside.side .ad { background: #fff4c2; height: 250px; display: flex; align-items: center; justify-content: center; color: #5b4c00; }
+  footer.site { max-width: 1000px; margin: 0 auto 40px; padding: 16px 20px; font: 14px Arial, sans-serif; color: #444; }
+  @media (max-width: 860px) { .layout { display: block; margin: 0; } }
+</style>
+</head>
+<body>
+<header class="site" role="banner">
+  <a class="skip" href="#obsah" data-testid="skip">Přeskočit na obsah</a>
+  <nav class="in menu" aria-label="Hlavní menu">
+    <span class="brand">Obec Javorník</span>
+    <a href="#">Úřad</a><a href="#">Aktuality</a><a href="#">Kultura</a><a href="#">Turistika</a><a href="#">Kontakty</a>
+  </nav>
+</header>
+<div class="layout">
+  <main id="obsah" tabindex="-1">
+    <h1>Obec Javorník otevírá novou knihovnu v budově staré školy</h1>
+    <p class="meta">Aktuality · 18. listopadu</p>
+    <p>Knihovna se po dvou letech stěhuje z přízemí obecního úřadu do zrekonstruované budovy staré školy na návsi. Nové prostory nabídnou dvakrát víc místa pro knihy, dětský koutek a malou studovnu s internetem pro veřejnost.</p>
+    <p>Slavnostní otevření se koná v sobotu 30. listopadu od deseti hodin. Na programu je čtení pro děti, prohlídka budovy a výstava fotografií staré školy, které do knihovny zapůjčili místní rodáci a bývalí žáci.</p>
+    <p>Půjčovní doba bude nově v pondělí a ve středu od 13 do 18 hodin a v sobotu dopoledne. Čtenářský průkaz zůstává pro občany obce zdarma, ostatní zaplatí sto korun ročně. Knihy půjčené ve staré knihovně lze vrátit i v nové.</p>
+    <p>Obec na rekonstrukci získala dotaci z programu obnovy venkova, která pokryla zhruba polovinu nákladů. Zbytek zaplatila z vlastního rozpočtu. Budova má nová okna, zateplení, bezbariérový vstup a výtah do patra.</p>
+    <h2>Jak se k nám dostanete</h2>
+    <p>Budova staré školy stojí na návsi naproti kostelu. Autobusová zastávka Javorník, náves je hned vedle; parkovat lze na obecním parkovišti za hasičskou zbrojnicí. Bezbariérový vstup je ze dvora.</p>
+  </main>
+  <aside class="side sidebar" aria-label="Postranní panel">
+    <section><h2>Nejčtenější</h2><ul><li><a href="#">Uzavírka silnice na Bílou Vodu</a></li><li><a href="#">Svoz bioodpadu končí</a></li><li><a href="#">Výsledky voleb do zastupitelstva</a></li></ul></section>
+    <section class="ad advert"><span>REKLAMA</span> <button type="button" data-testid="ad-btn">Zavřít reklamu</button></section>
+    <section><h2>Odebírejte novinky</h2><form class="newsletter"><label>E-mail <input type="email"></label> <button type="submit">Odebírat</button></form></section>
+  </aside>
+</div>
+<footer class="site" role="contentinfo"><p>© Obec Javorník · <a href="#">Prohlášení o přístupnosti</a> · <a href="#">Cookies</a></p></footer>
+</body>
+</html>

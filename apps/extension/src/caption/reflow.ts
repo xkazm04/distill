@@ -11,6 +11,38 @@ const WIDEN = "data-distill-widen";
 const FREED = "data-distill-widen-freed";
 const HIDE = "data-distill-hide";
 const ORIGINAL = "data-distill-original";
+/** The reading layer's own switches (comfort.ts, tables.ts) and the additions of Prices and dates (terms.ts). */
+const COMFORT_OFF = "data-distill-comfort-off";
+const TABLES_OFF = "data-distill-tables-off";
+const TERM_ADD = "data-distill-term-add";
+
+/**
+ * Runs `read` on the page as Clean left it: the reading layer (comfort's measure and sizes, the typesetter, readable
+ * tables) and the price and date additions switched off for that moment, in the same task, so no frame is painted
+ * between. Round 5 found the widened width depended on timing: Clean measured before the reading layer ran, a later
+ * look (Stay clean following a change, a resize) after it had narrowed the text and the tables, so one page came out
+ * 900, 860 or 764 px wide. Measured bare, every look reads the same numbers.
+ */
+function bare<T>(doc: Document, read: () => T): T {
+  const html = doc.documentElement;
+  // Clean's own look comes before the reading layer: nothing to switch off, and two attribute flips on <html> would
+  // make the browser restyle the whole page twice (first sight, r5-10 loose end 3).
+  if (!doc.querySelector("[data-distill-comfort], [data-distill-table], [data-distill-term-add]")) return read();
+  const flipped = [COMFORT_OFF, TABLES_OFF].filter((a) => !html.hasAttribute(a));
+  for (const a of flipped) html.setAttribute(a, "");
+  const quiet = doc.querySelector(`[${TERM_ADD}]`) ? doc.createElement("style") : null;
+  if (quiet) {
+    quiet.setAttribute("data-distill", "reflow-measure");
+    quiet.textContent = `[${TERM_ADD}]::after { content: none !important; }`;
+    (doc.head ?? html).append(quiet);
+  }
+  try {
+    return read();
+  } finally {
+    quiet?.remove();
+    for (const a of flipped) html.removeAttribute(a);
+  }
+}
 
 interface Reflow {
   ctx: CleanContext;
@@ -23,6 +55,8 @@ interface Reflow {
 }
 
 let state: Reflow | null = null;
+/** Each widened box's character width from its first measure, until close (r5-10: every look reads the same). */
+let charWidth = new WeakMap<Element, number>();
 
 type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
 const boxOf = (el: Element): Box => {
@@ -129,7 +163,7 @@ const MIN_HOLE = 96;
 
 /** Widens what needs it; returns how many boxes changed. */
 export function widen(ctx: CleanContext): number {
-  unwiden(ctx.doc);
+  unwiden(ctx.doc, false);
   if (!ctx.main || !ctx.removed.size || !ctx.doc.body) return 0;
   const path = pathOf(ctx.main, ctx.doc);
   const beside = findBeside(ctx, path);
@@ -152,9 +186,10 @@ export function widen(ctx: CleanContext): number {
   return apply(state);
 }
 
-/** Takes every change back (close). */
-export function unwiden(doc: Document): void {
+/** Takes every change back (close; `forget` also drops the measures kept for the next look). */
+export function unwiden(doc: Document, forget = true): void {
   if (state) { state.stop(); state.style.remove(); state = null; }
+  if (forget) charWidth = new WeakMap();
   doc.querySelectorAll('style[data-distill="reflow"]').forEach((s) => s.remove());
   clearMarks(doc);
 }
@@ -180,17 +215,25 @@ function gridStart(box: Box, grid: Element, win: Window): { line: number; x: num
   return null;
 }
 
-/** Measures the page as it is now and writes the rules. Returns how many boxes they change. */
+/** Measures the page as it is now (bare: the reading layer off for the moment) and writes the rules. Returns how many
+ *  boxes they change. */
 function apply(s: Reflow): number {
-  const { ctx, beside, style } = s;
-  const { doc, win } = ctx;
+  const { ctx, style } = s;
+  const { doc } = ctx;
   style.textContent = "";
   clearMarks(doc);
   if (doc.documentElement.hasAttribute(ORIGINAL)) { s.dirty = true; return 0; }
   s.dirty = false;
   if (!ctx.main?.isConnected) return 0;
+  const main = ctx.main;
+  return bare(doc, () => applyBare(s, main));
+}
 
-  const path = pathOf(ctx.main, doc);
+function applyBare(s: Reflow, main: Element): number {
+  const { ctx, beside, style } = s;
+  const { doc, win } = ctx;
+
+  const path = pathOf(main, doc);
   // Which boxes filled their parent before any rule: those follow a widened box out.
   const filled = new Set(path.filter((el) => {
     const p = el.parentElement;
@@ -227,12 +270,20 @@ function apply(s: Reflow): number {
     // stacked its columns, and then the room beside the box is only its own margin.
     if (!((side.right && right - b.right >= MIN_HOLE) || (side.left && b.left - left >= MIN_HOLE))) continue;
 
-    // The running text in the box: its longest block sets the measure.
+    // The running text in the box: its longest block sets the measure. A table is not running text: its width follows
+    // its cells (a translation, a date written out make it wider), so it sets the measure only in a box of tables.
     const inBox = ctx.body.filter((el) => box.contains(el));
-    const text = inBox.slice().sort((x, y) => (y.textContent ?? "").length - (x.textContent ?? "").length)[0];
+    const prose = inBox.filter((el) => el.localName !== "table" && !el.closest("table"));
+    const runs = prose.length ? prose : inBox;
+    const text = runs.slice().sort((x, y) => (y.textContent ?? "").length - (x.textContent ?? "").length)[0];
     if (!text) continue;
-    const sample = inBox.map((el) => el.textContent ?? "").join(" ");
-    const width = columnWidth({ box: b.width, text: contentBox(text, win).width, avgChar: avgCharWidth(text, win, sample), room });
+    // The character width as first measured (before Translate or Plain changed the words), kept for later looks.
+    let avgChar = charWidth.get(box);
+    if (avgChar === undefined) {
+      avgChar = avgCharWidth(text, win, runs.map((el) => el.textContent ?? "").join(" "));
+      charWidth.set(box, avgChar);
+    }
+    const width = columnWidth({ box: b.width, text: contentBox(text, win).width, avgChar, room });
     const offCentre = Math.abs((b.left + b.right) / 2 - (left + right) / 2);
     if (width - b.width < 8 && offCentre < 24) continue;
 
