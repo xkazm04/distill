@@ -149,8 +149,10 @@ test("keyboard: a tour from the keyboard - start, next, back, end; every control
   await start.focus();
   await page.keyboard.press("Enter");
   await expect(frame.getByTestId("cap-tour-status")).toHaveText(/^Step 1 of/);
-  const stops = await walk(page, frame);
+  // Starting a tour closes More (the tour's caption takes the strip): wait for it, then walk what is there.
   await expect(frame.getByTestId("cap-more")).toHaveCount(0);
+  await settled(page);
+  const stops = await walk(page, frame);
   expect(stops.map((s) => tid(s.id))).toEqual(expect.arrayContaining(["cap-tour-next", "cap-tour-end"]));
   expect(new Set(stops.map((s) => s.id))).toEqual(new Set(await tabbable(frame)));
   expect(noRing(stops)).toEqual([]);

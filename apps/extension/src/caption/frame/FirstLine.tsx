@@ -66,10 +66,12 @@ export function FirstLine(props: { sentence: Sentence; chips: FactChip[]; full: 
         ))}
         {folded.length > 0 && (
           <button type="button" className="fact fact-more" data-testid="cap-fact-more" data-part={folded[0]?.part}
-            title={folded.map((c) => c.text).join(", ")}
-            onClick={() => props.open(folded[0]?.part ?? "page")}><span className="fact-in">+{folded.length}<span className="vh"> more: {folded.map((c) => c.text).join(", ")}. Open More.</span></span></button>
+            title={folded.map((c) => c.text).join(", ")} aria-describedby="cap-fact-more-what"
+            onClick={() => props.open(folded[0]?.part ?? "page")}><span className="fact-in">+{folded.length}</span></button>
         )}
       </span>
+      {/* r5-10: the +n chip's name is what it shows ("+3"); what it holds is its description, read after the name. */}
+      {folded.length > 0 && <span className="vh" id="cap-fact-more-what">{folded.length} more: {folded.map((c) => c.text).join(", ")}. Opens More.</span>}
       {/* The same pieces, unseen, to measure them (fonts and sizes as drawn). */}
       <span className="fl-measure" ref={measure} aria-hidden="true">
         <span className="fl-sentence fl-m-long">{props.sentence.long}</span>

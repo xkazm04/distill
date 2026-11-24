@@ -834,7 +834,8 @@ Still flagged after Clean, all the pages' own: the car-repair demo has no `lang`
 low contrast, and pages without landmarks keep `landmark-one-main` and `region` (moderate).
 
 **The chips and tabs** now take their names from their words (`7 removed`, `Check (6)` with the brackets visually
-hidden, `+3 more: ...` with the rest visually hidden); the longer sentence stays as the title (the description).
+hidden, `+3`); the longer sentence stays as the title, which is read as the description (the `+n` chip's description,
+"3 more: cookies rejected, ... Opens More.", is a visually hidden line beside it, `aria-describedby`).
 
 **The page's own way in** (`caption/access.ts`, unit tests in `access.test.ts`):
 
