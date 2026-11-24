@@ -808,6 +808,142 @@ that asks things, a product page), the choice kept per site, arrows / Home / End
 uncut from 1440 to 320 px; the sheet at half and full, dragged by a finger (CDP touch events) up to full and down to
 closed, the buttons, reduced motion, and the 44 px check. Live: `e2e/live/probes/strip5.live.ts`.
 
+## Round 5, r5-10: accessible everywhere, and round 5's loose ends (2026-11-24)
+
+**The check.** axe-core (`@axe-core/playwright`, WCAG 2.2 A and AA plus best practices) runs in `e2e/caption-a11y.spec.ts`:
+
+- on the strip inside its frame (`e2e/axe.ts` puts the same axe build into `caption.html`, which sits in a closed shadow
+  root where AxeBuilder's own frame walk cannot reach), in 22 states: the first line, More on each of its five parts, a
+  tour running, Original, on a phone the first line and the sheet at half and full; light and dark. The rules that judge
+  a whole document (one main landmark, an h1, `region`, `bypass`) are left out there: the frame is one region of the
+  host page. None serious or critical is allowed;
+- on 18 demo pages before Distill and after Clean (the strip left out). Per rule, Clean may not add a flagged element
+  (except `region`: Explain's note is a live region axe counts as a landmark, so the article's children are listed one by
+  one instead of the article once - the same content). The report: `e2e/out/axe/report.json`.
+
+What it found, and the fixes (`r5-10-axe-before.json` / `-after.json` in the r5 evidence folder):
+
+| Where | Before | After |
+| --- | --- | --- |
+| The strip, 22 states | 46 serious (`label-content-name-mismatch`: each chip's spoken name was its longer title, each More tab's was "Check (6)" while it shows "Check 6", the `+n` chip said "3 more: ..." while it shows "+3") | 0 findings of any kind |
+| caption-media, cleaned | 2 serious added by Distill: the "+N photos" button's name differed from its words; its inline `letter-spacing` was `!important` (WCAG 1.4.12) | 0 serious; nothing added |
+| caption-tables, cleaned | 1 serious added: the fee list, made to scroll inside itself, could not be reached by the keyboard | 0: it gets `tabindex=0` (taken back with the rest) |
+| The other 15 pages | nothing added | nothing added; the pages had 13 serious findings of their own and 2 are left after Clean (contrast in hidden adverts, small targets in removed boxes) |
+
+Still flagged after Clean, all the pages' own: the car-repair demo has no `lang` (serious), one shop teaser keeps its own
+low contrast, and pages without landmarks keep `landmark-one-main` and `region` (moderate).
+
+**The chips and tabs** now take their names from their words (`7 removed`, `Check (6)` with the brackets visually
+hidden, `+3 more: ...` with the rest visually hidden); the longer sentence stays as the title (the description).
+
+**The page's own way in** (`caption/access.ts`, unit tests in `access.test.ts`):
+
+- an item that holds the page's h1 or the landmark that holds the main text (`main`, `role=main`) is never removed, by
+  Clean or by Stay clean;
+- a skip link inside something Clean removes (a site header with its menu) keeps working: the box gets
+  `data-distill-way` and is drawn with no height, hidden and not focusable, while the link in it (`data-distill-way-link`)
+  shows when it gets focus, where the page shows it. Only a link whose target is still shown is kept;
+- focus inside something Distill just hid is taken off it (`rescueFocus`); what `display: none` hides cannot take focus.
+  Original and close take every mark back.
+
+**The keyboard walk** (`e2e/caption-keyboard.spec.ts`, on `caption-parts.html`, `caption-claims.html` and the new
+`caption-a11y.html`, a village page with a skip link in its header, landmarks and an advert with a button):
+
+- Tab reaches the strip from the page; inside it every control that can take focus is reached, the row from left to
+  right; in More one tab of the row is in the Tab order and comes before the part it shows, the arrows go through every
+  part; Original and back; a tour started, stepped and ended; the phone sheet opened, made full and closed, its own
+  buttons before its tabs. Every stop has a visible focus ring (on the control or the pill inside it) and a name in the
+  browser's accessibility tree.
+- On the page after Clean: the first Tab is the skip link, shown, and Enter takes focus to the main text; the h1 and the
+  main landmark stay; focus that sat in the advert is not left there; no Tab stop is ever hidden, on that page and on
+  five more demo pages.
+
+**Contrast**, every colour pair the strip draws, computed from the theme roles the way the CSS mixes them
+(`frame/contrast.test.ts`; `PRINT_CONTRAST=1 npx vitest run contrast` prints this table). Text needs 4.5:1, focus rings
+and the parts of a control 3:1. A switch turned off fell short and was fixed: its edge was 80% of `--line`
+(2.49:1 light, 2.79:1 dark; now `--line`, 3.29 and 3.57) and its knob in the card's colour on a pale track (now
+`--muted`, 5.30 and 6.48).
+
+| Pair | Roles | Needs | Light | Dark |
+| --- | --- | --- | --- | --- |
+| Text on the strip (the line, More, every section) | `--fg` on `--card` | 4.5:1 | 14.82 | 14.07 |
+| Quiet text (notes, the model line, counts, a row's second line) | `--muted` on `--card` | 4.5:1 | 6.68 | 9.23 |
+| Text on a kit wash (facts, chips, a waiting bar's row) | `--fg` on `--fg 9% over --card` | 4.5:1 | 12.47 | 10.87 |
+| Quiet text on a kit wash | `--muted` on `--fg 9% over --card` | 4.5:1 | 5.62 | 7.12 |
+| A button under the pointer | `--fg` on `--fg 7% over --card` | 4.5:1 | 12.97 | 11.55 |
+| An open button (More, aria-expanded) | `--fg` on `--fg 8% over --card` | 4.5:1 | 12.72 | 11.21 |
+| A chip under the pointer | `--fg` on `--fg 15% over --card` | 4.5:1 | 11.05 | 8.98 |
+| A part's tab, not chosen (quiet) | `--muted` on `--card` | 4.5:1 | 6.68 | 9.23 |
+| A part's tab under the pointer | `--fg` on `--fg 6% over --card` | 4.5:1 | 13.23 | 11.90 |
+| The current row (a tour step, a chapter) | `--fg` on `--accent 12% over --card` | 4.5:1 | 11.75 | 10.34 |
+| Primary button | `--accent-fg` on `--accent` | 4.5:1 | 11.84 | 13.94 |
+| Primary button under the pointer | `--accent-fg` on `--accent 86% over --fg` | 4.5:1 | 11.84 | 14.25 |
+| Where it ran: on this device | `--chip-device` on `--card` | 4.5:1 | 6.68 | 9.77 |
+| Where it ran: in the cloud | `--chip-cloud` on `--card` | 4.5:1 | 6.75 | 7.58 |
+| Made by your agent | `--chip-agent` on `--card` | 4.5:1 | 7.88 | 7.52 |
+| A disputed claim's verdict | `--warn-fg` on `--warn-bg` | 4.5:1 | 11.84 | 9.06 |
+| A mixed verdict, the ask-the-web note | `--fg` on `--note-bg` | 4.5:1 | 12.43 | 12.29 |
+| Quiet text on a note | `--muted` on `--note-bg` | 4.5:1 | 5.61 | 8.06 |
+| Typed text in the Ask box | `--fg` on `--bg` | 4.5:1 | 14.07 | 16.56 |
+| The Ask box's hint (placeholder) | `--muted` on `--bg` | 4.5:1 | 6.34 | 10.86 |
+| Focus ring (3 px, drawn 2 px off the control, so always on the card) | `--focus` on `--card` | 3:1 | 4.44 | 5.37 |
+| The chosen tab's bar, a switch turned on | `--accent` on `--card` | 3:1 | 14.82 | 11.84 |
+| A switch turned off: its edge against the strip | `--line` on `--card` | 3:1 | 3.29 | 3.57 |
+| A switch turned off: its knob on the track | `--muted` on `--fg 12% over --card` | 3:1 | 5.30 | 6.48 |
+| A switch turned on: its knob on the track | `--accent-fg` on `--accent` | 3:1 | 11.84 | 13.94 |
+
+**Loose end 1, Aktuálně with More open at 1280 px.** The strip was docked; its frame's content ended 1 px short of the
+strip's box, and that pixel row showed the page's text under the strip's row (a faint line in r5-02's pictures, before
+and after round 5). More's height was cut to fit from its scroll height, which leaves out its own bottom border; it is
+now cut from its box as drawn (`main.tsx`). `e2e/caption-r5-ends.spec.ts` checks the row on the bottom edge in every part
+with More held at its cap (it failed with a 1 px gap before). Live: `e2e/live/probes/dock.live.ts`,
+`r5-10-aktualne-docked.jpg` and `r5-10-praslavice-docked.jpg`: More open at 1280 x 900, the strip 405 px (its 45% cap), its bottom on the window's, 0 px between the row and the edge on both.
+
+**Loose end 2, caption-tables' width.** The widen rule (#1, `reflow.ts`) took its measure from the box's longest block,
+here the waste timetable, whose width follows its cells: the stand-in translation and the dates written out make it
+wider, and Stay clean or a resize measured again after they had (900, 860 or 764 px). It now takes the measure from the
+running text (a table only in a box of tables), keeps each box's first character width, and reads the page with the
+reading layer (comfort, typesetting, readable tables, the price and date additions) off for that moment. The paragraphs
+already run past 70 characters at 760 px, so the column keeps 760 px and moves to the middle of the freed room, every
+time (`caption-r5-ends.spec.ts`: three opens, a same-size resize, narrower and back). caption-tables is back in
+`caption-visual.spec.ts`.
+
+**Loose end 3, first sight after round 5.** Round 4's probe (`e2e/live/probes/speed.live.ts`), round 4's master
+(`94168ce`, built from a clean export) against this branch, the two builds back to back in turns (`E2E_SPEED_BUILDS`).
+Click to first sight, median ms; first run all 9 sites x 3 runs (`r5-10-speed-{before,after}.json`), then the sites that
+came out more than 100 ms slower again x 5 runs (`r5-10-speed-{before,after}-rerun.json`):
+
+| Site | Round 4 | Now | Again: round 4 | Again: now |
+| --- | --- | --- | --- | --- |
+| Demo article | 1311 | 1176 | | |
+| Deník | 1385 | 1453 | 1371 | 1193 |
+| Aktuálně | 1311 | 1391 | 1229 | 1311 |
+| Štáhlavy | 1066 | 1242 | 1147 | 1115 |
+| Přáslavice | 1404 | 1683 | 1281 | 1436 |
+| YouTube Pohlreich (first visit) | 1610 | 2075 | 1627 | 1748 |
+| YouTube Kubíček | 1919 | 1623 | | |
+| Dymáček | 1178 | 1225 | | |
+| Půjčovna Šmíd | 1257 | 1364 | 1211 | 1114 |
+
+The spread between runs of one build on one site is 300 to 1300 ms (Přáslavice 1021 to 1521 with round 4's build), so a
+median of 3 or 5 moves by more than the 100 ms the card asks about. What Clean itself spends was timed in the page (a
+temporary patch, not committed): the round-5 parts are small - the typesetter 1.5 to 8 ms, the picture pass 1 to 15 ms;
+the reading layer as a whole 37 to 94 ms and the widen rule 10 to 44 ms. The widen rule's new bare reading flipped two
+attributes on `<html>` even at Clean, where nothing is there to switch off, which restyles the whole page twice; it now
+reads bare only once the reading layer is on the page. After that, Deník, Štáhlavy and Půjčovna Šmíd came out faster than
+round 4 and Aktuálně within 100 ms; **Přáslavice (+155 ms) and the first YouTube visit (+121 ms) stayed slower in the second
+run too**, by less than their own spread. Their extra time is in the line appearing, not in Clean's page work, so it is
+the strip's frame (its larger bundle, the kit and the chips measuring themselves); nothing was moved after first sight
+for it. Left open.
+
+**Loose end 4, the live pictures.** `e2e/live/visual.live.ts` renewed with `--update-snapshots=all`
+(`changed` rewrote nothing: the old pictures still passed its loose threshold), then run twice: 9 passed both times. The
+new pictures show round 5's first line (sentence and chips) on every site; checked by eye: Aktuálně, the Pohlreich video,
+Deník.
+
+**Pictures changed by r5-10:** `strip-more-{light,dark}-desktop` (the row 1 px lower, on the bottom edge: loose end 1)
+and the new `page-tables-desktop`. The switch's new edge and knob are not in any approved picture.
+
 ## Code map
 
 | File | Role |
@@ -829,3 +965,4 @@ closed, the buttons, reduced motion, and the 44 px check. Live: `e2e/live/probes
 | `apps/extension/proof.html`, `src/proof/`, `proof/fixtures/` | r3-03 the proof page (own build only): the page tasks with the real models on saved copies of three real pages, through the strip's code; the report as JSON and Markdown |
 | `apps/extension/src/caption/typeset.ts`, engine `reading.ts` (`leadingFor`, `headingSpace`, `paragraphGap`, `numericColumns`) | r5-05 the typesetter's pass of the reading layer |
 | `apps/extension/src/caption/media.ts` | r5-06 pictures in the cleaned page: fit, captions, galleries, lazy pictures |
+| `apps/extension/src/caption/access.ts`, `e2e/axe.ts`, `e2e/caption-a11y.spec.ts`, `e2e/caption-keyboard.spec.ts`, `frame/contrast.test.ts` | r5-10 accessible everywhere: the page's way in kept by Clean (h1, main landmark, skip link, focus), axe on the strip and the pages, the keyboard walk, the strip's colour pairs |
