@@ -126,6 +126,22 @@ test("form translate: every word of the form in English and back; the same data 
   expect(await submit(page)).toEqual(before);
   await expect(page.locator("#email-err")).toHaveText("");
 
+  // An error the site writes as plain text, with no error marking (r4-04's gap): one repeats a typed value, one is new
+  // text after typing. Both go to translateErrors on this device, never to translateBlocks.
+  await page.evaluate((name) => {
+    const fs = document.querySelector("#report fieldset") as HTMLElement;
+    fs.insertAdjacentHTML("beforeend", `<p id="plain-echo">Jméno ${name} už někdo použil</p><span id="plain-late">Toto pole je povinné</span>`);
+  }, NAME);
+  await expect(page.locator("#plain-echo")).toHaveText(`[EN-ERR] Jméno ${NAME} už někdo použil`, { timeout: 10_000 });
+  await expect(page.locator("#plain-late")).toHaveText("[EN-ERR] Toto pole je povinné", { timeout: 10_000 });
+  const plain = await sent(distill.worker);
+  const plainBlocks = JSON.stringify(plain.filter((r) => r.task === "translateBlocks"));
+  for (const never of [NAME, "už někdo použil", "Toto pole je povinné"]) expect(plainBlocks).not.toContain(never);
+  const plainErrors = plain.filter((r) => r.task === "translateErrors").flatMap((r) => r.blocks.map((b) => b.text));
+  expect(plainErrors).toContain(`Jméno ${NAME} už někdo použil`);
+  expect(plainErrors).toContain("Toto pole je povinné");
+  await page.evaluate(() => { document.querySelector("#plain-echo")?.remove(); document.querySelector("#plain-late")?.remove(); });
+
   // Keep Czech: the form's own words, exactly; the same data; Show English brings the translation back.
   await frame.getByTestId("cap-keep-source").click();
   await expect(frame.getByTestId("cap-keep-source")).toHaveText("Show English");

@@ -2,7 +2,7 @@
 // how translations go in, and that every word, attribute and value comes back exactly (Keep <language>, Original,
 // close); the form submits the same data before and after.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { applyFormErrors, applyFormText, clearFormText, formErrors, formOriginal, formScopes, formSource, formText, FORM_TRANSLATED, FORM_VALUE, resetFormText } from "./formText";
+import { applyFormErrors, applyFormText, clearFormText, echoes, formErrors, formOriginal, formScopes, formSource, formText, FORM_TRANSLATED, FORM_VALUE, resetFormText, typedValues } from "./formText";
 
 const TYPED = "Zqxvlenka Wbrtnovsky";
 const TYPED_MAIL = "zqx@4711";
@@ -197,5 +197,59 @@ describe("formErrors (values: on-device translation only)", () => {
     const words = formText(document);
     expect(applyFormErrors(document, en(words))).toBe(0);
     expect($("legend").textContent).toBe("Kdo hlásí");
+  });
+});
+
+describe("an error the page writes without marking it (values never leave the device)", () => {
+  const sent = (blocks: { text: string }[]) => blocks.map((b) => b.text).join(" | ");
+
+  it("plain text that repeats a typed value is never a form word: it goes the errors' way (on device only)", () => {
+    const p = document.createElement("p");
+    p.textContent = `Jméno ${TYPED} už je registrováno`; // no class, no role, no aria: nothing marks it as an error
+    $("fieldset").append(p);
+    const words = formText(document);
+    expect(sent(words)).not.toContain(TYPED);
+    expect(sent(words)).toContain("Kdo hlásí"); // the form's own words still go
+    expect(sent(formErrors(document))).toContain(`Jméno ${TYPED} už je registrováno`);
+  });
+
+  it("only the element that repeats the value goes the errors' way: the hint beside it is still a form word", () => {
+    const p = document.createElement("span");
+    p.textContent = `${TYPED} je obsazeno`;
+    $("fieldset").append(p);
+    const words = sent(formText(document));
+    expect(words).toContain("Na tento e-mail odpovíme");
+    expect(words).not.toContain(TYPED);
+  });
+
+  it("a cut or changed echo is caught too: part of a long value, any case", () => {
+    expect(echoes("Adresa ZQXVLENKA@ není platná", ["zqxvlenka@seznam.cz"])).toBe(true);
+    expect(echoes("Kdo hlásí", ["zqxvlenka@seznam.cz"])).toBe(false);
+    expect(echoes("Ano", ["an"])).toBe(false); // too short to tell from the page's words
+  });
+
+  it("text that appears in a form already read, after the person typed, is read as an error, not as form words", () => {
+    formText(document);
+    const span = document.createElement("span");
+    span.textContent = "Toto pole je povinné"; // repeats nothing typed, still the page's answer to what was typed
+    $("fieldset").append(span);
+    expect(formText(document)).toEqual([]);
+    expect(sent(formErrors(document))).toContain("Toto pole je povinné");
+  });
+
+  it("before anything is typed, a later part of the form is still the form's words", () => {
+    $<HTMLInputElement>("#jmeno").value = "";
+    $<HTMLInputElement>("#email").value = "";
+    expect(typedValues($("#f"))).toEqual([]);
+    formText(document);
+    const p = document.createElement("p");
+    p.textContent = "Další údaje o místě";
+    $("fieldset").append(p);
+    expect(sent(formText(document))).toContain("Další údaje o místě");
+  });
+
+  it("an attribute that repeats a typed value is left in the page's language", () => {
+    $("#jmeno").setAttribute("title", `Zadáno: ${TYPED}`);
+    expect(sent(formText(document))).not.toContain(TYPED);
   });
 });

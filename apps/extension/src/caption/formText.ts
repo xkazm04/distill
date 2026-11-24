@@ -14,6 +14,11 @@
 // error message (looksLikeError, aria-errormessage targets, what an invalid field's aria-describedby names). Errors are
 // read only by formErrors, for the values-class task translateErrors (device only, no cloud fallback).
 //
+// An error a page writes as plain text, with no error marking, is caught two ways and goes the errors' way too
+// (`suspect`): text that repeats a value the person typed (`echoes`), and text that appears in a form already read
+// once the person has typed in it (a check's message after a field is left). A page part that opens later is then
+// translated on the device only, or not at all with no local model: the safe side of "values never leave the device".
+//
 // The option fix: an <option> without a value attribute submits its text. Before its text is translated, the page's own
 // text (as the browser would submit it: whitespace collapsed) is pinned as its value attribute, so the form sends exactly
 // the same data; the pin goes whenever the option shows its own words again (Keep <language>, Original, close).
@@ -82,6 +87,10 @@ interface State {
   seenAttrs: WeakMap<Element, Set<string>>;
   /** The error unit read from each error element (its message may change: then it is read again). */
   errorOf: WeakMap<Element, TextUnit>;
+  /** Blocks of plain text read as errors (they repeat a typed value, or appeared after typing): formErrors reads them. */
+  suspect: Set<Element>;
+  /** Forms read at least once (new text in one, after typing, is suspect). */
+  readScopes: WeakSet<Element>;
   next: number;
   nextError: number;
   keepSource: boolean;
@@ -96,7 +105,7 @@ let state: State | null = null;
 
 function ensure(): State {
   state ??= {
-    units: new Map(), seenNodes: new WeakSet(), seenAttrs: new WeakMap(), errorOf: new WeakMap(), next: 0, nextError: 0,
+    units: new Map(), seenNodes: new WeakSet(), seenAttrs: new WeakMap(), errorOf: new WeakMap(), suspect: new Set(), readScopes: new WeakSet(), next: 0, nextError: 0,
     keepSource: false, originalOn: false, target: readerLang(), watch: null, submitDoc: null,
   };
   return state;
@@ -158,6 +167,42 @@ function inError(el: Element, scope: Element, linked: ReadonlySet<Element>): boo
   return false;
 }
 
+// ---- What the person typed: never handed to a model that may run in the cloud ------------------------------------------
+
+/** Text fields that can hold what a person typed (or what autofill put there). */
+const TYPED = "input:not([type]), input[type=text], input[type=email], input[type=tel], input[type=url], input[type=search], input[type=number], input[type=password], input[type=date], textarea";
+/** A form's structure, not its answer: a new part that opens brings a label, a legend, a heading, a button or a field
+ *  with it. Late text there is still the form's words (the echo check still applies). */
+const STRUCTURE = (el: Element): boolean =>
+  /^(label|legend|button|th|caption|summary|h[1-6])$/.test(el.localName) || !!el.closest("label, legend, button");
+/** Shorter than this, a value is too common to tell an echo from the page's own words ("a", "ne"). */
+const ECHO_MIN = 3;
+
+/** What the person typed into the form's text fields: each value that differs from the page's own, collapsed and lower
+ *  case. Read only to compare, never handed over. */
+export function typedValues(scope: Element): string[] {
+  const out: string[] = [];
+  for (const el of Array.from(scope.querySelectorAll(TYPED))) {
+    const f = el as HTMLInputElement | HTMLTextAreaElement;
+    const v = collapse(f.value ?? "");
+    if (v && v !== collapse(f.defaultValue ?? "")) out.push(v.toLowerCase());
+  }
+  return out;
+}
+
+/** The text repeats something typed: a whole value, or (a long one) any 6-character part of it, as a page may cut or
+ *  quote it ("jan.novak@" from "jan.novak@seznam"). */
+export function echoes(text: string, typed: readonly string[]): boolean {
+  if (!typed.length) return false;
+  const t = collapse(text).toLowerCase();
+  for (const v of typed) {
+    if (v.length < ECHO_MIN) continue;
+    if (t.includes(v)) return true;
+    if (v.length >= 8) for (let i = 0; i + 6 <= v.length; i++) { const part = v.slice(i, i + 6); if (/\S{3}/.test(part) && t.includes(part)) return true; }
+  }
+  return false;
+}
+
 // ---- Reading -------------------------------------------------------------------------------------------------------
 
 function seenAttr(s: State, el: Element, name: string): boolean {
@@ -208,18 +253,41 @@ function readForms(doc: Document, s: State): TextBlock[] {
   const out: TextBlock[] = [];
   for (const scope of formScopes(doc)) {
     const linked = linkedErrors(scope);
+    const typed = typedValues(scope);
+    // New text in a form read before, once the person typed: an error the page wrote without marking it, until shown not.
+    const late = s.readScopes.has(scope) && typed.length > 0;
+    s.readScopes.add(scope);
     // Text nodes, by their block.
     const byUnit = new Map<Element, Text[]>();
     const walker = doc.createTreeWalker(scope, 4 /* NodeFilter.SHOW_TEXT */);
     for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
       const parent = n.parentElement;
-      if (!parent || s.seenNodes.has(n) || parent.closest(SKIP) || inError(parent, scope, linked)) continue;
+      if (!parent || s.seenNodes.has(n) || parent.closest(SKIP) || inError(parent, scope, linked) || inSuspect(s, parent)) continue;
       const unitEl = parent.closest(UNIT) ?? scope;
       const list = byUnit.get(unitEl) ?? [];
       list.push(n);
       byUnit.set(unitEl, list);
     }
     for (const [el, nodes] of byUnit) {
+      const echo = echoes(nodes.map((n) => n.nodeValue ?? "").join(""), typed);
+      if (echo || late) {
+        if (!el.querySelector(FIELDS)) {
+          if (echo || !STRUCTURE(el)) { s.suspect.add(el); continue; }
+        } else {
+          // The block holds fields (the form, a row): judge each element the words are in.
+          const kept: Text[] = [];
+          for (const n of nodes) {
+            const p = n.parentElement;
+            const loose = !p || !!p.querySelector(FIELDS);
+            const own = echoes(loose ? n.nodeValue ?? "" : p.textContent ?? "", typed);
+            if (!loose && p && (own || (late && !STRUCTURE(p)))) s.suspect.add(p);
+            else if (own) s.seenNodes.add(n); // loose words beside fields repeating a value: left in the page's language
+            else kept.push(n);
+          }
+          if (!kept.length) continue;
+          nodes.splice(0, nodes.length, ...kept);
+        }
+      }
       const unit = addText(s, el, nodes, "text");
       nodes.forEach((n) => s.seenNodes.add(n));
       if (unit) out.push({ id: unit.id, text: unit.text });
@@ -237,6 +305,7 @@ function readForms(doc: Document, s: State): TextBlock[] {
     for (const el of [scope, ...Array.from(scope.querySelectorAll("*"))]) {
       if (el.closest("[translate=no], .notranslate, [contenteditable]:not([contenteditable=false]), output") || inError(el, scope, linked)) continue;
       for (const name of readableAttrs(el)) {
+        if (echoes(el.getAttribute(name) ?? "", typed)) continue; // repeats a typed value: left in the page's language
         const unit = addAttr(s, el, name);
         if (unit) out.push({ id: unit.id, text: collapse(unit.source) });
       }
@@ -265,7 +334,17 @@ function errorElements(doc: Document, s: State): Element[] {
       out.push(el);
     }
   }
+  for (const el of s.suspect) {
+    if (!el.isConnected || !drawn(el) || !hasWords(el.textContent ?? "") || out.some((o) => o.contains(el))) continue;
+    out.push(el);
+  }
   return out;
+}
+
+/** Inside a block read as a suspect error (its text nodes are formErrors' to read). */
+function inSuspect(s: State, el: Element): boolean {
+  for (const x of s.suspect) if (x.contains(el)) return true;
+  return false;
 }
 
 function errorNodes(el: Element): Text[] {
@@ -493,7 +572,7 @@ function waiting(doc: Document, s: State): number {
     const walker = doc.createTreeWalker(scope, 4);
     for (let t = walker.nextNode() as Text | null; t; t = walker.nextNode() as Text | null) {
       const p = t.parentElement;
-      if (p && !s.seenNodes.has(t) && hasWords(t.nodeValue ?? "") && !p.closest(SKIP) && !inError(p, scope, linked)) n++;
+      if (p && !s.seenNodes.has(t) && hasWords(t.nodeValue ?? "") && !p.closest(SKIP) && !inError(p, scope, linked) && !inSuspect(s, p)) n++;
     }
     for (const opt of Array.from(scope.querySelectorAll("option"))) {
       if (Array.from(opt.childNodes).some((c) => c.nodeType === 3 && hasWords(c.nodeValue ?? "") && !s.seenNodes.has(c as Text))) n++;

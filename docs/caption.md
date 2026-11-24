@@ -530,7 +530,10 @@ Open after round 4:
   (15 requests a minute; 429 on every grounded call). Real Gemini Nano quality: the owner's run of the proof page.
 - YouTube first sight about 1.8-1.9 s (YouTube's own long tasks before the click).
 - An error message a site writes with no error marking and no link from a field could be read as form words and sent
-  to the cloud-capable translator (r4-04).
+  to the cloud-capable translator (r4-04). Closed 2026-11-24 (`formText.ts`, `suspect`): text that repeats a typed
+  value (whole, or a 6-character part of a long one, any case) and text that appears in a form already read once the
+  person has typed go to translateErrors (device only). A label, legend, button or heading that comes with a new part
+  of the form is still the form's words. `caption-form-translate.spec.ts` injects both kinds and failed before the fix.
 - Skip sponsor and dark page's follow-up are proven on demo pages only; tours do not open hidden parts.
 
 ## Round 4, r4-03: the AI tuned from the proof report (2026-11-23)
