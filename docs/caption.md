@@ -955,6 +955,20 @@ run too**, by less than their own spread. Their extra time is in the line appear
 the strip's frame (its larger bundle, the kit and the chips measuring themselves); nothing was moved after first sight
 for it. Left open.
 
+**Settled (2026-11-24).** The three sites again, 11 runs per build, interleaved, on a quiet machine, with the trace
+(`r5-10-speed-quiet-{before,after}.json`), median ms:
+
+| Site | Frame there | Line shown | First sight, round 4 | First sight, now | Difference |
+| --- | --- | --- | --- | --- | --- |
+| Aktuálně | 395 -> 334 | 560 -> 591 | 924 | 957 | +33 |
+| Přáslavice | 289 -> 301 | 509 -> 584 | 937 | 989 | +52 |
+| YouTube Pohlreich | 366 -> 380 | 756 -> 852 | 1277 | 1366 | +89 |
+
+All under the card's 100 ms. The frame arrives as fast as before; the line shows 30 to 50 ms later after it (the
+frame's first render: 27 KB more script in the frame, 23 KB more in the content script). On YouTube the rest is after
+the line, yet the strip's box stops moving before the line in both builds: it is the test's 300 ms stillness wait
+running late on YouTube's busy page, not the strip. Nothing is moved after first sight; closed.
+
 **Loose end 4, the live pictures.** `e2e/live/visual.live.ts` renewed with `--update-snapshots=all`
 (`changed` rewrote nothing: the old pictures still passed its loose threshold), then run twice: 9 passed both times. The
 new pictures show round 5's first line (sentence and chips) on every site; checked by eye: Aktuálně, the Pohlreich video,
