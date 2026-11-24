@@ -608,6 +608,21 @@ From the line to first sight takes 500-600 ms there, against 350-400 ms on the o
 0.9-1.3 s of the 2 s before the click, when nothing of Distill runs (trace field `busyBefore2s`). On the other traced
 sites (Deník, the demo article, Dymáček, Půjčovna Šmíd) that figure was 0.
 
+## Round 5: the look of the strip and of the cleaned page (2026-11-24)
+
+The last round of the universal-core spark, on the owner's note "focused on UI and visual quality of extracted/cleaned
+data by the extension". All 10 cards were built in three waves, because they touch the same strip:
+
+- **Wave A:** r5-01 picture tests, r5-04 one kit for found data with r5-09 waiting, empty and failed, r5-05 the
+  typeset page with r5-06 its pictures, r5-07 one highlight system.
+- **Wave B, on the kit:** r5-02 More in parts, r5-03 the first line of chips, r5-08 the phone sheet.
+- **Wave C:** r5-10 accessibility (axe on the strip and the demo pages, the keyboard walk, the contrast table) and the
+  round's loose ends.
+
+Gates at the end: 1529 unit tests, 174 hermetic e2e (16 opt-in skipped), the picture test included. Still open: first
+sight may be 0.1-0.15 s slower on Přáslavice and the first YouTube visit (r5-10's table, not proven to be noise); the
+gallery fold and lazy pictures are proven on demo pages only. The sections below hold each card's detail.
+
 ## Round 5, r5-07: highlights that belong together (2026-11-23)
 
 Every mark Distill puts on the page now takes its look from one module, `caption/marks.ts`:
