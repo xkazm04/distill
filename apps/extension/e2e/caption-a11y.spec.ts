@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import type { Frame, Page } from "playwright/test";
 import { axeFrame, axePage, describe as said, type Finding, perRule, severe, tally } from "./axe";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, chooseTab, firstSight, settled, startCaption } from "./caption";
 import { type Distill, expect, OUT, test } from "./harness";
 
 const REPORT = process.env.E2E_AXE_REPORT || join(OUT, "axe", "report.json");
@@ -68,13 +68,12 @@ for (const scheme of ["light", "dark"] as const) {
     const parts = await frame.getByRole("tab").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid") ?? ""));
     expect(parts.length).toBeGreaterThanOrEqual(4);
     for (const p of parts) {
-      await frame.getByTestId(p).click();
-      await expect(frame.getByTestId(p)).toHaveAttribute("aria-selected", "true");
+      await chooseTab(frame, p);
       note(`More, ${p}`, await check(page, frame, `${scheme} desktop More ${p.replace("cap-tab-", "")}`));
     }
 
     // A tour running (Do part).
-    await frame.getByTestId("cap-tab-do").click();
+    await chooseTab(frame, "cap-tab-do");
     const start = frame.locator("[data-testid^=cap-tour-start-]").first();
     await expect(start).toBeVisible({ timeout: 15_000 });
     await start.click();

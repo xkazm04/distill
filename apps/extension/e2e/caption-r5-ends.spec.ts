@@ -7,7 +7,7 @@
 // 1. More open and held at its cap (Aktuálně at 1280 px): the frame's content ended 1 px short of the strip's box, so a
 //    line of the page showed under the row. More's height now counts its own border; the row sits on the bottom edge.
 import type { Frame, Page } from "playwright/test";
-import { captionFrame, firstSight, settled, startCaption } from "./caption";
+import { captionFrame, chooseTab, firstSight, settled, startCaption } from "./caption";
 import { type Distill, expect, test } from "./harness";
 
 async function open(distill: Distill, name: string, size: { width: number; height: number }) {
@@ -83,7 +83,7 @@ test("loose end 1: More open and clamped at 1280 px - the strip's row sits on th
   await expect(frame.getByTestId("cap-gist")).toHaveAttribute("data-phase", "ready");
   // Every part, so More is held at its cap (45% of the window) and scrolls inside: the row stays on the bottom edge.
   for (const tab of await frame.getByRole("tab").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid") ?? ""))) {
-    await frame.getByTestId(tab).click();
+    await chooseTab(frame, tab);
     await page.waitForTimeout(300);
     await settled(page);
     const opened = await dock(page, frame);
