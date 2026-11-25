@@ -203,12 +203,30 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
  *  why (a PDF that is a scan, an XFA form, a protected or signed file). */
 type NoForm = "none" | "unreadable" | "problem";
 
-/** The answer to a step as the person sees it on the stepper: option labels, "Yes" for a ticked box. Screen only. */
-function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
+/** True when `v` answers the field: some text, a choice, a tick ("false" is a single box left unticked). */
+const hasAnswer = (f: FieldStructure, v: string): boolean => v.trim() !== "" && !(f.kind === "checkbox" && v.trim() === "false");
+
+/** A checkbox field with more than one box: one tick per option, answered with a comma list of option values. */
+const isTickGroup = (f: FieldStructure): boolean => f.kind === "checkbox" && (f.options?.length ?? 0) > 1;
+
+/** The option values a tick group's answer names, in the form's order. The answer may name an option by its value or by
+ *  its label (a carried or suggested answer), as the write path accepts both. */
+export function tickedValues(f: FieldStructure, value: string): string[] {
+  const named = value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return (f.options ?? []).filter((o) => named.includes(o.value.toLowerCase()) || named.includes(o.label.trim().toLowerCase())).map((o) => o.value);
+}
+
+/** The answer to a step as the person sees it on the stepper: option labels (every ticked one for a tick group), "Yes"
+ *  for a ticked box. Screen only. */
+export function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
   return ids.map((id) => {
     const v = (values[id] ?? "").trim();
     const f = fields.get(id);
     if (!v || !f) return "";
+    if (isTickGroup(f)) {
+      const on = tickedValues(f, v);
+      return (f.options ?? []).filter((o) => on.includes(o.value)).map((o) => o.label).join(", ");
+    }
     if (f.kind === "checkbox") return v === "false" ? "" : "Yes";
     return f.options?.find((o) => o.value === v)?.label ?? v;
   }).filter(Boolean).join(", ");
@@ -299,6 +317,16 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   /** errorKey -> its explanation, made on this device only. Screen only, like `errors`. */
   const [explained, setExplained] = useState<Record<string, Explained>>({});
+  /** fieldId -> a value the page held when its step was entered that the wizard did not write (typed in the original,
+   *  set by the page, accepted from the agent). It became the answer and is noted as "already on the form". */
+  const [onForm, setOnForm] = useState<FormValues>({});
+  /** Fields whose answer the person changed in the wizard and that were not written yet. Only these may be emptied on
+   *  the page: an empty answer the person did not make is never written, so Next never erases what it did not change. */
+  const pending = useRef(new Set<string>());
+  /** What the page held for the step on screen when it was entered (read once on entry). */
+  const entry = useRef<{ stepId: string; held: FormValues } | null>(null);
+  /** Bumped to read the step on screen from the page again (after "Forget my answers"). */
+  const [entryNonce, setEntryNonce] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -363,7 +391,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         if (refilled.length) await host.highlight(refilled, accentColor()).catch(() => undefined);
         if (!live) return;
       }
-      setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null);
+      pending.current = new Set(); entry.current = null;
+      setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null); setOnForm({});
       setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry });
       setIdx(at);
       setCarried(carry);
@@ -486,6 +515,31 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return map;
   }, [structure]);
 
+  // On entering a step, its fields are read from the page once. A value the page holds that differs from the answer
+  // (typed in the original, set by a page script, an agent's answer the person accepted) becomes the answer, noted as
+  // "already on the form", unless the person changed that answer in the wizard and it was not written yet.
+  useEffect(() => {
+    const st = wizard?.steps[idx];
+    entry.current = null;
+    if (phase !== "ready" || !structure || !st) return;
+    let on = true;
+    host.readValues(structure).then((held) => {
+      if (!on || !held || typeof held !== "object") return;
+      entry.current = { stepId: st.stepId, held };
+      const adopt: FormValues = {};
+      for (const id of st.fieldIds) {
+        const f = structure.fields.find((x) => x.fieldId === id);
+        const now = held[id] ?? "";
+        if (!f || f.kind === "file" || pending.current.has(id) || !hasAnswer(f, now)) continue;
+        if (!engine.sameAnswer(f, valuesRef.current[id] ?? "", now)) adopt[id] = now;
+      }
+      if (!Object.keys(adopt).length) return;
+      setValues((x) => ({ ...x, ...adopt }));
+      setOnForm((x) => ({ ...x, ...adopt }));
+    }, () => undefined); // the page could not be read: the answers stay as they are, and Next says if it is gone
+    return () => { on = false; };
+  }, [phase, structure, wizard, idx, entryNonce, host]);
+
   if (phase === "loading") {
     return (
       <section aria-labelledby="wf-h" className="wayfill">
@@ -523,22 +577,64 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
 
   const go = (n: number) => { setProblem(null); setRestored(false); setIdx(n); };
 
-  /** Writes the step's answers into the original form, and moves on only when every answer was written. */
+  /** Writes the step's answers into the original form, and moves on only when every answer was written. Only answers
+   *  that differ from what the page holds now are written (sameAnswer, the write path's own rule), so a field the
+   *  person did not change is never touched, and a field is emptied only when the person emptied it in the wizard. */
   async function commit(skip: boolean) {
     if (!step || !structure) return;
     if (skip) { go(idx + 1); return; }
+    const answers: FormValues = {};
+    step.fieldIds.forEach((id) => { answers[id] = values[id] ?? ""; });
+    if (remember) setProfile(rememberAnswers(answers));
     const mine: FormValues = {};
-    step.fieldIds.forEach((id) => { mine[id] = values[id] ?? ""; });
-    if (remember) setProfile(rememberAnswers(mine));
-    let res: { written: string[]; failed: string[]; reasons?: Record<string, string> };
+    /** Fields the page already holds the answer for: confirmed by the read, nothing to write. */
+    const holding: string[] = [];
+    /** Fields the page changed while this step was on screen (an agent's answer the person accepted): the page wins. */
+    const adopt: FormValues = {};
+    let res: { written: string[]; failed: string[]; reasons?: Record<string, string> } = { written: [], failed: [] };
     try {
-      res = await host.writeValues(structure, mine);
+      const held = await host.readValues(structure);
+      const atEntry = entry.current?.stepId === step.stepId ? entry.current.held : null;
+      for (const id of step.fieldIds) {
+        const f = fields.get(id);
+        if (!f || f.kind === "file") continue; // a file is chosen in the original form; the step says so
+        let want = answers[id] ?? "";
+        const now = held[id] ?? "";
+        if (pending.current.has(id) && isTickGroup(f) && atEntry) {
+          // The person's ticks and unticks since the step was entered, applied to what the page holds now: a box the
+          // page ticked meanwhile, which the person never touched, stays ticked.
+          const before = tickedValues(f, atEntry[id] ?? "");
+          const mineNow = tickedValues(f, want);
+          const kept = new Set(tickedValues(f, now));
+          mineNow.filter((v) => !before.includes(v)).forEach((v) => kept.add(v));
+          before.filter((v) => !mineNow.includes(v)).forEach((v) => kept.delete(v));
+          want = (f.options ?? []).filter((o) => kept.has(o.value)).map((o) => o.value).join(",");
+          answers[id] = want;
+        }
+        if (pending.current.has(id)) {
+          if (engine.sameAnswer(f, want, now)) holding.push(id);
+          else mine[id] = want;
+        } else if (atEntry && (atEntry[id] ?? "") !== now) {
+          adopt[id] = now;
+        } else if (hasAnswer(f, want) && !engine.sameAnswer(f, want, now)) {
+          mine[id] = want;
+        } else if (hasAnswer(f, want)) {
+          holding.push(id);
+        }
+      }
+      setValues((x) => ({ ...x, ...answers })); // a tick group's answer may now include a box the page ticked
+      if (Object.keys(mine).length) res = await host.writeValues(structure, mine);
     } catch (e) {
       console.warn("[distill] could not write to the page:", e);
       setProblem({ fieldIds: step.fieldIds, unreachable: true }); // the typed answers stay in the step
       return;
     }
-    const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
+    [...res.written, ...holding].forEach((id) => pending.current.delete(id));
+    if (Object.keys(adopt).length) { setValues((x) => ({ ...x, ...adopt })); setOnForm((x) => ({ ...x, ...adopt })); }
+    const has = (id: string, v: string | undefined): boolean => { const f = fields.get(id); return !!f && hasAnswer(f, v ?? ""); };
+    const emptied = new Set(res.written.filter((id) => !has(id, mine[id])));
+    const confirmed = [...res.written.filter((id) => !emptied.has(id)), ...holding.filter((id) => has(id, answers[id])), ...Object.keys(adopt).filter((id) => has(id, adopt[id]))];
+    const nextFilled = [...new Set([...filled.filter((id) => !emptied.has(id)), ...confirmed])];
     setFilled(nextFilled);
     if (res.written.length) setSaving("idle"); // a copy saved before this answer is out of date
     await host.highlight(nextFilled, accentColor()).catch(() => undefined);
@@ -558,7 +654,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       const raw = String(r.data).trim();
       const v = /^none.?$/i.test(raw) ? "" : raw;
       setAidFor(f.fieldId, v ? "Suggested from your saved answers. Please check it." : "No suggestion for this one.", { source: r.source, reason: r.reason, ms: r.ms });
-      if (v) setValues((x) => ({ ...x, [f.fieldId]: v }));
+      if (v) { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }
     } catch (e) {
       setAidFor(f.fieldId, aiWords(e), NOT_RUN);
     }
@@ -579,7 +675,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   async function forget() {
     if (!guideStore || !structure) return;
     await Promise.all([guideStore.clear(structure.fingerprint), guideStore.clear(labelsKey(structure.url))]).catch(() => undefined);
-    setValues({}); setCarried({}); setRestored(false); setForgotten(true);
+    // The answers go; the page keeps what it holds. The step on screen is read again, so it shows what the page holds
+    // and the next Next has nothing to change.
+    pending.current = new Set();
+    setValues({}); setCarried({}); setOnForm({}); setRestored(false); setForgotten(true);
+    setEntryNonce((n) => n + 1);
   }
 
   const hasProfile = Object.keys(profile).length > 0;
@@ -740,7 +840,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                       {carried[f.fieldId] !== undefined && carried[f.fieldId] === values[f.fieldId] && (
                         <small className="muted" data-testid="carried-over">Carried over from the previous page. Check it, then press Next.</small>
                       )}
-                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
+                      {onForm[f.fieldId] !== undefined && onForm[f.fieldId] === values[f.fieldId] && (
+                        <small className="muted" data-testid="on-form">Already on the form. Check it, then press Next.</small>
+                      )}
+                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }} format={step.expectedFormat} />
                       {errors.fields[f.fieldId] && (
                         <PageError text={errors.fields[f.fieldId]!.text} lang={errLang(errors.fields[f.fieldId]!)} fieldId={f.fieldId}
                           explained={explained[errorKey(readerLang, f.fieldId, errors.fields[f.fieldId]!.text)]} note={note} testId="field-error" />
@@ -855,6 +958,23 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
       }
       break;
     case "checkbox": {
+      if (isTickGroup(f)) {
+        // One tick per option, holding the comma list of option values the write path sets the whole group to, so a box
+        // the person did not untick stays ticked.
+        const ticked = tickedValues(f, value);
+        const toggle = (v: string, on: boolean) => {
+          const next = new Set(ticked);
+          if (on) next.add(v); else next.delete(v);
+          onChange((f.options ?? []).filter((o) => next.has(o.value)).map((o) => o.value).join(","));
+        };
+        return (
+          <div role="group" aria-label={f.label} id={id}>
+            {(f.options ?? []).map((o) => (
+              <label key={o.value} className="choice"><input type="checkbox" checked={ticked.includes(o.value)} onChange={(e) => toggle(o.value, e.target.checked)} /> {o.label}</label>
+            ))}
+          </div>
+        );
+      }
       const on = f.options?.[0]?.value ?? "true";
       return <label className="choice"><input {...common} type="checkbox" checked={value !== "" && value !== "false"} onChange={(e) => onChange(e.target.checked ? on : "")} /> Yes</label>;
     }

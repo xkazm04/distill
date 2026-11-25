@@ -141,6 +141,12 @@ describe("Wayfill", () => {
     const onShowOriginal = vi.fn();
     await render(<Wayfill host={host} settings={settings} model={model as never} onShowOriginal={onShowOriginal} />);
     expect(q("wf-step")?.textContent).toContain("What is Jméno?");
+    // An answer to write: an empty answer the person did not make is never written (Next never erases the page).
+    const input = el.querySelector<HTMLInputElement>("#wf-jmeno")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Jana");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     await click(button("Next"));
     expect(q("write-problem")?.textContent).toContain(
       'Could not fill in "Jméno" on the original form: the page did not take the answer, or Distill could not confirm it did. Please fill it in there yourself.',
