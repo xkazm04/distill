@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractForm, readValues, writeValues } from "../src/index.js";
+import { extractForm, readValues, sameAnswer, writeValues, type FieldStructure } from "../src/index.js";
 import { live, parse } from "./helpers.js";
 
 const URL_ = "https://forms.example/f";
@@ -295,5 +295,52 @@ describe("dates split into day, month and year", () => {
     expect(writeValues(doc, s, { d: "05.03.1990" }).failed).toEqual(["d"]);
     expect(["#d", "#m", "#y"].map((q) => $(doc, q).value)).toEqual(["", "", ""]);
     await close();
+  });
+});
+
+describe("sameAnswer: the page already holds the answer (Wayfill writes only what differs)", () => {
+  const f = (kind: FieldStructure["kind"], options?: FieldStructure["options"]): FieldStructure => ({ fieldId: "x", kind, label: "X", required: false, ...(options ? { options } : {}) });
+  const OBORY = [
+    { value: "56", label: "Poskytování software" },
+    { value: "63", label: "Překladatelská činnost" },
+    { value: "72", label: "Mimoškolní výchova" },
+  ];
+
+  it("text by its meaningful characters: a mask's layout and case are the same answer, other words are not", () => {
+    expect(sameAnswer(f("text"), "12000", "120 00")).toBe(true);
+    expect(sameAnswer(f("tel"), "+420 777 123 456", "+420777123456")).toBe(true);
+    expect(sameAnswer(f("text"), "Kovalenko", "kovalenko")).toBe(true);
+    expect(sameAnswer(f("text"), "Kovalenko", "Kovalenková")).toBe(false);
+    expect(sameAnswer(f("text"), "", "kept")).toBe(false);
+    expect(sameAnswer(f("text"), "", "  ")).toBe(true);
+  });
+
+  it("a date by its ISO form: D.M.YYYY typed and the browser's YYYY-MM-DD are the same date", () => {
+    expect(sameAnswer(f("date"), "1.12.2026", "2026-12-01")).toBe(true);
+    expect(sameAnswer(f("date"), "01.12.2026", "2026-12-01")).toBe(true);
+    expect(sameAnswer(f("date"), "2.12.2026", "2026-12-01")).toBe(false);
+  });
+
+  it("a tick group by the set of option values, in any order, labels naming their options", () => {
+    expect(sameAnswer(f("checkbox", OBORY), "56,63", "63,56")).toBe(true);
+    expect(sameAnswer(f("checkbox", OBORY), "Poskytování software, 63", "56,63")).toBe(true);
+    expect(sameAnswer(f("checkbox", OBORY), "56", "56,63")).toBe(false);
+    expect(sameAnswer(f("checkbox", OBORY), "", "")).toBe(true);
+  });
+
+  it("a single tick by on and off: the wizard's own value, yes words and the page's true/false agree", () => {
+    expect(sameAnswer(f("checkbox"), "true", "true")).toBe(true);
+    expect(sameAnswer(f("checkbox"), "ano", "true")).toBe(true);
+    expect(sameAnswer(f("checkbox"), "", "false")).toBe(true);
+    expect(sameAnswer(f("checkbox"), "true", "false")).toBe(false);
+    expect(sameAnswer(f("checkbox", [{ value: "souhlas", label: "Souhlasím" }]), "souhlas", "true")).toBe(true);
+  });
+
+  it("a choice by its option value, or the label that names it", () => {
+    const duvod = f("select", [{ value: "1", label: "Zahájení zaměstnání" }, { value: "2", label: "Změna zdravotní pojišťovny" }]);
+    expect(sameAnswer(duvod, "1", "1")).toBe(true);
+    expect(sameAnswer(duvod, "zahájení zaměstnání", "1")).toBe(true);
+    expect(sameAnswer(duvod, "2", "1")).toBe(false);
+    expect(sameAnswer(duvod, "", "1")).toBe(false);
   });
 });
