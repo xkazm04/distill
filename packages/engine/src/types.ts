@@ -357,7 +357,8 @@ export type Task =
   | "gist"              // page (round 2: three points from the main text; on device first)
   | "askPage"           // values (round 3: the person's typed question about the page; device only, no fallback)
   | "explainTerm"       // values (round 4: a word the person selected; which word says something about them)
-  | "translateErrors";  // values (round 4: a form's error messages, which can repeat what the person typed)
+  | "translateErrors"   // values (round 4: a form's error messages, which can repeat what the person typed)
+  | "translateAnswer";  // values (Wayfill "Put into Czech": the person's typed answer; Chrome's on-device Translator only)
 
 export interface RouteDecision {
   task: Task;

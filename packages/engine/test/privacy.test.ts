@@ -289,4 +289,10 @@ describe("payload privacy", () => {
     expect(leaks).toEqual([]);
     for (const t of ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField"] as Task[]) expect(route(t, "prefer_in_cloud").promptClass).not.toBe("values");
   });
+
+  it("Put into Czech carries a typed answer, so it routes on device only whatever is configured", () => {
+    for (const cfg of ["only_in_cloud", "prefer_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
+      expect(route("translateAnswer", cfg)).toMatchObject({ promptClass: "values", mode: "only_on_device" });
+    }
+  });
 });
