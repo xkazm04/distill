@@ -6,7 +6,7 @@ export { extractForm, readErrors, readValues, writeValues, FORM_READER } from ".
 export { sameAnswer } from "./fill.js";
 export { isInvalid, looksLikeError, shownNow } from "./errors.js";
 export { validateAndRepair } from "./repair.js";
-export { parseWizard } from "./wizard.js";
+export { parseWizard, readWizard, type WizardRead } from "./wizard.js";
 export { route } from "./route.js";
 export { prompts } from "./prompts.js";
 export { schemas } from "./schemas.js";

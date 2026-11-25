@@ -45,6 +45,10 @@ export const schemas: Record<"recast" | "wizard" | "classify" | "simplify" | "le
             explanation: str,
             example: str,
             expectedFormat: str,
+            options: {
+              type: "array",
+              items: { type: "object", properties: { fieldId: str, value: str, label: str }, required: ["fieldId", "value", "label"] },
+            },
           },
           required: ["stepId", "fieldIds", "question", "explanation"],
         },

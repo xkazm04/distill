@@ -394,7 +394,10 @@ export function mergeWizards(s: FormStructure, guide: Wizard, rest: Wizard): { w
     for (let n = 2; used.has(stepId); n++) stepId = `${st.stepId}_${n}`;
     used.add(stepId);
     fieldIds.forEach((id) => taken.add(id));
-    extra.push({ ...st, stepId, fieldIds });
+    // Option labels follow their fields: a field the guide covers takes its labels with it.
+    const { options, ...plain } = st;
+    const kept = options?.filter((o) => fieldIds.includes(o.fieldId)) ?? [];
+    extra.push({ ...plain, stepId, fieldIds, ...(kept.length ? { options: kept } : {}) });
   }
   const first = (st: WizardStep) => Math.min(...st.fieldIds.map((id) => order.get(id) ?? 0));
   const steps = [...guide.steps, ...extra].sort((a, b) => first(a) - first(b));

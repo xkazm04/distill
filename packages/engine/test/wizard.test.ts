@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWizard, type FormStructure } from "../src/index.js";
+import { mergeWizards, parseWizard, prompts, readWizard, type FormStructure } from "../src/index.js";
 
 const structure: FormStructure = {
   fingerprint: "fp",
@@ -63,5 +63,62 @@ describe("parseWizard", () => {
     expect(w.steps.flatMap((s) => s.fieldIds).filter((id) => id === "a")).toHaveLength(1);
     expect(w.steps.find((s) => s.stepId === "s3")).toBeUndefined();
     expect(w.steps.find((s) => s.fieldIds.includes("d"))?.question).toBe("Datum");
+  });
+});
+
+describe("readWizard: option labels in the reader's language", () => {
+  const form: FormStructure = {
+    ...structure,
+    fields: [
+      { fieldId: "duvod", kind: "select", label: "Důvod přihlášky", required: true, options: [{ value: "1", label: "Zahájení zaměstnání" }, { value: "2", label: "Změna zdravotní pojišťovny" }] },
+      { fieldId: "pohlavi", kind: "radio", label: "Pohlaví", required: true, options: [{ value: "Z", label: "žena" }, { value: "M", label: "muž" }] },
+    ],
+  };
+
+  it("keeps an entry that names a field of the step and one of its option values, cleaned of HTML", () => {
+    const r = readWizard({ steps: [{ stepId: "s1", fieldIds: ["duvod"], question: "Why?", explanation: "", options: [
+      { fieldId: "duvod", value: "1", label: "<b>Starting a job</b>" },
+      { fieldId: "duvod", value: "2", label: "Changing health insurer" },
+    ] }] }, form, "en");
+    expect(r.wizard.steps[0]?.options).toEqual([
+      { fieldId: "duvod", value: "1", label: "Starting a job" },
+      { fieldId: "duvod", value: "2", label: "Changing health insurer" },
+    ]);
+    expect(r.droppedOptions).toBe(0);
+  });
+
+  it("drops and counts a foreign value, a field of another step, an empty label, a repeat and a non-list", () => {
+    const r = readWizard({ steps: [
+      { stepId: "s1", fieldIds: ["duvod"], question: "Why?", explanation: "", options: [
+        { fieldId: "duvod", value: "5", label: "Retiring" }, // not an option of the form
+        { fieldId: "pohlavi", value: "Z", label: "female" }, // a field of another step
+        { fieldId: "duvod", value: "1", label: "<i></i>" }, // nothing left once cleaned
+        { fieldId: "duvod", value: "2", label: "Changing insurer" },
+        { fieldId: "duvod", value: "2", label: "Changing insurer again" }, // a repeat
+        "x",
+      ] },
+      { stepId: "s2", fieldIds: ["pohlavi"], question: "Sex?", explanation: "", options: "female, male" },
+    ] }, form, "en");
+    expect(r.wizard.steps[0]?.options).toEqual([{ fieldId: "duvod", value: "2", label: "Changing insurer" }]);
+    expect(r.wizard.steps[1]).not.toHaveProperty("options");
+    expect(r.droppedOptions).toBe(6);
+    expect(parseWizard({ steps: [{ stepId: "s1", fieldIds: ["duvod"], question: "Why?", explanation: "", options: [] }] }, form, "en").steps[0]).not.toHaveProperty("options");
+  });
+
+  it("mergeWizards keeps a step's option labels only for the fields the step still covers", () => {
+    const guide = { fingerprint: "fp", readerLang: "en", steps: [{ stepId: "g", fieldIds: ["pohlavi"], question: "Sex?", explanation: "" }] };
+    const rest = { fingerprint: "fp", readerLang: "en", steps: [{ stepId: "s", fieldIds: ["duvod", "pohlavi"], question: "Why?", explanation: "", options: [
+      { fieldId: "duvod", value: "1", label: "Starting a job" }, { fieldId: "pohlavi", value: "Z", label: "female" },
+    ] }] };
+    const step = mergeWizards(form, guide, rest).wizard.steps.find((st) => st.stepId === "s");
+    expect(step?.fieldIds).toEqual(["duvod"]);
+    expect(step?.options).toEqual([{ fieldId: "duvod", value: "1", label: "Starting a job" }]);
+  });
+
+  it("the prompt asks for options in the reader's language, by the form's own values", () => {
+    const p = prompts.buildWizard(form, "uk");
+    expect(p).toContain('options: only for a field of the step that lists options: [{"fieldId", "value", "label"}]');
+    expect(p).toContain("plainly in Ukrainian");
+    expect(p).toContain('options=[{"value":"1","label":"Zahájení zaměstnání"}');
   });
 });
