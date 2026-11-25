@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AccountRow, AccountStatus, FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
+import type { LocalModelState, AccountRow, AccountStatus, FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -9,6 +9,8 @@ import { setGuide } from "./guide";
 import { labelsKey, normLabel, type GuideStore } from "./guideStore";
 import { guideChangedText, guideChip, guideKind, guideSource, notFromGuideText, quoteCaption, type GuideLibrary } from "./guides";
 import { clearProfile, loadProfile, rememberAnswers } from "./profile";
+import { clearPapers, loadPapers, proposePapers, rememberPapers } from "./papers";
+import { alreadyIn, languageName, toFormLanguage, translatorState } from "../translator";
 import { SourceChip, type AiMeta } from "./chips";
 import { WizardSkeleton } from "./loading";
 import { formProblemOf, type FormProblem, type PageHost } from "./host";
@@ -86,6 +88,19 @@ function modelNote(state: LocalModel["state"]): string {
   }
 }
 
+/** Why "Put into <form language>" cannot run yet, in plain words like modelNote; null when it can. Translating runs
+ *  only on this device (Chrome's built-in translator), so with none the answer is never sent anywhere instead. */
+export function translatorNote(state: LocalModelState | "checking", formLang: string): string | null {
+  const lang = languageName(formLang);
+  switch (state) {
+    case "available": return null;
+    case "checking": return null;
+    case "downloadable": return `Putting answers into ${lang} needs a language pack on this device. It downloads once when you press the button.`;
+    case "downloading": return `The ${lang} language pack is still downloading on this device. Putting answers into ${lang} will work when it is ready.`;
+    default: return `Putting answers into ${lang} needs the translator built into Chrome on a computer, and there is none here. Your answers are not sent anywhere to translate them.`;
+  }
+}
+
 /** Why a page's error message is shown without an explanation: explaining it runs only on this device (the message can
  *  repeat what the person typed), and the model there is not ready. */
 export function errorNote(state: LocalModel["state"]): string {
@@ -101,6 +116,13 @@ const NO_ERRORS: FormErrors = { fields: {}, form: [] };
 
 /** The key of one explanation: the reader's language, the field ("" for the form as a whole) and the message. */
 const errorKey = (lang: string, fieldId: string, text: string): string => `${lang}\u0000${fieldId}\u0000${text}`;
+
+/** "Put into <form language>" for one field: running; the translation and its back-translation for the text it was
+ *  asked about (made on this device only); or the plain words for why it did not run. Screen only, never stored. */
+type Translated =
+  | { status: "busy"; text: string; progress?: number }
+  | { status: "done"; text: string; translated: string; back: string; meta: AiMeta }
+  | { status: "failed"; text: string; reason: string };
 
 /** An explanation of a page's error, or the plain words for why there is none. */
 type Explained = { text: string; meta: AiMeta } | { failed: string };
@@ -349,6 +371,18 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [aid, setAid] = useState<Record<string, { text: string; meta: AiMeta }>>({});
   /** fieldId -> the answer carried over from the previous page of this form (noted on screen until it is changed). */
   const [carried, setCarried] = useState<FormValues>({});
+  /** fieldId -> the answer proposed from the saved papers (noted on screen until it is changed). */
+  const [papered, setPapered] = useState<FormValues>({});
+  /** How many facts the saved papers hold (device only), for the delete control. */
+  const [paperCount, setPaperCount] = useState(() => Object.keys(loadPapers()).length);
+  /** fieldId -> the one sentence that says the answer is in letters this form does not take (checkScript). */
+  const [scriptProblems, setScriptProblems] = useState<Record<string, string>>({});
+  /** The on-device translator's state for reader language -> form language ("checking" until it is known). */
+  const [trState, setTrState] = useState<LocalModelState | "checking">("checking");
+  /** fieldId -> "Put into <form language>": running, its result for the text it was asked about, or why it did not run. */
+  const [tr, setTr] = useState<Record<string, Translated>>({});
+  /** fieldId -> whether the on-device language detector says the typed text already reads as the form's language. */
+  const [already, setAlready] = useState<Record<string, { text: string; same: boolean | null }>>({});
   /** The guide picked up where it was before a reload. */
   const [restored, setRestored] = useState(false);
   /** The form on the page is no longer the one this guide was built for. */
@@ -415,6 +449,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         const byLabel = await guideStore.load(labelsKey(s.url)).catch(() => null);
         if (byLabel) carry = carryOver(s.fields, byLabel.answers, present);
       }
+      // The saved papers (device only, no model) propose identity facts for the fields still empty, as carry-over does.
+      const fromPapers: FormValues = kept ? {} : proposePapers(s, { ...present, ...carry });
       if (!live) return;
       const at = kept ? Math.min(kept.stepIndex, w.steps.length) : 0;
       // After a reload the page's fields are empty again: the answers of the steps already passed (the person pressed
@@ -440,9 +476,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       }
       pending.current = new Set(); entry.current = null;
       setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null); setOnForm({});
-      setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry });
+      setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry, ...fromPapers });
       setIdx(at);
       setCarried(carry);
+      setPapered(fromPapers);
+      setScriptProblems({}); setTr({});
       setRestored(!!kept && (kept.stepIndex > 0 || Object.keys(nonEmpty(kept.answers)).length > 0));
       setChanged(false); setForgotten(false);
       setPhase("ready");
@@ -587,6 +625,30 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return () => { on = false; };
   }, [phase, structure, wizard, idx, entryNonce, host]);
 
+  // "Put into <form language>": the on-device translator's state for this pair, asked once per pair. Only a form in
+  // another language than the reader's can need it.
+  const trPair = phase === "ready" && structure && structure.lang !== "und" && structure.lang.split("-")[0] !== readerLang.split("-")[0] ? `${readerLang}>${structure.lang}` : "";
+  useEffect(() => {
+    if (!trPair) return;
+    let on = true;
+    const [from, to] = trPair.split(">") as [string, string];
+    setTrState("checking");
+    void translatorState(from, to).then((st) => { if (on) setTrState(st); });
+    return () => { on = false; };
+  }, [trPair]);
+
+  // The offer is skipped for an answer the on-device language detector says already reads as the form's language.
+  useEffect(() => {
+    const st = wizard?.steps[idx];
+    if (!trPair || !structure || !st) return;
+    for (const id of st.fieldIds) {
+      const f = structure.fields.find((x) => x.fieldId === id);
+      const text = (values[id] ?? "").trim();
+      if (!f || !text || !engine.canOfferTranslation(f, structure.lang, readerLang, st.expectedFormat) || already[id]?.text === text) continue;
+      void alreadyIn(text, structure.lang).then((same) => setAlready((x) => ({ ...x, [id]: { text, same } })));
+    }
+  }, [trPair, structure, wizard, idx, values, readerLang, already]);
+
   // Past the last step, the page is read once more, values and errors, and every field is accounted for against the
   // answers the wizard wrote or confirmed (account(), the write path's rule). No AI runs here.
   const filledRef = useRef(filled);
@@ -647,7 +709,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const stepFields = (step?.fieldIds ?? []).map((id) => fields.get(id)).filter((f): f is FieldStructure => !!f);
   const missing = stepFields.filter((f) => f.required && f.kind !== "file" && !(values[f.fieldId] ?? "").trim());
 
-  const go = (n: number) => { setProblem(null); setRestored(false); setIdx(n); };
+  const go = (n: number) => { setProblem(null); setScriptProblems({}); setRestored(false); setIdx(n); };
 
   /** Writes the step's answers into the original form, and moves on only when every answer was written. Only answers
    *  that differ from what the page holds now are written (sameAnswer, the write path's own rule), so a field the
@@ -695,6 +757,16 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         }
       }
       setValues((x) => ({ ...x, ...answers })); // a tick group's answer may now include a box the page ticked
+      // An answer in letters this form does not take (Cyrillic into a Czech form) is never written: the step stays, with
+      // one sentence beside the field, and nothing of this step reaches the page.
+      const wrongScript: Record<string, string> = {};
+      for (const [id, v] of Object.entries(mine)) {
+        const f = fields.get(id);
+        const p = f ? engine.checkScript(f, structure.lang, v, readerLang) : null;
+        if (p) wrongScript[id] = p.message;
+      }
+      setScriptProblems(wrongScript);
+      if (Object.keys(wrongScript).length) return;
       if (Object.keys(mine).length) res = await host.writeValues(structure, mine);
     } catch (e) {
       console.warn("[distill] could not write to the page:", e);
@@ -702,6 +774,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       return;
     }
     [...res.written, ...holding].forEach((id) => pending.current.delete(id));
+    if (remember && res.written.length) {
+      // The saved papers keep only what the page read back as written, never the typed answer itself.
+      const back = await host.readValues(structure).catch(() => null);
+      if (back && typeof back === "object") setPaperCount(Object.keys(rememberPapers(structure, back, res.written)).length);
+    }
     if (Object.keys(adopt).length) { setValues((x) => ({ ...x, ...adopt })); setOnForm((x) => ({ ...x, ...adopt })); }
     const has = (id: string, v: string | undefined): boolean => { const f = fields.get(id); return !!f && hasAnswer(f, v ?? ""); };
     const emptied = new Set(res.written.filter((id) => !has(id, mine[id])));
@@ -743,6 +820,33 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     }
   }
 
+  /** Puts the typed answer into the form's language on this device, and back, on the person's click only. Nothing is
+   *  written: the person chooses which words go into the answer, and Next writes and proves it as always. */
+  async function putInto(f: FieldStructure) {
+    if (!structure) return;
+    const text = (values[f.fieldId] ?? "").trim();
+    if (!text) return;
+    setTr((x) => ({ ...x, [f.fieldId]: { status: "busy", text } }));
+    const r = await toFormLanguage(text, readerLang, structure.lang, {
+      onProgress: (p) => setTr((x) => (x[f.fieldId]?.status === "busy" ? { ...x, [f.fieldId]: { status: "busy", text, progress: p } } : x)),
+    });
+    setTr((x) => ({
+      ...x,
+      [f.fieldId]: r.ok
+        ? { status: "done", text, translated: r.translated, back: r.back, meta: { source: r.source, reason: r.reason, ms: r.ms } }
+        : { status: "failed", text, reason: r.reason },
+    }));
+    if (!r.ok && r.state !== "available") setTrState(r.state);
+  }
+
+  /** The person chose the words in the form's language: they become the answer (written on Next). */
+  const chooseTranslation = (f: FieldStructure, words: string) => {
+    pending.current.add(f.fieldId);
+    setValues((x) => ({ ...x, [f.fieldId]: words }));
+    setScriptProblems((x) => { const { [f.fieldId]: _gone, ...rest } = x; return rest; });
+    setTr((x) => { const { [f.fieldId]: _gone, ...rest } = x; return rest; });
+  };
+
   /** "Forget my answers": the guide's kept answers for this form and this site go from this device. */
   async function forget() {
     if (!guideStore || !structure) return;
@@ -750,11 +854,12 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     // The answers go; the page keeps what it holds. The step on screen is read again, so it shows what the page holds
     // and the next Next has nothing to change.
     pending.current = new Set();
-    setValues({}); setCarried({}); setOnForm({}); setRestored(false); setForgotten(true);
+    setValues({}); setCarried({}); setPapered({}); setOnForm({}); setTr({}); setScriptProblems({}); setRestored(false); setForgotten(true);
     setEntryNonce((n) => n + 1);
   }
 
   const hasProfile = Object.keys(profile).length > 0;
+  const savedCount = Object.keys(profile).length + paperCount;
   const showOriginal = () => { void host.highlight(filled, accentColor()).then(onShowOriginal); };
   /** Saves the filled copy (a PDF) as a new file. The file the person opened is not changed. */
   const saveCopy = host.saveCopy ? async () => {
@@ -929,11 +1034,56 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                       {carried[f.fieldId] !== undefined && carried[f.fieldId] === values[f.fieldId] && (
                         <small className="muted" data-testid="carried-over">Carried over from the previous page. Check it, then press Next.</small>
                       )}
+                      {papered[f.fieldId] !== undefined && papered[f.fieldId] === values[f.fieldId] && (
+                        <small className="muted" data-testid="from-papers">From your saved papers on this device. Check it, then press Next.</small>
+                      )}
                       {onForm[f.fieldId] !== undefined && onForm[f.fieldId] === values[f.fieldId] && (
                         <small className="muted" data-testid="on-form">Already on the form. Check it, then press Next.</small>
                       )}
-                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }} format={step.expectedFormat}
-                        labels={optionLabels(step, f.fieldId)} formLang={formLang} />
+                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => {
+                        pending.current.add(f.fieldId);
+                        setValues((x) => ({ ...x, [f.fieldId]: v }));
+                        if (scriptProblems[f.fieldId]) setScriptProblems((x) => { const { [f.fieldId]: _gone, ...rest } = x; return rest; });
+                      }} format={step.expectedFormat} labels={optionLabels(step, f.fieldId)} formLang={formLang}
+                        problemId={scriptProblems[f.fieldId] ? `wf-${f.fieldId}-script` : undefined} />
+                      {scriptProblems[f.fieldId] && (
+                        <p className="notice notice-warn wf-script" role="alert" id={`wf-${f.fieldId}-script`} data-testid="script-problem">{scriptProblems[f.fieldId]}</p>
+                      )}
+                      {(() => {
+                        // "Put into <form language>": free text only, on a form in another language, never automatic.
+                        const text = (values[f.fieldId] ?? "").trim();
+                        if (!trPair || !formLang || !engine.canOfferTranslation(f, structure.lang, readerLang, step.expectedFormat)) return null;
+                        const t = tr[f.fieldId];
+                        const current = t && t.text === text ? t : undefined;
+                        const trNote = translatorNote(trState, structure.lang);
+                        const lang = languageName(structure.lang);
+                        if (!current && (!text || (already[f.fieldId]?.text === text && already[f.fieldId]?.same === true))) return null;
+                        return (
+                          <div className="wf-translate" data-testid="translate">
+                            {!current && trState !== "unavailable" && (
+                              <button type="button" className="btn btn-small" onClick={() => void putInto(f)} data-testid="translate-offer">Put into {lang}</button>
+                            )}
+                            {!current && trNote && <small className="muted" data-testid="translate-note">{trNote}</small>}
+                            {current?.status === "busy" && (
+                              <small role="status" className="muted">
+                                Putting it into {lang} on this device{current.progress !== undefined && current.progress < 1 ? ` (downloading the language pack, ${Math.round(current.progress * 100)}%)` : ""}...
+                              </small>
+                            )}
+                            {current?.status === "failed" && <small role="status" className="muted" data-testid="translate-failed">{current.reason}</small>}
+                            {current?.status === "done" && (
+                              <div role="status" data-testid="translate-result">
+                                <p><strong>In {lang}:</strong> <span lang={formLang} data-testid="translate-text">{current.translated}</span> <SourceChip meta={current.meta} /></p>
+                                <p><strong>This says:</strong> <span data-testid="translate-back">{current.back}</span></p>
+                                <p className="muted">A machine translation. For an important answer, check it with someone who reads {lang}.</p>
+                                <div className="nav">
+                                  <button type="button" className="btn btn-small btn-primary" onClick={() => chooseTranslation(f, current.translated)} data-testid="translate-use">Use the {lang} words</button>
+                                  <button type="button" className="btn btn-small" onClick={() => setTr((x) => { const { [f.fieldId]: _gone, ...rest } = x; return rest; })} data-testid="translate-keep">Keep my words</button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(f.kind === "select" || f.kind === "radio" || isTickGroup(f)) && !!f.options?.length && !Object.keys(optionLabels(step, f.fieldId)).length && structure.lang !== readerLang && (
                         <small className="muted" data-testid="options-as-written">The choices are as the form writes them, in its own language.</small>
                       )}
@@ -1053,10 +1203,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
               {!forgotten && <>{" "}<button type="button" className="btn btn-link" onClick={() => void forget()}>Forget my answers</button></>}
             </p>
           )}
-          {hasProfile && (
-            <p className="muted wf-saved">
-              {Object.keys(profile).length} saved answers are on this device only.{" "}
-              <button type="button" className="btn btn-link" onClick={() => { clearProfile(); setProfile({}); }}>Delete them</button>
+          {savedCount > 0 && (
+            <p className="muted wf-saved" data-testid="wf-saved-answers">
+              {savedCount} saved {savedCount === 1 ? "answer is" : "answers are"} on this device only.{" "}
+              <button type="button" className="btn btn-link" onClick={() => { clearProfile(); clearPapers(); setProfile({}); setPaperCount(0); }}>Delete them</button>
             </p>
           )}
         </div>
@@ -1073,14 +1223,17 @@ function OptionText({ o, labels, formLang }: { o: { value: string; label: string
   return <>{t} <span className="wf-orig" lang={formLang} data-testid="option-original">{o.label}</span></>;
 }
 
-function FieldInput({ f, value, onChange, format, labels = {}, formLang }: {
+function FieldInput({ f, value, onChange, format, labels = {}, formLang, problemId }: {
   f: FieldStructure; value: string; onChange: (v: string) => void; format?: string;
+  /** The id of the sentence that says the answer cannot be written as it is (the script check). */
+  problemId?: string;
   /** Option value -> the option in the reader's language (from the step, through the door). */
   labels?: Record<string, string>;
   formLang?: string;
 }) {
   const id = `wf-${f.fieldId}`;
-  const common = { id, "aria-required": f.required || undefined, "aria-describedby": format ? `${id}-fmt` : undefined } as const;
+  const describedBy = [format ? `${id}-fmt` : "", problemId ?? ""].filter(Boolean).join(" ") || undefined;
+  const common = { id, "aria-required": f.required || undefined, "aria-describedby": describedBy, "aria-invalid": problemId ? true : undefined } as const;
   const fmt = format ? <span id={`${id}-fmt`} className="visually-hidden">Format {format}</span> : null;
   switch (f.kind) {
     case "select":
