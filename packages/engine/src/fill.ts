@@ -2,7 +2,7 @@
 // read back afterwards, holds what was meant (a mask may lay the characters out its own way). When the engine cannot
 // confirm a write it reports the field failed, so the person is told to fill that one by hand; never the reverse.
 import type { DatePart, FieldBinding } from "./form.js";
-import type { FieldOption } from "./types.js";
+import type { FieldOption, FieldStructure } from "./types.js";
 import { attr, collapse, fold, tag, textOf } from "./dom.js";
 import { hiddenUp, isOn, itemValue, listboxOf, optionEls, optionText } from "./aria.js";
 
@@ -403,6 +403,44 @@ function readDate(b: FieldBinding): string {
   });
   if (!got.day || !got.month || !got.year || got.year < 1000) return "";
   return `${got.year}-${pad2(got.month)}-${pad2(got.day)}`;
+}
+
+// ---------------------------------------------------------------- the same answer
+
+/** The option value `v` names: an option's value as written, else an option whose value or label matches in any case;
+ *  `v` itself (trimmed) when no option names it. The write path accepts both, so the comparison does too. */
+function optionValueOf(options: FieldOption[] | undefined, v: string): string {
+  const t = v.trim();
+  const low = t.toLowerCase();
+  const hit = options?.find((o) => o.value === t) ?? options?.find((o) => o.value.toLowerCase() === low || collapse(o.label).toLowerCase() === low);
+  return (hit?.value ?? t).toLowerCase();
+}
+
+/**
+ * True when the page holding `held` already holds the answer `want` for this field: the rule writeOne uses to accept a
+ * write, so Wayfill can tell "nothing to write" from "write this" and an untouched field is never written (cleared).
+ * Text by its meaningful characters (a mask's spaces and dots do not count), a date by its ISO form (D.M.YYYY and the
+ * browser's YYYY-MM-DD are the same date), a tick group by the set of option values (labels name their options), a
+ * single tick by on/off, a choice by its option value. Device-only, like the values it compares.
+ */
+export function sameAnswer(field: FieldStructure, want: string, held: string): boolean {
+  const w = want.trim();
+  const h = held.trim();
+  if (field.kind === "checkbox") {
+    if ((field.options?.length ?? 0) > 1) {
+      const set = (v: string): string => [...new Set(splitList(v).map((x) => optionValueOf(field.options, x)))].sort().join("\n");
+      return set(w) === set(h);
+    }
+    const own = (field.options?.[0]?.value ?? "").toLowerCase();
+    const on = (v: string): boolean => TRUE_RE.test(v) || (v !== "" && v.toLowerCase() !== "false" && v.toLowerCase() === own);
+    return on(w) === on(h);
+  }
+  if (!w || !h) return !w && !h;
+  if ((field.kind === "select" || field.kind === "radio") && field.options?.length) {
+    return optionValueOf(field.options, w) === optionValueOf(field.options, h);
+  }
+  if (field.kind === "date" && toIsoDate(w) === toIsoDate(h)) return true;
+  return holds(h, w);
 }
 
 // ---------------------------------------------------------------- the two entry points

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
+import type { AccountRow, AccountStatus, FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -52,7 +52,7 @@ export function basicWizard(s: FormStructure, readerLang: string): Wizard {
 
 /** Where steps came from when no library guide covers them: a model (and where it ran), this person's saved guide,
  *  or the form's own labels. */
-type PathOrigin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
+type PathOrigin = { kind: "ai"; meta: AiMeta; droppedOptions?: number } | { kind: "cache" } | { kind: "basic"; why: string };
 
 /** A guide from the library. Not an AI result: it has no AiMeta and never shows a device or cloud chip. When the form
  *  changed since the guide was written, `rest` says where the steps for the new or changed fields came from. */
@@ -203,15 +203,75 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
  *  why (a PDF that is a scan, an XFA form, a protected or signed file). */
 type NoForm = "none" | "unreadable" | "problem";
 
-/** The answer to a step as the person sees it on the stepper: option labels, "Yes" for a ticked box. Screen only. */
-function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
+/** True when `v` answers the field: some text, a choice, a tick ("false" is a single box left unticked). */
+const hasAnswer = (f: FieldStructure, v: string | undefined): boolean => engine.hasAnswer(f, v);
+
+/** A step is answered when every field it asks for (a file is chosen in the original) holds an answer written or
+ *  confirmed on the page, or is optional and left empty; and at least one does. */
+export function stepAnswered(st: WizardStep, fields: Map<string, FieldStructure>, filled: readonly string[], values: FormValues): boolean {
+  const own = st.fieldIds.map((id) => fields.get(id)).filter((f): f is FieldStructure => !!f && f.kind !== "file");
+  return own.some((f) => filled.includes(f.fieldId)) && own.every((f) => filled.includes(f.fieldId) || (!f.required && !hasAnswer(f, values[f.fieldId])));
+}
+
+/** The finish account's status of a field, in plain words. */
+export const ACCOUNT_WORDS: Record<AccountStatus, string> = {
+  ok: "In the form",
+  changed: "Changed on the form since you answered",
+  "required-empty": "Required, and still empty",
+  "skipped-optional": "Left empty (not required)",
+  "page-error": "The form shows an error",
+  unconfirmed: "Could not confirm",
+};
+
+/** The finish, re-read from the page once: reading it, the read failed, or one row per field. Screen only. */
+type Finish = { status: "reading" } | { status: "failed" } | { status: "done"; rows: AccountRow[]; held: FormValues };
+
+/** The sentence that asks once before the person leaves with required answers empty or errors on the form. */
+export function finishAsk(rows: readonly AccountRow[]): string | null {
+  const empty = rows.filter((r) => r.status === "required-empty").length;
+  const errs = rows.filter((r) => r.status === "page-error").length;
+  if (!empty && !errs) return null;
+  const parts = [
+    empty ? `${empty} required ${empty === 1 ? "answer is" : "answers are"} still empty` : "",
+    errs ? `the form shows ${errs === 1 ? "an error" : `${errs} errors`}` : "",
+  ].filter(Boolean).join(", and ");
+  return `${parts[0]?.toUpperCase()}${parts.slice(1)}. The office may send the form back. Go to ${empty + errs === 1 ? "that step" : "those steps"} from the list, or continue anyway.`;
+}
+
+/** A checkbox field with more than one box: one tick per option, answered with a comma list of option values. */
+const isTickGroup = (f: FieldStructure): boolean => f.kind === "checkbox" && (f.options?.length ?? 0) > 1;
+
+/** The option values a tick group's answer names, in the form's order. The answer may name an option by its value or by
+ *  its label (a carried or suggested answer), as the write path accepts both. */
+export function tickedValues(f: FieldStructure, value: string): string[] {
+  const named = value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return (f.options ?? []).filter((o) => named.includes(o.value.toLowerCase()) || named.includes(o.label.trim().toLowerCase())).map((o) => o.value);
+}
+
+/** The answer to a step as the person sees it on the stepper: option labels (every ticked one for a tick group), "Yes"
+ *  for a ticked box. Screen only. */
+export function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues, labels: readonly WizardOption[] = []): string {
+  /** An option in the reader's language when the step has it (the door checked it names a real option), else as written. */
+  const said = (id: string, o: { value: string; label: string }): string => labels.find((l) => l.fieldId === id && l.value === o.value)?.label ?? o.label;
   return ids.map((id) => {
     const v = (values[id] ?? "").trim();
     const f = fields.get(id);
     if (!v || !f) return "";
+    if (isTickGroup(f)) {
+      const on = tickedValues(f, v);
+      return (f.options ?? []).filter((o) => on.includes(o.value)).map((o) => said(id, o)).join(", ");
+    }
     if (f.kind === "checkbox") return v === "false" ? "" : "Yes";
-    return f.options?.find((o) => o.value === v)?.label ?? v;
+    const o = f.options?.find((x) => x.value === v);
+    return o ? said(id, o) : v;
   }).filter(Boolean).join(", ");
+}
+
+/** fieldId -> option value -> the option in the reader's language, for one step. */
+function optionLabels(step: WizardStep | undefined, fieldId: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const o of step?.options ?? []) if (o.fieldId === fieldId) out[o.value] = o.label;
+  return out;
 }
 
 /** Steps from the normal path (the model, else the form's own labels) for a structure: the whole form, or only the
@@ -228,10 +288,11 @@ async function pathWizard(s: FormStructure, readerLang: string, cache: boolean):
     if (aiAvailable()) {
       const prompt = await engine.prompts.buildWizard(s, readerLang);
       const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s, readerLang });
-      const parsed = await engine.parseWizard(r.data, s, readerLang);
+      // The door counts the option labels it could not keep; the count is shown with the steps.
+      const { wizard: parsed, droppedOptions } = engine.readWizard(r.data, s, readerLang);
       if (parsed.steps.length) {
         if (cache) void saveFormGuide(s, parsed).catch(() => undefined); // structure + wizard only, never values
-        return { wizard: parsed, origin: { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms } } };
+        return { wizard: parsed, origin: { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms }, ...(droppedOptions ? { droppedOptions } : {}) } };
       }
     }
   } catch (e) {
@@ -299,6 +360,20 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   /** errorKey -> its explanation, made on this device only. Screen only, like `errors`. */
   const [explained, setExplained] = useState<Record<string, Explained>>({});
+  /** fieldId -> a value the page held when its step was entered that the wizard did not write (typed in the original,
+   *  set by the page, accepted from the agent). It became the answer and is noted as "already on the form". */
+  const [onForm, setOnForm] = useState<FormValues>({});
+  /** Fields whose answer the person changed in the wizard and that were not written yet. Only these may be emptied on
+   *  the page: an empty answer the person did not make is never written, so Next never erases what it did not change. */
+  const pending = useRef(new Set<string>());
+  /** What the page held for the step on screen when it was entered (read once on entry). */
+  const entry = useRef<{ stepId: string; held: FormValues } | null>(null);
+  /** Bumped to read the step on screen from the page again (after "Forget my answers"). */
+  const [entryNonce, setEntryNonce] = useState(0);
+  /** The finish account, re-read from the page when the last step is passed (values class: screen only). */
+  const [finish, setFinish] = useState<Finish | null>(null);
+  /** The finish action the person was asked about once (required answers empty, errors on the form). */
+  const [askedOnce, setAskedOnce] = useState<"show" | "save" | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -363,7 +438,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         if (refilled.length) await host.highlight(refilled, accentColor()).catch(() => undefined);
         if (!live) return;
       }
-      setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null);
+      pending.current = new Set(); entry.current = null;
+      setStructure(s); setWizard(w); setOrigin(o); setFilled(refilled); setProblem(null); setOnForm({});
       setValues(kept ? { ...present, ...nonEmpty(kept.answers) } : { ...present, ...carry });
       setIdx(at);
       setCarried(carry);
@@ -486,6 +562,56 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return map;
   }, [structure]);
 
+  // On entering a step, its fields are read from the page once. A value the page holds that differs from the answer
+  // (typed in the original, set by a page script, an agent's answer the person accepted) becomes the answer, noted as
+  // "already on the form", unless the person changed that answer in the wizard and it was not written yet.
+  useEffect(() => {
+    const st = wizard?.steps[idx];
+    entry.current = null;
+    if (phase !== "ready" || !structure || !st) return;
+    let on = true;
+    host.readValues(structure).then((held) => {
+      if (!on || !held || typeof held !== "object") return;
+      entry.current = { stepId: st.stepId, held };
+      const adopt: FormValues = {};
+      for (const id of st.fieldIds) {
+        const f = structure.fields.find((x) => x.fieldId === id);
+        const now = held[id] ?? "";
+        if (!f || f.kind === "file" || pending.current.has(id) || !hasAnswer(f, now)) continue;
+        if (!engine.sameAnswer(f, valuesRef.current[id] ?? "", now)) adopt[id] = now;
+      }
+      if (!Object.keys(adopt).length) return;
+      setValues((x) => ({ ...x, ...adopt }));
+      setOnForm((x) => ({ ...x, ...adopt }));
+    }, () => undefined); // the page could not be read: the answers stay as they are, and Next says if it is gone
+    return () => { on = false; };
+  }, [phase, structure, wizard, idx, entryNonce, host]);
+
+  // Past the last step, the page is read once more, values and errors, and every field is accounted for against the
+  // answers the wizard wrote or confirmed (account(), the write path's rule). No AI runs here.
+  const filledRef = useRef(filled);
+  filledRef.current = filled;
+  const atEnd = phase === "ready" && !!structure && !!wizard && idx >= wizard.steps.length;
+  useEffect(() => {
+    setAskedOnce(null);
+    if (!atEnd || !structure || !wizard) { setFinish(null); return; }
+    let on = true;
+    setFinish({ status: "reading" });
+    void (async () => {
+      const confirms = host.readsBack ? await host.readsBack().catch(() => true) : true;
+      const held = await host.readValues(structure).catch(() => null);
+      const e = host.readErrors ? await host.readErrors(structure).catch(() => null) : null;
+      const errs = e && typeof e.fields === "object" && e.fields && Array.isArray(e.form) ? e : NO_ERRORS;
+      if (!on) return;
+      if (!held || typeof held !== "object") { setFinish({ status: "failed" }); return; }
+      if (e === errs) setErrors(errs);
+      const answers: FormValues = {};
+      for (const id of filledRef.current) answers[id] = valuesRef.current[id] ?? "";
+      setFinish({ status: "done", rows: engine.account(structure, wizard, answers, held, errs, { confirms }), held });
+    })();
+    return () => { on = false; };
+  }, [atEnd, structure, wizard, host]);
+
   if (phase === "loading") {
     return (
       <section aria-labelledby="wf-h" className="wayfill">
@@ -523,22 +649,64 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
 
   const go = (n: number) => { setProblem(null); setRestored(false); setIdx(n); };
 
-  /** Writes the step's answers into the original form, and moves on only when every answer was written. */
+  /** Writes the step's answers into the original form, and moves on only when every answer was written. Only answers
+   *  that differ from what the page holds now are written (sameAnswer, the write path's own rule), so a field the
+   *  person did not change is never touched, and a field is emptied only when the person emptied it in the wizard. */
   async function commit(skip: boolean) {
     if (!step || !structure) return;
     if (skip) { go(idx + 1); return; }
+    const answers: FormValues = {};
+    step.fieldIds.forEach((id) => { answers[id] = values[id] ?? ""; });
+    if (remember) setProfile(rememberAnswers(answers));
     const mine: FormValues = {};
-    step.fieldIds.forEach((id) => { mine[id] = values[id] ?? ""; });
-    if (remember) setProfile(rememberAnswers(mine));
-    let res: { written: string[]; failed: string[]; reasons?: Record<string, string> };
+    /** Fields the page already holds the answer for: confirmed by the read, nothing to write. */
+    const holding: string[] = [];
+    /** Fields the page changed while this step was on screen (an agent's answer the person accepted): the page wins. */
+    const adopt: FormValues = {};
+    let res: { written: string[]; failed: string[]; reasons?: Record<string, string> } = { written: [], failed: [] };
     try {
-      res = await host.writeValues(structure, mine);
+      const held = await host.readValues(structure);
+      const atEntry = entry.current?.stepId === step.stepId ? entry.current.held : null;
+      for (const id of step.fieldIds) {
+        const f = fields.get(id);
+        if (!f || f.kind === "file") continue; // a file is chosen in the original form; the step says so
+        let want = answers[id] ?? "";
+        const now = held[id] ?? "";
+        if (pending.current.has(id) && isTickGroup(f) && atEntry) {
+          // The person's ticks and unticks since the step was entered, applied to what the page holds now: a box the
+          // page ticked meanwhile, which the person never touched, stays ticked.
+          const before = tickedValues(f, atEntry[id] ?? "");
+          const mineNow = tickedValues(f, want);
+          const kept = new Set(tickedValues(f, now));
+          mineNow.filter((v) => !before.includes(v)).forEach((v) => kept.add(v));
+          before.filter((v) => !mineNow.includes(v)).forEach((v) => kept.delete(v));
+          want = (f.options ?? []).filter((o) => kept.has(o.value)).map((o) => o.value).join(",");
+          answers[id] = want;
+        }
+        if (pending.current.has(id)) {
+          if (engine.sameAnswer(f, want, now)) holding.push(id);
+          else mine[id] = want;
+        } else if (atEntry && (atEntry[id] ?? "") !== now) {
+          adopt[id] = now;
+        } else if (hasAnswer(f, want) && !engine.sameAnswer(f, want, now)) {
+          mine[id] = want;
+        } else if (hasAnswer(f, want)) {
+          holding.push(id);
+        }
+      }
+      setValues((x) => ({ ...x, ...answers })); // a tick group's answer may now include a box the page ticked
+      if (Object.keys(mine).length) res = await host.writeValues(structure, mine);
     } catch (e) {
       console.warn("[distill] could not write to the page:", e);
       setProblem({ fieldIds: step.fieldIds, unreachable: true }); // the typed answers stay in the step
       return;
     }
-    const nextFilled = [...new Set([...filled, ...res.written.filter((id) => mine[id])])];
+    [...res.written, ...holding].forEach((id) => pending.current.delete(id));
+    if (Object.keys(adopt).length) { setValues((x) => ({ ...x, ...adopt })); setOnForm((x) => ({ ...x, ...adopt })); }
+    const has = (id: string, v: string | undefined): boolean => { const f = fields.get(id); return !!f && hasAnswer(f, v ?? ""); };
+    const emptied = new Set(res.written.filter((id) => !has(id, mine[id])));
+    const confirmed = [...res.written.filter((id) => !emptied.has(id)), ...holding.filter((id) => has(id, answers[id])), ...Object.keys(adopt).filter((id) => has(id, adopt[id]))];
+    const nextFilled = [...new Set([...filled.filter((id) => !emptied.has(id)), ...confirmed])];
     setFilled(nextFilled);
     if (res.written.length) setSaving("idle"); // a copy saved before this answer is out of date
     await host.highlight(nextFilled, accentColor()).catch(() => undefined);
@@ -558,7 +726,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       const raw = String(r.data).trim();
       const v = /^none.?$/i.test(raw) ? "" : raw;
       setAidFor(f.fieldId, v ? "Suggested from your saved answers. Please check it." : "No suggestion for this one.", { source: r.source, reason: r.reason, ms: r.ms });
-      if (v) setValues((x) => ({ ...x, [f.fieldId]: v }));
+      if (v) { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }
     } catch (e) {
       setAidFor(f.fieldId, aiWords(e), NOT_RUN);
     }
@@ -579,7 +747,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   async function forget() {
     if (!guideStore || !structure) return;
     await Promise.all([guideStore.clear(structure.fingerprint), guideStore.clear(labelsKey(structure.url))]).catch(() => undefined);
-    setValues({}); setCarried({}); setRestored(false); setForgotten(true);
+    // The answers go; the page keeps what it holds. The step on screen is read again, so it shows what the page holds
+    // and the next Next has nothing to change.
+    pending.current = new Set();
+    setValues({}); setCarried({}); setOnForm({}); setRestored(false); setForgotten(true);
+    setEntryNonce((n) => n + 1);
   }
 
   const hasProfile = Object.keys(profile).length > 0;
@@ -589,8 +761,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     setSaving("busy");
     try { await host.saveCopy?.(); setSaving("saved"); } catch (e) { console.warn("[distill] could not save:", e); setSaving("failed"); }
   } : null;
-  const saveButton = (primary: boolean) => saveCopy && (
-    <button type="button" className={primary ? "btn btn-primary" : "btn btn-small"} disabled={saving === "busy"} onClick={() => void saveCopy()} data-testid="save-copy">
+  const saveButton = (primary: boolean, onClick: () => void = () => void saveCopy?.()) => saveCopy && (
+    <button type="button" className={primary ? "btn btn-primary" : "btn btn-small"} disabled={saving === "busy"} onClick={onClick} data-testid="save-copy">
       Save the filled copy
     </button>
   );
@@ -602,7 +774,14 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     </p>
   );
 
-  const answered = steps.filter((st) => st.fieldIds.some((id) => filled.includes(id))).length;
+  /** A finish action that asks once (a plain sentence, then "Continue anyway") while a required answer is empty or the
+   *  form shows an error. */
+  const askFirst = (what: "show" | "save", act: () => void) => () => {
+    if (finish?.status === "done" && finishAsk(finish.rows) && askedOnce !== what) { setAskedOnce(what); return; }
+    setAskedOnce(null);
+    act();
+  };
+  const answered = steps.filter((st) => stepAnswered(st, fields, filled, values)).length;
   /** The page's own words are in the page's language; the browser's own message is in the browser's. */
   const errLang = (e: FieldError): string | undefined => (e.source !== "native" && structure.lang !== "und" ? structure.lang : undefined);
   const note = errorNote(model.state);
@@ -616,6 +795,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   /** The step on screen is not from the guide (the form changed there since the guide was written). */
   const stepNotFromGuide = !!fromGuide && !!step && !fromGuide.fromGuide.includes(step.stepId);
   const quote = fromGuide && step ? fromGuide.quotes[step.stepId] : undefined;
+  /** Option labels the door dropped from the model's steps (the whole wizard, or the steps a guide does not cover). */
+  const pathOrigin = fromGuide ? fromGuide.rest : origin;
+  const droppedOptions = pathOrigin?.kind === "ai" ? pathOrigin.droppedOptions ?? 0 : 0;
+  /** The form's language, to mark its own words on screen; none when it is unknown. */
+  const formLang = structure.lang !== "und" ? structure.lang : undefined;
 
   return (
     <section aria-labelledby="wf-h" className="wayfill">
@@ -670,6 +854,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         </div>
       )}
       {saveNote}
+      {droppedOptions > 0 && (
+        <p className="muted wf-saved" role="note" data-testid="options-dropped">
+          {droppedOptions} {droppedOptions === 1 ? "choice" : "choices"} in your language could not be used, so {droppedOptions === 1 ? "it shows" : "they show"} as the form writes {droppedOptions === 1 ? "it" : "them"}.
+        </p>
+      )}
       {restored && !changed && (
         <p className="muted wf-saved" role="status" data-testid="wf-restored">
           Picked up where you left off. Your answers were kept on this device{filled.length ? ", and the ones you had filled in are back in the form" : ""}.
@@ -679,8 +868,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       <div className="ws-content wf-grid ws-enter">
         <ol className="wf-steps" aria-label="Steps">
           {steps.map((st, i) => {
-            const done = st.fieldIds.some((id) => filled.includes(id));
-            const shown = done ? shownAnswer(st.fieldIds, fields, values) : "";
+            const done = stepAnswered(st, fields, filled, values);
+            const shown = done ? shownAnswer(st.fieldIds, fields, values, st.options) : "";
             const state = i === idx ? "current" : done ? "done" : i < idx ? "skipped" : "todo";
             const flagged = st.fieldIds.some((id) => errors.fields[id]);
             return (
@@ -740,7 +929,14 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                       {carried[f.fieldId] !== undefined && carried[f.fieldId] === values[f.fieldId] && (
                         <small className="muted" data-testid="carried-over">Carried over from the previous page. Check it, then press Next.</small>
                       )}
-                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => setValues((x) => ({ ...x, [f.fieldId]: v }))} format={step.expectedFormat} />
+                      {onForm[f.fieldId] !== undefined && onForm[f.fieldId] === values[f.fieldId] && (
+                        <small className="muted" data-testid="on-form">Already on the form. Check it, then press Next.</small>
+                      )}
+                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }} format={step.expectedFormat}
+                        labels={optionLabels(step, f.fieldId)} formLang={formLang} />
+                      {(f.kind === "select" || f.kind === "radio" || isTickGroup(f)) && !!f.options?.length && !Object.keys(optionLabels(step, f.fieldId)).length && structure.lang !== readerLang && (
+                        <small className="muted" data-testid="options-as-written">The choices are as the form writes them, in its own language.</small>
+                      )}
                       {errors.fields[f.fieldId] && (
                         <PageError text={errors.fields[f.fieldId]!.text} lang={errLang(errors.fields[f.fieldId]!)} fieldId={f.fieldId}
                           explained={explained[errorKey(readerLang, f.fieldId, errors.fields[f.fieldId]!.text)]} note={note} testId="field-error" />
@@ -793,15 +989,58 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           {finished && (
             <div className="card wf-card" data-testid="wf-done">
               <h3>All steps done</h3>
-              {saveCopy ? (
-                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on a copy of the form. Look it over, then save the copy. The file you opened stays as it was.</p>
-              ) : (
-                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
+              <p className="wf-account-head">
+                <span className="chip chip-basic" data-testid="account-chip" title="Distill read the form again and compared it with your answers. No AI ran.">No AI used</span>
+              </p>
+              {finish?.status === "reading" && <p role="status" className="muted">Reading the form again to check every answer...</p>}
+              {finish?.status === "failed" && (
+                <p className="notice notice-warn" role="status" data-testid="account-failed">
+                  The check could not finish: Distill could not read the form again. Look over every answer on the form itself.
+                </p>
+              )}
+              {finish?.status === "done" && (() => {
+                const ok = finish.rows.filter((r) => r.status === "ok" && hasAnswer(fields.get(r.fieldId) as FieldStructure, finish.held[r.fieldId])).length;
+                const unsure = finish.rows.filter((r) => r.status === "unconfirmed").length;
+                return (
+                  <>
+                    <p data-testid="account-count">
+                      {ok} {ok === 1 ? "field is" : "fields are"} filled in on {saveCopy ? "a copy of the form" : "the original form"}, read back from it just now.
+                      {unsure > 0 && ` Distill could not confirm ${unsure} more: check ${unsure === 1 ? "it" : "them"} on the form itself.`}
+                      {saveCopy ? " Look it over, then save the copy. The file you opened stays as it was." : " Look it over before you send it."}
+                    </p>
+                    <ul className="wf-account" data-testid="wf-account">
+                      {finish.rows.map((r) => {
+                        const f = fields.get(r.fieldId) as FieldStructure;
+                        const at = r.stepId ? steps.findIndex((st) => st.stepId === r.stepId) : -1;
+                        const st = at >= 0 ? steps[at] : undefined;
+                        const shownNow = shownAnswer([r.fieldId], fields, finish.held, st?.options);
+                        return (
+                          <li key={r.fieldId} className={`wf-account-row wf-account-${r.status}`} data-testid="account-row" data-field={r.fieldId} data-status={r.status}>
+                            <span className="wf-account-q">
+                              {st ? st.question : f.label} {st && <span className="wf-orig" lang={formLang}>{f.label}</span>}
+                            </span>
+                            <span className="wf-account-v">{shownNow || <span className="muted">(empty)</span>}</span>
+                            <span className="wf-account-s">{ACCOUNT_WORDS[r.status]}</span>
+                            {at >= 0 && <button type="button" className="btn btn-link btn-small" onClick={() => go(at)} data-testid="account-go">Go to this step</button>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                );
+              })()}
+              {askedOnce && finish?.status === "done" && finishAsk(finish.rows) && (
+                <div className="notice notice-warn" role="alert" data-testid="account-ask">
+                  <p>{finishAsk(finish.rows)}</p>
+                  <div className="nav">
+                    <button type="button" className="btn btn-small" onClick={() => { const what = askedOnce; setAskedOnce(null); if (what === "save") void saveCopy?.(); else showOriginal(); }}>Continue anyway</button>
+                  </div>
+                </div>
               )}
               <div className="nav">
                 <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
-                <button type="button" className={saveCopy ? "btn" : "btn btn-primary"} onClick={showOriginal}>Show original form</button>
-                {saveButton(true)}
+                <button type="button" className={saveCopy ? "btn" : "btn btn-primary"} onClick={askFirst("show", showOriginal)}>Show original form</button>
+                {saveButton(true, askFirst("save", () => void saveCopy?.()))}
               </div>
             </div>
           )}
@@ -826,7 +1065,20 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   );
 }
 
-function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: string; onChange: (v: string) => void; format?: string }) {
+/** An option as the person reads it: in the reader's language with the form's own words muted beside it (marked with the
+ *  form's language), or the form's words alone when there is no translation. */
+function OptionText({ o, labels, formLang }: { o: { value: string; label: string }; labels: Record<string, string>; formLang?: string }) {
+  const t = labels[o.value];
+  if (!t) return <>{o.label}</>;
+  return <>{t} <span className="wf-orig" lang={formLang} data-testid="option-original">{o.label}</span></>;
+}
+
+function FieldInput({ f, value, onChange, format, labels = {}, formLang }: {
+  f: FieldStructure; value: string; onChange: (v: string) => void; format?: string;
+  /** Option value -> the option in the reader's language (from the step, through the door). */
+  labels?: Record<string, string>;
+  formLang?: string;
+}) {
   const id = `wf-${f.fieldId}`;
   const common = { id, "aria-required": f.required || undefined, "aria-describedby": format ? `${id}-fmt` : undefined } as const;
   const fmt = format ? <span id={`${id}-fmt`} className="visually-hidden">Format {format}</span> : null;
@@ -839,7 +1091,8 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
         <>
           <select {...common} value={value} onChange={(e) => onChange(e.target.value)}>
             <option value="">Choose...</option>
-            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {/* An <option> holds text only: the reader's words, then the form's own in brackets. The value written is the option's. */}
+            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{labels[o.value] ? `${labels[o.value]} (${o.label})` : o.label}</option>)}
           </select>{fmt}
         </>
       );
@@ -848,13 +1101,30 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
         return (
           <div role="radiogroup" aria-labelledby={id}>
             {f.options.map((o) => (
-              <label key={o.value} className="choice"><input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} /> {o.label}</label>
+              <label key={o.value} className="choice"><input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} /> <OptionText o={o} labels={labels} formLang={formLang} /></label>
             ))}
           </div>
         );
       }
       break;
     case "checkbox": {
+      if (isTickGroup(f)) {
+        // One tick per option, holding the comma list of option values the write path sets the whole group to, so a box
+        // the person did not untick stays ticked.
+        const ticked = tickedValues(f, value);
+        const toggle = (v: string, on: boolean) => {
+          const next = new Set(ticked);
+          if (on) next.add(v); else next.delete(v);
+          onChange((f.options ?? []).filter((o) => next.has(o.value)).map((o) => o.value).join(","));
+        };
+        return (
+          <div role="group" aria-label={f.label} id={id}>
+            {(f.options ?? []).map((o) => (
+              <label key={o.value} className="choice"><input type="checkbox" checked={ticked.includes(o.value)} onChange={(e) => toggle(o.value, e.target.checked)} /> <OptionText o={o} labels={labels} formLang={formLang} /></label>
+            ))}
+          </div>
+        );
+      }
       const on = f.options?.[0]?.value ?? "true";
       return <label className="choice"><input {...common} type="checkbox" checked={value !== "" && value !== "false"} onChange={(e) => onChange(e.target.checked ? on : "")} /> Yes</label>;
     }

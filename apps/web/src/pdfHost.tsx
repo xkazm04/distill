@@ -97,6 +97,12 @@ export class PdfHost implements PageHost {
     return r?.printOnly ? { ...PRINT_ONLY_NOTE } : null;
   }
 
+  /** A print-only page cannot be read back at the end (its answers are drawn text): the finish says so per field. */
+  async readsBack(): Promise<boolean> {
+    const r = await this.reading.catch(() => null);
+    return !r?.printOnly;
+  }
+
   /** The answers so far, device-only. A print-only page holds them only as drawn text, so they are kept here. */
   async readValues(): Promise<FormValues> {
     const r = await this.reading;

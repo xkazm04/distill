@@ -13,6 +13,10 @@ export interface PageHost {
   getForm(formIndex?: number): Promise<FormStructure>;
   /** Device-only. The result must never be put in a cloud-eligible prompt. */
   readValues(structure: FormStructure): Promise<FormValues>;
+  /** False when readValues returns the host's own record of the answers rather than a read of the page (a print-only
+   *  PDF holds them only as drawn text): Wayfill's finish then says "could not confirm" instead of "in the form".
+   *  Absent means true. */
+  readsBack?(): Promise<boolean>;
   /** `reasons`, when the host knows them: fieldId -> why that answer was not written, in plain words (a PDF answer too
    *  long for its place on a print-only page). Shown as written; it never repeats the answer itself. */
   writeValues(structure: FormStructure, values: FormValues): Promise<{ written: string[]; failed: string[]; reasons?: Record<string, string> }>;

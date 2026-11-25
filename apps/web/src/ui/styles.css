@@ -379,6 +379,15 @@ html:has(.workspace) { font-size: 100%; }
 }
 .workspace .field-tools { margin-top: .3rem; font-size: .84rem; }
 .wf-need { margin: .4rem 0 0; font-size: .875rem; }
+/* The finish account: one row per field, re-read from the form. The status that needs the person is in the warning colour. */
+.wf-account-head { margin: 0 0 .5rem; }
+.wf-account { list-style: none; margin: .6rem 0 .8rem; padding: 0; display: grid; gap: .35rem; }
+.wf-account-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) auto; gap: .2rem .7rem; align-items: baseline; padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.wf-account-q { font-weight: 600; }
+.wf-account-v { overflow-wrap: anywhere; }
+.wf-account-s { color: var(--muted); }
+.wf-account-required-empty .wf-account-s, .wf-account-page-error .wf-account-s, .wf-account-changed .wf-account-s { color: var(--warn-fg); font-weight: 600; }
+@media (max-width: 640px) { .wf-account-row { grid-template-columns: minmax(0, 1fr) auto; } }
 /* An error the page shows for a field: its own words, then the explanation (or why there is none). */
 .wf-error {
   margin-top: .45rem; padding: .45rem .7rem; font-size: .875rem; background: var(--warn-bg); color: var(--warn-fg);

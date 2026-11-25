@@ -26,6 +26,28 @@
           },
           "expectedFormat": {
             "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fieldId": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fieldId",
+                "value",
+                "label"
+              ]
+            }
           }
         },
         "required": [

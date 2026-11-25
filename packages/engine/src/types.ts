@@ -112,6 +112,20 @@ export interface WizardStep {
   example?: string;
   /** Format the original field expects, in plain words: "DD.MM.YYYY", "9-digit birth number". */
   expectedFormat?: string;
+  /** The options of this step's choice fields said in the reader's language. Each names a real option of one of the
+   *  step's fields by its value (parseWizard keeps no other); the option's own words stay beside it on screen and its
+   *  value is what is written. Omitted when there are none. Structure, never a person's value. */
+  options?: WizardOption[];
+}
+
+/** One option of a choice field in the reader's language. */
+export interface WizardOption {
+  /** A field of the same step. */
+  fieldId: string;
+  /** The option's value exactly as the form gives it (FieldOption.value). */
+  value: string;
+  /** The option in the reader's language, plain text. */
+  label: string;
 }
 
 export interface Wizard {

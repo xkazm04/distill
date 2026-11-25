@@ -130,9 +130,10 @@ export const prompts = {
   buildWizard: (structure: FormStructure, readerLang = "en"): string =>
     [
       `You help a person fill in a form written in ${structure.lang === "und" ? "another language" : langName(structure.lang)}. Write a step-by-step guide in ${langName(readerLang)}.`,
-      "Answer with JSON only: {\"steps\": [{\"stepId\", \"fieldIds\", \"question\", \"explanation\", \"example\", \"expectedFormat\"}]}.",
+      "Answer with JSON only: {\"steps\": [{\"stepId\", \"fieldIds\", \"question\", \"explanation\", \"example\", \"expectedFormat\", \"options\"}]}.",
       "Each step covers one field, or a few that belong together (for example an address). fieldIds must be ids from the list below. Cover every required field, in the form's order.",
       "question: a plain question for the person. explanation: one or two calm sentences on what the field wants and why. expectedFormat: the format the form expects in plain words (for example DD.MM.YYYY). example: a made-up example of the format, never a real person's data. Leave out example or expectedFormat when they do not apply.",
+      `options: only for a field of the step that lists options: [{"fieldId", "value", "label"}], one per option, where value is the option's value exactly as listed and label says that option plainly in ${langName(readerLang)}. Leave options out for other fields.`,
       GUARD,
       formHeader(structure),
       "<fields>",
