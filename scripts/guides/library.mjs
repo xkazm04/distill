@@ -17,6 +17,7 @@ export function readGuideFiles(dir = GUIDES_DIR) {
   if (!existsSync(dir)) return [];
   const out = [];
   for (const country of readdirSync(dir).sort()) {
+    if (country.startsWith(".")) continue; // guides/.review/ holds guides:review's sheets, not guides
     const sub = join(dir, country);
     if (!statSync(sub).isDirectory()) continue;
     for (const name of readdirSync(sub).sort()) {

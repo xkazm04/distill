@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 import { cleanText, hasScriptUrl, isObj, MAX_TEXT } from "./sanitize.js";
 import { parseWizard } from "./wizard.js";
+import { sha256 } from "./sha256.js";
 
 /** The reader languages every guide carries. */
 export const GUIDE_LANGS = ["en", "uk"] as const;
@@ -30,7 +31,7 @@ const PDF_URL = "pdf://local/";
 const MAX_QUOTE = 600;
 const MAX_NOTE = 600;
 const FIELD_KINDS: readonly FieldKind[] = ["text", "textarea", "email", "tel", "number", "date", "select", "radio", "checkbox", "file", "other"];
-const TOP_KEYS = new Set(["guideVersion", "id", "status", "demo", "authority", "formName", "formLang", "officialFormUrl", "instructionsUrl", "draftedOn", "reviewer", "reviewedOn", "match", "wizards", "reviewNotes"]);
+const TOP_KEYS = new Set(["guideVersion", "id", "status", "demo", "authority", "formName", "formLang", "officialFormUrl", "instructionsUrl", "draftedOn", "reviewer", "reviewedOn", "reviewedText", "reviewedLangs", "match", "wizards", "reviewNotes"]);
 const STEP_KEYS = new Set(["stepId", "fieldIds", "question", "explanation", "example", "expectedFormat", "official"]);
 
 /** True for a real calendar date written YYYY-MM-DD. */
@@ -136,8 +137,17 @@ export function parseGuide(raw: unknown, opts: { id?: string } = {}): GuideCheck
     if (!isIsoDate(raw.reviewedOn)) bad("a reviewed guide needs reviewedOn, a date YYYY-MM-DD");
     else if (isIsoDate(raw.draftedOn) && raw.reviewedOn < raw.draftedOn) bad("reviewedOn is before draftedOn");
     if (Array.isArray(raw.reviewNotes) && raw.reviewNotes.length) bad("a reviewed guide has no open reviewNotes: resolve them or keep the guide a draft");
+    if (!Array.isArray(raw.reviewedLangs) || !raw.reviewedLangs.length) bad(`a reviewed guide lists the languages its reviewer signed off in reviewedLangs (${GUIDE_LANGS.map((l) => `"${l}"`).join(", ")})`);
+    else {
+      raw.reviewedLangs.forEach((l, i) => { if (!(GUIDE_LANGS as readonly unknown[]).includes(l)) bad(`reviewedLangs[${i}] "${String(l)}" is not a language the library carries (${GUIDE_LANGS.join(", ")})`); });
+      if (new Set(raw.reviewedLangs).size !== raw.reviewedLangs.length) bad("reviewedLangs names a language twice");
+    }
+    if (raw.reviewedText === undefined) bad("a reviewed guide needs reviewedText, the digest of the text its reviewer checked (npm run guides:digest -- <id> prints it)");
+    else if (typeof raw.reviewedText !== "string" || !/^[0-9a-f]{64}$/.test(raw.reviewedText)) bad("reviewedText must be a sha-256 hex digest (npm run guides:digest -- <id> prints it)");
   } else if (status === "draft") {
     if (raw.reviewer !== undefined || raw.reviewedOn !== undefined) bad("a draft names no reviewer and no review date: only the commit that marks it reviewed adds them");
+    if (raw.reviewedText !== undefined) bad("a draft has no reviewedText: only the commit that marks it reviewed adds it");
+    if (raw.reviewedLangs !== undefined) bad("a draft has no reviewedLangs: only the commit that marks it reviewed adds it");
   }
   if (raw.reviewNotes !== undefined) {
     if (!Array.isArray(raw.reviewNotes)) bad("reviewNotes must be a list");
@@ -230,6 +240,12 @@ export function parseGuide(raw: unknown, opts: { id?: string } = {}): GuideCheck
   if (problems.length) return { guide: null, problems };
   const guide = raw as unknown as FormGuide;
 
+  // The text lock: a reviewed guide's checked text is the text its reviewer checked.
+  // Only the signed-off languages are locked: a Ukrainian step of a guide signed off for English may change.
+  if (guide.status === "reviewed" && guide.reviewedText !== guideTextDigest(guide, guide.reviewedLangs)) {
+    problems.push(`the checked text changed since the review (reviewedText is not the digest of the fields and the ${(guide.reviewedLangs ?? []).join(" and ")} steps, notes and quotes as they are now): set the guide back to draft (remove status reviewed, reviewer, reviewedOn, reviewedText and reviewedLangs) until a person checks it again`);
+  }
+
   // The same door as model output: every step must come through parseWizard as written, in the form's order.
   const structure = guideStructure(guide);
   for (const l of GUIDE_LANGS) {
@@ -242,6 +258,32 @@ export function parseGuide(raw: unknown, opts: { id?: string } = {}): GuideCheck
     }
   }
   return problems.length ? { guide: null, problems } : { guide, problems };
+}
+
+/** The version of the canonical text guideTextDigest hashes; a change to what it covers changes this. */
+const GUIDE_TEXT = "distill-guide-text/1";
+
+/**
+ * The text lock (`reviewedText`): sha-256 hex over what a reviewer checks. It covers the field ids and kinds, and for
+ * each signed-off language (`langs`, a reviewed guide's `reviewedLangs`; every library language by default) its notes
+ * and every step (step id, field ids, question, explanation, example, expected format, and the official quote with
+ * its language and address). A language not signed off is not locked: it may change without touching the review, and
+ * the apps do not show it as checked. Adding or removing a language changes the digest. It leaves out what the reader produces (labels, fingerprints, title, match.reader,
+ * match.source), so a reader-only refresh of the same form (guide:new --refresh) keeps the review, and everything
+ * else (status, reviewer, dates, review notes, names, addresses). The serialization is a JSON array in a fixed order,
+ * with an absent optional field as null, so the same text always gives the same digest.
+ */
+export function guideTextDigest(g: Pick<FormGuide, "match" | "wizards">, langs: readonly string[] = GUIDE_LANGS): string {
+  const step = (s: GuideStep) => [
+    s.stepId, s.fieldIds, s.question, s.explanation, s.example ?? null, s.expectedFormat ?? null,
+    s.official ? [s.official.text, s.official.lang, s.official.url ?? null] : null,
+  ];
+  const text = JSON.stringify([
+    GUIDE_TEXT,
+    g.match.fields.map((f) => [f.fieldId, f.kind]),
+    GUIDE_LANGS.filter((l) => langs.includes(l)).map((l) => [l, g.wizards[l].notes, g.wizards[l].steps.map(step)]),
+  ]);
+  return Array.from(sha256(new TextEncoder().encode(text)), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** A guide step as a plain WizardStep: what the wizard door sees. */
@@ -326,6 +368,11 @@ export function matchGuide(s: FormStructure, guides: readonly FormGuide[], opts:
   return best;
 }
 
+/** False only for a reviewed guide whose reviewer did not sign off this language: its text there is not checked. */
+export function guideSignedFor(g: Pick<FormGuide, "status" | "reviewedLangs">, l: GuideLang): boolean {
+  return g.status !== "reviewed" || (g.reviewedLangs ?? []).includes(l);
+}
+
 /** The guide's language for a reader, or null when the library has none for them. */
 export function guideLang(readerLang: string): GuideLang | null {
   const l = readerLang.toLowerCase().split("-")[0] ?? "";
@@ -346,11 +393,13 @@ export interface GuideSteps {
 /**
  * The steps a matched guide gives the reader. A guide step is kept only when every field it covers is unchanged; a
  * step one of whose fields changed is left to the normal path whole. Null when the guide has no text in the
- * reader's language.
+ * reader's language, or is reviewed but not signed off in it (reviewedLangs): that reader gets the normal path, never
+ * an unchecked language under "Checked guide".
  */
 export function guideWizard(m: GuideMatchResult, s: FormStructure, readerLang: string): GuideSteps | null {
   const l = guideLang(readerLang);
   if (!l) return null;
+  if (!guideSignedFor(m.guide, l)) return null;
   const text: GuideWizard = m.guide.wizards[l];
   const same = new Set(m.same);
   const keep = text.steps.filter((st) => st.fieldIds.every((id) => same.has(id)));

@@ -23,6 +23,8 @@
     "check-guides": "node scripts/check-guides.mjs",
     "guide:new": "node scripts/guides/new.mjs",
     "guides:drift": "node scripts/guides/drift.mjs",
+    "guides:review": "node scripts/guides/review.mjs",
+    "guides:digest": "node scripts/guides/digest.mjs",
     "bench:forms": "npm run bench:forms -w @distill/engine && npm run bench:forms -w @distill/pdf",
     "bench:forms:update": "npm run bench:forms:update -w @distill/engine && npm run bench:forms:update -w @distill/pdf",
     "check-tokens": "node scripts/check-tokens.mjs",

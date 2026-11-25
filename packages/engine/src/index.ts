@@ -13,7 +13,7 @@ export { prompts } from "./prompts.js";
 export { schemas } from "./schemas.js";
 export { fingerprint } from "./fingerprint.js";
 export {
-  parseGuide, parseLibrary, matchGuide, guideWizard, guideLang, guideStructure, mergeWizards, narrowStructure, formAddress, sameLabel,
+  parseGuide, parseLibrary, guideTextDigest, matchGuide, guideWizard, guideLang, guideSignedFor, guideStructure, mergeWizards, narrowStructure, formAddress, sameLabel,
   isHttps, isIsoDate, GUIDE_LANGS, GUIDE_MIN_OVERLAP, type GuideCheck, type GuideLang, type GuideMatchResult, type GuideSteps,
 } from "./guides.js";
 export {
@@ -30,6 +30,7 @@ export { READING, columnWidth, dominantSize, headingLeading, headingLeadingOff, 
 // Spark universal-core round 2.
 export { findClaimCandidates, parseClaims, splitSentences, topClaims, quoteEnds, wholeQuotes, claimWhy, CLAIM_WHY, MAX_CLAIMS, type Claim, type ClaimPick, type ClaimWhy } from "./claims.js";
 export { parseCheck, CLAIM_VERDICTS, REASON_MAX, SOURCES_MAX, type CheckResult, type CheckSource, type ClaimCheck, type ClaimVerdict } from "./check.js";
+export { verifyQuotes, QUOTE_CONTEXT_MAX, type QuoteVerdict } from "./quotes.js";
 export { parseGist, findSentence, GIST_POINTS, GIST_POINT_MAX, type Gist, type GistPoint } from "./gist.js";
 export { keepsFacts, missingFacts, parsePlain, type Fact, type FactKind, type PlainResult } from "./plain.js";
 export { describeLink, readableHost, registrableDomain, PROGRAM_FILE_TYPES, TRACKING_PARAMS, type LinkNote } from "./links.js";
