@@ -1,2 +1,3 @@
+{"ts":"2026-11-25T12:19:39Z","bundle":"software-engineering","subjects":["wizard-flows"],"techniques":[],"deviations":null,"from":"registry-query"}
 {"ts":"2026-11-25T12:19:49Z","bundle":"software-engineering","subjects":["wizard-flows"],"techniques":["step-state-model","commit-boundary","progress-communication"],"deviations":0}
 {"ts":"2026-11-25T12:19:49Z","bundle":"software-engineering","subjects":["import-normalization"],"techniques":["import-validation"],"deviations":0}
