@@ -4,6 +4,7 @@ export * from "./types.js";
 export { extractPage, type ExtractOptions } from "./page.js";
 export { extractForm, readErrors, readValues, writeValues, FORM_READER } from "./form.js";
 export { sameAnswer } from "./fill.js";
+export { account, hasAnswer, type AccountOptions, type AccountRow, type AccountStatus } from "./account.js";
 export { isInvalid, looksLikeError, shownNow } from "./errors.js";
 export { validateAndRepair } from "./repair.js";
 export { parseWizard, readWizard, type WizardRead } from "./wizard.js";
