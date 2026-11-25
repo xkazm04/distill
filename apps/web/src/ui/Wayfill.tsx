@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
+import type { AccountRow, AccountStatus, FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -204,7 +204,39 @@ export function writeProblemText(p: WriteProblem, labelOf: (id: string) => strin
 type NoForm = "none" | "unreadable" | "problem";
 
 /** True when `v` answers the field: some text, a choice, a tick ("false" is a single box left unticked). */
-const hasAnswer = (f: FieldStructure, v: string): boolean => v.trim() !== "" && !(f.kind === "checkbox" && v.trim() === "false");
+const hasAnswer = (f: FieldStructure, v: string | undefined): boolean => engine.hasAnswer(f, v);
+
+/** A step is answered when every field it asks for (a file is chosen in the original) holds an answer written or
+ *  confirmed on the page, or is optional and left empty; and at least one does. */
+export function stepAnswered(st: WizardStep, fields: Map<string, FieldStructure>, filled: readonly string[], values: FormValues): boolean {
+  const own = st.fieldIds.map((id) => fields.get(id)).filter((f): f is FieldStructure => !!f && f.kind !== "file");
+  return own.some((f) => filled.includes(f.fieldId)) && own.every((f) => filled.includes(f.fieldId) || (!f.required && !hasAnswer(f, values[f.fieldId])));
+}
+
+/** The finish account's status of a field, in plain words. */
+export const ACCOUNT_WORDS: Record<AccountStatus, string> = {
+  ok: "In the form",
+  changed: "Changed on the form since you answered",
+  "required-empty": "Required, and still empty",
+  "skipped-optional": "Left empty (not required)",
+  "page-error": "The form shows an error",
+  unconfirmed: "Could not confirm",
+};
+
+/** The finish, re-read from the page once: reading it, the read failed, or one row per field. Screen only. */
+type Finish = { status: "reading" } | { status: "failed" } | { status: "done"; rows: AccountRow[]; held: FormValues };
+
+/** The sentence that asks once before the person leaves with required answers empty or errors on the form. */
+export function finishAsk(rows: readonly AccountRow[]): string | null {
+  const empty = rows.filter((r) => r.status === "required-empty").length;
+  const errs = rows.filter((r) => r.status === "page-error").length;
+  if (!empty && !errs) return null;
+  const parts = [
+    empty ? `${empty} required ${empty === 1 ? "answer is" : "answers are"} still empty` : "",
+    errs ? `the form shows ${errs === 1 ? "an error" : `${errs} errors`}` : "",
+  ].filter(Boolean).join(", and ");
+  return `${parts[0]?.toUpperCase()}${parts.slice(1)}. The office may send the form back. Go to ${empty + errs === 1 ? "that step" : "those steps"} from the list, or continue anyway.`;
+}
 
 /** A checkbox field with more than one box: one tick per option, answered with a comma list of option values. */
 const isTickGroup = (f: FieldStructure): boolean => f.kind === "checkbox" && (f.options?.length ?? 0) > 1;
@@ -338,6 +370,10 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   const entry = useRef<{ stepId: string; held: FormValues } | null>(null);
   /** Bumped to read the step on screen from the page again (after "Forget my answers"). */
   const [entryNonce, setEntryNonce] = useState(0);
+  /** The finish account, re-read from the page when the last step is passed (values class: screen only). */
+  const [finish, setFinish] = useState<Finish | null>(null);
+  /** The finish action the person was asked about once (required answers empty, errors on the form). */
+  const [askedOnce, setAskedOnce] = useState<"show" | "save" | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -551,6 +587,31 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     return () => { on = false; };
   }, [phase, structure, wizard, idx, entryNonce, host]);
 
+  // Past the last step, the page is read once more, values and errors, and every field is accounted for against the
+  // answers the wizard wrote or confirmed (account(), the write path's rule). No AI runs here.
+  const filledRef = useRef(filled);
+  filledRef.current = filled;
+  const atEnd = phase === "ready" && !!structure && !!wizard && idx >= wizard.steps.length;
+  useEffect(() => {
+    setAskedOnce(null);
+    if (!atEnd || !structure || !wizard) { setFinish(null); return; }
+    let on = true;
+    setFinish({ status: "reading" });
+    void (async () => {
+      const confirms = host.readsBack ? await host.readsBack().catch(() => true) : true;
+      const held = await host.readValues(structure).catch(() => null);
+      const e = host.readErrors ? await host.readErrors(structure).catch(() => null) : null;
+      const errs = e && typeof e.fields === "object" && e.fields && Array.isArray(e.form) ? e : NO_ERRORS;
+      if (!on) return;
+      if (!held || typeof held !== "object") { setFinish({ status: "failed" }); return; }
+      if (e === errs) setErrors(errs);
+      const answers: FormValues = {};
+      for (const id of filledRef.current) answers[id] = valuesRef.current[id] ?? "";
+      setFinish({ status: "done", rows: engine.account(structure, wizard, answers, held, errs, { confirms }), held });
+    })();
+    return () => { on = false; };
+  }, [atEnd, structure, wizard, host]);
+
   if (phase === "loading") {
     return (
       <section aria-labelledby="wf-h" className="wayfill">
@@ -700,8 +761,8 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     setSaving("busy");
     try { await host.saveCopy?.(); setSaving("saved"); } catch (e) { console.warn("[distill] could not save:", e); setSaving("failed"); }
   } : null;
-  const saveButton = (primary: boolean) => saveCopy && (
-    <button type="button" className={primary ? "btn btn-primary" : "btn btn-small"} disabled={saving === "busy"} onClick={() => void saveCopy()} data-testid="save-copy">
+  const saveButton = (primary: boolean, onClick: () => void = () => void saveCopy?.()) => saveCopy && (
+    <button type="button" className={primary ? "btn btn-primary" : "btn btn-small"} disabled={saving === "busy"} onClick={onClick} data-testid="save-copy">
       Save the filled copy
     </button>
   );
@@ -713,7 +774,14 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
     </p>
   );
 
-  const answered = steps.filter((st) => st.fieldIds.some((id) => filled.includes(id))).length;
+  /** A finish action that asks once (a plain sentence, then "Continue anyway") while a required answer is empty or the
+   *  form shows an error. */
+  const askFirst = (what: "show" | "save", act: () => void) => () => {
+    if (finish?.status === "done" && finishAsk(finish.rows) && askedOnce !== what) { setAskedOnce(what); return; }
+    setAskedOnce(null);
+    act();
+  };
+  const answered = steps.filter((st) => stepAnswered(st, fields, filled, values)).length;
   /** The page's own words are in the page's language; the browser's own message is in the browser's. */
   const errLang = (e: FieldError): string | undefined => (e.source !== "native" && structure.lang !== "und" ? structure.lang : undefined);
   const note = errorNote(model.state);
@@ -800,7 +868,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
       <div className="ws-content wf-grid ws-enter">
         <ol className="wf-steps" aria-label="Steps">
           {steps.map((st, i) => {
-            const done = st.fieldIds.some((id) => filled.includes(id));
+            const done = stepAnswered(st, fields, filled, values);
             const shown = done ? shownAnswer(st.fieldIds, fields, values, st.options) : "";
             const state = i === idx ? "current" : done ? "done" : i < idx ? "skipped" : "todo";
             const flagged = st.fieldIds.some((id) => errors.fields[id]);
@@ -921,15 +989,58 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
           {finished && (
             <div className="card wf-card" data-testid="wf-done">
               <h3>All steps done</h3>
-              {saveCopy ? (
-                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on a copy of the form. Look it over, then save the copy. The file you opened stays as it was.</p>
-              ) : (
-                <p>{filled.length} {filled.length === 1 ? "field was" : "fields were"} filled in on the original form. Look it over before you send it.</p>
+              <p className="wf-account-head">
+                <span className="chip chip-basic" data-testid="account-chip" title="Distill read the form again and compared it with your answers. No AI ran.">No AI used</span>
+              </p>
+              {finish?.status === "reading" && <p role="status" className="muted">Reading the form again to check every answer...</p>}
+              {finish?.status === "failed" && (
+                <p className="notice notice-warn" role="status" data-testid="account-failed">
+                  The check could not finish: Distill could not read the form again. Look over every answer on the form itself.
+                </p>
+              )}
+              {finish?.status === "done" && (() => {
+                const ok = finish.rows.filter((r) => r.status === "ok" && hasAnswer(fields.get(r.fieldId) as FieldStructure, finish.held[r.fieldId])).length;
+                const unsure = finish.rows.filter((r) => r.status === "unconfirmed").length;
+                return (
+                  <>
+                    <p data-testid="account-count">
+                      {ok} {ok === 1 ? "field is" : "fields are"} filled in on {saveCopy ? "a copy of the form" : "the original form"}, read back from it just now.
+                      {unsure > 0 && ` Distill could not confirm ${unsure} more: check ${unsure === 1 ? "it" : "them"} on the form itself.`}
+                      {saveCopy ? " Look it over, then save the copy. The file you opened stays as it was." : " Look it over before you send it."}
+                    </p>
+                    <ul className="wf-account" data-testid="wf-account">
+                      {finish.rows.map((r) => {
+                        const f = fields.get(r.fieldId) as FieldStructure;
+                        const at = r.stepId ? steps.findIndex((st) => st.stepId === r.stepId) : -1;
+                        const st = at >= 0 ? steps[at] : undefined;
+                        const shownNow = shownAnswer([r.fieldId], fields, finish.held, st?.options);
+                        return (
+                          <li key={r.fieldId} className={`wf-account-row wf-account-${r.status}`} data-testid="account-row" data-field={r.fieldId} data-status={r.status}>
+                            <span className="wf-account-q">
+                              {st ? st.question : f.label} {st && <span className="wf-orig" lang={formLang}>{f.label}</span>}
+                            </span>
+                            <span className="wf-account-v">{shownNow || <span className="muted">(empty)</span>}</span>
+                            <span className="wf-account-s">{ACCOUNT_WORDS[r.status]}</span>
+                            {at >= 0 && <button type="button" className="btn btn-link btn-small" onClick={() => go(at)} data-testid="account-go">Go to this step</button>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                );
+              })()}
+              {askedOnce && finish?.status === "done" && finishAsk(finish.rows) && (
+                <div className="notice notice-warn" role="alert" data-testid="account-ask">
+                  <p>{finishAsk(finish.rows)}</p>
+                  <div className="nav">
+                    <button type="button" className="btn btn-small" onClick={() => { const what = askedOnce; setAskedOnce(null); if (what === "save") void saveCopy?.(); else showOriginal(); }}>Continue anyway</button>
+                  </div>
+                </div>
               )}
               <div className="nav">
                 <button type="button" className="btn" onClick={() => go(Math.max(steps.length - 1, 0))}>Back</button>
-                <button type="button" className={saveCopy ? "btn" : "btn btn-primary"} onClick={showOriginal}>Show original form</button>
-                {saveButton(true)}
+                <button type="button" className={saveCopy ? "btn" : "btn btn-primary"} onClick={askFirst("show", showOriginal)}>Show original form</button>
+                {saveButton(true, askFirst("save", () => void saveCopy?.()))}
               </div>
             </div>
           )}

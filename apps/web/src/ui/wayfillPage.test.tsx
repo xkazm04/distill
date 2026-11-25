@@ -268,3 +268,87 @@ describe("options in the reader's language", () => {
     expect(q("options-as-written")?.textContent).toBe("The choices are as the form writes them, in its own language.");
   });
 });
+
+const row = (fieldId: string) => el.querySelector(`[data-testid="account-row"][data-field="${fieldId}"]`);
+const statuses = () => Object.fromEntries([...el.querySelectorAll('[data-testid="account-row"]')].map((r) => [r.getAttribute("data-field"), r.getAttribute("data-status")]));
+
+describe("the finish account, re-read from the form", () => {
+  it("a skipped required step gives one required-empty row whose link lands on that step; leaving asks once", async () => {
+    const { host } = await open(TWO_TEXT);
+    const onShowOriginal = vi.fn();
+    await render(<Wayfill host={host as never} settings={settings} model={model as never} onShowOriginal={onShowOriginal} />);
+    await click(button("Skip"));
+    await typeInto(el.querySelector("#wf-pozn") as HTMLInputElement, "Bez poznámky");
+    await click(button("Next"));
+    await click(button("Skip"));
+    expect(q("account-chip")?.textContent).toBe("No AI used");
+    expect(statuses()).toEqual({ jmeno: "required-empty", pozn: "ok", mesto: "skipped-optional" });
+    expect(el.querySelectorAll('[data-status="required-empty"]')).toHaveLength(1);
+    expect(q("account-count")?.textContent).toContain("1 field is filled in on the original form, read back from it just now.");
+    expect(row("pozn")?.textContent).toContain("Bez poznámky");
+    expect(row("pozn")?.textContent).toContain("In the form");
+    // Show original asks once, in a plain sentence, then continues.
+    await click(button("Show original form"));
+    expect(onShowOriginal).not.toHaveBeenCalled();
+    expect(q("account-ask")?.textContent).toContain("1 required answer is still empty. The office may send the form back.");
+    await click(button("Continue anyway"));
+    expect(onShowOriginal).toHaveBeenCalledOnce();
+    // The row's link goes to the step that asks for it.
+    await click(row("jmeno")?.querySelector('[data-testid="account-go"]'));
+    expect(stepTitle()).toContain("Jméno");
+  });
+
+  it("a field a script cleared after its write is changed, and not counted", async () => {
+    const { doc, host } = await open(TWO_TEXT);
+    await render(<Wayfill host={host as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    await typeInto(el.querySelector("#wf-jmeno") as HTMLInputElement, "Olena");
+    await click(button("Next"));
+    expect((doc.querySelector("#jmeno") as HTMLInputElement).value).toBe("Olena");
+    (doc.querySelector("#jmeno") as HTMLInputElement).value = ""; // the page's own script empties it
+    await typeInto(el.querySelector("#wf-pozn") as HTMLInputElement, "Bez poznámky");
+    await click(button("Next"));
+    await click(button("Skip"));
+    expect(statuses()).toMatchObject({ jmeno: "changed", pozn: "ok" });
+    expect(row("jmeno")?.textContent).toContain("Changed on the form since you answered");
+    expect(q("account-count")?.textContent).toMatch(/^1 field is filled in/);
+  });
+
+  it("a date the browser shows as YYYY-MM-DD is the date the person typed: ok", async () => {
+    const { doc, host } = await open(`<form><p><label for="d">Datum narození</label><input type="date" id="d" required></p></form>`);
+    await render(<Wayfill host={host as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    await typeInto(el.querySelector("#wf-d") as HTMLInputElement, "01.12.2026");
+    await click(button("Finish"));
+    expect((doc.querySelector("#d") as HTMLInputElement).value).toBe("2026-12-01");
+    expect(statuses()).toEqual({ d: "ok" });
+    expect(q("account-ask")).toBeNull();
+  });
+
+  it("a grouped step is answered only when every field it asks for was written", async () => {
+    ai.wizard = { steps: [{ stepId: "who", fieldIds: ["jmeno", "pozn"], question: "Name and note?", explanation: "" }] };
+    const { doc, host } = await open(TWO_TEXT);
+    const jmeno = doc.querySelector("#jmeno") as HTMLInputElement;
+    jmeno.addEventListener("input", () => { jmeno.value = ""; }); // the page refuses the name
+    await render(<Wayfill host={host as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    await typeInto(el.querySelector("#wf-jmeno") as HTMLInputElement, "Olena");
+    await typeInto(el.querySelector("#wf-pozn") as HTMLInputElement, "Bez poznámky");
+    await click(button("Finish")); // the model's one step (an optional field it left out gets none)
+    expect(q("write-problem")).not.toBeNull();
+    await click(button("Go to the next step"));
+    expect(el.querySelector(".wf-stepbtn")?.classList.contains("done")).toBe(false);
+    expect(q("wf-answered")?.textContent).toBe("0 of 1 answered");
+    expect(statuses()).toMatchObject({ jmeno: "required-empty", pozn: "ok" });
+  });
+
+  it("a host that cannot read its answers back (a print-only PDF) says could not confirm, never in the form", async () => {
+    const { host } = await open(TWO_TEXT);
+    await render(<Wayfill host={{ ...host, readsBack: async () => false } as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    await typeInto(el.querySelector("#wf-jmeno") as HTMLInputElement, "Olena");
+    await click(button("Next"));
+    await click(button("Skip"));
+    await click(button("Skip"));
+    expect(statuses()).toEqual({ jmeno: "unconfirmed", pozn: "skipped-optional", mesto: "skipped-optional" });
+    expect(row("jmeno")?.textContent).toContain("Could not confirm");
+    expect(q("account-count")?.textContent).toContain("0 fields are filled in on the original form");
+    expect(q("account-count")?.textContent).toContain("Distill could not confirm 1 more");
+  });
+});

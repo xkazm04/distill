@@ -58,12 +58,18 @@ const field = (fieldId: string, label: string): FieldStructure => ({ fieldId, ki
 const form = (fields: FieldStructure[]): FormStructure => ({ fingerprint: "fp", url: "https://mv.example/", lang: "cs", title: "Žádost", fields });
 
 function fakeHost(structure: FormStructure, writeValues: (v: FormValues) => Promise<{ written: string[]; failed: string[] }>) {
+  // The page holds what was written to it, so a read (on entering a step, at the finish) sees it.
+  const page: FormValues = {};
   return {
     label: () => "Test",
     getPage: vi.fn(),
     getForm: vi.fn(async () => structure),
-    readValues: vi.fn(async () => ({})),
-    writeValues: vi.fn(async (_s: FormStructure, v: FormValues) => writeValues(v)),
+    readValues: vi.fn(async () => ({ ...page })),
+    writeValues: vi.fn(async (_s: FormStructure, v: FormValues) => {
+      const r = await writeValues(v);
+      for (const id of r.written) page[id] = v[id] ?? "";
+      return r;
+    }),
     highlight: vi.fn(async () => undefined),
     showOriginal: vi.fn(async () => undefined),
   };
@@ -117,7 +123,7 @@ describe("Wayfill", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await click(button("Finish"));
-    expect(q("wf-done")?.textContent).toContain("1 field was filled in on a copy of the form");
+    expect(q("wf-done")?.textContent).toContain("1 field is filled in on a copy of the form, read back from it just now.");
     expect(q("wf-done")?.textContent).toContain("The file you opened stays as it was.");
     await click(q("wf-done")?.querySelector('[data-testid="save-copy"]'));
     expect(saveCopy).toHaveBeenCalledOnce();
@@ -179,7 +185,7 @@ describe("Wayfill", () => {
     expect(el.querySelector<HTMLInputElement>("#wf-jmeno")!.value).toBe("Jana");
     reachable = true;
     await click(button("Try again"));
-    expect(q("wf-done")?.textContent).toContain("1 field was filled in");
+    expect(q("wf-done")?.textContent).toContain("1 field is filled in on the original form, read back from it just now.");
   });
 
   it("a failed wizard call shows the plain words on the basic steps' chip", async () => {
