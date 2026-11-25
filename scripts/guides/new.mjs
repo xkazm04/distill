@@ -10,7 +10,8 @@
 // match.source. The steps, notes and quotes are never touched. It refuses when a field was added, removed or changed
 // kind (the guide's steps no longer fit: follow the drift steps in guides/README.md). The status stays as it is only
 // when the form is known to be the same (match.source recorded and equal: only the reader changed); otherwise a
-// reviewed guide goes back to draft, with a review note saying why.
+// reviewed guide goes back to draft (reviewer, reviewedOn and reviewedText removed), with a review note saying why. A
+// kept review stays valid: reviewedText, the text lock, covers field ids and kinds but not labels.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { GUIDES_DIR } from "./library.mjs";
@@ -23,6 +24,8 @@ const refresh = flag("--refresh");
 const id = flag("--id");
 const formIndex = Number(flag("--form") ?? 0);
 const as = flag("--as");
+// `--dir <folder>` works on another folder laid out like guides/ (used to try the script itself on test guides).
+const guidesDir = flag("--dir") ?? GUIDES_DIR;
 const today = new Date().toISOString().slice(0, 10);
 
 if (refresh) await refreshGuide(refresh, args[0]);
@@ -46,7 +49,7 @@ async function newGuide(source) {
   }
 
   const slug = id ?? `cz/${(s.title || "form").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "form"}`;
-  const out = join(GUIDES_DIR, `${slug}.json`);
+  const out = join(guidesDir, `${slug}.json`);
   if (existsSync(out) && !force) {
     console.error(`guide:new: ${out} exists. Pass --force to write over it (the steps you wrote there will be lost), or --refresh ${slug} to refresh only its field list.`);
     process.exit(1);
@@ -115,7 +118,7 @@ function matchOf(r, keep = {}) {
 }
 
 async function refreshGuide(guideId, given) {
-  const file = join(GUIDES_DIR, `${guideId}.json`);
+  const file = join(guidesDir, `${guideId}.json`);
   if (!existsSync(file)) { console.error(`guide:new --refresh: there is no guides/${guideId}.json`); process.exit(1); }
   const text = readFileSync(file, "utf8");
   const g = JSON.parse(text);
@@ -157,6 +160,7 @@ async function refreshGuide(guideId, given) {
       out.status = "draft";
       delete out.reviewer;
       delete out.reviewedOn;
+      delete out.reviewedText;
     }
     notes.push(`guide:new --refresh on ${today}: match.fields re-read with reader ${r.reader}; ${why}, so the form may have changed as well as the reader. Check match.fields against the form as published${g.status === "reviewed" ? "; the guide is back to draft until a person has" : ""}.`);
   }

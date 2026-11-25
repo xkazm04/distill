@@ -6,7 +6,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FieldStructure, FormGuide, FormStructure, FormValues, UserSettingsDoc, Wizard } from "@distill/engine";
-import { fingerprint } from "@distill/engine";
+import { fingerprint, guideTextDigest } from "@distill/engine";
 import { AiError, type RunResult } from "../ai";
 
 const runMock = vi.hoisted(() => vi.fn());
@@ -79,7 +79,7 @@ async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
     },
     { stepId: "town", fieldIds: ["obec"], question: l === "en" ? "Your town" : "Ваше місто", explanation: l === "en" ? "Where you live now." : "Де ви живете зараз." },
   ];
-  return {
+  const g: FormGuide = {
     guideVersion: 1, id: "cz/zmena", status: "reviewed",
     authority: { name: "Ministerstvo vnitra", nameEn: "the Ministry of the Interior" },
     formName: { cs: "Oznámení změny", en: "Report of a change", uk: "Повідомлення про зміну" },
@@ -91,8 +91,11 @@ async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
     wizards: { en: { notes: ["Fill the form in Czech."], steps: step("en") }, uk: { notes: ["Заповнюйте чеською."], steps: step("uk") } },
     ...over,
   };
+  // A reviewed test guide carries the text lock of its own text, as the review commit would.
+  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g);
+  return g;
 }
-const asDraft = (g: FormGuide): FormGuide => { const d = { ...g, status: "draft" as const }; delete d.reviewer; delete d.reviewedOn; return d; };
+const asDraft = (g: FormGuide): FormGuide => { const d = { ...g, status: "draft" as const }; delete d.reviewer; delete d.reviewedOn; delete d.reviewedText; return d; };
 
 function fakeHost(structure: FormStructure) {
   return {

@@ -3,7 +3,7 @@
 // mergeWizards).
 import { describe, expect, it } from "vitest";
 import {
-  fingerprint, guideWizard, matchGuide, mergeWizards, narrowStructure, parseGuide, parseLibrary, GUIDE_MIN_OVERLAP,
+  fingerprint, guideTextDigest, guideWizard, matchGuide, mergeWizards, narrowStructure, parseGuide, parseLibrary, GUIDE_MIN_OVERLAP,
   type FieldStructure, type FormGuide, type FormStructure, type GuideStep, type Wizard,
 } from "../src/index.js";
 
@@ -31,7 +31,7 @@ const steps = (lang: "en" | "uk"): GuideStep[] => [
 ];
 
 async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
-  return {
+  const g: FormGuide = {
     guideVersion: 1,
     id: "cz/zmena-adresy",
     status: "reviewed",
@@ -47,6 +47,9 @@ async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
     wizards: { en: { notes: ["Fill the form in Czech."], steps: steps("en") }, uk: { notes: ["Заповнюйте форму чеською."], steps: steps("uk") } },
     ...over,
   };
+  // A reviewed test guide carries the text lock of its own text, as the review commit would.
+  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g);
+  return g;
 }
 
 async function form(fields: FieldStructure[] = FIELDS, url = URL_NEW): Promise<FormStructure> {
@@ -128,6 +131,44 @@ describe("parseGuide: the door for a guide file", () => {
     expect(parseGuide({ ...g, match: { ...g.match, reader: "pdf/2" } }).problems.join()).toMatch(/is not a reader of html forms/);
     expect(parseGuide({ ...g, match: { ...g.match, reader: "html" } }).problems.join()).toMatch(/must look like "pdf\/2"/);
     expect(parseGuide({ ...g, match: { ...g.match, source: "abc" } }).problems.join()).toMatch(/sha-256/);
+  });
+
+  it("the text lock: a reviewed guide carries reviewedText, and any change to the checked text refuses it", async () => {
+    const g = await guide();
+    expect(g.reviewedText).toMatch(/^[0-9a-f]{64}$/);
+    expect(guideTextDigest(clone(g))).toBe(g.reviewedText);
+    const changes: [string, (x: FormGuide) => void][] = [
+      ["one word of an English step", (x) => { x.wizards.en.steps[0]!.explanation = "As in your ID card."; }],
+      ["one word of a Ukrainian step", (x) => { x.wizards.uk.steps[2]!.question = "Ваша адреса"; }],
+      ["a note", (x) => { x.wizards.en.notes = ["Fill the form in English."]; }],
+      ["a quote", (x) => { x.wizards.en.steps[0]!.official!.text = "Uveďte jméno podle cestovního dokladu."; }],
+      ["an example added", (x) => { x.wizards.en.steps[2]!.example = "Nová 1, Praha"; }],
+      ["a field kind", (x) => { x.match.fields[3]!.kind = "textarea"; }],
+    ];
+    for (const [name, change] of changes) {
+      const x = clone(g);
+      change(x);
+      expect(guideTextDigest(x), name).not.toBe(g.reviewedText);
+      expect(parseGuide(x).problems.join("\n"), name).toMatch(/checked text changed since the review/);
+    }
+    const noLock = clone(g) as Partial<FormGuide>;
+    delete noLock.reviewedText;
+    expect(parseGuide(noLock).problems.join()).toMatch(/needs reviewedText/);
+    expect(parseGuide({ ...clone(g), reviewedText: "abc" }).problems.join()).toMatch(/sha-256 hex digest/);
+    const draft = clone(await guide({ status: "draft" })) as Partial<FormGuide>;
+    delete draft.reviewer; delete draft.reviewedOn;
+    expect(parseGuide({ ...draft, reviewedText: g.reviewedText }).problems.join()).toMatch(/a draft has no reviewedText/);
+  });
+
+  it("the text lock leaves out what the reader produces: relabelled fields, new fingerprints, reader and source keep the review", async () => {
+    const g = await guide();
+    const refreshed = clone(g);
+    refreshed.match.fields = refreshed.match.fields.map((f) => ({ ...f, label: `${f.label} (nově)` }));
+    refreshed.match.fingerprints = ["f".repeat(64)];
+    refreshed.match.reader = "html/2";
+    refreshed.match.source = "e".repeat(64);
+    expect(guideTextDigest(refreshed)).toBe(g.reviewedText);
+    expect(parseGuide(refreshed).problems).toEqual([]);
   });
 
   it("parseLibrary keeps the guides that pass and names the ones that do not", async () => {

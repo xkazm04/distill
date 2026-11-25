@@ -81,19 +81,24 @@ be read).
 - The Ukrainian and English text: does each say the same as the other, in plain words a newcomer understands?
 - Every entry in `reviewNotes`: resolved, and removed.
 
-**How:** one commit that sets `"status": "reviewed"`, adds `"reviewer"` and `"reviewedOn"` (the date of the check,
-YYYY-MM-DD), and removes `reviewNotes`; its message names the reviewer and the instructions checked, for example
+**How:** one commit that sets `"status": "reviewed"`, adds `"reviewer"`, `"reviewedOn"` (the date of the check,
+YYYY-MM-DD) and `"reviewedText"`, and removes `reviewNotes`. `reviewedText` is the text lock: a sha-256 digest of
+the text the reviewer checked (every step in both languages, the notes, the quotes, and the field ids and kinds; not
+the labels or anything else the reader produces). `npm run guides:digest -- <id>` prints it; run it after the last
+change to the text. Its message names the reviewer and the instructions checked, for example
 `review(guides): cz/oznameni-zmen checked against ipc.gov.cz instructions by Jana Nováková`. The commit is made by
 the reviewer, or by a maintainer quoting the reviewer's written confirmation in the message. `npm run check-guides`
-refuses a reviewed guide without a reviewer, a date, or with open review notes.
+refuses a reviewed guide without a reviewer, a date or `reviewedText`, with open review notes, or whose text no longer
+gives its `reviewedText`; the apps leave such a guide out when they load the library.
 
-Any later change to the steps, the notes or the fields of a reviewed guide sets it back to `draft` (remove `reviewer`
-and `reviewedOn`) until it is checked again. Fixing a typo that changes no meaning still gets a new `reviewedOn` by a
+Any later change to the steps, the notes or the fields of a reviewed guide sets it back to `draft` (remove `reviewer`,
+`reviewedOn` and `reviewedText`) until it is checked again; the text lock makes `npm run check-guides` fail until it is. Fixing a typo that changes no meaning still gets a new `reviewedOn` by a
 reviewer.
 
 One exception: a reader-only refresh (`npm run guide:new -- --refresh <id>`, see [Drift](#drift)) keeps the review.
 It applies only when the form is shown to be the same one (the same source digest or fingerprint, the same fields in
-the same order and of the same kinds) and it changes only what the reader produces, never the steps, notes or quotes.
+the same order and of the same kinds) and it changes only what the reader produces, never the steps, notes or quotes,
+so `reviewedText` still holds.
 When the script cannot show the form is the same, it returns the guide to `draft` itself.
 
 ## How a guide is matched

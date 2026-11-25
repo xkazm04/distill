@@ -214,6 +214,7 @@ export const fileSchemas: Record<"guide", object> = {
       draftedOn: str,
       reviewer: str,
       reviewedOn: str,
+      reviewedText: str,
       match: {
         type: "object",
         properties: {

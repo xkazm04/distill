@@ -220,6 +220,10 @@ export interface FormGuide {
   reviewer?: string;
   /** reviewed only: YYYY-MM-DD. */
   reviewedOn?: string;
+  /** reviewed only: the text lock, sha-256 hex of the text the reviewer checked (engine guideTextDigest: steps, notes,
+   *  quotes, field ids and kinds; not labels or anything else the reader produces). Written by the review commit,
+   *  printed by `npm run guides:digest`; a reviewed guide whose text no longer gives this digest is refused. */
+  reviewedText?: string;
   match: GuideMatch;
   /** One wizard per reader language. Both are required. */
   wizards: { en: GuideWizard; uk: GuideWizard };

@@ -72,6 +72,9 @@
     "reviewedOn": {
       "type": "string"
     },
+    "reviewedText": {
+      "type": "string"
+    },
     "match": {
       "type": "object",
       "properties": {
