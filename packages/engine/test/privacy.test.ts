@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { extractActions, extractForm, extractPage, prompts, readErrors, readValues, route, writeValues, type FormStructure, type Letter, type ReplyAnswer, type Task } from "../src/index.js";
+import {
+  conceptsOf, extractActions, extractForm, extractPage, papersFrom, prompts, proposeFromPapers, readErrors, readValues, route, writeValues,
+  type FormStructure, type Letter, type Papers, type ReplyAnswer, type Task,
+} from "../src/index.js";
 import { live, parse } from "./helpers.js";
 import czech from "./fixtures/czech-residence-form.html?raw";
 
@@ -252,6 +255,44 @@ describe("payload privacy", () => {
     expect(prompts.explainError(structure, undefined, error, "en")).toContain("870619/43ZQX");
     for (const cfg of ["only_in_cloud", "prefer_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
       expect(route("explainError", cfg)).toMatchObject({ promptClass: "values", mode: "only_on_device" });
+    }
+  });
+
+  // Tiger 2026-11-25, L1: the saved papers are values. They are joined into answers on the device and never reach a
+  // structure, the page model or a cloud-eligible prompt; conceptOf reads structure only.
+  it("saved papers reach no structure, page model or cloud-eligible prompt, before or after they are proposed and written", async () => {
+    const doc = parse(czech);
+    const structure = await extractForm(doc, "https://mv.example/zadost");
+    const concepts = conceptsOf(structure);
+    expect(Object.values(concepts)).toEqual(expect.arrayContaining(["givenName", "surname", "birthDate", "birthNumber", "email", "phone"]));
+    const papers: Papers = {
+      givenName: SECRETS.jmeno, surname: SECRETS.prijmeni, birthDate: SECRETS.datum, birthNumber: "8706194321",
+      email: SECRETS.email, phone: "+420601998877", passportNumber: "ZQXPASS8842", nationality: "Zqxlandia",
+    };
+    const proposed = proposeFromPapers(structure, papers);
+    expect(Object.keys(proposed).length).toBeGreaterThanOrEqual(6);
+    // The person presses Next: the proposals are written and read back, and the read-back becomes papers again.
+    const res = writeValues(doc, structure, proposed);
+    const back = readValues(doc, structure);
+    expect(papersFrom(structure, back, res.written)).toMatchObject({ givenName: SECRETS.jmeno, surname: SECRETS.prijmeni });
+
+    const after = await extractForm(doc, "https://mv.example/zadost");
+    const page = extractPage(doc, "https://mv.example/zadost");
+    const offered: Record<string, string> = {
+      structure: JSON.stringify(after), page: JSON.stringify(page), concepts: JSON.stringify(conceptsOf(after)),
+      classifyPage: prompts.classifyPage(page), simplifyBlocks: prompts.simplifyBlocks(page, "plain", "en"), recast: prompts.recast(page, ["summary", "steps"]),
+      buildWizard: prompts.buildWizard(after, "en"),
+      explainField: after.fields.map((f) => prompts.explainField(after, f.fieldId, "en")).join("\n"),
+    };
+    const canaries = ["Zqxvlenka", "Wbrtnovsky", "1987-06-19", "19.06.1987", "870619", "8706194321", "private.example", "601998877", "601 998", "ZQXPASS", "Zqxlandia"];
+    const leaks = Object.entries(offered).flatMap(([where, text]) => canaries.filter((c) => text.includes(c)).map((c) => `${where}: ${c}`));
+    expect(leaks).toEqual([]);
+    for (const t of ["classifyPage", "simplifyBlocks", "recast", "buildWizard", "explainField"] as Task[]) expect(route(t, "prefer_in_cloud").promptClass).not.toBe("values");
+  });
+
+  it("Put into Czech carries a typed answer, so it routes on device only whatever is configured", () => {
+    for (const cfg of ["only_in_cloud", "prefer_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
+      expect(route("translateAnswer", cfg)).toMatchObject({ promptClass: "values", mode: "only_on_device" });
     }
   });
 });

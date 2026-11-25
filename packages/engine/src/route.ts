@@ -19,6 +19,9 @@ const CLASS_OF: Record<Task, PromptClass> = {
   checkValue: "values",
   explainError: "values",
   draftReply: "values",
+  // The person's own typed answer, put into the form's language. It runs on Chrome's on-device Translator API, never on
+  // the cloud-capable SDK (apps/web/src/translator.ts); the class pins it to the device all the same.
+  translateAnswer: "values",
 };
 
 const MODES: readonly InferenceMode[] = ["prefer_on_device", "only_on_device", "only_in_cloud", "prefer_in_cloud"];

@@ -3,7 +3,7 @@ import { route, type Task } from "../src/index.js";
 
 describe("route", () => {
   it("never lets a values task leave the device, whatever is configured", () => {
-    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply", "askPage", "explainTerm"] as Task[]) {
+    for (const task of ["suggestValue", "checkValue", "explainError", "draftReply", "askPage", "explainTerm", "translateErrors", "translateAnswer"] as Task[]) {
       for (const cfg of ["prefer_in_cloud", "only_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
         const d = route(task, cfg);
         expect(d.mode).toBe("only_on_device");
@@ -11,6 +11,13 @@ describe("route", () => {
       }
     }
     expect(route("suggestValue", "prefer_in_cloud").mode).toBe("only_on_device");
+  });
+
+  it("Put into Czech carries the person's typed answer: values class, device only, whatever is configured", () => {
+    for (const cfg of ["prefer_in_cloud", "only_in_cloud", "prefer_on_device", "only_on_device", "garbage", undefined]) {
+      expect(route("translateAnswer", cfg)).toMatchObject({ task: "translateAnswer", promptClass: "values", mode: "only_on_device" });
+    }
+    expect(route("translateAnswer").reason).toMatch(/only on this device/);
   });
 
   it("a reply draft carries the person's answers, so it is device-only with no cloud fallback", () => {

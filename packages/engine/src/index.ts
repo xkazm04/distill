@@ -41,3 +41,10 @@ export { readChapters, chapterAt, chapterEnd, formatTime as chapterTime, isSpons
 export { readProduct, PRODUCT_FACTS, type ProductFact, type ProductFactKind, type ProductFacts, type ReadProductOptions } from "./product.js";
 export { spelledOut, parseExplanation, cleanTerm, isAbbreviation, TERM_MAX, EXPLANATION_MAX, type ExplainResult } from "./explain.js";
 export { parseAnswer, cleanQuestion, capAnswer, QUESTION_MAX, ANSWER_MAX, ANSWER_SENTENCES, type PageAnswer, type AnswerResult } from "./ask.js";
+// Tiger 2026-11-25 (Wayfill): the script check (S3), papers by label (L1), and when "Put into Czech" is offered (L2).
+export { checkScript, formTakesLatin, LATIN_FORM_LANGS, type ScriptProblem } from "./script.js";
+export {
+  conceptOf, conceptsOf, labelConcept, namesAnotherParty, canonicalPaper, formatPaper, papersFrom, proposeFromPapers, isPaperConcept,
+  PAPER_CONCEPTS, type PaperConcept, type Papers,
+} from "./papers.js";
+export { canOfferTranslation } from "./answerLang.js";
