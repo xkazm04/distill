@@ -111,7 +111,7 @@ function stepHtml(guide, i, quotes) {
   return `<section class="step" id="step-${esc(en.stepId)}"><h3>Step ${esc(en.stepId)}</h3>` +
     `<p><b>Fields on the form (Czech labels as read):</b></p><ul>${labels}</ul>` +
     `<table><thead><tr><th>English</th><th>Ukrainian</th></tr></thead><tbody><tr>${side(en)}${side(uk)}</tr></tbody></table>` +
-    `${quoteHtml}<p><label><input type="checkbox"> This step agrees with the instructions, in both languages</label></p></section>`;
+    `${quoteHtml}<p><label><input type="checkbox"> This step agrees with the instructions, in each language I sign off</label></p></section>`;
 }
 
 function sheet(guide, sources, quotes, bare) {
@@ -151,7 +151,7 @@ ${bareIdx.map((i) => stepHtml(guide, i, quotes)).join("")}
 <h2>Steps with a quote (${quotedIdx.length})</h2>
 ${quotedIdx.map((i) => stepHtml(guide, i, quotes)).join("")}
 <h2>When you have checked everything</h2>
-<p>The review is one commit, made by you (or by a maintainer quoting your written confirmation). In guides/${esc(guide.id)}.json set <code>"status": "reviewed"</code>, add <code>"reviewer"</code> (your name, and the languages you checked when more than one person reviews), <code>"reviewedOn"</code> (the date of your check, YYYY-MM-DD) and <code>"reviewedText"</code> (the text lock: run <code>npm run guides:digest -- ${esc(guide.id)}</code> after your last change to the text; as the file is now it is <code>${esc(guideTextDigest(guide))}</code>), and remove <code>reviewNotes</code>. Then run <code>npm run check-guides</code>. The commit message names you and the instructions you checked:</p>
+<p>The review is one commit, made by you (or by a maintainer quoting your written confirmation). In guides/${esc(guide.id)}.json set <code>"status": "reviewed"</code>, add <code>"reviewer"</code> (your name, and the languages you checked when more than one person reviews), <code>"reviewedOn"</code> (the date of your check, YYYY-MM-DD) and <code>"reviewedLangs"</code> (the wizard languages you signed off: you read Czech and each language you list) and <code>"reviewedText"</code> (the text lock: run <code>npm run guides:digest -- ${esc(guide.id)} --langs en</code>, or <code>en,uk</code>, after your last change to the text; as the file is now it is <code>${esc(guideTextDigest(guide, ["en"]))}</code> for English only, <code>${esc(guideTextDigest(guide, ["uk"]))}</code> for Ukrainian only, <code>${esc(guideTextDigest(guide, ["en", "uk"]))}</code> for both), and remove <code>reviewNotes</code>. Then run <code>npm run check-guides</code>. The commit message names you and the instructions you checked:</p>
 <pre>review(guides): ${esc(guide.id)} checked against ${esc(host)} instructions by &lt;your name&gt;</pre>
 </body></html>
 `;

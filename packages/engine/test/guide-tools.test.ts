@@ -99,9 +99,9 @@ async function reviewedFromSkeleton(dir: string): Promise<FormGuide> {
   const skeleton = JSON.parse(readFileSync(join(dir, "cz", "test-oznameni.json"), "utf8")) as FormGuide;
   const fields = skeleton.match.fields.map((f) => ({ ...f, label: `${f.label} (old reader)` }));
   const match: GuideMatch = { ...skeleton.match, fields, fingerprints: [await fingerprint(FORM_URL, fields.map((f) => ({ ...f, required: false })))] };
-  const g: FormGuide = { ...(await testGuide()), match, status: "reviewed", reviewer: "Test Reviewer (fixture)", reviewedOn: "2026-11-20" };
+  const g: FormGuide = { ...(await testGuide()), match, status: "reviewed", reviewer: "Test Reviewer (fixture)", reviewedOn: "2026-11-20", reviewedLangs: ["en", "uk"] };
   delete g.reviewNotes;
-  g.reviewedText = guideTextDigest(g);
+  g.reviewedText = guideTextDigest(g, g.reviewedLangs);
   return g;
 }
 
@@ -136,6 +136,39 @@ describe("check-guides: the text lock on a reviewed guide (local fixtures, no ne
     const still = run("check-guides.mjs", [dir]);
     expect(still.out).toContain("1 reviewed");
     expect(still.code).toBe(0);
+  }, 180_000);
+});
+
+describe("check-guides: per-language sign-off (local fixtures, no network)", () => {
+  it("requires reviewedLangs; signed off for English only, a Ukrainian change passes and an English change fails", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "guide-tools-"));
+    dirs.push(dir);
+    mkdirSync(join(dir, "cz"));
+    const base = await reviewedFromSkeleton(dir);
+    const file = join(dir, "cz", "test-oznameni.json");
+    const write = (x: object) => writeFileSync(file, JSON.stringify(x, null, 2) + "\n");
+
+    const noLangs = { ...base } as Partial<FormGuide>;
+    delete noLangs.reviewedLangs;
+    write(noLangs);
+    const missing = run("check-guides.mjs", [dir]);
+    expect(missing.out).toContain("lists the languages its reviewer signed off in reviewedLangs");
+    expect(missing.code).toBe(1);
+
+    const en: FormGuide = { ...base, reviewer: "Test Reviewer (fixture) (cs, en)", reviewedLangs: ["en"] };
+    en.reviewedText = guideTextDigest(en, ["en"]);
+    const uk = JSON.parse(JSON.stringify(en)) as FormGuide;
+    uk.wizards.uk.steps[1]!.explanation = "Де ви живете тепер.";
+    write(uk);
+    const ukChange = run("check-guides.mjs", [dir]);
+    expect(ukChange.out).toContain("1 reviewed");
+    expect(ukChange.code).toBe(0);
+    const enChange = JSON.parse(JSON.stringify(en)) as FormGuide;
+    enChange.wizards.en.steps[1]!.explanation = "Where you live today.";
+    write(enChange);
+    const locked = run("check-guides.mjs", [dir]);
+    expect(locked.out).toContain("the checked text changed since the review");
+    expect(locked.code).toBe(1);
   }, 180_000);
 });
 

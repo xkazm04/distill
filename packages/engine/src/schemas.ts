@@ -215,6 +215,7 @@ export const fileSchemas: Record<"guide", object> = {
       reviewer: str,
       reviewedOn: str,
       reviewedText: str,
+      reviewedLangs: { type: "array", items: { type: "string", enum: ["en", "uk"] } },
       match: {
         type: "object",
         properties: {

@@ -15,7 +15,7 @@ Guides are JSON files in this folder, `guides/<country>/<slug>.json`, in the for
 | Status | Who sets it | Used on real pages | What the guide view says |
 | --- | --- | --- | --- |
 | `draft` | Whoever writes the guide, person or AI | No. Only in a developer's build with `VITE_GUIDE_DRAFTS=1` (the web app's dev server, or the extension's own build), and the builds people use do not even contain drafts | "Draft guide, not checked" and "This guide is a draft. No person has checked it against the official instructions yet, so do not rely on it." |
-| `reviewed` | A person, by the commit that adds `reviewer` and `reviewedOn` | Yes | "Checked guide" and "Checked against the Ministry of the Interior's instructions on 2026-11-20." with a link to those instructions, and "Checked by <reviewer>." |
+| `reviewed` | A person, by the commit that adds `reviewer`, `reviewedOn`, `reviewedLangs` and `reviewedText` | Yes, to readers of a language in `reviewedLangs` | "Checked guide" and "Checked against the Ministry of the Interior's instructions on 2026-11-20." with a link to those instructions, and "Checked by <reviewer>." |
 | `draft` with `"demo": true` | Only for Distill's own made-up demo form | Only on the guided demo form (`/demo/guided-form.html`) | "Example guide" and "An example guide for Distill's made-up demo form. No office issues this form, so no official instructions were checked." |
 
 A guide is never labelled as an AI result: it shows no "On this device" or "In the cloud" chip, because no model ran.
@@ -50,16 +50,20 @@ output when the app loads it.
 ### Who may write one
 
 Anyone, including an AI. An AI-written guide is always `draft`, carries a `reviewNotes` entry that says so, and an AI
-never sets `reviewed`, `reviewer` or `reviewedOn`.
+never sets `reviewed`, `reviewer`, `reviewedOn`, `reviewedLangs` or `reviewedText`.
 
 ## Reviewing a guide
 
 "Reviewed" means a named person compared the guide with the official sources and takes responsibility for it.
 
-**Who may review:** a person who reads Czech well enough to read the official instructions, and who reads the language
-of each wizard they sign off (English, Ukrainian). If no one person reads both, the guide needs one reviewer per
-language; name each in `reviewer` with what they checked ("Jana Nováková (cs, en); Olena Koval (uk)"). The reviewer
-should not be the guide's only author. An AI is never a reviewer.
+**Who may review:** a person who reads Czech well enough to read the official instructions, and who reads the wizard
+language they sign off (English, Ukrainian). One such person may sign off that language alone: name them in
+`reviewer` with what they checked ("Jana Nováková (cs, en)") and list the language in `reviewedLangs` (`["en"]`).
+The guide is then shown as checked to readers of that language only; readers of a language not signed off get the
+normal path (the model, else the form's own labels, with its own chip), as when the library has no text for them. A
+second language is signed off by a later review commit that adds it to `reviewedLangs` and names both reviewers
+("Jana Nováková (cs, en); Olena Koval (cs, uk)"). The reviewer should not be the guide's only author. An AI is never
+a reviewer.
 
 **Start with the review sheet.** `npm run guides:review -- <id>` reads the instructions the guide cites
 (`instructionsUrl` and every `official.url`; a PDF through Distill's PDF reader, a web page through the page reader
@@ -82,17 +86,20 @@ be read).
 - Every entry in `reviewNotes`: resolved, and removed.
 
 **How:** one commit that sets `"status": "reviewed"`, adds `"reviewer"`, `"reviewedOn"` (the date of the check,
-YYYY-MM-DD) and `"reviewedText"`, and removes `reviewNotes`. `reviewedText` is the text lock: a sha-256 digest of
-the text the reviewer checked (every step in both languages, the notes, the quotes, and the field ids and kinds; not
-the labels or anything else the reader produces). `npm run guides:digest -- <id>` prints it; run it after the last
-change to the text. Its message names the reviewer and the instructions checked, for example
+YYYY-MM-DD), `"reviewedLangs"` (the languages signed off) and `"reviewedText"`, and removes `reviewNotes`.
+`reviewedText` is the text lock: a sha-256 digest of the text the reviewer checked (the field ids and kinds, and the
+steps, notes and quotes of each language in `reviewedLangs`; not the labels or anything else the reader produces,
+and not a language that was not signed off). `npm run guides:digest -- <id> --langs en` (or `en,uk`) prints both
+lines; run it after the last change to the text. A reviewed guide must have both keys: there is no reviewed guide
+without them. Its message names the reviewer and the instructions checked, for example
 `review(guides): cz/oznameni-zmen checked against ipc.gov.cz instructions by Jana Nováková`. The commit is made by
 the reviewer, or by a maintainer quoting the reviewer's written confirmation in the message. `npm run check-guides`
 refuses a reviewed guide without a reviewer, a date or `reviewedText`, with open review notes, or whose text no longer
-gives its `reviewedText`; the apps leave such a guide out when they load the library.
+gives its `reviewedText`; the apps leave such a guide out when they load the library. A change to a language that
+was not signed off (the Ukrainian text of a guide signed off for English) does not touch the review.
 
-Any later change to the steps, the notes or the fields of a reviewed guide sets it back to `draft` (remove `reviewer`,
-`reviewedOn` and `reviewedText`) until it is checked again; the text lock makes `npm run check-guides` fail until it is. Fixing a typo that changes no meaning still gets a new `reviewedOn` by a
+Any later change to the fields, or to the steps or notes of a signed-off language, of a reviewed guide sets it back to
+`draft` (remove `reviewer`, `reviewedOn`, `reviewedLangs` and `reviewedText`) until it is checked again; the text lock makes `npm run check-guides` fail until it is. Fixing a typo that changes no meaning still gets a new `reviewedOn` by a
 reviewer.
 
 One exception: a reader-only refresh (`npm run guide:new -- --refresh <id>`, see [Drift](#drift)) keeps the review.

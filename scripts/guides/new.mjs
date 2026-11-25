@@ -10,7 +10,7 @@
 // match.source. The steps, notes and quotes are never touched. It refuses when a field was added, removed or changed
 // kind (the guide's steps no longer fit: follow the drift steps in guides/README.md). The status stays as it is only
 // when the form is known to be the same (match.source recorded and equal: only the reader changed); otherwise a
-// reviewed guide goes back to draft (reviewer, reviewedOn and reviewedText removed), with a review note saying why. A
+// reviewed guide goes back to draft (reviewer, reviewedOn, reviewedText and reviewedLangs removed), with a review note saying why. A
 // kept review stays valid: reviewedText, the text lock, covers field ids and kinds but not labels.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -161,6 +161,7 @@ async function refreshGuide(guideId, given) {
       delete out.reviewer;
       delete out.reviewedOn;
       delete out.reviewedText;
+      delete out.reviewedLangs;
     }
     notes.push(`guide:new --refresh on ${today}: match.fields re-read with reader ${r.reader}; ${why}, so the form may have changed as well as the reader. Check match.fields against the form as published${g.status === "reviewed" ? "; the guide is back to draft until a person has" : ""}.`);
   }

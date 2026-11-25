@@ -92,10 +92,11 @@ async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
     ...over,
   };
   // A reviewed test guide carries the text lock of its own text, as the review commit would.
-  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g);
+  if (g.status === "reviewed" && !("reviewedLangs" in over)) g.reviewedLangs = ["en", "uk"];
+  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g, g.reviewedLangs);
   return g;
 }
-const asDraft = (g: FormGuide): FormGuide => { const d = { ...g, status: "draft" as const }; delete d.reviewer; delete d.reviewedOn; delete d.reviewedText; return d; };
+const asDraft = (g: FormGuide): FormGuide => { const d = { ...g, status: "draft" as const }; delete d.reviewer; delete d.reviewedOn; delete d.reviewedText; delete d.reviewedLangs; return d; };
 
 function fakeHost(structure: FormStructure) {
   return {
@@ -152,6 +153,22 @@ describe("a reviewed guide from the library", () => {
     await render(view(await form(), lib([g]), "de"));
     expect(q("guide-chip")).toBeNull();
     expect(q("source-chip")?.textContent).toContain("In the cloud");
+  });
+
+  it("signed off for English only: English readers get the checked guide, Ukrainian readers the normal path", async () => {
+    const g = await guide({ reviewer: "Test Reviewer (fixture) (cs, en)", reviewedLangs: ["en"] });
+    await render(view(await form(), lib([g]), "en"));
+    expect(q("guide-chip")?.textContent).toBe("Checked guide");
+    expect(q("guide-chip")?.getAttribute("data-kind")).toBe("reviewed");
+    expect(q("wf-step")?.querySelector("h3")?.textContent).toBe("Your surname and first name");
+
+    runMock.mockRejectedValue(new AiError("busy"));
+    await render(<p>reset</p>);
+    await render(view(await form(), lib([g]), "uk"));
+    expect(q("guide-chip")).toBeNull();
+    expect(q("guide-source")).toBeNull();
+    expect(text()).not.toContain("Ваше прізвище та ім'я");
+    expect(q("origin-chip")?.textContent).toBe("No AI used");
   });
 
   it("is refused at the door when it carries HTML or a script address, and the normal path runs instead", async () => {

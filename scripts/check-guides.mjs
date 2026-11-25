@@ -4,7 +4,8 @@
 // - It passes the engine's door, parseGuide: closed vocabulary, no HTML, https addresses, real dates, both reader
 //   languages over the same steps, field ids that exist, every step unchanged through parseWizard, and a reviewed
 //   guide names its reviewer and review date (and has no open review notes), and its text still gives its
-//   reviewedText (the text lock: no checked step, note, quote or field changed since the review).
+//   reviewedText (the text lock: no checked step, note, quote or field changed since the review) and lists the
+//   languages its reviewer signed off (reviewedLangs).
 // - No date is in the future, and every fingerprint is the fingerprint of its field list at one of its addresses (a
 //   PDF's is at pdf://local/; the demo guide's at the hosted app), so a hand edit to a label cannot pass unnoticed.
 // Offline and deterministic: it never fetches a form (that is `npm run guides:drift`).

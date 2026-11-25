@@ -3,7 +3,7 @@
 // mergeWizards).
 import { describe, expect, it } from "vitest";
 import {
-  fingerprint, guideTextDigest, guideWizard, matchGuide, mergeWizards, narrowStructure, parseGuide, parseLibrary, GUIDE_MIN_OVERLAP,
+  fingerprint, guideSignedFor, guideTextDigest, guideWizard, matchGuide, mergeWizards, narrowStructure, parseGuide, parseLibrary, GUIDE_MIN_OVERLAP,
   type FieldStructure, type FormGuide, type FormStructure, type GuideStep, type Wizard,
 } from "../src/index.js";
 
@@ -48,7 +48,8 @@ async function guide(over: Partial<FormGuide> = {}): Promise<FormGuide> {
     ...over,
   };
   // A reviewed test guide carries the text lock of its own text, as the review commit would.
-  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g);
+  if (g.status === "reviewed" && !("reviewedLangs" in over)) g.reviewedLangs = ["en", "uk"];
+  if (g.status === "reviewed" && !("reviewedText" in over)) g.reviewedText = guideTextDigest(g, g.reviewedLangs);
   return g;
 }
 
@@ -171,6 +172,34 @@ describe("parseGuide: the door for a guide file", () => {
     expect(parseGuide(refreshed).problems).toEqual([]);
   });
 
+  it("a reviewed guide lists the languages signed off in reviewedLangs; a draft lists none", async () => {
+    const g = await guide();
+    const none = clone(g) as Partial<FormGuide>;
+    delete none.reviewedLangs;
+    expect(parseGuide(none).problems.join()).toMatch(/lists the languages its reviewer signed off in reviewedLangs/);
+    expect(parseGuide({ ...clone(g), reviewedLangs: [] }).problems.join()).toMatch(/signed off in reviewedLangs/);
+    expect(parseGuide({ ...clone(g), reviewedLangs: ["en", "de"] }).problems.join()).toMatch(/reviewedLangs\[1\] "de" is not a language/);
+    expect(parseGuide({ ...clone(g), reviewedLangs: ["en", "en"] }).problems.join()).toMatch(/names a language twice/);
+    const draft = clone(await guide({ status: "draft" })) as Partial<FormGuide>;
+    delete draft.reviewer; delete draft.reviewedOn;
+    expect(parseGuide({ ...draft, reviewedLangs: ["en"] }).problems.join()).toMatch(/a draft has no reviewedLangs/);
+  });
+
+  it("signed off for English only: only English is locked; a Ukrainian change passes, an English one is refused", async () => {
+    const g = await guide({ reviewer: "Test Reviewer (fixture) (cs, en)", reviewedLangs: ["en"] });
+    expect(parseGuide(clone(g)).problems).toEqual([]);
+    expect(g.reviewedText).not.toBe(guideTextDigest(g, ["en", "uk"]));
+    const uk = clone(g);
+    uk.wizards.uk.steps[0]!.explanation = "Як у закордонному паспорті.";
+    uk.wizards.uk.notes = ["Заповнюйте чеською мовою."];
+    expect(parseGuide(uk).problems).toEqual([]);
+    const en = clone(g);
+    en.wizards.en.steps[0]!.explanation = "As in your ID card.";
+    expect(parseGuide(en).problems.join()).toMatch(/checked text changed since the review/);
+    // Adding a language is a new review: the old lock does not cover it.
+    expect(parseGuide({ ...clone(g), reviewedLangs: ["en", "uk"] }).problems.join()).toMatch(/checked text changed since the review/);
+  });
+
   it("parseLibrary keeps the guides that pass and names the ones that do not", async () => {
     const good = await guide();
     const bad = { ...clone(good), id: "cz/spatna", officialFormUrl: "ftp://x" };
@@ -266,6 +295,19 @@ describe("guideWizard and mergeWizards", () => {
     expect(guideWizard(m, s, "uk")?.wizard.steps[0]?.question).toBe("Ваше прізвище та ім'я");
     expect(guideWizard(m, s, "uk-UA")?.wizard.readerLang).toBe("uk");
     expect(guideWizard(m, s, "de")).toBeNull();
+  });
+
+  it("a reviewed guide is served only in the languages signed off; other readers get the normal path (null)", async () => {
+    const s = await form();
+    const g = await guide({ reviewer: "Test Reviewer (fixture) (cs, en)", reviewedLangs: ["en"] });
+    const m = matchGuide(s, [g])!;
+    expect(guideWizard(m, s, "en")?.wizard.steps[0]?.question).toBe("Your surname and first name");
+    expect(guideWizard(m, s, "uk")).toBeNull();
+    expect(guideWizard(m, s, "uk-UA")).toBeNull();
+    expect(guideSignedFor(g, "en")).toBe(true);
+    expect(guideSignedFor(g, "uk")).toBe(false);
+    // A draft (drafts on) is shown as a draft in every language: nothing claims it was checked.
+    expect(guideSignedFor({ status: "draft" }, "uk")).toBe(true);
   });
 
   it("a changed form: a step any of whose fields changed goes to the normal path whole, with the new fields", async () => {

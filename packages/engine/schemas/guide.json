@@ -75,6 +75,16 @@
     "reviewedText": {
       "type": "string"
     },
+    "reviewedLangs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "en",
+          "uk"
+        ]
+      }
+    },
     "match": {
       "type": "object",
       "properties": {

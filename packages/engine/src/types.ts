@@ -224,6 +224,10 @@ export interface FormGuide {
    *  quotes, field ids and kinds; not labels or anything else the reader produces). Written by the review commit,
    *  printed by `npm run guides:digest`; a reviewed guide whose text no longer gives this digest is refused. */
   reviewedText?: string;
+  /** reviewed only, and required there: the reader languages the reviewer signed off ("en", "uk"). A person who reads
+   *  Czech and one wizard language signs off that language; the apps serve the guide as checked only to readers of a
+   *  language listed here, and reviewedText locks only these languages' text. */
+  reviewedLangs?: ("en" | "uk")[];
   match: GuideMatch;
   /** One wizard per reader language. Both are required. */
   wizards: { en: GuideWizard; uk: GuideWizard };
