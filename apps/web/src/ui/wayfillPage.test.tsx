@@ -206,3 +206,65 @@ describe("a tick group takes several ticks", () => {
     expect(el.querySelector(".wf-steps")?.textContent).toContain("Poskytování software a poradenství v oblasti IT, Mimoškolní výchova a vzdělávání");
   });
 });
+
+const DUVOD_EN = [
+  { fieldId: "duvod", value: "1", label: "Starting a job" },
+  { fieldId: "duvod", value: "2", label: "Changing health insurer" },
+  { fieldId: "duvod", value: "3", label: "Birth of a child" },
+  { fieldId: "duvod", value: "4", label: "Starting self-employment" },
+];
+
+describe("options in the reader's language", () => {
+  async function toDuvod() {
+    const p = await open(healthInsuranceHtml);
+    await render(<Wayfill host={p.host as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    for (let i = 0; i < 6 && !stepTitle().match(/Why|Důvod/); i++) await click(button("Skip"));
+    return p;
+  }
+  const select = () => el.querySelector("#wf-duvod") as HTMLSelectElement;
+
+  it("shows the model's labels with the form's own words beside them, and writes the option's value", async () => {
+    ai.wizard = { steps: [{ stepId: "duvod", fieldIds: ["duvod"], question: "Why are you registering?", explanation: "Pick the reason.", options: [
+      ...DUVOD_EN, { fieldId: "duvod", value: "9", label: "Retiring" },
+    ] }] };
+    const { doc } = await toDuvod();
+    expect(stepTitle()).toBe("Why are you registering?");
+    expect([...select().options].slice(1).map((o) => o.textContent)).toEqual([
+      "Starting a job (Zahájení zaměstnání)",
+      "Changing health insurer (Změna zdravotní pojišťovny)",
+      "Birth of a child (Narození dítěte)",
+      "Starting self-employment (Zahájení samostatné výdělečné činnosti)",
+    ]);
+    expect([...select().options].slice(1).map((o) => o.value)).toEqual(["1", "2", "3", "4"]);
+    expect(q("options-dropped")?.textContent).toBe("1 choice in your language could not be used, so it shows as the form writes it.");
+    expect(q("options-as-written")).toBeNull();
+    await act(async () => {
+      select().value = "2";
+      select().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await click(button("Next"));
+    expect((doc.querySelector("#duvod") as HTMLSelectElement).value).toBe("2");
+    const s = await eng.extractForm(doc, "https://forms.example/f");
+    expect(eng.readValues(doc, s).duvod).toBe("2");
+    expect(el.querySelector(".wf-steps")?.textContent).toContain("Changing health insurer");
+  });
+
+  it("radio options show the reader's words with the original marked in the form's language", async () => {
+    ai.wizard = { steps: [{ stepId: "pohlavi", fieldIds: ["pohlavi"], question: "Your sex?", explanation: "", options: [
+      { fieldId: "pohlavi", value: "Z", label: "female" }, { fieldId: "pohlavi", value: "M", label: "male" },
+    ] }] };
+    const p = await open(healthInsuranceHtml);
+    await render(<Wayfill host={p.host as never} settings={settings} model={model as never} onShowOriginal={() => undefined} />);
+    for (let i = 0; i < 6 && stepTitle() !== "Your sex?"; i++) await click(button("Skip"));
+    const choices = [...el.querySelectorAll("label.choice")];
+    expect(choices.map((c) => c.textContent?.trim())).toEqual(["female žena", "male muž"]);
+    expect([...el.querySelectorAll('[data-testid="option-original"]')].map((s) => s.getAttribute("lang"))).toEqual(["cs", "cs"]);
+    expect(q("options-dropped")).toBeNull();
+  });
+
+  it("with no model, the options are as the form writes them, and the step says so", async () => {
+    await toDuvod();
+    expect([...select().options].slice(1).map((o) => o.textContent)).toEqual(["Zahájení zaměstnání", "Změna zdravotní pojišťovny", "Narození dítěte", "Zahájení samostatné výdělečné činnosti"]);
+    expect(q("options-as-written")?.textContent).toBe("The choices are as the form writes them, in its own language.");
+  });
+});

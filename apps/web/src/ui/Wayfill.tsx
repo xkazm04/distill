@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardStep } from "@distill/engine";
+import type { FieldError, FieldStructure, FormErrors, FormGuide, FormStructure, FormValues, GuideQuote, UserSettingsDoc, Wizard, WizardOption, WizardStep } from "@distill/engine";
 import { AI_WORDS, aiAvailable, aiWords, run } from "../ai";
 import { isFirebaseConfigured } from "../firebase";
 import { getFormGuide, saveFormGuide } from "./data";
@@ -52,7 +52,7 @@ export function basicWizard(s: FormStructure, readerLang: string): Wizard {
 
 /** Where steps came from when no library guide covers them: a model (and where it ran), this person's saved guide,
  *  or the form's own labels. */
-type PathOrigin = { kind: "ai"; meta: AiMeta } | { kind: "cache" } | { kind: "basic"; why: string };
+type PathOrigin = { kind: "ai"; meta: AiMeta; droppedOptions?: number } | { kind: "cache" } | { kind: "basic"; why: string };
 
 /** A guide from the library. Not an AI result: it has no AiMeta and never shows a device or cloud chip. When the form
  *  changed since the guide was written, `rest` says where the steps for the new or changed fields came from. */
@@ -218,18 +218,28 @@ export function tickedValues(f: FieldStructure, value: string): string[] {
 
 /** The answer to a step as the person sees it on the stepper: option labels (every ticked one for a tick group), "Yes"
  *  for a ticked box. Screen only. */
-export function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues): string {
+export function shownAnswer(ids: string[], fields: Map<string, FieldStructure>, values: FormValues, labels: readonly WizardOption[] = []): string {
+  /** An option in the reader's language when the step has it (the door checked it names a real option), else as written. */
+  const said = (id: string, o: { value: string; label: string }): string => labels.find((l) => l.fieldId === id && l.value === o.value)?.label ?? o.label;
   return ids.map((id) => {
     const v = (values[id] ?? "").trim();
     const f = fields.get(id);
     if (!v || !f) return "";
     if (isTickGroup(f)) {
       const on = tickedValues(f, v);
-      return (f.options ?? []).filter((o) => on.includes(o.value)).map((o) => o.label).join(", ");
+      return (f.options ?? []).filter((o) => on.includes(o.value)).map((o) => said(id, o)).join(", ");
     }
     if (f.kind === "checkbox") return v === "false" ? "" : "Yes";
-    return f.options?.find((o) => o.value === v)?.label ?? v;
+    const o = f.options?.find((x) => x.value === v);
+    return o ? said(id, o) : v;
   }).filter(Boolean).join(", ");
+}
+
+/** fieldId -> option value -> the option in the reader's language, for one step. */
+function optionLabels(step: WizardStep | undefined, fieldId: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const o of step?.options ?? []) if (o.fieldId === fieldId) out[o.value] = o.label;
+  return out;
 }
 
 /** Steps from the normal path (the model, else the form's own labels) for a structure: the whole form, or only the
@@ -246,10 +256,11 @@ async function pathWizard(s: FormStructure, readerLang: string, cache: boolean):
     if (aiAvailable()) {
       const prompt = await engine.prompts.buildWizard(s, readerLang);
       const r = await run<unknown>("buildWizard", prompt, engine.schemas.wizard, { structure: s, readerLang });
-      const parsed = await engine.parseWizard(r.data, s, readerLang);
+      // The door counts the option labels it could not keep; the count is shown with the steps.
+      const { wizard: parsed, droppedOptions } = engine.readWizard(r.data, s, readerLang);
       if (parsed.steps.length) {
         if (cache) void saveFormGuide(s, parsed).catch(() => undefined); // structure + wizard only, never values
-        return { wizard: parsed, origin: { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms } } };
+        return { wizard: parsed, origin: { kind: "ai", meta: { source: r.source, reason: r.reason, ms: r.ms }, ...(droppedOptions ? { droppedOptions } : {}) } };
       }
     }
   } catch (e) {
@@ -716,6 +727,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   /** The step on screen is not from the guide (the form changed there since the guide was written). */
   const stepNotFromGuide = !!fromGuide && !!step && !fromGuide.fromGuide.includes(step.stepId);
   const quote = fromGuide && step ? fromGuide.quotes[step.stepId] : undefined;
+  /** Option labels the door dropped from the model's steps (the whole wizard, or the steps a guide does not cover). */
+  const pathOrigin = fromGuide ? fromGuide.rest : origin;
+  const droppedOptions = pathOrigin?.kind === "ai" ? pathOrigin.droppedOptions ?? 0 : 0;
+  /** The form's language, to mark its own words on screen; none when it is unknown. */
+  const formLang = structure.lang !== "und" ? structure.lang : undefined;
 
   return (
     <section aria-labelledby="wf-h" className="wayfill">
@@ -770,6 +786,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         </div>
       )}
       {saveNote}
+      {droppedOptions > 0 && (
+        <p className="muted wf-saved" role="note" data-testid="options-dropped">
+          {droppedOptions} {droppedOptions === 1 ? "choice" : "choices"} in your language could not be used, so {droppedOptions === 1 ? "it shows" : "they show"} as the form writes {droppedOptions === 1 ? "it" : "them"}.
+        </p>
+      )}
       {restored && !changed && (
         <p className="muted wf-saved" role="status" data-testid="wf-restored">
           Picked up where you left off. Your answers were kept on this device{filled.length ? ", and the ones you had filled in are back in the form" : ""}.
@@ -780,7 +801,7 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
         <ol className="wf-steps" aria-label="Steps">
           {steps.map((st, i) => {
             const done = st.fieldIds.some((id) => filled.includes(id));
-            const shown = done ? shownAnswer(st.fieldIds, fields, values) : "";
+            const shown = done ? shownAnswer(st.fieldIds, fields, values, st.options) : "";
             const state = i === idx ? "current" : done ? "done" : i < idx ? "skipped" : "todo";
             const flagged = st.fieldIds.some((id) => errors.fields[id]);
             return (
@@ -843,7 +864,11 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
                       {onForm[f.fieldId] !== undefined && onForm[f.fieldId] === values[f.fieldId] && (
                         <small className="muted" data-testid="on-form">Already on the form. Check it, then press Next.</small>
                       )}
-                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }} format={step.expectedFormat} />
+                      <FieldInput f={f} value={values[f.fieldId] ?? ""} onChange={(v) => { pending.current.add(f.fieldId); setValues((x) => ({ ...x, [f.fieldId]: v })); }} format={step.expectedFormat}
+                        labels={optionLabels(step, f.fieldId)} formLang={formLang} />
+                      {(f.kind === "select" || f.kind === "radio" || isTickGroup(f)) && !!f.options?.length && !Object.keys(optionLabels(step, f.fieldId)).length && structure.lang !== readerLang && (
+                        <small className="muted" data-testid="options-as-written">The choices are as the form writes them, in its own language.</small>
+                      )}
                       {errors.fields[f.fieldId] && (
                         <PageError text={errors.fields[f.fieldId]!.text} lang={errLang(errors.fields[f.fieldId]!)} fieldId={f.fieldId}
                           explained={explained[errorKey(readerLang, f.fieldId, errors.fields[f.fieldId]!.text)]} note={note} testId="field-error" />
@@ -929,7 +954,20 @@ export function Wayfill({ host, settings, model, onShowOriginal, onSteps, onStep
   );
 }
 
-function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: string; onChange: (v: string) => void; format?: string }) {
+/** An option as the person reads it: in the reader's language with the form's own words muted beside it (marked with the
+ *  form's language), or the form's words alone when there is no translation. */
+function OptionText({ o, labels, formLang }: { o: { value: string; label: string }; labels: Record<string, string>; formLang?: string }) {
+  const t = labels[o.value];
+  if (!t) return <>{o.label}</>;
+  return <>{t} <span className="wf-orig" lang={formLang} data-testid="option-original">{o.label}</span></>;
+}
+
+function FieldInput({ f, value, onChange, format, labels = {}, formLang }: {
+  f: FieldStructure; value: string; onChange: (v: string) => void; format?: string;
+  /** Option value -> the option in the reader's language (from the step, through the door). */
+  labels?: Record<string, string>;
+  formLang?: string;
+}) {
   const id = `wf-${f.fieldId}`;
   const common = { id, "aria-required": f.required || undefined, "aria-describedby": format ? `${id}-fmt` : undefined } as const;
   const fmt = format ? <span id={`${id}-fmt`} className="visually-hidden">Format {format}</span> : null;
@@ -942,7 +980,8 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
         <>
           <select {...common} value={value} onChange={(e) => onChange(e.target.value)}>
             <option value="">Choose...</option>
-            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {/* An <option> holds text only: the reader's words, then the form's own in brackets. The value written is the option's. */}
+            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{labels[o.value] ? `${labels[o.value]} (${o.label})` : o.label}</option>)}
           </select>{fmt}
         </>
       );
@@ -951,7 +990,7 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
         return (
           <div role="radiogroup" aria-labelledby={id}>
             {f.options.map((o) => (
-              <label key={o.value} className="choice"><input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} /> {o.label}</label>
+              <label key={o.value} className="choice"><input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} /> <OptionText o={o} labels={labels} formLang={formLang} /></label>
             ))}
           </div>
         );
@@ -970,7 +1009,7 @@ function FieldInput({ f, value, onChange, format }: { f: FieldStructure; value: 
         return (
           <div role="group" aria-label={f.label} id={id}>
             {(f.options ?? []).map((o) => (
-              <label key={o.value} className="choice"><input type="checkbox" checked={ticked.includes(o.value)} onChange={(e) => toggle(o.value, e.target.checked)} /> {o.label}</label>
+              <label key={o.value} className="choice"><input type="checkbox" checked={ticked.includes(o.value)} onChange={(e) => toggle(o.value, e.target.checked)} /> <OptionText o={o} labels={labels} formLang={formLang} /></label>
             ))}
           </div>
         );
