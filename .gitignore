@@ -24,3 +24,4 @@ apps/extension/e2e/out/
 dist-public/
 dist-e2e/
 apps/extension/release/
+guides/.review/

@@ -61,6 +61,18 @@ of each wizard they sign off (English, Ukrainian). If no one person reads both, 
 language; name each in `reviewer` with what they checked ("Jana Nováková (cs, en); Olena Koval (uk)"). The reviewer
 should not be the guide's only author. An AI is never a reviewer.
 
+**Start with the review sheet.** `npm run guides:review -- <id>` reads the instructions the guide cites
+(`instructionsUrl` and every `official.url`; a PDF through Distill's PDF reader, a web page through the page reader
+with the page's scripts off) and looks for every `official.text` word for word, block by block and across two
+neighbouring blocks (a sentence a PDF splits in two). It prints one verdict per quote (found, NOT FOUND, or
+UNREADABLE when the source could not be read, which never counts as found) and a count, and writes a sheet to
+`guides/.review/<id>.html` (not committed): each step with its Czech field labels, the English and Ukrainian text side
+by side, its quote with the verdict and the paragraph around it, the steps that make claims with no quote first,
+every review note as a tick box, and the commit template below. The sheet reviews nothing: a found quote proves only
+that the words exist in the source, not that the step agrees with them. It never changes a guide. It uses the
+network, so it is not part of `npm run check` (exit 0: every quote found; 1: a quote not found; 2: a source could not
+be read).
+
 **What they compare against:**
 
 - The form at `officialFormUrl`: is `match.fields` the form as published today (`npm run guides:drift` shows it)?

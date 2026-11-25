@@ -1,6 +1,8 @@
 // Reads a real form the way the product does, for the authoring scripts: a web page through the engine's extractForm
 // (in happy-dom, with the page's scripts off), a PDF through @distill/pdf's readPdf (pdf.js and pdf-lib). Used by
 // `npm run guide:new` and `npm run guides:drift`. Only these scripts touch the network, and only to fetch the form.
+// readInstructions reads the official instructions a guide quotes into text blocks the same way (a PDF's page model, a
+// web page through the engine's page reader), for `npm run guides:review` and `npm run guides:drift`.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -66,6 +68,35 @@ export async function readForm(source, { formIndex = 0, as } = {}) {
     const structure = await e.extractForm(w.document, url, formIndex);
     const form = all[formIndex];
     return { format: "html", structure, address: e.formAddress(url), forms: all.length, reader: e.FORM_READER, source: form ? formSource(form) : sha256(bytes) };
+  } finally {
+    await w.happyDOM.close();
+  }
+}
+
+/**
+ * Reads the official instructions at `source` (an https address or a local file) into text blocks: a PDF through
+ * @distill/pdf's readPdf (its page model), a web page through the engine's extractPage in happy-dom with the page's
+ * scripts off. Returns { format: "html" | "pdf", title, blocks: [{ id, text }] }. Throws when the source cannot be
+ * fetched or opened; a page that needs its scripts to show its text comes back with few or no blocks.
+ */
+export async function readInstructions(source) {
+  const { bytes, type, finalUrl } = await fetchSource(source);
+  if (looksPdf(bytes) || /pdf/i.test(type)) {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const { readPdf } = await pdfPackage();
+    const r = await readPdf(bytes, { pdfjs, fileName: source.split(/[\\/]/).pop() });
+    return { format: "pdf", title: r.page.title, blocks: r.page.blocks.map((b) => ({ id: b.id, text: b.text })) };
+  }
+  const { Window } = await import("happy-dom");
+  const url = finalUrl ?? (isUrl(source) ? source : "https://local.invalid/instructions");
+  const w = new Window({ url, settings: { disableJavaScriptEvaluation: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true, disableIframePageLoading: true } });
+  try {
+    // Inline SVG is dropped first: it holds no instruction text, and happy-dom's parser stops for good at a <style>
+    // inside an SVG (ipc.gov.cz's logo), which left the whole instructions page empty.
+    w.document.write(new TextDecoder("utf-8").decode(bytes).replace(/<svg\b[\s\S]*?<\/svg>/gi, ""));
+    await w.happyDOM.waitUntilComplete();
+    const page = (await engine()).extractPage(w.document, url);
+    return { format: "html", title: page.title, blocks: page.blocks.map((b) => ({ id: b.id, text: b.text })) };
   } finally {
     await w.happyDOM.close();
   }
