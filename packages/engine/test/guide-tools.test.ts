@@ -1,6 +1,6 @@
 // The guide scripts run end to end on local fixtures, with no network (`--source <address>=<file>` reads a local copy
 // in place of an address): guides:review's verdicts and sheet, and check-guides' text lock on a reviewed guide
-// through guide:new --refresh. Every guide here is a made-up test guide in a temporary
+// through guide:new --refresh, and guides:drift's check of the instructions. Every guide here is a made-up test guide in a temporary
 // folder, never one of guides/.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
@@ -136,5 +136,26 @@ describe("check-guides: the text lock on a reviewed guide (local fixtures, no ne
     const still = run("check-guides.mjs", [dir]);
     expect(still.out).toContain("1 reviewed");
     expect(still.code).toBe(0);
+  }, 180_000);
+});
+
+describe("guides:drift watches the instructions (local fixtures, no network)", () => {
+  it("the form unchanged and the quoted sentence edited: the form line is ok, a new line names the step, exit 1", async () => {
+    const dir = library(await testGuide());
+    const form = `${FORM_URL}=${join(FIX, "form.html")}`;
+    const same = run("guides/drift.mjs", ["--dir", dir, "--source", form, "--source", `${INSTRUCTIONS_URL}=${join(FIX, "instructions.html")}`]);
+    expect(same.out).toContain(`ok cz/test-oznameni: ${FORM_URL} matches`);
+    expect(same.out).toContain("ok cz/test-oznameni: instructions hold all 1 quote(s) word for word");
+    expect(same.code).toBe(0);
+
+    const edited = run("guides/drift.mjs", ["--dir", dir, "--source", form, "--source", `${INSTRUCTIONS_URL}=${join(FIX, "instructions-edited.html")}`]);
+    expect(edited.out).toContain(`ok cz/test-oznameni: ${FORM_URL} matches`);
+    expect(edited.out).toContain(`!  cz/test-oznameni: step name (en, uk): the quoted sentence is no longer in ${INSTRUCTIONS_URL}: "${QUOTE}"`);
+    expect(edited.out).toContain("0 drifted or cannot be told, 0 read differently by a newer reader only, 1 quote(s) no longer in the instructions, 0 could not be read");
+    expect(edited.code).toBe(1);
+
+    const unread = run("guides/drift.mjs", ["--dir", dir, "--source", form, "--source", `${INSTRUCTIONS_URL}=${join(FIX, "no-such-file.html")}`]);
+    expect(unread.out).toContain(`?  cz/test-oznameni: instructions ${INSTRUCTIONS_URL} could not be read`);
+    expect(unread.code).toBe(2);
   }, 180_000);
 });

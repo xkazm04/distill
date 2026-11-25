@@ -147,7 +147,15 @@ every guide whose fingerprint no longer matches, says which of three it is:
   exactly the guide's, it cannot know the form is the same, so it returns a reviewed guide to `draft` with a review
   note saying why.
 
-Drift uses the network, so it is not part of `npm run check`; run it before a release, at least monthly, and after
+Drift also watches the instructions. It re-reads each guide's `instructionsUrl` and every step's `official.url` and
+looks for every `official.text` word for word, as `guides:review` does. An authority can rewrite its instructions while
+the form stays the same: then the form's line says `ok` and a line `!  <id>: step <stepId> (en, uk): the quoted sentence
+is no longer in <address>` names each step whose quote is gone. Check those steps against the instructions as published
+now, update the quote and the explanation, and set a reviewed guide back to `draft` until a person has checked it
+again (its text lock fails anyway once the quote changes).
+
+Exit codes: 0 nothing drifted (or only the reader changed); 1 a form changed or cannot be told, or a quote is no
+longer in the instructions; 2 a form or the instructions could not be read. Drift uses the network, so it is not part of `npm run check`; run it before a release, at least monthly, and after
 every change to a reader's version.
 
 A print-only PDF (no form field; Distill found the places to write on from the printed page) is a `pdf` guide like
