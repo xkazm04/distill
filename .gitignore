@@ -24,4 +24,6 @@ apps/extension/e2e/out/
 dist-public/
 dist-e2e/
 apps/extension/release/
-guides/.review/
+
+# Linked registry skills are machine state (declared in .ai/manifest.yaml `skills:`)
+/.claude/skills/tiger

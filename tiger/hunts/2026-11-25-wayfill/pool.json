@@ -1,0 +1,875 @@
+{
+  "proposals": [
+    {
+      "id": "P01",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Review a guide by walking it: machine quote check, review mode, text lock",
+      "kind": "deepen",
+      "outcome": "A Czech-reading person can check a draft guide in one sitting inside the product: each step beside the real form, every official quote already confirmed word for word by machine, the open review notes shown as questions. They hand over an attestation that a maintainer commits, so production shows 'Checked guide' on a real form for the first time. Afterwards, any edit to a reviewed guide's text fails check-guides mechanically.",
+      "builds_on": "The review law and the guide door (parseGuide, check-guides, drift, reader-only refresh), plus the sentence door findSentence that gist and askPage already use.",
+      "mechanism": "Three parts. (1) A script, npm run guide:review -- <id>: fetch instructionsUrl and each official.url with the fetch the guide scripts already have (a PDF already comes back as page blocks), run every official.text through findSentence, print 'found word for word' or 'not found' per step, and run drift for that guide. (2) Review mode in Wayfill when the matched guide is a draft and drafts are on: each step shows English and Ukrainian together beside the real form, its quote-check result and the reviewNotes that name it, with 'Agrees with the instructions' or 'Needs a change' plus a note. The finish card exports an attestation: guide id, sha-256 of the checked text, the name and languages the reviewer types, the date. The app never writes the guide; the reviewer, or a maintainer quoting the attestation, makes the commit, as guides/README.md already allows. (3) The review commit stores that digest in a new optional key reviewedText. It covers steps, notes, quotes, field ids and kinds, not labels, so the reader-only refresh exception still holds. parseGuide and check-guides recompute it and refuse a reviewed guide whose text changed.",
+      "anchors": [
+        "guides/README.md:55-80",
+        "scripts/check-guides.mjs:55-86",
+        "packages/engine/src/guides.ts:134-141",
+        "packages/engine/src/gist.ts:37-54",
+        "scripts/guides/read-form.mjs:52-57",
+        "scripts/guides/library.mjs:37-44",
+        "apps/web/src/ui/Wayfill.tsx:719-725",
+        "guides/cz/vzp-prihlaska-pojistence.json:503-512"
+      ],
+      "evidence": "Observed: the dossier records check-guides printing 0 reviewed, and shippable() leaves drafts out of every build people use, so no real form gets a library guide although README.md:24 promises checked steps. Observed: a review today is four comparisons done by hand over JSON (guides/README.md:64-70); the word-for-word one is mechanical and findSentence already does it for gist and askPage. Observed: check-guides ties fingerprints to match.fields, but nothing ties a review to the step text, so 'editing a reviewed guide's text returns it to draft' holds by convention only. Observed: the three drafts carry 19 quotes per language and 25 open review notes. Hypothesis: a Czech reader finishes cz/oznameni-zmen (10 steps, 3 quotes, 8 notes) in under 30 minutes this way. Prior art: A2J Author guided interviews, written and checked by legal aid staff, used over 7 million times by CALI's own count (https://www.cali.org/content/a2j-author).",
+      "effort": "M",
+      "risk": "Ticking through becomes rubber-stamping. Mitigation: the attestation cannot be exported while a quote check failed, a review note is unresolved or a step was never opened; the name is typed by the person and no code path fills reviewer or reviewedOn. A source page that needs scripts cannot be read by happy-dom: report 'could not be read' and leave that quote to the person, never count it as found. Part 1 (the script) is S and can land alone.",
+      "verify": "check-guides prints at least '1 reviewed' (today: 0 reviewed, 3 draft, 1 demo). A build without VITE_GUIDE_DRAFTS that opens Oznameni-zmen.pdf shows data-testid guide-chip with data-kind reviewed. Changing one word of a reviewed step makes check-guides exit 1, while guide:new --refresh on the same form still passes. guide:review prints a verdict for all 19 quotes of the three drafts. The minutes one reviewer needs for cz/oznameni-zmen are recorded.",
+      "why_groundbreaking": "It turns the product's central promise, steps a named person checked, from zero instances into a repeatable hour of work per form, and makes the review law enforceable by the gate instead of by convention.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P02",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Ground model-built steps in the form's own printed instructions",
+      "kind": "connect",
+      "outcome": "On a form with no library guide, a step shows the sentence of the form's own instructions it rests on, in the form's language, found word for word in the document the person opened, with Show me pointing at it. The model also explains fields having read those instructions instead of guessing from labels.",
+      "builds_on": "The one validation door and the sentence door (findSentence) that gist and askPage already use; the PDF reader's page blocks with their boxes, and locate by block.",
+      "mechanism": "prompts.buildWizard also takes the PageModel, which is value-free by construction because controls are skipped whole. It adds a <page> section of blocks chosen deterministically within a budget: blocks sharing words with field labels and sections first, and a smaller budget on the device. schemas.wizard steps gain an optional source {blockId, sentence}. parseWizard receives the blocks and keeps a source only when findSentence finds the sentence in a block; otherwise it drops the quote, keeps the step and counts it on screen. WizardStep gains the optional source. Wayfill shows it in the existing quote figure, captioned 'This form's own words', with Show me calling host.locate({blockId}). The chip stays the AI chip, never 'Checked'. The same call can seed guide:new skeletons with quote-verified drafts for the 18 corridor forms without a guide.",
+      "anchors": [
+        "packages/engine/src/prompts.ts:130-141",
+        "packages/engine/src/prompts.ts:22-37",
+        "packages/engine/src/gist.ts:37-54",
+        "packages/engine/src/wizard.ts:17-34",
+        "packages/pdf/src/read.ts:167-168",
+        "apps/web/src/pdfHost.tsx:137-147",
+        "packages/engine/src/page.ts:62-79",
+        "guides/cz/vzp-prihlaska-pojistence.json:164"
+      ],
+      "evidence": "Observed: prompts.buildWizard sends fields only, while readPdf already builds the document's blocks and boxes and PdfHost.locate already outlines a block. Observed: for the VZP form the instructions are page 2 of the same PDF, and the oznameni-zmen draft quotes the form PDF itself. So for real corridor forms the grounding text is already in memory and never reaches the prompt (the LLM lens's computed-but-not-wired case). Observed: the same door pattern ships in this repo for gist and askPage. Hypothesis: explanations move closer to what the instructions say; this is not measured.",
+      "effort": "M",
+      "risk": "A verbatim sentence proves presence, not that it supports the explanation. Mitigation: caption it as the form's own words, keep the AI chip, never call it checked. On-device context is small: use budgeted block selection and measure against the session's input quota before turning it on for the device. Page text is untrusted, so it stays inside the GUARD markers. The new builder must be added to the payload-privacy canary test.",
+      "verify": "On the three drafted PDFs, buildWizard with page blocks returns door-verified sources on some steps (today 0 by construction). A unit test shows an invented sentence dropped and counted. For the drafts' official quotes whose source is the form PDF, count how many of the model's sources land in the same block, a recall number that does not exist today. privacy.test.ts passes with value canaries typed into the fixture's fields.",
+      "why_groundbreaking": "It creates a middle tier between an AI guess and a checked guide: an AI step that shows its source in the document itself. It is also the cheapest way to draft the missing 18 guides.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P03",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Papers: answer a fact once, prefill every later form with no model",
+      "kind": "leap",
+      "outcome": "A person who has filled one form opens the next and finds name, birth date, nationality, passport number, address, phone and e-mail already proposed, each in that field's own format and language. It works on any device, with no local model and no value in any prompt.",
+      "builds_on": "Remember my answers and Suggest (device-only), carry-over by label, the split-date and D.M.YYYY writers, and proof of each write.",
+      "mechanism": "A closed vocabulary of about 24 concepts, named after the HTML autofill tokens where one exists (given-name, family-name, bday, country, postal-code, tel, email) plus corridor ones (birth-number, passport-number, nationality, signing-place). Each field gets at most one concept from three sources, all structure only: a guide step (checked by its reviewer), the page's own autocomplete attribute (extractForm does not read it today), or buildWizard's answer through the door (unknown concept dropped and counted). The device keeps facts by concept in canonical form (ISO date, ISO country code) in distill.profile.v2 and joins them to fields deterministically. It renders per field: the field's date shape through the existing writers, a country as the matching option or as its name in the form's language via Intl.DisplayNames, a name as typed. The step says 'From your saved papers - check it', like a carried-over answer; nothing is written until Next. Suggest by model stays as a fallback for untagged fields.",
+      "anchors": [
+        "apps/web/src/ui/profile.ts:16-21",
+        "apps/web/src/ui/Wayfill.tsx:530-532",
+        "apps/web/src/ui/Wayfill.tsx:750-757",
+        "packages/engine/src/prompts.ts:154-166",
+        "apps/web/src/ui/Wayfill.tsx:149-176",
+        "packages/engine/src/types.ts:105-115",
+        "packages/engine/src/fill.ts:338-342",
+        "packages/engine/src/form.ts:486-499"
+      ],
+      "evidence": "Observed: the profile is keyed by fieldId (a print-only PDF's key is 'p1-x293-y630') and handed to the on-device model as raw JSON, so a saved answer can reach another form's field only by a model guessing. Observed: Suggest shows only when the local model is 'available', a state the dossier records as not yet observed on real hardware. Observed: carryOver already does a model-free join by label, but only within one site and one tab session. Prior art: Chromium autofill stores server and local-heuristic field-type predictions per field (https://chromium.googlesource.com/chromium/src/+/main/components/autofill/core/browser/autofill_field.h); the autofill token vocabulary is standard (https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete). Hypothesis: the 21 corridor forms share most of about 15 personal facts; this is not counted yet.",
+      "effort": "L",
+      "risk": "A wrong concept on a legal form, above all another person's block (spouse, child, employer, representative). Mitigation: a field under a section naming another party gets no concept unless a reviewed guide gives one; every prefilled answer is marked and must be confirmed with Next; model-given concepts are labelled as the AI's match. The contract change is one optional field, exported to the JSON Schema for Android. The whole is L; guides plus autocomplete plus five concept families is M.",
+      "verify": "With LanguageModel undefined: fill corpus address-change.html from the persona card with Remember on, open health-insurance.html, and count persona-covered fields pre-answered correctly with zero run() calls for values tasks. Today only same-site fields with an identical label carry over. Typed characters for the second form drop by a measured share. A split birth date and a D.M.YYYY field both receive the one stored ISO date and read back. privacy.test.ts gains profile canaries, and no prompt builder output contains them.",
+      "why_groundbreaking": "It splits the work the way the hybrid design intends: the model only labels structure, the device joins the values. The product's most personal feature stops depending on a local model that few devices have, and Wayfill becomes a private set of papers that fills each next office's form.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P04",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Make every choice answerable: options in your language, groups as ticks",
+      "kind": "deepen",
+      "outcome": "A person who cannot read Czech can choose: every option of a select, radio group or tick group is shown in their language with the form's own wording beside it. A group where several boxes may be ticked can actually be answered with several.",
+      "builds_on": "The one validation door and the write path's choice handling (option values, comma lists, read-back).",
+      "mechanism": "The buildWizard prompt already sends each field's options; ask for them back as an optional step.options [{fieldId, value, label}] in the reader's language. parseWizard keeps an entry only when that fieldId is in the step and that value is one of the field's options, cleans the label, and counts what it dropped. GuideStep takes the same key, so a reviewer checks option wording for official forms. FieldInput shows the translated label with the original in muted text marked with the form's lang, as it already does for the field label, and still writes the option's value, so the write path and its proof are untouched. A checkbox field with more than one option renders one tick per option and holds the comma list fill.ts already expects. Lists over about 30 options stay as written, with type-to-filter. With no model, the options stay as the form writes them and say so.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:834-860",
+        "packages/engine/src/fill.ts:205-214",
+        "packages/engine/src/form.ts:571-580",
+        "packages/engine/src/prompts.ts:43",
+        "packages/engine/src/wizard.ts:17-34",
+        "packages/engine/test/corpus/health-insurance.html:29-34",
+        "packages/engine/test/corpus/aria-choices.html:18-24",
+        "docs/corridor/validation-protocol.md:46-47"
+      ],
+      "evidence": "Observed: FieldInput renders o.label, the page's own text, for selects and radios, and one 'Yes' box built from options[0] for any checkbox field. The repo's own corpus shows both failures. health-insurance.html asks 'duvod' with four Czech options and is task 2 of the validation protocol, whose participants read Czech poorly or not at all. aria-choices.html has a four-box 'Obory cinnosti' group of which the wizard can tick only the first; because the write path treats the value as the full list, pressing Next unticks any other box the page had ticked. Observed: the caption already translates option text in place (apps/extension/src/caption/formText.ts), so the product already treats options as form words, not values. Hypothesis: the model's option labels are good enough; the door only proves they belong to real options.",
+      "effort": "S",
+      "risk": "A mistranslated option leads to a wrong legal choice. Mitigation: the original wording always shows beside it, the step's source chip covers the labels, and reviewed guides carry person-checked labels. The contract change is one optional key on WizardStep, in the schema and the Android export.",
+      "verify": "On health-insurance.html with a model answer, the 'duvod' select shows four labels in the reader's language, each with its Czech original, and choosing one writes its value ('1' to '4') as read back. A door test drops and counts an option whose value is not on the form. On aria-choices.html, ticking two of four boxes in the wizard leaves both aria-checked true and readValues returns two values (today only the first box can be produced). A page-ticked box the person did not touch stays ticked after Next.",
+      "why_groundbreaking": "Choices are where a wrong answer changes a legal outcome, and today they are the one part of the wizard still shown only in Czech. This makes the wizard understandable end to end and fixes a silent unticking.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P05",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Account for every field: live values at each step, a re-read finish",
+      "kind": "deepen",
+      "outcome": "The wizard always shows what the form holds now, never blanks a field it did not change, and shows an agent's accepted answer in its step. It ends with an account of every field, re-read from the page: confirmed, changed since, required and empty, or in error.",
+      "builds_on": "Proof of each write (a write counts only when read back), and the fingerprint binding of Handrail proposals.",
+      "mechanism": "(1) On entering a step, read the page's values for that step's fields and reconcile: a value the page holds that the wizard did not write is shown as 'already on the form' and becomes the step's answer. (2) Next writes only fields whose answer differs from what the page holds, so an untouched optional field is never cleared. (3) At build, every field no step covers gets a basic step marked 'No AI used', and the toolbar counts them ('the AI covered 12 of 19 fields'); this applies the door's 'dropped and counted' rule to wizards. (4) The finish card calls readValues and readErrors once more and lists per field: holds your answer, changed since you answered, required and still empty, or the form shows an error, each with a jump to the step. 'N fields were filled in' is said only for what the re-read confirms. (5) An accepted Handrail proposal lands in the same state.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:328",
+        "apps/web/src/ui/Wayfill.tsx:527-548",
+        "apps/web/src/ui/Wayfill.tsx:793-800",
+        "packages/engine/src/wizard.ts:36-42",
+        "apps/web/src/ui/HandrailPanel.tsx:240-257",
+        "packages/engine/src/fill.ts:147-158",
+        "apps/web/src/ui/Workspace.tsx:124",
+        "docs/corridor/validation-protocol.md:76-83"
+      ],
+      "evidence": "Observed: Wayfill calls host.readValues exactly once, when the guide is built. commit() then sends every field of the step, including an empty string, and fill.ts clears a text field on an empty string. So a value that arrived after the build is invisible in the step and is erased by Next when the field is optional. Such a value can be typed in the original pane (which opens beside the wizard by default), set by a page script, or accepted from the agent (HandrailPanel writes straight to the page and tells Wayfill nothing). Observed: the finish card reports filled.length from memory, not from the page. Observed: parseWizard gives optional fields the model skipped no step and returns no count. The validation protocol fails the whole corridor on a single false 'filled' claim. All of this is read from the code; none of it was run.",
+      "effort": "S",
+      "risk": "A re-read on every step costs a message round trip in the extension and can race a page that is still validating: read once on step entry and reuse the read after the write that already happens. Reconciling could surprise a person who cleared a field on purpose: show 'already on the form' with the value and let them empty it explicitly.",
+      "verify": "New component tests (wayfill.test.ts has 4 today). Type into the original after the guide is built and press Next on that optional step: the page still holds the text (expected to fail today). Change a written field from the page and open the finish card: it lists the field as changed and does not count it. A wizard whose model output skips three optional fields shows 'covered N of M' and three basic steps. Accept a Handrail proposal: the stepper shows that step answered. Protocol measure: zero false 'filled' claims.",
+      "why_groundbreaking": "It extends the proof from each single write to the whole form at the moment the person is about to send it, which is exactly the claim the validation protocol's pass or fail rests on.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P06",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 1,
+      "title": "Keep answers in the form's script and language, translated on the device",
+      "kind": "extend",
+      "outcome": "A Ukrainian or English reader can type an answer in their own language or script and still get it onto a Czech form correctly. Cyrillic is caught before it is written into a Latin-only form, and a free-text answer can be put into Czech on the device, with a translation back to check, without opening a translator site.",
+      "builds_on": "Values-class routing with no cloud fallback, the local-model state machine and its plain-words notes, and proof of each write.",
+      "mechanism": "(1) Script check, no model: a guide (or the form's language) says which script answers take. Before Next, an answer in another script is stopped with one sentence ('This form is filled in in Latin letters, as in your passport'). (2) 'Put into Czech' on free-text fields when the form's language differs from the reader's. Chrome's built-in Translator API, which exists only on the device and reports the same four availability states as LocalModelState, translates the answer and then translates the result back. Both are shown, and the person chooses what is written. Names, numbers, dates, e-mail, phone, addresses and choices never offer it. No cloud parameters exist for it; when no translator is available the note says so, as Suggest does today. A translateValue values task on Gemini Nano is an alternative engine behind the same control.",
+      "anchors": [
+        "docs/corridor/czechia.md:79-80",
+        "docs/corridor/validation-protocol.md:66",
+        "packages/engine/src/route.ts:36-45",
+        "apps/web/src/ai.ts:164-167",
+        "packages/engine/src/types.ts:336",
+        "apps/web/src/ui/Wayfill.tsx:748-760",
+        "packages/pdf/src/fill.ts:5-7",
+        "guides/cz/oznameni-zmen.json:129-131"
+      ],
+      "evidence": "Observed: czechia.md says residence forms must be filled in Czech, and nothing in Wayfill checks or converts answer language. Observed: the PDF writer embeds Noto Sans precisely so Cyrillic can be drawn, so a Cyrillic name is written onto Oznameni zmen and reported written, although the draft guide's own note says the ministry wants Latin block capitals. Observed: the validation protocol counts 'switches to a translator app' as a trust break, and a web translator is exactly where a typed value leaves the device. Prior art: the Translator API is on-device, in desktop Chrome from 138, and Chrome's guide lists both cs and uk (https://developer.chrome.com/docs/ai/translator-api, https://developer.chrome.com/docs/modern-web-guidance/guides/built-in-ai/translator). Hypothesis: single words and short phrases (purpose of stay, occupation) translate well enough. That is not measured, and Chrome's own pages disagree on hardware requirements.",
+      "effort": "M",
+      "risk": "A wrong Czech word on a legal form that the person cannot read. Mitigation: the translation is offered, never automatic; the translation back is always shown; the result carries an 'On this device' chip. Ship part 1 alone if a 50-term corridor glossary scores below a bar set beforehand. Desktop Chrome only, with a language-pack download that needs a click. Part 1 is S.",
+      "verify": "Unit test: Cyrillic typed into a step of cz/oznameni-zmen does not reach writeValues, and the sentence shows (today it is written and counted as filled). A 50-term glossary (nationalities, purposes of stay, marital status, occupations) run en to cs and uk to cs on the device gives a measured share right, recorded before shipping. With the network panel open, 'Put into Czech' makes no request, and the privacy test's canaries stay out of every cloud-eligible prompt. In protocol sessions, translator-app switches on free-text fields are counted before and after.",
+      "why_groundbreaking": "It closes the corridor's stated gap: an English or Ukrainian wizard that must produce Czech-valid values. The person's words stay on the device at the one moment today's product sends them to a translation site.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P07",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 1,
+      "title": "Show a re-read, bilingual 'what you are sending' review before the end",
+      "kind": "deepen",
+      "outcome": "Before sending, the person sees every field of the Czech form in their own language. Each row has the English question, the Czech label, the answer the page holds right now, and one status: in the form, changed by the page since it was written, required but empty, or flagged by the page. One tap goes back to the step. Today the last screen gives only a count of filled fields and tells them to 'look it over', when they cannot read the form.",
+      "builds_on": "Proof of each write (a field counts only when read back), extended from one step at a time to the whole form at the moment it matters most: just before submit or before saving the PDF copy.",
+      "mechanism": "1) A pure engine function, reviewRows(structure, wizard, written, now, errors). It takes what Next wrote and what host.readValues returns now (web and PDF already have it), plus FormErrors from host.readErrors. Each row is one of: ok / changed-by-page / required-empty / skipped-optional / page-error. 2) Wayfill keeps a values-class map, written, filled from commit(); screen only, like values. 3) 'All steps done' becomes the review. A required-empty or page-error row blocks the primary 'Save the filled copy' or 'Show original form' button with a plain sentence until the person goes to that step or presses 'Send anyway'. 4) Answers are shown through shownAnswer, so options appear as labels. No AI runs: the chip says 'No AI used'. Nothing is stored or sent.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:793-807",
+        "apps/web/src/ui/Wayfill.tsx:784",
+        "apps/web/src/ui/Wayfill.tsx:527-548",
+        "apps/web/src/ui/Wayfill.tsx:206-215",
+        "apps/web/src/ui/Wayfill.tsx:380-385",
+        "packages/engine/src/fill.ts:423-459"
+      ],
+      "evidence": "Observed in code: Skip calls commit(true) and goes straight to go(idx+1) with no required check (Wayfill.tsx:529,784). The done card reports only filled.length and says 'Look it over before you send it' (:799). Nothing re-reads the page at the end, so a value a page script cleared or re-masked after its step is never noticed. The validation protocol treats 'Distill showed a field as filled and the original was empty or wrong' as a zero-tolerance failure (validation-protocol.md, pass/fail). The re-read closes that gap at the last moment. Every input it needs already exists (readValues, readErrors, shownAnswer).",
+      "effort": "S",
+      "risk": "Shoulder-surfing: a full table of personal values on one screen. Mitigation: it appears only on the finish card, and values never leave component state. Nagging: blocking on optional rows would annoy, so only required-empty and page-error rows block, with 'Send anyway'. Some PDF print-only spots read back imperfectly; the row says 'could not confirm' rather than claiming success.",
+      "verify": "Unit tests for reviewRows cover all five statuses. Web e2e on /demo/form.html: (a) skip a required step, then finish; the review shows '1 required answer is empty' and its link lands on that step. (b) After a write, a test script clears a field on the page; the row flips to 'changed on the page'. (c) The payload-privacy test still passes, and no network request is made while the review renders. Before: 0 of 3 scenarios flagged. After: 3 of 3.",
+      "why_groundbreaking": "It turns 'trust me, I filled it' into a final proof the person can read in their own language. That is the moment a foreign resident decides whether to submit, and today it is the product's blind spot.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 6,
+        "total": 6,
+        "bad": []
+      }
+    },
+    {
+      "id": "P08",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 1,
+      "title": "Make a person's guide review cheap: verbatim-quote verifier and review sheet",
+      "kind": "extend",
+      "outcome": "A reviewer runs one command and gets a sheet for the guide. It shows every official quote marked found word-for-word or not found in the published instructions, with the paragraph around it. Each step has its Czech field labels and the en and uk text side by side, and every open review note is a checkbox. The reviewer spends their time only on judgement. Optionally, a Czech–English reviewer can sign off the English wizard without waiting for a Ukrainian reviewer. With one bilingual person, the first 'Checked guide' can reach production before the deadline.",
+      "builds_on": "The verbatim-sentence door (findSentence) and the readers that already re-read official forms over the network (guides:drift, read-form.mjs, readPdf's printed page model). The same mechanical rigour moves from model answers to the review job, while the decision stays a person's.",
+      "mechanism": "1) npm run guides:review -- <id> (network, like drift; not in check). It fetches instructionsUrl and each official.url. A PDF is read with @distill/pdf readPdf().page.blocks; HTML with the happy-dom reader, scripts off. Every official.text goes through findSentence, recording page/block or NOT FOUND. 2) It writes a local, git-ignored review-sheet HTML: per step, the Czech labels from match.fields, en and uk question/explanation, the quote with its result and the surrounding instruction paragraph, and a list of steps that make claims with no quote (where the reviewer should look hardest). Each reviewNote is a checkbox item, and the sheet ends with the exact commit-message template from guides/README.md. 3) The tool never writes status, reviewer or reviewedOn; the person's commit does. 4) Optional, needs an owner decision: an additive wire field FormGuide.reviewedLangs. parseGuide requires it when status is reviewed; guideWizard serves 'Checked guide' only in those languages and uses the normal path for the others.",
+      "anchors": [
+        "packages/engine/src/gist.ts:37-54",
+        "packages/engine/src/guides.ts:134-141",
+        "packages/engine/src/guides.ts:215-223",
+        "guides/README.md:59-68",
+        "scripts/guides/drift.mjs:14-30",
+        "guides/cz/vzp-prihlaska-pojistence.json:503-506",
+        "packages/engine/src/types.ts:202-229",
+        "apps/web/src/ui/guides.ts:53-62"
+      ],
+      "evidence": "Observed: 0 reviewed guides. Drafts are hidden in production, so README.md:24's promise of checked steps is unmet on every real form. The README asks the reviewer to confirm 'every official.text word for word as published' (README.md:68). That is purely mechanical, yet done by hand today. The three real drafts hold 19 quoted steps per language (3 + 11 + 5). VZP's quotes come from page 2 of the same PDF, which readPdf already turns into blocks. The rule that a reviewer must read both wizard languages (README.md:59-61) means a single Czech–English reviewer can sign nothing today. Hypothesis: the sheet roughly halves review time. Not measured.",
+      "effort": "S",
+      "risk": "It could be mistaken for automated review. Mitigation: the sheet's header says 'This sheet does not review anything: a person decides'. The tool cannot set status. A found quote only proves the words exist, not that the explanation agrees, and the sheet shows the context paragraph for that judgement. reviewedLangs widens the wire contract; it is optional, split out, and needs the owner's yes.",
+      "verify": "guides:review on the three cz drafts prints N/M quotes found verbatim. A unit test plants a paraphrased quote, which must come back NOT FOUND, and an exact quote with different dashes or spaces, which must be found. Outcome check: the number of guides with status reviewed and a named reviewer in a person's commit moves from 0 to at least 1. Production on that form then shows 'Checked guide' (guide-chip data-kind=reviewed in the web e2e).",
+      "why_groundbreaking": "The library is the product's answer to its worst failure, a confident wrong explanation on a legal form, but it has shipped nothing. Making the person's review the only expensive part is what lets the library grow at all.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P09",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 1,
+      "title": "Ground the model's wizard in the form's own printed instructions, quotes verified",
+      "kind": "connect",
+      "outcome": "On a Czech PDF form with no guide (18 of the 21 corridor forms), each AI-built step can show 'This form's own words (page 2): …' in Czech. The quote is checked to be really in the document, and Show me points at it. Steps without a verified quote say plainly that the explanation is the AI's alone. People get guide-like grounding on forms nobody has written a guide for.",
+      "builds_on": "The model wizard behind its one validation door, and the guide step's official-quote presentation. Both now feed on text the PDF reader already extracts and throws away for Wayfill.",
+      "mechanism": "1) The host exposes the printed blocks it already has: readPdf().page.blocks for PDFs, plus blockBoxes for pointing. 2) A signal-ranked window picks the blocks with the most overlap with field labels and with words like Poučení or vyplňte, cut to fit the on-device quota. They go into buildWizard inside <instructions> markers under GUARD. 3) Each step may return source {blockId, sentence}, copied exactly. 4) parseWizard keeps the source only when findSentence finds it in that block (or any block, as parseAnswer does). Otherwise it drops it and adds it to a count shown on screen. 5) Wayfill reuses the guide quote figure with a different caption and keeps the SourceChip, so it is never mistaken for a checked guide. Wire change: optional WizardStep.source, additive, exported JSON Schema. v1 covers PDFs only: their printed text is values-free by construction (text.ts:1-4; drawn answers are excluded by ANSWER_TAG). HTML page text, which can show a signed-in person's details, stays out of the cloud-eligible prompt.",
+      "anchors": [
+        "packages/engine/src/prompts.ts:130-141",
+        "packages/pdf/src/read.ts:162-163",
+        "packages/pdf/src/types.ts:92-110",
+        "packages/engine/src/gist.ts:37-54",
+        "packages/engine/src/wizard.ts:17-34",
+        "packages/engine/src/types.ts:181-193",
+        "apps/web/src/ui/Wayfill.tsx:719-725",
+        "packages/pdf/src/text.ts:1-4"
+      ],
+      "evidence": "Observed, a computed-but-not-wired gap (LLM lens, grounding): buildWizard sees only field descriptions (prompts.ts:139), while readPdf builds a page model of the same document (read.ts:162). For VZP Přihláška pojištěnce the official instructions are on page 2 of the very PDF (the draft guide's notes and quotes come from there). The verified-quote pattern already runs in production for gist and askPage (findSentence). guides/README.md names a confident wrong explanation as the worst failure; a verified source sentence per step is the cheapest defence. Hypothesis: real corridor PDFs often carry their own instructions; this has to be measured on the pdf corpus.",
+      "effort": "M",
+      "risk": "Longer prompts may exceed Gemini Nano's input quota or slow the 3–8 s wizard. Mitigation: a ranked, capped window, with grounding skipped when over budget. The model may cite a real but irrelevant sentence: the caption says only that the words are the form's, and the explanation keeps its AI chip. Wire change: additive optional field shipped with every consumer under npm run check.",
+      "verify": "(a) Door tests: a fabricated sentence is dropped and counted; a real one with different typographic quotes is kept. (b) On the pdf corpus (prihlaska-pojistence, zmena-adresy, zadost-pobyt) with a recorded model answer, report the share of steps carrying a verified quote; the target is at least 30% where the PDF prints instructions. 0 unverified quotes are ever rendered. (c) The payload-privacy test is extended: the grounded prompt holds no canary value typed into the PDF fields.",
+      "why_groundbreaking": "The AI wizard moves from 'trust the model' to 'here is the form's own sentence', which brings most of a checked guide's trust to forms no person has written a guide for yet.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P10",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 1,
+      "title": "Cross the Czech language gap on the device with Chrome's Translator API",
+      "kind": "extend",
+      "outcome": "When a residence form must be filled in Czech, an answer typed in English or Ukrainian into a free-text field gets 'This form expects Czech: write it in Czech?' The Czech version is shown with a back-translation ('This says: …') so the person knows what they sign. Czech error messages become readable in the person's language even when Gemini Nano is missing or does not support Czech. All of it stays on the device.",
+      "builds_on": "Values-class routing (only_on_device, no fallback, say so when unavailable) and Envelope's draftReply pattern, which writes in the letter's language and adds a translation for the reader. The same honesty now applies to form answers and form errors.",
+      "mechanism": "1) A new values task, translateAnswer, in Task/CLASS_OF, pinned only_on_device. It runs on Chrome's on-device Translator API (reader language to cs, then cs back to the reader), not on the cloud-capable SDK; inferenceSource is on_device by construction. The translator's download state shows like the local model state. 2) Offered only for text and textarea fields whose structure.lang is cs, or whose guide notes say to write in Czech. It never applies to names, numbers, dates, emails or phones (by kind, pattern, and a step's expectedFormat). It is offered only when Chrome's on-device language detector says the typed answer is not Czech. 3) Accepting sets the value; Next still proves the write by read-back. 4) Errors: when explainError cannot run (no LanguageModel), the field error gets a faithful Translator rendering labelled 'Translated on this device' instead of the error note. 5) When the API is unavailable, the step says so, and the answer is never sent anywhere.",
+      "anchors": [
+        "docs/corridor/czechia.md:79-80",
+        "apps/web/src/ui/Wayfill.tsx:89-98",
+        "apps/web/src/ui/Wayfill.tsx:743-760",
+        "packages/engine/src/route.ts:3-22",
+        "packages/engine/src/types.ts:342-360",
+        "apps/web/src/ai.ts:159-167",
+        "packages/engine/src/prompts.ts:219-237"
+      ],
+      "evidence": "Observed: residence forms must be filled in Czech, and nothing translates or checks answer language (czechia.md:79-80; brief 'Known limits'). The repo contains no Translator, LanguageDetector or expectedInputs usage. Prior art: Chrome's Translator API runs on device with downloadable language packs and lists Czech, desktop Chrome 138+ (https://developer.chrome.com/docs/ai/translator-api). The Prompt API's documented languages are en/ja/es, with de/fr on localized pages, not cs or uk (https://developer.chrome.com/docs/ai/prompt-api). So the dedicated translator is the better-founded on-device engine for Czech. Ukrainian pair support is a hypothesis, checked at runtime with Translator.availability.",
+      "effort": "M",
+      "risk": "Machine translation of a legal answer can be wrong. Mitigation: always show the back-translation, never auto-apply, and say 'check this with someone who reads Czech for important answers'. The API is desktop-only and not in every browser: the feature says so and the rest of Wayfill is unchanged. Adding a Task touches the wire contract: one additive union member, with route and privacy tests updated together.",
+      "verify": "(a) route('translateAnswer', any mode) gives values / only_on_device (an extension of the ai.formErrors test). (b) Extension e2e on the address-change corpus page with a stubbed Translator: an English reason is written in Czech and read back; a Czech answer is not offered translation; request interception records 0 requests carrying the answer. (c) With LanguageModel undefined, a Czech field error shows a 'Translated on this device' rendering instead of errorNote's 'there is none here' sentence. Before: 0 of 3. After: 3 of 3.",
+      "why_groundbreaking": "Wayfill's promise ('an English wizard that fills a Czech form') becomes literally true for free text, and the values-on-device law stops costing comprehension on devices without Gemini Nano.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 7,
+        "total": 7,
+        "bad": []
+      }
+    },
+    {
+      "id": "P11",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 1,
+      "title": "Answer once, fill every Czech form: a device-only vault of shared facts",
+      "kind": "leap",
+      "outcome": "After one form, the person's next official form (another office, another site, a PDF) arrives with its identity steps already answered from their own device. Those are name, birth surname, date of birth, birth number, passport or permit number, nationality, sex, address, phone and email. Each is written in the format that particular field expects (DD.MM.RRRR, a split date, 123456/7890, a muž/žena tick pair), proved by read-back, with no model needed. The second form takes a fraction of the steps.",
+      "builds_on": "Format-aware, read-back-proved writing (toIsoDate, writeDate, choice matching), the opt-in device profile, carry-over by label, and the guide's field list. They become one deterministic layer that knows what a field means, not only what it is called.",
+      "mechanism": "1) A closed vocabulary, Concept (about 20 keys), in types.ts. GuideField and a new optional WizardStep.concepts {fieldId: Concept} carry it. buildWizard asks for concepts (structure only: what a field is, never what is in it, so cloud-eligible). parseWizard keeps only vocabulary members that are compatible with the field kind, and drops and counts the rest, following the one-door law. 2) The vault: opt-in 'Remember my answers', localStorage, keyed by concept, canonical values (ISO date, 10-digit birth number, E.164 phone). It replaces the fieldId-keyed profile. 3) A deterministic formatter maps canonical value plus field (pattern, placeholder, maxLength, the guide's expectedFormat, kind, options) to the string fill.ts writes. Exclusive tick pairs take sex or yes/no. 4) In Wayfill, steps whose fields are all known show 'From your answers on this device: check, then Next'. Nothing is written until Next, and the write is still proved. 5) The privacy canary test is extended so vault values can never reach a prompt or Firestore. A 5-day slice: concepts on the three draft guides plus a deterministic prefill for 6 concepts. The full vocabulary and model-assigned concepts come after the deadline.",
+      "anchors": [
+        "apps/web/src/ui/profile.ts:16-21",
+        "apps/web/src/ui/Wayfill.tsx:553-565",
+        "apps/web/src/ui/Wayfill.tsx:148-176",
+        "apps/web/src/ui/guideStore.ts:53-57",
+        "packages/engine/src/types.ts:154-159",
+        "packages/engine/src/fill.ts:338-390",
+        "packages/engine/src/wizard.ts:17-34",
+        "packages/engine/src/prompts.ts:130-141"
+      ],
+      "evidence": "Measured roughly (label regex, 13 concepts): 66 of 116 fields on the three real-form draft guides (VZP Přihláška 18/26, VZP Přihláška a evidenční list 40/71, Oznámení změn 8/19) and 53 of 95 fields across the 13 corpus fixtures are the same identity facts. Observed: the profile is keyed by the source form's fieldId (profile.ts:18), so reuse on another form exists only through suggestValue on the on-device model (Wayfill.tsx:553-565). That model is 'not yet observed on real hardware' (product-tree.json:267), and its documented languages exclude Czech (https://developer.chrome.com/docs/ai/prompt-api). Carry-over by label stops at one origin (guideStore.ts:53-57). The write side already converts formats and proves each write. Hypothesis: a concept layer with deterministic formatting gives cross-form reuse on every device, model or not.",
+      "effort": "L",
+      "risk": "A wrong concept mapping writes a correct value into the wrong field, for example the representative's surname from the person's own. Mitigation: concepts come from guides first; model-assigned concepts are shown with an AI chip and require Next. A section-aware rule keeps a field under a representative/zástupce section unmapped by default, and every write is still the person's Next. A stored identity bundle is a richer target on a shared computer: opt-in, off by default, one-tap delete, never synced, as today's profile. Wire change: additive optional fields with a closed vocabulary, shipped together with Android's schema export.",
+      "verify": "Scenario test with LanguageModel undefined (no AI): fill health-insurance.html with the vault on, then open address-change.html. Its 8 concept fields come prefilled in their expected formats and every one is read back as written. Typed answers on the second form drop from 8 to 0, and the done count stays truthful. A unit test on the VZP draft guide checks the formatter writes DD.MM.RRRR into the birth-date field and ticks exactly one of muž/žena. The privacy canary proves vault values reach 0 prompts and 0 Firestore writes.",
+      "why_groundbreaking": "Wayfill becomes the person's Czech paperwork identity, held only on their device, instead of a wizard per form. Every new guide, and every corridor form, gets cheaper for every user without any model.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P12",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 1,
+      "title": "Put each bilingual guide step beside its official source",
+      "kind": "deepen",
+      "outcome": "A Czech-speaking reviewer can check the English and Ukrainian instructions against the blank form without hunting through JSON, PDF pages and ministry tabs. Their sign-off makes the guide available to residents.",
+      "builds_on": "Guides already pair the two languages by step and field ID. They carry official quotations, source URLs and review notes, and only a named person's commit can publish a checked guide.",
+      "mechanism": "Ship a read-only reviewer page in a few days. Start with the ten-step change-of-address draft. Each row shows the original field, both translations, and the cited passage in context. Put unmatched quotations and open questions at the top. Rebuild the same page for each revision and highlight changed passages even when the form fingerprint still matches.",
+      "anchors": [
+        "guides/README.md:55-85",
+        "guides/cz/oznameni-zmen.json:356-364",
+        "packages/engine/src/guides.ts:130-145",
+        "packages/engine/src/guides.ts:185-228",
+        "scripts/guides/read-form.mjs:43-57",
+        "scripts/guides/drift.mjs:28-49"
+      ],
+      "evidence": "The three real drafts contain 47 English steps, 19 with an official quotation, and 25 review notes. Zero are reviewed. One note asks whether the registered-address box means the old or new address. That is exactly the question a reviewer should see first. Matching a quote together with its surrounding words has an established precedent. [W3C Text Quote Selector](https://www.w3.org/TR/annotation-model/#text-quote-selector)",
+      "effort": "S",
+      "risk": "A verbatim quote can still support the wrong interpretation. Show the enclosing section and its audience, and leave ambiguous or unsupported claims open for the reviewer.",
+      "verify": "On the change-of-address draft, show all 10 step pairs, all 3 quoted steps and all 8 review notes. Alter one cited sentence in a source fixture while keeping the form identical. Its row must flag the change. The production milestone is the first real guide released through a named human review commit.",
+      "why_groundbreaking": "This gives the team a practical route from three private drafts to its first public checked guide. The same work reduces the cost of checking the next guide and of keeping the first one current.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 6,
+        "total": 6,
+        "bad": []
+      }
+    },
+    {
+      "id": "P13",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 1,
+      "title": "Show what the original form still needs when the wizard ends",
+      "kind": "deepen",
+      "outcome": "Before sending a form or saving a copy, a resident can see which required answers are missing, which answers changed after entry, and exactly where to correct them.",
+      "builds_on": "Wayfill already verifies individual writes, reads the page's validation errors and can locate a field on the original. The PDF writer also checks the bytes it produces.",
+      "mechanism": "At Finish, re-read the current structure, values and available errors on the device. Compare each committed answer in the format its field actually stores, such as an ISO date or a set of checkbox values. For print-only PDFs, use the writer's verdict for the current copy. Give every outstanding item a link to its step or original field. Keep partial copies available and identify manual items such as uploads explicitly.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:520-547",
+        "apps/web/src/ui/Wayfill.tsx:679-695",
+        "apps/web/src/ui/Wayfill.tsx:793-805",
+        "apps/web/src/ui/host.ts:13-37",
+        "packages/engine/src/form.ts:721-740",
+        "apps/web/src/pdfHost.tsx:100-119",
+        "packages/pdf/src/fill.ts:364-394",
+        "docs/corridor/validation-protocol.md:74-82"
+      ],
+      "evidence": "Skip advances past a required field, a grouped step shows as answered when any member was filled, and the final heading says “All steps done.” The corridor protocol treats one false claim of completion as a failure. A final review with direct links back to individual answers is an established public-service pattern. [GOV.UK Check answers](https://design-system.service.gov.uk/patterns/check-answers/)",
+      "effort": "M",
+      "risk": "A portal can reformat a valid answer or become unreachable. Use the writer's comparison rules, label an inaccessible field as unverified, and let the resident inspect it. Scope the result to fields Wayfill could inspect.",
+      "verify": "In one synthetic journey, skip a required field, let the page clear an earlier answer, and enter a valid date that the browser reformats. The final review must identify exactly the first two items. Fix either through its link and return directly to a refreshed review. A disconnected tab must show that the check could not finish.",
+      "why_groundbreaking": "Wayfill's proof of a write becomes useful at the moment a person decides whether to send the form. They get a short list of corrections in place of manually comparing every wizard answer with a foreign-language page.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P14",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 1,
+      "title": "Let residents choose every applicable answer in their own language",
+      "kind": "connect",
+      "outcome": "A Ukrainian-speaking tradesperson can select both software services and translation services, see both choices in the wizard summary, and leave exactly those two activities checked on the Czech form.",
+      "builds_on": "The engine separates an option's displayed label from its submitted value and can write whole checkbox groups. The caption already translates form wording while preserving what the page submits.",
+      "mechanism": "Render a labeled control for every option in a group. Pair reader-language wording with the original Czech and bind each control to its original option value. Reuse the caption's translation parser and privacy rules for public option labels, show the inference source, and keep all choices usable in Czech when translation is unavailable. On Next, confirm the selected set and show its individual labels in the summary.",
+      "anchors": [
+        "packages/engine/src/types.ts:43-60",
+        "apps/web/src/ui/Wayfill.tsx:833-860",
+        "apps/web/src/ui/Wayfill.tsx:206-214",
+        "apps/extension/src/caption/formText.ts:11-24",
+        "packages/engine/src/translate.ts:23-49",
+        "packages/engine/src/fill.ts:224-244",
+        "packages/engine/test/corpus/aria-choices.expect.json:8-19",
+        "packages/engine/test/corpus/health-insurance.html:29-35"
+      ],
+      "evidence": "The trade-registration fixture has four activities and expects two simultaneous selections. The wizard exposes one “Yes” box bound to the first option and summarizes a selection as “Yes.” The insurance fixture also shows why the distinction matters: four Czech reasons for registration submit the codes 1 through 4. ODK uses multilingual choice labels over stable answer names. [ODK form languages](https://docs.getodk.org/form-language/)",
+      "effort": "M",
+      "risk": "Options can change while the wizard is open, and the current comma-list encoding can be ambiguous. Recheck the option identities before writing. If a selection cannot be represented uniquely, take the person to the original control.",
+      "verify": "Exercise all 16 subsets of the four trade activities through the wizard. The original page and summary must agree for every subset, including after deselection. Switching between English and Ukrainian must preserve the same selected values. A missing translation must leave the original option selectable.",
+      "why_groundbreaking": "The wizard can translate the decision itself. A resident who understands the question can now act on that understanding even when the answer is the third option, or several options together.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P15",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 1,
+      "title": "Prepare two change-of-address notices from one moving-house interview",
+      "kind": "leap",
+      "outcome": "A resident who chooses to notify both the Interior Ministry and VZP can enter shared facts once, review what each office will receive, and save two separately verified official PDFs.",
+      "builds_on": "The library already describes the ministry's print-only change notice and VZP's fillable change form. Wayfill can fill both kinds of PDF, and its existing carry-over shows how to present a reused answer for confirmation.",
+      "mechanism": "Pilot one local interview for those two exact form versions. Have named reviewers map shared facts such as birth date to each destination and distinguish previous, new, permanent and mailing addresses. Keep the facts in one device session. Show each proposed value beside its destination label before filling. A correction to a shared fact reopens the affected previews. Save each confirmed form with its own remaining signature or attachment steps.",
+      "anchors": [
+        "apps/web/src/App.tsx:25-47",
+        "apps/web/src/ui/Wayfill.tsx:148-175",
+        "guides/cz/oznameni-zmen.json:206-237",
+        "guides/cz/oznameni-zmen.json:356-364",
+        "guides/cz/vzp-prihlaska-a-evidencni-list.json:388-405",
+        "guides/cz/vzp-prihlaska-a-evidencni-list.json:493-505",
+        "apps/web/src/pdfHost.tsx:107-119",
+        "packages/pdf/src/fill.ts:364-394"
+      ],
+      "evidence": "Both offices publish change forms. The ministry distinguishes the old information from the new, while the insurer has a separate mailing-address section. The hypothesis is that explicit fact mapping will save retyping without introducing address substitutions. Suffolk's court-form interviews provide a working precedent for one interview producing several documents. [Interior Ministry change procedure](https://ipc.gov.cz/en/obligations-for-foreigners/changes-with-third-country-nationals/change-of-address/) · [VZP change form](https://www.vzp.cz/pojistenci/formulare/prihlaska-a-evidencni-list-pojistence) · [Suffolk Document Assembly Line](https://assemblyline.suffolklitlab.org/docs/components/AssemblyLine/ALDocument/overview/)",
+      "effort": "L",
+      "risk": "A plausible address in the wrong box can pass a perfect write-back check. Enable reuse only for reviewed mappings on an exact form version. Leave the ministry's disputed registered-address field for explicit resolution, and let the resident choose which offices apply.",
+      "verify": "Use a fictional mover with distinct previous, new and mailing addresses. Enter birth date once, produce both PDFs, and inspect each destination in the saved bytes. Require zero address substitutions. Change one form version and confirm that its shared mappings are withheld while the other form can still be completed. Compare repeated entries and completion time with two independent wizard runs.",
+      "why_groundbreaking": "A resident can start with “I moved” and finish with the documents they chose to prepare. Each future reviewed mapping can remove a repeated question while retaining a separate, inspectable answer for every office.",
+      "parents": [],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P16",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 2,
+      "title": "Sign off a guide per language: machine quote check, review sheet, text lock",
+      "kind": "deepen",
+      "outcome": "One person who reads Czech and English can check a draft from a sheet where every official quote is already confirmed word for word, and their commit puts the first 'Checked guide' on a real form in English without waiting for a Ukrainian reviewer. Afterwards the gate, not convention, catches any edit to checked text and any quoted instruction the authority has since changed.",
+      "builds_on": "The review law in parseGuide and check-guides, the sentence door findSentence, the scripts that already re-read official forms (readForm, guides:drift), and guideWizard's existing fall back to the normal path when a guide has no text for the reader.",
+      "mechanism": "(1) npm run guides:review -- <id> (network, like drift; not in check): fetch instructionsUrl and each official.url with readForm's fetch. A PDF already comes back as page blocks; an HTML page is read with the engine's page reader in happy-dom, scripts off. Each official.text goes through findSentence block by block, then over each pair of neighbouring blocks joined by a space, so a sentence a PDF splits across two blocks is still found. Verdicts: found (with its paragraph), not found, or source could not be read, which never counts as found. (2) It writes a git-ignored review sheet: per step the Czech labels, English and Ukrainian side by side, the quote with its verdict and context, steps that make a claim with no quote listed first, each reviewNote as a tick box, and at the end the commit template and one sha-256 per language. (3) One additive optional key, reviewedText {en?, uk?}: a digest per signed-off language over that language's steps, notes and quotes plus field ids and kinds, not labels, so the reader-only refresh still keeps a review. A reviewed guide needs at least one entry. check-guides recomputes each digest, as it recomputes fingerprints today, and exits 1 when checked text changed; the apps' async library load does the same. guideWizard serves the guide only in a signed-off language; other readers get the normal path with its own chip. The person's commit pastes the digests with reviewer and reviewedOn; no script writes status, reviewer or reviewedOn. (4) guides:drift runs the same quote check, so a reviewed guide whose quoted sentence is no longer in the published instructions exits 1 and names the step. P01's in-app review walk can later read the same verdicts.",
+      "anchors": [
+        "packages/engine/src/gist.ts:37-54",
+        "scripts/guides/read-form.mjs:50-57",
+        "scripts/guides/drift.mjs:28-49",
+        "scripts/check-guides.mjs:67-73",
+        "scripts/guides/library.mjs:37-44",
+        "packages/engine/src/guides.ts:134-141",
+        "packages/engine/src/guides.ts:351-354",
+        "guides/README.md:59-62",
+        "guides/README.md:78-85"
+      ],
+      "evidence": "Observed: check-guides counts 0 reviewed, and library.mjs:37-44 leaves drafts out of every build people use. Observed: README.md:59-62 requires a reviewer for each wizard language, so one Czech-English reader can release nothing today. Observed: check-guides ties fingerprints to match.fields but nothing ties a review to step text, and drift.mjs re-reads only the form, never the instructions. Observed: findSentence searches one text at a time, so a quote split across two PDF blocks would read as not found. Observed: the three drafts hold 19 quotes and 25 review notes, and two of them take their instructions from PDFs that readForm already turns into blocks. Hypothesis: cz/oznameni-zmen (10 steps, 3 quotes, 8 notes) takes one reviewer under an hour; not measured.",
+      "effort": "M",
+      "risk": "A sheet full of confirmed quotes invites rubber-stamping, and per-language release changes the rule in guides/README.md, which is the owner's call. Mitigation: the sheet's first line says it reviews nothing and that a found quote proves only that the words exist; steps without a quote are listed first; the per-language key ships only with the owner's yes, and without it parts 1, 2 and 4 still land with one whole-guide digest. Parts 1 and 2 alone are S.",
+      "verify": "guides:review prints a verdict for all 19 quotes of the three drafts. Unit tests: a paraphrase is not found; the same words with other dashes are found; a sentence split across two blocks is found. Change one word of a signed-off English step: check-guides exits 1. Change a Ukrainian step of a guide signed off for English only: check-guides passes, English readers still see guide-chip data-kind reviewed, Ukrainian readers get the normal path. guide:new --refresh on the same form still passes. Alter one quoted sentence in an instructions fixture: guides:drift exits 1 and names the step. Outcome: check-guides prints at least 1 reviewed after a named person's commit.",
+      "why_groundbreaking": "The library goes from zero checked guides to a route one bilingual person can finish, and 'checked' stays true afterwards because the gate watches both the guide's text and the authority's words.",
+      "parents": [
+        "P01",
+        "P08",
+        "P12"
+      ],
+      "anchor_check": {
+        "ok": 9,
+        "total": 9,
+        "bad": []
+      }
+    },
+    {
+      "id": "P17",
+      "seat": "claude-claude-fable-5-2_xhigh",
+      "round": 2,
+      "title": "Papers by label: saved facts fill the next form with no model and no guide",
+      "kind": "leap",
+      "outcome": "After one form with Remember on, the next form from any office, web or PDF, proposes surname, first name, birth surname, birth date, birth number, nationality, passport number, phone and e-mail, each in that field's format. It works in today's production build with AI off: no local model, no cloud call, no reviewed guide. Addresses are never guessed.",
+      "builds_on": "Carry-over by label (a model-free join that stops at one site), the opt-in device profile, the date writers and proof of each write, and the section each field already carries on web forms and PDFs.",
+      "mechanism": "(1) A closed vocabulary of nine identity facts and a pure engine function conceptOf(field, formLang) over FieldStructure only. Its first source is a closed table keyed by the exact normalized label (sameLabel), Czech first, plus the English and Ukrainian variants the ministry prints on its trilingual forms. A field gets no concept when its kind does not fit, when its label or section names another party (matky, zástupce, zaměstnavatel, manžel, dítě), or when two fields of the form would take the same fact. (2) A vault, distill.profile.v2, keyed by fact in canonical form (ISO date through toIsoDate, digits for numbers). It saves only answers the page read back (res.written) while Remember is on; the fieldId profile stays for Suggest. (3) At build the vault joins into empty fields only, as carryOver does, rendered per field through the existing writers. The step says 'From your saved papers on this device. Check it, then press Next.' Nothing is written before Next and the write is proved as today. (4) Addresses are never joined by label: one form can ask for the previous, new, permanent and mailing address. Only a reviewed guide's tag may map one, on that exact form version, which is P15's rule. (5) Later sources, each an additive optional field through the door: the page's autocomplete token, a reviewed guide's tag, and buildWizard's answer shown as the AI's match. v1 needs no wire change. (6) privacy.test.ts gains vault canaries: in no prompt builder output and no Firestore payload.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:149-176",
+        "apps/web/src/ui/Wayfill.tsx:527-548",
+        "apps/web/src/ui/Wayfill.tsx:740-742",
+        "apps/web/src/ui/profile.ts:16-21",
+        "apps/web/src/ui/guideStore.ts:53-57",
+        "packages/engine/src/guides.ts:66-69",
+        "packages/engine/src/form.ts:481-499",
+        "packages/engine/src/fill.ts:338-353",
+        "packages/pdf/src/labels.ts:613-621",
+        "scripts/guides/library.mjs:37-44",
+        "packages/engine/test/corpus/address-change.html:32-46",
+        "guides/cz/oznameni-zmen.json:361"
+      ],
+      "evidence": "Observed: P11's own count (66 of 116 fields on the three real forms, by label pattern) shows a deterministic matcher already finds the identity fields, yet neither parent uses one as a source. Observed: guide tags reach nobody today, because no guide is reviewed and library.mjs:37-44 leaves drafts out of every production build; health-insurance.html and address-change.html carry no autocomplete token, and form.ts:481-499 does not read one. Observed: those two pages share exactly three facts (surname, first name, phone); the rest of address-change.html is the new address, which a saved address would fill wrongly, and the draft guide's own note says the registered-address box is unresolved. Observed: PDF fields carry a section, so another party's block can be told apart. Hypothesis: exact-label matching reaches most identity fields on the 21 corridor forms; counted on three only.",
+      "effort": "M",
+      "risk": "The right value in another person's box. Mitigation: exact normalized label, never a substring; the party and section exclusion; one field per fact per form; every proposal needs Next; the table is a closed list with a snapshot test over every guide's field list, so a wrong entry is a one-line reviewable change. A saved identity on a shared computer: opt-in and off by default as today, one-tap delete, never synced. Guide tags, model tags and addresses make the whole L.",
+      "verify": "With AI off and LanguageModel undefined: fill health-insurance.html from the persona card with Remember on, then open address-change.html. Surname, first name and phone are proposed (3 of 3 shared facts), the five address fields and the permit number stay empty, and run() is never called. Unit tests: the mother's insured-number field of the VZP form (vzp-prihlaska-a-evidencni-list.json:469-475) gets no concept; one stored ISO birth date lands in a type=date field, a D.M.YYYY text field and a split date, each read back. conceptOf over the three drafts' 116 fields matches a person-checked expectation file with no wrong fact; recall is reported. A fictional mover with distinct previous, new and mailing addresses gets zero address proposals. Vault canaries appear in no prompt and no Firestore payload.",
+      "why_groundbreaking": "The product's most personal feature stops waiting for a local model few devices have and for guides nobody has reviewed: it works on every device today, and guides and models later only sharpen the labels while the values are still joined on the device alone.",
+      "parents": [
+        "P03",
+        "P11",
+        "P15"
+      ],
+      "anchor_check": {
+        "ok": 12,
+        "total": 12,
+        "bad": []
+      }
+    },
+    {
+      "id": "P18",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 2,
+      "title": "Stop silent erasing and unticking; end with a re-read, format-aware account",
+      "kind": "deepen",
+      "outcome": "Next can no longer change what the person did not change. A value typed in the original pane, set by the page, accepted from the agent, or still on the page after 'Forget my answers' survives the step, and a tick group takes several ticks and never unticks a box the page had ticked. The last screen stops saying 'N fields were filled in' from memory. Instead it shows, per field and in the reader's language beside the Czech label, what the page holds now: in the form, changed since, required and empty, the page shows an error, or could not confirm. A reformatted date is not a false alarm, and Save / Show original asks once while a required answer is empty.",
+      "builds_on": "Proof of each write (fill.ts counts a field only when the page holds it afterwards), extended from one write at a time to every field at step entry and at the end.",
+      "mechanism": "(1) Engine: export sameAnswer(field, want, held) from fill.ts, the acceptance rule writeOne already applies (holds/meaningful for text, toIsoDate for dates, set equality over option values for groups, TRUE_RE for single ticks), and a pure account(structure, wizard, answers, held, errors) that gives each field ok | changed | required-empty | skipped-optional | page-error | unconfirmed. (2) Wayfill reads the step's fields once on step entry; a page value the wizard did not write becomes the step's answer, shown as 'already on the form'. commit() sends only fields where !sameAnswer(answer, held), so an untouched field is never cleared, and emptying a field is an explicit Clear. (3) A checkbox with more than one option renders one tick per option bound to option values, seeded from readValues and holding the comma list the write path expects; shownAnswer lists the ticked labels instead of 'Yes'. (4) The stepper marks a step answered only when every field holds (today: any). (5) The finish card renders account(). Only ok rows are counted; required-empty and page-error rows link to their step and make the primary action ask once; a failed re-read says the check could not finish. No AI ('No AI used' chip), values only in component state, no wire change.",
+      "anchors": [
+        "apps/web/src/ui/Wayfill.tsx:328",
+        "apps/web/src/ui/Wayfill.tsx:527-548",
+        "apps/web/src/ui/Wayfill.tsx:579-583",
+        "apps/web/src/ui/Wayfill.tsx:680-684",
+        "apps/web/src/ui/Wayfill.tsx:793-800",
+        "apps/web/src/ui/Wayfill.tsx:856-860",
+        "packages/engine/src/fill.ts:147-158",
+        "packages/engine/src/fill.ts:196-214",
+        "packages/engine/src/fill.ts:424-459",
+        "apps/web/src/ui/HandrailPanel.tsx:244-248"
+      ],
+      "evidence": "Observed in code, not run. readValues runs once at build (Wayfill.tsx:328) and seeds the answers (:367); commit() sends every step field, '' included (:531), and writeText('') clears the field (fill.ts:158). So the next Next on that step erases a value typed in the original after build, an accepted Handrail proposal (written straight to the page, HandrailPanel.tsx:246), or anything on the page after 'Forget my answers' (setValues({}) at :582, whose note promises 'what is already filled in on the page stays there'). A checkbox group renders one 'Yes' box from options[0] (:858) while the write path sets every box to the wanted list (fill.ts:200-214), so ticking it unticks the others. The stepper marks a grouped step done when any field was written (:682), and the done card counts from memory (:797-799). The validation protocol fails on one false 'filled' claim. Hypothesis: all of it is deterministic and testable with happy-dom, as fill.test already is.",
+      "effort": "M",
+      "risk": "Reconciling can surprise a person who emptied a field on purpose: show 'already on the form: ...' with an explicit Clear. A page that is still validating can race the step-entry read: read once on entry and reuse the read that follows the write. The account puts personal values on one screen: finish card only, component state only, nothing stored or sent. No contract change; the payload-privacy tests are untouched.",
+      "verify": "New component tests beside the 4 in wayfill.test.ts, each failing today. (a) Type into the original after build and press Next on that optional step: the page still holds it. (b) Forget my answers, then Next: page values unchanged. (c) aria-choices.html: tick two of the four 'Obory cinnosti' boxes; both are aria-checked true, readValues returns both, and an untouched page-ticked box stays ticked. (d) Type 01.12.2026 into a type=date field: the finish row is ok, not changed. (e) Skip a required step: the finish shows one required-empty row whose link lands on it; a script clears a written field: its row says changed and it is not counted. (f) The privacy tests pass unchanged. Before 0/6, after 6/6.",
+      "why_groundbreaking": "The wizard can no longer destroy what is on the page, and its last screen becomes a proof of the whole form the person can read: exactly the zero-tolerance condition the validation protocol rests on.",
+      "parents": [
+        "P05",
+        "P04",
+        "P13",
+        "P07"
+      ],
+      "anchor_check": {
+        "ok": 10,
+        "total": 10,
+        "bad": []
+      }
+    },
+    {
+      "id": "P19",
+      "seat": "claude-claude-opus-5-5_xhigh",
+      "round": 2,
+      "title": "Run one quote door through guides' life: draft, review lock, instruction drift",
+      "kind": "connect",
+      "outcome": "A maintainer drafting one of the 18 missing corridor guides starts from candidate sentences of the real instructions, each found word for word. A Czech-reading reviewer gets every quote's verdict with its context before judging. A reviewed guide whose step text is edited fails the gate. When the ministry or VZP rewrites its instructions, drift says so and names the step whose quote no longer exists, even though the form is unchanged.",
+      "builds_on": "The review law and the guide door (parseGuide, check-guides, drift, reader-only refresh), and the sentence door findSentence that gist and askPage already pass model output through.",
+      "mechanism": "(1) Engine verifyQuotes(blocks, quotes) over findSentence: per quote, found {blockId, context paragraph} or not_found. (2) read-form gains readInstructions(url): a PDF through readPdf page blocks (as today), HTML through happy-dom plus extractPage with scripts off; 'could not be read' is a third verdict, never counted as found. (3) guides:review <id> (network) prints verdicts for every official.text with the context paragraph, the steps that make claims with no quote, the review notes as a checklist and the README commit template; the sheet says it reviews nothing. (4) Two optional keys, written only in the person's review commit: reviewedText (sha-256 of steps, notes, quotes, field ids and kinds, not labels, so the reader-only refresh still holds) and instructionsSource (a digest per instruction document as checked). parseGuide and check-guides, offline, refuse a reviewed guide whose text digest changed. (5) guides:drift also re-reads instructionsUrl and each official.url. A changed digest re-runs verifyQuotes and reports 'the instructions changed' (all quotes still found) or 'quote gone' with the step, exit 1; drift never edits status. (6) guide:new --instructions <url> lists, per skeleton step, the top door-found sentences ranked by word overlap with the field's label, as TODO candidates. The script calls no model, and the draft stays draft.",
+      "anchors": [
+        "scripts/guides/drift.mjs:24-30",
+        "scripts/check-guides.mjs:55-86",
+        "packages/engine/src/guides.ts:134-141",
+        "packages/engine/src/gist.ts:37-54",
+        "scripts/guides/read-form.mjs:52-70",
+        "scripts/guides/new.mjs:1-11",
+        "packages/engine/src/types.ts:182-228",
+        "packages/engine/src/page.ts:276"
+      ],
+      "evidence": "Observed: drift reads only the form (drift.mjs:28, sources = officialFormUrl or match.urls) and never instructionsUrl. For cz/oznameni-zmen the instructions are an ipc.gov.cz page, and for the VZP evidence list a separate poučení (instructions) PDF, so changed instructions leave a guide quoting text that is gone. Observed: check-guides binds fingerprints to match.fields, but nothing binds a review to the step text, so 'editing a reviewed guide returns it to draft' is a convention. Observed: README.md:68 asks the reviewer to confirm every quote word for word by hand, and findSentence already does that matching (quotes, dashes and spaces folded). Observed: guide:new writes a TODO in every step (new.mjs:3-5), and the three drafts hold 19 quotes per language and 25 notes. Hypothesis: candidate quotes cut drafting time and the verdict sheet cuts review time; neither is measured.",
+      "effort": "M",
+      "risk": "A found quote can be mistaken for a checked explanation: verdicts say only 'these words are in the source', the review stays a person's, and nothing writes status, reviewer or reviewedOn. Pages that need scripts cannot be read by happy-dom: their verdict is 'could not be read', left to the person. Two optional keys widen the guide schema: additive, written only by the review commit, exported with the schema. An app-side review mode on top makes it L; the script sheet keeps it M.",
+      "verify": "guides:review prints a verdict for all 19 quotes of the three drafts (found / not found / could not read). A unit test: a paraphrased quote is not found, and the same quote with typographic dashes is found. Change one word of a reviewed fixture guide's step: check-guides exits 1, while guide:new --refresh on the same form still passes. Run drift on a local copy of oznameni-zmen's instructions with its quoted sentence edited and the form unchanged: the form line says ok and a new line names the step whose quote is gone (today it is silent). Outcome: guides with status reviewed and a named reviewer go from 0 to at least 1.",
+      "why_groundbreaking": "The library stops being three hand-made drafts and becomes a pipeline with a mechanical check at every stage: drafting, review, the reviewed text and the instructions it rests on. The person's judgement stays the one gate, and that is what lets checked guides grow past one and stay true.",
+      "parents": [
+        "P01",
+        "P12",
+        "P02",
+        "P08"
+      ],
+      "anchor_check": {
+        "ok": 8,
+        "total": 8,
+        "bad": []
+      }
+    },
+    {
+      "id": "P20",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 2,
+      "title": "Ground wizard steps in the issuing office’s blank copy",
+      "kind": "connect",
+      "outcome": "A resident can see the official passage behind an AI explanation and jump to it in their PDF, even when their copy already contains personal details.",
+      "builds_on": "The authoring reader already extracts blocks and a source digest from a published PDF. The app already distributes a library at a fixed address, matches forms locally and can highlight a PDF block.",
+      "mechanism": "Pilot the VZP registration form. At authoring time, extract the public blank’s field descriptions and instruction passages, preserving each passage’s heading, page and source URL. Bundle them with the app. On the device, match the form and locate each passage with its surrounding context. Build the grounded prompt entirely from the bundled public material. Let the model cite passage IDs, resolve them locally, and label the explanation as AI-generated. Bind cached explanations to the public source revision and reader language. Give reviewers the same passages and highlight revisions to the text or its heading.",
+      "anchors": [
+        "scripts/guides/read-form.mjs:50-56",
+        "guides/cz/vzp-prihlaska-pojistence.json:158-167",
+        "packages/pdf/src/text.ts:35-53",
+        "apps/web/src/pdfHost.tsx:137-146",
+        "apps/web/src/ui/guides.ts:37-45",
+        "apps/web/src/ui/data.ts:58-73"
+      ],
+      "evidence": "The VZP draft identifies page two of the official blank as its instruction source. The current wizard cache uses only the field fingerprint, which excludes instruction text and reader language. Whether the model picks the passage that actually supports each explanation remains to be measured by a bilingual reviewer.",
+      "effort": "M",
+      "risk": "The same sentence can appear under headings for different applicants. Require a unique contextual match, show the heading beside the quote, and suppress the citation when the match is ambiguous.",
+      "verify": "Open the blank and a copy with a synthetic name printed in an ordinary paragraph. The grounded prompt must be identical for both and contain no name. Show me must land on the cited passage in each copy. Change only its heading while preserving all fields and confirm that the old citation disappears. Have a reviewer score relevance separately from successful text matching.",
+      "why_groundbreaking": "An office’s published blank can support both private, source-linked AI assistance and human guide review. A resident can inspect the evidence without contributing any text from their copy to the prompt.",
+      "parents": [
+        "P02",
+        "P08",
+        "P09"
+      ],
+      "anchor_check": {
+        "ok": 6,
+        "total": 6,
+        "bad": []
+      }
+    },
+    {
+      "id": "P21",
+      "seat": "codex-gpt-6.2-astra_xhigh",
+      "round": 2,
+      "title": "Check which VZP fields apply before calling the form complete",
+      "kind": "deepen",
+      "outcome": "Someone filing for themselves can pass the representative section in one answer. Someone filing through a representative sees exactly which of that person’s details are still missing before saving.",
+      "builds_on": "The VZP guide already groups the representative’s surname, given name and birth date under a bilingual question and quotes the instruction that makes those details conditional. Wayfill can inspect the filled PDF.",
+      "mechanism": "Start with that one section on the exact published PDF edition. Have the named reviewer approve a yes, no or unsure question and its three dependent field IDs in both languages. Keep the answer in the device session. Yes adds the three fields to the finish check, no collapses the section, and unsure keeps the fields and cited instruction visible. At Finish, read the current copy and link each missing applicable answer to its input. If the resident changes their answer after entering details, show what the copy still contains and offer an explicit choice to keep or clear it.",
+      "anchors": [
+        "guides/cz/vzp-prihlaska-pojistence.json:260-271",
+        "packages/engine/src/guides.ts:185-228",
+        "apps/web/src/ui/Wayfill.tsx:520-545",
+        "apps/web/src/ui/Wayfill.tsx:679-695",
+        "apps/web/src/pdfHost.tsx:100-119"
+      ],
+      "evidence": "The draft expresses the condition in prose. Wayfill checks a static required flag and marks a grouped step answered when any member was filled. A condition checked by a reviewer could distinguish a legitimate blank from an incomplete representative section. That benefit has yet to be tested with residents.",
+      "effort": "M",
+      "risk": "An incorrect condition could hide a field the office expects. Activate it only for the reviewed edition, keep the section reachable, surface any conflicting form error, and show the full section whenever applicability is uncertain.",
+      "verify": "Run the same PDF with three fictional applicants. Filing for oneself leaves the three blank fields clear of warnings. Filing through a representative with only a surname entered identifies the two missing fields. Switching to filing for oneself after entry exposes the retained surname and preserves it until the resident chooses to clear it. A different PDF edition gets the ordinary full section.",
+      "why_groundbreaking": "The finish check can answer a question that counting filled boxes cannot resolve: whether this particular applicant has supplied the information the form asks of them.",
+      "parents": [
+        "P01",
+        "P05",
+        "P07"
+      ],
+      "anchor_check": {
+        "ok": 5,
+        "total": 5,
+        "bad": []
+      }
+    }
+  ],
+  "ratings": [
+    {
+      "id": "P07",
+      "score": 8,
+      "why": "Confirmed in Wayfill.tsx that Skip passes a required step (:529, :784), readValues runs once at build (:328) and the finish card counts from memory (:797-799); one point off because comparing what Next sent with what readValues returns now would flag every reformatted answer as changed (aria-choices.expect.json:20-21: 01.12.2026 reads back as 2026-12-01).",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P08",
+      "score": 9,
+      "why": "Every claim held: findSentence exists (gist.ts:37-54), readForm already hands a PDF's page blocks to scripts (read-form.mjs:52-56), drift.mjs re-reads only the form, and README.md:59-62 does require a reviewer per wizard language, so the optional reviewedLangs is a real unlock for one Czech-English reviewer at S effort.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P09",
+      "score": 6,
+      "why": "Confirmed buildWizard sends fields only (prompts.ts:130-141) and that PDF blocks are value-free with boxes to point at (text.ts:1-4, 27-31; read.ts:162-168), but the gain in explanation quality is unmeasured, the quote shown is Czech that this reader cannot read, and the longer prompt is untested against the on-device quota.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P10",
+      "score": 6,
+      "why": "Confirmed no Translator or LanguageDetector use exists in any source file and that a page error stays in Czech without a local model (Wayfill.tsx:91-97), but it adds a Task to the wire contract for an engine that never goes through run(), helps only the few free-text fields, and still lets Cyrillic be written into a form whose guide asks for Latin letters (oznameni-zmen.json:130).",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P11",
+      "score": 5,
+      "why": "Field counts (26, 71, 19) and the fieldId-keyed profile check out, but its five-day slice tags only draft guides, which library.mjs:37-44 leaves out of every production build, and its acceptance check cannot pass: health-insurance.html and address-change.html share three facts, not eight, and the rest are the new address and a permit number the first form never asks for.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P12",
+      "score": 5,
+      "why": "Its counts are right (47 steps, 19 quotes, 25 notes) and drift.mjs does compare only the form, so flagging a changed instruction sentence is new, but it names no matcher, no home for the page and no answer to the one-reviewer-per-language rule, and P08 covers the same ground concretely.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P13",
+      "score": 7,
+      "why": "Confirmed a grouped step counts as answered when any member was filled (Wayfill.tsx:605, :682) and that a print-only PDF's readValues returns the writer's kept answers (pdfHost.tsx:101-104); it gets the stored-format comparison right where P07 does not, but it is M for the same screen and shows no row in the reader's language.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P14",
+      "score": 8,
+      "why": "Confirmed the bug and the gap: FieldInput draws one Yes box from options[0] (Wayfill.tsx:857-859) while the write path treats the value as the whole list (fill.ts:205-213, 234-243), the fixture expects two ticks (aria-choices.expect.json:13-19), and options show only the Czech o.label; the comma ambiguity it names is real (fill.ts:10), though a second model call per form adds latency.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P15",
+      "score": 3,
+      "why": "Confirmed the app holds one opened PDF per tab (App.tsx:25-26), both guides are unreviewed drafts, and the draft's own note says the registered-address box is unresolved (oznameni-zmen.json:361), so this is L effort for two forms and waits on reviewed mappings that do not exist; its zero-address-substitution test is the part worth keeping.",
+      "by": "claude-claude-fable-5-2_xhigh"
+    },
+    {
+      "id": "P01",
+      "score": 8,
+      "why": "Confirmed check-guides ties fingerprints to match.fields but nothing ties a review to step text (scripts/check-guides.mjs:55-86), the 19 quotes and 25 notes are right, and findSentence exists (gist.ts:37); a large win, but it still needs a reviewer to show up, and the in-app review mode is M.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P02",
+      "score": 7,
+      "why": "Confirmed buildWizard sends field descriptions only (prompts.ts:130-141), both hosts expose getPage, pdfHost.locate takes a blockId, and page text is already cloud-eligible through the 'page' class (route.ts); but a verbatim sentence proves presence, not support, and on-device runs with Czech text are unproven.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P03",
+      "score": 7,
+      "why": "Confirmed the profile is keyed by fieldId (profile.ts:16-21), form.ts never reads autocomplete, and Suggest needs an available local model; a big cross-form gain, but L with five days left, and a field in another party's section is a real legal-form hazard.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P04",
+      "score": 8,
+      "why": "Confirmed FieldInput builds one 'Yes' box from options[0] (Wayfill.tsx:858) while writeNative/writeAria set every group box to the wanted list (fill.ts:200-240), so ticking unticks the others; options already reach the model (describeField), so translated labels can ride the existing call and door at S.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P05",
+      "score": 9,
+      "why": "Confirmed readValues runs once at build (Wayfill.tsx:328,367), commit sends '' for every step field (:531), writeText('') clears (fill.ts:158), Handrail writes without telling Wayfill (HandrailPanel.tsx:246), and parseWizard gives skipped optional fields no step and no count: a silent data-erasing bug plus a truthful finish, at S.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P06",
+      "score": 7,
+      "why": "Confirmed the PDF writer embeds Noto Sans so Cyrillic is drawn (pdf/src/fill.ts:5-7) while the oznameni-zmen guide asks for Latin capitals (json:129-131), so the model-free script check is a cheap real fix; the Translator half is desktop-only and its quality unmeasured.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P12",
+      "score": 5,
+      "why": "The counts check out (47 English steps; 3 quotes and 8 notes on oznameni-zmen), but the mechanism is a thin version of P01's review tooling; its one new angle, flagging changed instruction passages, is real (drift.mjs:28 reads only form addresses) but left undeveloped.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P13",
+      "score": 6,
+      "why": "Confirmed Skip bypasses required checks (Wayfill.tsx:529), the stepper marks a step done on any written field (:682), and the done card counts from memory (:797); sound, and it adds format-aware comparison, but it overlaps P05's finish and says little about mechanism.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P14",
+      "score": 5,
+      "why": "The same verified tick-group bug as P04 and a fair point that splitList's comma lists are ambiguous (fill.ts:10), but it adds a separate translation call through the caption path for labels buildWizard's existing call can carry, at M.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P15",
+      "score": 3,
+      "why": "It needs reviewer-made fact mappings across two reviewed guides when check-guides reports 0 reviewed; an L pilot for a single journey, beyond the deadline and narrower than P03.",
+      "by": "claude-claude-opus-5-5_xhigh"
+    },
+    {
+      "id": "P01",
+      "score": 8,
+      "why": "The three real guides are drafts and check-guides.mjs verifies field fingerprints without binding the reviewed wording, so the walkthrough and text digest fill a real gap, although excluding labels from the digest also exempts edits outside the documented reader-only refresh.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P02",
+      "score": 1,
+      "why": "page.ts skips controls but still copies ordinary paragraphs inside forms, so a signed-in page can put a resident’s name beside a field and this design can send it through the cloud-eligible buildWizard call.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P03",
+      "score": 6,
+      "why": "profile.ts stores answers by field ID and form.ts omits autocomplete tokens, so deterministic reuse would save typing, but the VZP guide asks for both the applicant’s and the representative’s birth dates and a shared birth-date concept needs a reliable way to distinguish whose it is.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P04",
+      "score": 9,
+      "why": "FieldInput offers one checkbox for the four activities in aria-choices.html, whose fixture explicitly expects two selections, so this fixes a decision residents cannot enter today, although the form fingerprint omits options and cannot detect a reused code whose meaning changed.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P05",
+      "score": 9,
+      "why": "Wayfill.commit sends an empty string for every unanswered field in the step and HandrailPanel writes independently, so reconciling against the original prevents real data loss provided the wizard tracks which fields the resident deliberately edited.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P06",
+      "score": 3,
+      "why": "The change-notice draft cites an explicit Latin-letter rule, but read.ts can infer a PDF’s language from its printed text, which is too weak a basis for blocking someone’s name on another form.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P07",
+      "score": 7,
+      "why": "Wayfill’s finish card reports filled.length after Skip can bypass a required answer, but shownAnswer reduces a whole checkbox group to ‘Yes’ and PdfHost.readValues returns remembered answers for print-only copies, so the proposed review cannot substantiate every row as written.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P08",
+      "score": 10,
+      "why": "I counted 19 quoted English steps and 25 open notes across three unpublished guides, giving the review sheet an immediate job under the existing two-reviewer allowance in guides/README.md even if single-language publication is deferred.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P09",
+      "score": 4,
+      "why": "PdfHost already exposes page blocks and can highlight them, but text.ts and read.ts filter tagged overlays and recognized answer locations, leaving ordinary personalized text elsewhere on an uploaded PDF eligible for the proposed cloud prompt.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P10",
+      "score": 6,
+      "why": "Wayfill’s error handler would benefit from translation when Gemini is unavailable, but address-change.html has no free-text reason field for the proposed test and the required detector is least reliable on short answers such as occupations ([Chrome Language Detector guidance](https://developer.chrome.com/docs/ai/language-detection)).",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    },
+    {
+      "id": "P11",
+      "score": 4,
+      "why": "Comparing health-insurance.html with address-change.html shows that the first collects neither a residence-document number nor a new address, so the proposed eight prefilled answers cannot be demonstrated from that interview even with perfect concept mapping.",
+      "by": "codex-gpt-6.2-astra_xhigh"
+    }
+  ],
+  "seats": {
+    "claude-claude-fable-5-2_xhigh": {
+      "letter": "A",
+      "spec": "claude:claude-fable-5-2@xhigh"
+    },
+    "claude-claude-opus-5-5_xhigh": {
+      "letter": "B",
+      "spec": "claude:claude-opus-5-5@xhigh"
+    },
+    "codex-gpt-6.2-astra_xhigh": {
+      "letter": "C",
+      "spec": "codex:gpt-6.2-astra@xhigh"
+    }
+  },
+  "problems": {}
+}

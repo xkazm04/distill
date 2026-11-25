@@ -1,0 +1,143 @@
+{
+  "thesis": "Make Wayfill's promise literally true before the deadline: every wizard answer honest (nothing erased, every choice answerable in the reader's language, a final account re-read from the form), and the first person-checked guide one sitting of work instead of a manual audit.",
+  "judge": "claude:claude-opus-5-5 (caller session; same family as two seats)",
+  "kept": [
+    "P18",
+    "P05",
+    "P04",
+    "P14",
+    "P07",
+    "P13",
+    "P08",
+    "P16",
+    "P01",
+    "P12",
+    "P19",
+    "P06",
+    "P17",
+    "P03",
+    "P11",
+    "P10",
+    "P09",
+    "P02",
+    "P20"
+  ],
+  "approved": [
+    "P18",
+    "P05",
+    "P04",
+    "P14",
+    "P07",
+    "P13",
+    "P08",
+    "P16",
+    "P01",
+    "P12",
+    "P19",
+    "P06",
+    "P17",
+    "P03",
+    "P11",
+    "P10"
+  ],
+  "dropped": {
+    "P15": "needs reviewed field mappings; none exist (peers 3/10)",
+    "P21": "needs a reviewed VZP guide first"
+  },
+  "items": {
+    "C1": [
+      "P18",
+      "P05",
+      "P04",
+      "P14"
+    ],
+    "C2": [
+      "P07",
+      "P13"
+    ],
+    "C3": [
+      "P04",
+      "P14"
+    ],
+    "C4": [
+      "P08",
+      "P16",
+      "P01",
+      "P12",
+      "P19"
+    ],
+    "S1": [
+      "P01",
+      "P16",
+      "P19"
+    ],
+    "S2": [
+      "P19",
+      "P16"
+    ],
+    "S3": [
+      "P06"
+    ],
+    "S4": [
+      "P16",
+      "P08"
+    ],
+    "L1": [
+      "P17",
+      "P03",
+      "P11"
+    ],
+    "L2": [
+      "P10",
+      "P06"
+    ],
+    "L3": [
+      "P09",
+      "P02",
+      "P20"
+    ]
+  },
+  "approved_items": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "L1",
+    "L2"
+  ],
+  "notes": "C1 was left unticked at first; the person chose to build it because C2 depends on it.",
+  "landed": [
+    "P18",
+    "P05",
+    "P04",
+    "P14",
+    "P07",
+    "P13",
+    "P08",
+    "P16",
+    "P01",
+    "P12",
+    "P19",
+    "P06",
+    "P17",
+    "P03",
+    "P11",
+    "P10"
+  ],
+  "landed_items": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "L1",
+    "L2"
+  ]
+}

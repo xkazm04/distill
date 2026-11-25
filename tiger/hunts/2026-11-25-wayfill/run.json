@@ -1,0 +1,27 @@
+{
+  "id": "2026-11-25-wayfill",
+  "area": [
+    "packages/engine/src/wizard.ts",
+    "packages/engine/src/guides.ts",
+    "apps/web/src/ui/Wayfill.tsx",
+    "guides",
+    "packages/pdf/src"
+  ],
+  "head": "3043172f9305584b33fabe4303595d7c2cffbc68",
+  "created": "2026-11-25T11:38:53.977Z",
+  "rounds": {
+    "1": {
+      "started": "2026-11-25T11:44:50.359Z",
+      "seats": {},
+      "finished": "2026-11-25T11:55:10.522Z",
+      "stray_changes": 0
+    },
+    "2": {
+      "started": "2026-11-25T11:55:21.954Z",
+      "seats": {},
+      "finished": "2026-11-25T12:03:02.117Z",
+      "stray_changes": 0
+    }
+  },
+  "seats": "codex:gpt-6.2-astra@xhigh,claude:claude-opus-5-5@xhigh,claude:claude-fable-5-2@xhigh"
+}
